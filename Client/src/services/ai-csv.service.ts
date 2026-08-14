@@ -5,7 +5,7 @@ import {environment} from '../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class AiCsvService {
-  private readonly endpointUrl = `${environment.apiUrl}/api/GenerateCsvFromImage`;
+  private readonly endpointUrl = `${environment.apiUrl}/api/csv/generate-from-image`;
 
   constructor(private readonly httpClient: HttpClient) {
   }
