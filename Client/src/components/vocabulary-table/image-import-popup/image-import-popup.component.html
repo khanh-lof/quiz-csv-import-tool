@@ -1,0 +1,68 @@
+<div class="drop-zone"
+     [class.drag-over]="isDragOver"
+     (dragenter)="onDropZoneEnter($event)"
+     (dragover)="onDropZoneDragOver($event)"
+     (dragleave)="onDropZoneDragLeave($event)"
+     (drop)="onDrop($event)"
+     (paste)="onPaste($event)"
+     tabindex="0">
+  <input #imageInput type="file" accept="image/*" multiple style="display: none" (change)="importFromImage($event)"/>
+
+  @if (selectedImages.length > 0) {
+    <div class="images-container">
+      <div class="images-list">
+        @for (image of selectedImages; let i = $index; track i) {
+          <div class="image-item">
+            <div class="image-preview">
+              <img [src]="image.preview" alt="Preview" class="preview-img"/>
+              @if (image.isProcessing) {
+                <div class="processing-overlay">
+                  <nz-icon nzType="loading" nzTheme="outline" class="loading-icon"/>
+                </div>
+              }
+            </div>
+            <div class="image-info">
+              <p class="image-name">{{ image.file.name }}</p>
+              <p class="image-size">{{ (image.file.size || 0) / 1024 | number:'1.0-0' }} KB</p>
+            </div>
+            @if (!isProcessingImages) {
+              <button nz-button nzType="text" nzDanger class="remove-btn" type="button"
+                      (click)="removeImage(i)">
+                <nz-icon nzType="delete" nzTheme="outline"/>
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="images-actions">
+        <button nz-button nzType="primary" nzSize="large" type="button"
+                (click)="submitAllImages()"
+                [disabled]="isProcessingImages">
+          <nz-icon *ngIf="!isProcessingImages" nzType="cloud-upload" nzTheme="outline"/>
+          <nz-icon *ngIf="isProcessingImages" nzType="loading" nzTheme="outline"/>
+          {{ isProcessingImages ? 'Đang xử lý...' : 'Xử lý tất cả (' + selectedImages.length + ')' }}
+        </button>
+        <button nz-button nzType="default" nzSize="large" type="button"
+                (click)="clearAllImages()"
+                [disabled]="isProcessingImages">
+          <nz-icon nzType="close" nzTheme="outline"/>
+          Xóa tất cả
+        </button>
+        @if (!isProcessingImages) {
+          <button nz-button nzType="dashed" nzSize="large" type="button"
+                  (click)="imageInput.click()">
+            <nz-icon nzType="plus" nzTheme="outline"/>
+            Thêm ảnh
+          </button>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="drop-zone-content">
+      <nz-icon nzType="picture" nzTheme="outline" class="drop-zone-icon"/>
+      <p class="drop-zone-text">Kéo ảnh vào đây hoặc bấm Paste (Ctrl+V)</p>
+      <p class="drop-zone-subtext">hoặc chọn file <a href="javascript:void(0)" (click)="imageInput.click()" class="file-link">tại đây</a></p>
+    </div>
+  }
+</div>

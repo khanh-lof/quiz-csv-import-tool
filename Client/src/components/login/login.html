@@ -1,0 +1,56 @@
+<div class="login-container">
+  <div class="login-card">
+    <nz-card nzTitle="Quiz Tool Login" class="login-form-card">
+      <form [formGroup]="loginForm" (ngSubmit)="onLogin()">
+        <div nz-row [nzGutter]="16">
+          <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24">
+            <nz-form-item>
+              <nz-form-control [nzErrorTip]="'Please input your username!'">
+                <label [for]="'username'">Username</label>
+                <input
+                  nz-input
+                  formControlName="username"
+                  placeholder="Enter your username"
+                  id="username"
+                />
+              </nz-form-control>
+            </nz-form-item>
+          </div>
+
+          <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24">
+            <nz-form-item>
+              <nz-form-control [nzErrorTip]="'Please input your password!'">
+                <label [for]="'password'">Password</label>
+                <nz-input-password>
+                  <input nz-input formControlName="password"
+                         placeholder="Enter your password"
+                         id="password"/>
+                </nz-input-password>
+              </nz-form-control>
+            </nz-form-item>
+          </div>
+
+          <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24">
+            <label nz-checkbox [(ngModel)]="rememberMe" [ngModelOptions]="{standalone: true}">
+              Remember me
+            </label>
+          </div>
+
+          <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24">
+            <button
+              nz-button
+              nzType="primary"
+              nzSize="large"
+              nzBlock
+              [disabled]="loginForm.invalid || isLoading"
+              [nzLoading]="isLoading"
+              type="submit"
+            >
+              Login
+            </button>
+          </div>
+        </div>
+      </form>
+    </nz-card>
+  </div>
+</div>

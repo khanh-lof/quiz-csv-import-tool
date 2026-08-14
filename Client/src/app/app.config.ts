@@ -1,0 +1,48 @@
+import {
+  ApplicationConfig,
+  inject,
+  provideAppInitializer,
+  provideBrowserGlobalErrorListeners,
+  provideZoneChangeDetection
+} from '@angular/core';
+import {provideRouter} from '@angular/router';
+
+import {routes} from './app.routes';
+import {en_US, provideNzI18n} from 'ng-zorro-antd/i18n';
+import {registerLocaleData} from '@angular/common';
+import en from '@angular/common/locales/en';
+import {HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi} from '@angular/common/http';
+import {AuthInterceptor} from '../services/auth.interceptor';
+import {AuthService} from '../services/auth.service';
+import {AuthApiService} from '../services/auth-api.service';
+import {firstValueFrom, of} from 'rxjs';
+import {catchError} from 'rxjs/operators';
+import {provideAnimationsAsync} from '@angular/platform-browser/animations/async';
+import {AiCsvService} from '../services/ai-csv.service';
+
+registerLocaleData(en);
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideBrowserGlobalErrorListeners(),
+    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideAnimationsAsync(),
+    provideRouter(routes),
+    provideNzI18n(en_US),
+    provideHttpClient(withInterceptorsFromDi()),
+    provideAppInitializer(() =>
+      firstValueFrom(inject(AuthApiService)
+        .refreshToken()
+        .pipe(
+          catchError(() => of(void 0))
+        ))
+    ),
+    AuthService,
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: AuthInterceptor,
+      multi: true
+    },
+    AiCsvService
+  ]
+};

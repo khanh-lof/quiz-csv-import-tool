@@ -1,0 +1,81 @@
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #ffe0f0 0%, #e0ecff 100%);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 20px;
+}
+
+.login-form-card {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+}
+
+.login-form-card ::ng-deep .ant-card-head {
+  background: linear-gradient(90deg, #ffb7d4, #b7cfff);
+  color: black;
+  border-bottom: none;
+}
+
+.login-form-card ::ng-deep .ant-card-head-title {
+  font-size: 18px;
+  font-weight: 600;
+  background: linear-gradient(90deg, #ffb7d4, #b7cfff);
+  color: #333;
+}
+
+nz-form-item {
+  margin-bottom: 20px;
+}
+
+label:not(.ant-checkbox-wrapper) {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+button[nz-button] {
+  border: none;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 10px;
+  border-radius: 8px;
+}
+button[nz-button]:not([disabled]) {
+  background: linear-gradient(90deg, #ff8ecb, #8fb0ff);
+  color: white;
+}
+
+label:not(.ant-checkbox-wrapper) {
+  font-size: 14px;
+  color: #333;
+}
+
+nz-input-password, input[nz-input] {
+  border-radius: 10px; /* larger rounding */
+  border: 2px solid #ff99cc;
+  font-size: 16px; /* larger input text */
+  height: 42px; /* taller input fields */
+  padding: 4px 10px;
+  transition: 0.25s;
+}
+
+nz-input-password, input[nz-input]:focus {
+  border-color: #88aaff;
+  box-shadow: 0 0 10px rgba(153, 183, 255, 0.7);
+}
+nz-input-password input[nz-input] {
+  border-radius: 0;
+  border: none;
+  height: auto;
+  padding: 0;
+  transition: none;
+}
