@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "QuizTool": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7071",
+      "launchBrowser": false
+    }
+  }
+}

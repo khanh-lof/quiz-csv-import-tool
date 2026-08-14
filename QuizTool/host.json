@@ -1,0 +1,10 @@
+{
+  "version": "2.0",
+  "telemetryMode": "OpenTelemetry",
+  "logging": {
+    "logLevel": {
+      "Default": "Information",
+      "Function": "Information"
+    }
+  }
+}
