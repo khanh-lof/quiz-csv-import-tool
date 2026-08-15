@@ -180,14 +180,20 @@ public class CosmosUserRepository : ICosmosUserRepository
 
     public async Task StartRoundAsync(QuizToolUser user, CancellationToken cancellationToken)
     {
-        user.AiCallCountInRound = 1;
-        user.StartRoundTime = DateTime.UtcNow;
-        await _userContainer.UpsertItemAsync(user, new PartitionKey(user.Username), cancellationToken: cancellationToken);
+        await MutateUserWithRetryAsync(user.Username, u =>
+        {
+            u.AiCallCountInRound = user.AiCallCountInRound;
+            u.StartRoundTime = user.StartRoundTime;
+            return true;
+        }, cancellationToken);
     }
 
     public async Task IncreaseAiCallCountInRound(QuizToolUser user, CancellationToken cancellationToken)
     {
-        user.AiCallCountInRound++;
-        await _userContainer.UpsertItemAsync(user, new PartitionKey(user.Username), cancellationToken: cancellationToken);
+        await MutateUserWithRetryAsync(user.Username, u =>
+        {
+            u.AiCallCountInRound++;
+            return true;
+        }, cancellationToken);
     }
 }
