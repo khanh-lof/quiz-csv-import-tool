@@ -79,7 +79,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
    `AiCsvService.extractCsvContent` (strips markdown code fences, or extracts from the first
    Vietnamese CSV header it finds) → re-parsed by the same `CsvImportService.parseCsv`.
 
-Export: `exportCsv()` validates the form, then `CsvExportService` dispatches to `GimkitCsvBuilder`
+Export: `exportCsv()` validates the form, then `FileExportService` dispatches to `GimkitCsvBuilder`
 or `BlooketCsvBuilder` (selected by the `exportType` form control, `ExportType` enum) based on the
 target platform's required CSV shape. Both builders synthesize incorrect-answer distractors by
 randomly sampling other rows' answers via `Utils.getRandomItem`/`shuffle`, so a builder run needs at

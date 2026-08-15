@@ -48,16 +48,16 @@
 }
 
 /* Inputs inside table */
-input[nz-input] {
-  border-radius: 10px; /* larger rounding */
+textarea[nz-input] {
+  border-radius: 8px; /* larger rounding */
   border: 2px solid #ff99cc;
   font-size: 16px; /* larger input text */
-  height: 42px; /* taller input fields */
   padding: 4px 10px;
   transition: 0.25s;
+  min-height: 32px;
 }
 
-input[nz-input]:focus {
+textarea[nz-input]:focus {
   border-color: #88aaff;
   box-shadow: 0 0 10px rgba(153, 183, 255, 0.7);
 }
@@ -155,7 +155,7 @@ button[nz-button]:hover {
 }
 
 /* Input area of nz-select */
-::ng-deep .right-buttons nz-select .ant-select-selector {
+::ng-deep nz-select .ant-select-selector {
   background: linear-gradient(90deg, #ffe6f2, #e6f0ff); /* light pink → light blue */
   border: 2px solid #ff99cc;
   border-radius: 10px;
@@ -171,8 +171,8 @@ button[nz-button]:hover {
 }
 
 /* Hover / focus effect */
-::ng-deep .right-buttons nz-select .ant-select-selector:hover,
-::ng-deep .right-buttons nz-select .ant-select-selector:focus {
+::ng-deep nz-select .ant-select-selector:hover,
+::ng-deep nz-select .ant-select-selector:focus {
   border-color: #99b7ff;
   box-shadow: 0 0 8px rgba(153, 183, 255, 0.5);
 }
@@ -180,6 +180,8 @@ button[nz-button]:hover {
 /* Dropdown options */
 ::ng-deep .right-buttons nz-select .ant-select-item-option {
   font-size: 18px;
+}
+::ng-deep nz-select .ant-select-item-option {
   background: linear-gradient(90deg, #ffe6f2, #e6f0ff);
 }
 
@@ -195,11 +197,13 @@ button[nz-button]:hover {
 }
 
 /* Arrow icon */
-::ng-deep .right-buttons nz-select .ant-select-arrow {
+::ng-deep nz-select .ant-select-arrow {
   color: #ff66aa;
+}::ng-deep td nz-select {
+  width: 120px
 }
 
-::ng-deep input[nz-input].ant-input.ng-invalid.ng-dirty {
+::ng-deep textarea[nz-input].ant-input.ng-invalid.ng-dirty {
   border: 2px solid red;
 }
 
@@ -210,6 +214,9 @@ button[nz-button]:hover {
   justify-content: center;
   align-content: center;
   gap: 0;
+}
+::ng-deep .ant-table td.ant-table-cell,th.ant-table-cell {
+  padding: 8px;
 }
 
 ::ng-deep .text-error {

@@ -17,28 +17,18 @@ import {
 import { NzInputDirective } from 'ng-zorro-antd/input';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
-import { CsvExportService } from '../../services/csv-export.service';
+import { FileExportService } from '../../services/file-export.service';
 import { Utils } from '../../utils';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { CsvImportService } from '../../services/csv-import.service';
 import { ImageImportPopupComponent } from './image-import-popup/image-import-popup.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-
-export interface QuestionDefinition {
-  question: string;
-  answer: string;
-}
-
-export interface QuestionDefinitionForm {
-  question: FormControl<string>;
-  answer: FormControl<string>;
-}
-
-export enum ExportType {
-  GimKit,
-  Blooket
-}
+import { QuestionDefinitionForm } from '../../models/question-definition-form';
+import { QuestionDefinition } from '../../models/question-definition';
+import { ExportType } from '../../models/export-type';
+import { QuestionType } from '../../models/question-type';
+import { CdkTextareaAutosize } from '@angular/cdk/text-field';
 
 @Component({
   selector: 'app-vocabulary-table',
@@ -53,7 +43,8 @@ export enum ExportType {
     NzOptionComponent,
     ReactiveFormsModule,
     NgTemplateOutlet,
-    NzModalModule
+    NzModalModule,
+    CdkTextareaAutosize
   ],
   templateUrl: './vocabulary-table.html',
   styleUrl: './vocabulary-table.css',
@@ -75,7 +66,7 @@ export class VocabularyTable {
 
   @ViewChildren('rowSourceInputs') rowSourceInputs!: QueryList<ElementRef>;
 
-  constructor(private readonly csvExportService: CsvExportService,
+  constructor(private readonly fileExportService: FileExportService,
               private readonly csvImportService: CsvImportService,
               private readonly notificationService: NzNotificationService,
               private readonly modalService: NzModalService,
@@ -174,26 +165,27 @@ export class VocabularyTable {
     this.refreshTable();
   }
 
-  exportCsv() {
+  exportFile() {
     this.formGroup.markAllAsDirty();
     if (this.formGroup.invalid) {
       this.notificationService.error('Tập trung vàoooo', 'Nhập cho đúng kàaaa', {nzPlacement: 'top'});
       return;
     }
-    this.csvExportService.exportToCsv("NhapFileName.csv", this.listOfData.map(x => ({
+    this.fileExportService.exportFile("NhapFileName.csv", this.listOfData.map(x => ({
       answer: x.controls.answer.value,
-      question: x.controls.question.value
+      question: x.controls.question.value,
+      questionType: x.controls.questionType.value
     } as QuestionDefinition)), this.formGroup.get('exportType')?.value);
   }
-
   private createQuestionFormGroup(): FormGroup<QuestionDefinitionForm> {
     return this.createQuestionFormGroupWithValues('', '');
   }
 
-  private createQuestionFormGroupWithValues(question: string, answer: string): FormGroup<QuestionDefinitionForm> {
+  private createQuestionFormGroupWithValues(question: string, answer: string, questionType: QuestionType = QuestionType.MultipleChoice): FormGroup<QuestionDefinitionForm> {
     return new FormGroup<QuestionDefinitionForm>({
       question: new FormControl<string>(question, [Validators.required]),
       answer: new FormControl<string>(answer, [Validators.required]),
+      questionType: new FormControl(questionType, [Validators.required])
     } as QuestionDefinitionForm);
   }
 
@@ -265,5 +257,7 @@ export class VocabularyTable {
     }
     return forms;
   }
+
+  protected readonly QuestionType = QuestionType;
 }
 

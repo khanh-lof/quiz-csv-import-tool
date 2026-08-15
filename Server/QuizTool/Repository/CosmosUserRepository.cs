@@ -15,7 +15,7 @@ public class CosmosUserRepository : ICosmosUserRepository
     {
         _hasher = hasher;
         var dbName = Environment.GetEnvironmentVariable("COSMOS_DATABASE") ?? "QuizDb";
-        var containerName = Environment.GetEnvironmentVariable("COSMOS_CONTAINER") ?? "";
+        var containerName = Environment.GetEnvironmentVariable("COSMOS_CONTAINER") ?? "Users";
         _maxRefreshTokensPerUser = int.Parse(Environment.GetEnvironmentVariable("MAX_REFRESH_TOKENS_PER_USER") ?? "5");
 
         var dbResponse = client.CreateDatabaseIfNotExistsAsync(dbName).GetAwaiter().GetResult();

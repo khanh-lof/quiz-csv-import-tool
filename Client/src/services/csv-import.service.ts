@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
-import { QuestionDefinition } from '../components/vocabulary-table/vocabulary-table';
+
+import { QuestionDefinition } from '../models/question-definition';
+import { QuestionType } from '../models/question-type';
 
 @Injectable({providedIn: 'root'})
 export class CsvImportService {
@@ -23,6 +25,7 @@ export class CsvImportService {
       .map((row) => ({
         question: row[headerMap.question] ?? '',
         answer: row[headerMap.answer] ?? '',
+        questionType: QuestionType.MultipleChoice
       }))
       .filter((row) => row.question || row.answer);
   }

@@ -6,7 +6,8 @@ import { NzModalRef } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiCsvService } from '../../../services/ai-csv.service';
 import { CsvImportService } from '../../../services/csv-import.service';
-import { QuestionDefinition } from '../vocabulary-table';
+
+import { QuestionDefinition } from '../../../models/question-definition';
 
 interface ImageItem {
   file: File;
