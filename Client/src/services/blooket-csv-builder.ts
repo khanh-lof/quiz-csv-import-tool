@@ -1,17 +1,20 @@
 import { Injectable } from '@angular/core';
 import { Utils } from '../utils';
 import { QuestionDefinition } from '../models/question-definition';
+import { CsvBuilderBase } from './csv-builder-base';
 
 @Injectable({
   providedIn: 'root',
 })
-export class BlooketCsvBuilder {
+export class BlooketCsvBuilder extends CsvBuilderBase {
   private separator = ',';
 
-  public build(rows: QuestionDefinition[]) {
-    let csvResult = '"Blooket\n' +
-      'Import Template",,,,,,,\n' +
-      'Question #,Question Text,Answer 1,Answer 2,Answer 3,Answer 4,Time Limit (sec),Correct Answer(s)';
+  protected override readonly CsvHeader = '"Blooket\n' +
+    'Import Template",,,,,,,\n' +
+    'Question #,Question Text,Answer 1,Answer 2,Answer 3,Answer 4,Time Limit (sec),Correct Answer(s)';
+
+  public buildFromRows(rows: QuestionDefinition[]) {
+    let csvResult = this.CsvHeader;
 
     csvResult += '\n' +
       rows

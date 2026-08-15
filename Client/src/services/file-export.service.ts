@@ -19,7 +19,14 @@ export class FileExportService {
   public exportFile(filename: string, rows: QuestionDefinition[], exportType: ExportType = ExportType.GimKit) {
     if (!rows || !rows.length) return;
 
-    const csvResult = this.buildCsvStringForExportType(exportType, rows);
+    const csvResult = this.buildCsvStringForExportTypeFromRows(exportType, rows);
+    this.download(filename, csvResult, exportType);
+  }
+
+  public exportFileFromCsvContent(filename: string, csvContent: string, exportType: ExportType = ExportType.GimKit) {
+    if (!csvContent || !csvContent.length) return;
+
+    const csvResult = this.buildCsvStringForExportTypeFromCsvContent(exportType, csvContent);
     this.download(filename, csvResult, exportType);
   }
   private convertCsvToXlsx(csvData: string, originalName: string): void {
@@ -33,14 +40,26 @@ export class FileExportService {
     XLSX.writeFile(workbook, outputFileName);
   }
 
-  private buildCsvStringForExportType(exportType: ExportType, rows: QuestionDefinition[]) {
+  private buildCsvStringForExportTypeFromRows(exportType: ExportType, rows: QuestionDefinition[]) {
     switch (exportType) {
       case ExportType.GimKit:
-        return this.gimKitCsvBuilder.build(rows);
+        return this.gimKitCsvBuilder.buildFromRows(rows);
       case ExportType.Blooket:
-        return this.blooketCsvBuilder.build(rows);
+        return this.blooketCsvBuilder.buildFromRows(rows);
       case ExportType.Wayground:
-        return this.waygroundCsvBuilder.build(rows);
+        return this.waygroundCsvBuilder.buildFromRows(rows);
+      default:
+        throw new Error(`Unsupported export type: ${exportType}`);
+    }
+  }
+  private buildCsvStringForExportTypeFromCsvContent(exportType: ExportType, csvContent: string): string {
+    switch (exportType) {
+      case ExportType.GimKit:
+        return this.gimKitCsvBuilder.buildFromCsvContent(csvContent);
+      case ExportType.Blooket:
+        return this.blooketCsvBuilder.buildFromCsvContent(csvContent);
+      case ExportType.Wayground:
+        return this.waygroundCsvBuilder.buildFromCsvContent(csvContent);
       default:
         throw new Error(`Unsupported export type: ${exportType}`);
     }

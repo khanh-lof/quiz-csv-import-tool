@@ -35,12 +35,34 @@
         }
       </div>
 
+      <div class="ai-mode-selection">
+        <label>Chọn chế độ: </label>
+        <nz-radio-group [(ngModel)]="AIMode" nzButtonStyle="solid">
+          <label nz-radio-button [nzValue]="AIGenerationMode.Auto">AI tự nghĩ câu hỏi</label>
+          <label nz-radio-button [nzValue]="AIGenerationMode.Formatted">"Tiếng Việt + pinyin + chữ Hán là gì?"</label>
+        </nz-radio-group>
+      </div>
+      @if (AIMode() === AIGenerationMode.Auto) {
+        <div class="creative-selection">
+          <span>Từ vựng thuộc HSK </span>
+          <nz-input-number nzId="hskLevel" [(ngModel)]="hskLevel" [nzMin]="1" [nzMax]="9" [nzStep]="1"
+                           [nzSize]="'small'"
+                           [nzPrecision]="0"></nz-input-number>
+          <span> - Bài </span>
+          <nz-input-number nzId="lessonNumber" [(ngModel)]="lessonNumber" [nzMin]="1" [nzMax]="100" [nzStep]="1"
+                           [nzSize]="'small'"
+                           [nzPrecision]="0"></nz-input-number>
+        </div>
+      }
       <div class="images-actions">
         <button nz-button nzType="primary" nzSize="large" type="button"
                 (click)="submitAllImages()"
                 [disabled]="isProcessingImages">
-          <nz-icon *ngIf="!isProcessingImages" nzType="cloud-upload" nzTheme="outline"/>
-          <nz-icon *ngIf="isProcessingImages" nzType="loading" nzTheme="outline"/>
+          @if (isProcessingImages) {
+            <nz-icon nzType="loading" nzTheme="outline"/>
+          } @else {
+            <nz-icon nzType="cloud-upload" nzTheme="outline"/>
+          }
           {{ isProcessingImages ? 'Đang xử lý...' : 'Xử lý tất cả (' + selectedImages.length + ')' }}
         </button>
         <button nz-button nzType="default" nzSize="large" type="button"
@@ -63,7 +85,7 @@
       <nz-icon nzType="picture" nzTheme="outline" class="drop-zone-icon"/>
       <p class="drop-zone-text">Kéo ảnh vào đây hoặc bấm Paste (Ctrl+V)</p>
       <p class="drop-zone-subtext">hoặc chọn file <a href="javascript:void(0)" (click)="imageInput.click()"
-                                                     class="file-link">tại đây</a></p>
+                                                     class="file-link"><strong>TẠI ĐÂY</strong></a></p>
     </div>
   }
 </div>

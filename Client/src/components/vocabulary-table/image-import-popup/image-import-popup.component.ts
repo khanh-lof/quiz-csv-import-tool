@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
@@ -8,6 +8,10 @@ import { AiCsvService } from '../../../services/ai-csv.service';
 import { CsvImportService } from '../../../services/csv-import.service';
 
 import { QuestionDefinition } from '../../../models/question-definition';
+import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
+import { FormsModule } from '@angular/forms';
+import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
+import { AIGenerationMode } from '../../../models/aigeneration-mode';
 
 interface ImageItem {
   file: File;
@@ -20,7 +24,11 @@ interface ImageItem {
   imports: [
     CommonModule,
     NzButtonComponent,
-    NzIconDirective
+    NzIconDirective,
+    FormsModule,
+    NzRadioGroupComponent,
+    NzRadioComponent,
+    NzInputNumberComponent
   ],
   templateUrl: './image-import-popup.component.html',
   styleUrl: './image-import-popup.component.css'
@@ -32,6 +40,11 @@ export class ImageImportPopupComponent {
   protected isDragOver = false;
   protected isProcessingImages = false;
   protected dragEnterCounter = 0;
+  protected hskLevel = signal(1);
+  protected lessonNumber = signal(1);
+
+  protected readonly AIGenerationMode = AIGenerationMode;
+  protected AIMode = signal(AIGenerationMode.Auto);
 
   constructor(
     private readonly modalRef: NzModalRef,
