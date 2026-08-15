@@ -1,4 +1,4 @@
-﻿import {AbstractControl} from '@angular/forms';
+﻿import { AbstractControl } from '@angular/forms';
 
 export class Utils {
   public static getRandomItem<T>(items: T[]): T {

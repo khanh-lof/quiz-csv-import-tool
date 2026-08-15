@@ -1,5 +1,5 @@
-import { Injectable, inject } from '@angular/core';
-import { Router, CanActivateFn } from '@angular/router';
+import { inject, Injectable } from '@angular/core';
+import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
 
 
@@ -10,6 +10,7 @@ function hasAccess(authService: AuthService, router: Router) {
   router.navigate(['/login']);
   return false;
 }
+
 @Injectable({
   providedIn: 'root'
 })

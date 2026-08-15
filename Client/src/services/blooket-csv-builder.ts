@@ -1,6 +1,6 @@
-import {Injectable} from '@angular/core';
-import {QuestionDefinition} from '../components/vocabulary-table/vocabulary-table';
-import {Utils} from '../utils';
+import { Injectable } from '@angular/core';
+import { QuestionDefinition } from '../components/vocabulary-table/vocabulary-table';
+import { Utils } from '../utils';
 
 @Injectable({
   providedIn: 'root',

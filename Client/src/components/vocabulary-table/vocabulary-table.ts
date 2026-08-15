@@ -1,7 +1,7 @@
-import {Component, DestroyRef, ElementRef, QueryList, ViewChildren} from '@angular/core';
-import {CommonModule, NgTemplateOutlet} from '@angular/common';
-import {NzButtonComponent} from 'ng-zorro-antd/button';
-import {NzTableModule} from 'ng-zorro-antd/table';
+import { Component, DestroyRef, ElementRef, QueryList, ViewChildren } from '@angular/core';
+import { CommonModule, NgTemplateOutlet } from '@angular/common';
+import { NzButtonComponent } from 'ng-zorro-antd/button';
+import { NzTableModule } from 'ng-zorro-antd/table';
 import {
   AbstractControl,
   FormArray,
@@ -14,16 +14,16 @@ import {
   ValidatorFn,
   Validators
 } from '@angular/forms';
-import {NzInputDirective} from 'ng-zorro-antd/input';
-import {NzIconDirective} from 'ng-zorro-antd/icon';
-import {NzOptionComponent, NzSelectComponent} from 'ng-zorro-antd/select';
-import {CsvExportService} from '../../services/csv-export.service';
-import {Utils} from '../../utils';
-import {NzNotificationService} from 'ng-zorro-antd/notification';
-import {NzModalModule, NzModalService} from 'ng-zorro-antd/modal';
-import {CsvImportService} from '../../services/csv-import.service';
-import {ImageImportPopupComponent} from './image-import-popup/image-import-popup.component';
-import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
+import { NzInputDirective } from 'ng-zorro-antd/input';
+import { NzIconDirective } from 'ng-zorro-antd/icon';
+import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
+import { CsvExportService } from '../../services/csv-export.service';
+import { Utils } from '../../utils';
+import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
+import { CsvImportService } from '../../services/csv-import.service';
+import { ImageImportPopupComponent } from './image-import-popup/image-import-popup.component';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 export interface QuestionDefinition {
   question: string;

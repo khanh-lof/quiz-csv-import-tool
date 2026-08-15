@@ -11,7 +11,7 @@ describe('CsvImportService', () => {
     const rows = service.parseCsv('Câu hỏi,Đáp án\n"Hello, world","Chào, bạn"');
 
     expect(rows).toEqual([
-      { question: 'Hello, world', answer: 'Chào, bạn' },
+      {question: 'Hello, world', answer: 'Chào, bạn'},
     ]);
   });
 });

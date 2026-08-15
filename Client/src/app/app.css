@@ -1,7 +1,7 @@
 .center-container {
   min-height: 100vh;
   display: flex;
-  justify-content: center;  /* center horizontally */
+  justify-content: center; /* center horizontally */
   background: linear-gradient(135deg, #ffe6f2 0%, #e6f0ff 100%); /* matches your theme */
   padding: 20px;
 }

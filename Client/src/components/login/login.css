@@ -49,6 +49,7 @@ button[nz-button] {
   margin-top: 10px;
   border-radius: 8px;
 }
+
 button[nz-button]:not([disabled]) {
   background: linear-gradient(90deg, #ff8ecb, #8fb0ff);
   color: white;
@@ -72,6 +73,7 @@ nz-input-password, input[nz-input]:focus {
   border-color: #88aaff;
   box-shadow: 0 0 10px rgba(153, 183, 255, 0.7);
 }
+
 nz-input-password input[nz-input] {
   border-radius: 0;
   border: none;

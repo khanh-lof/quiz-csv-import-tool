@@ -1,19 +1,23 @@
 import { Injectable } from '@angular/core';
-import {HttpClient} from '@angular/common/http';
-import {firstValueFrom} from 'rxjs';
-import {environment} from '../environments/environment';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { environment } from '../environments/environment';
 
-@Injectable({ providedIn: 'root' })
+@Injectable({providedIn: 'root'})
 export class AiCsvService {
   private readonly endpointUrl = `${environment.apiUrl}/api/csv/generate-from-image`;
 
   constructor(private readonly httpClient: HttpClient) {
   }
+
   async generateCsvFromImage(imageFile: File): Promise<string> {
     const formData = new FormData();
     formData.append('image', imageFile, imageFile.name);
 
-    const response = await firstValueFrom(this.httpClient.post(this.endpointUrl, formData, { withCredentials: true, responseType: 'text' }));
+    const response = await firstValueFrom(this.httpClient.post(this.endpointUrl, formData, {
+      withCredentials: true,
+      responseType: 'text'
+    }));
 
     if (!response) {
       throw new Error('Không thể xử lý ảnh từ API.');
@@ -28,7 +32,10 @@ export class AiCsvService {
       formData.append('images', file, file.name);
     });
 
-    const response = await firstValueFrom(this.httpClient.post(this.endpointUrl, formData, { withCredentials: true, responseType: 'text' }));
+    const response = await firstValueFrom(this.httpClient.post(this.endpointUrl, formData, {
+      withCredentials: true,
+      responseType: 'text'
+    }));
 
     if (!response) {
       throw new Error('Không thể xử lý ảnh từ API.');

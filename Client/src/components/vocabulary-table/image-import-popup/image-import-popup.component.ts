@@ -1,12 +1,12 @@
-import {Component, EventEmitter, Output} from '@angular/core';
-import {CommonModule} from '@angular/common';
-import {NzButtonComponent} from 'ng-zorro-antd/button';
-import {NzIconDirective} from 'ng-zorro-antd/icon';
-import {NzModalRef} from 'ng-zorro-antd/modal';
-import {NzNotificationService} from 'ng-zorro-antd/notification';
-import {AiCsvService} from '../../../services/ai-csv.service';
-import {CsvImportService} from '../../../services/csv-import.service';
-import {QuestionDefinition} from '../vocabulary-table';
+import { Component, EventEmitter, Output } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { NzButtonComponent } from 'ng-zorro-antd/button';
+import { NzIconDirective } from 'ng-zorro-antd/icon';
+import { NzModalRef } from 'ng-zorro-antd/modal';
+import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { AiCsvService } from '../../../services/ai-csv.service';
+import { CsvImportService } from '../../../services/csv-import.service';
+import { QuestionDefinition } from '../vocabulary-table';
 
 interface ImageItem {
   file: File;

@@ -1,10 +1,7 @@
-import {
-  HttpEvent, HttpHandler, HttpInterceptor,
-  HttpRequest, HttpErrorResponse
-} from '@angular/common/http';
+import { HttpErrorResponse, HttpEvent, HttpHandler, HttpInterceptor, HttpRequest } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, throwError, BehaviorSubject } from 'rxjs';
-import { catchError, switchMap, filter, take } from 'rxjs/operators';
+import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { catchError, filter, switchMap, take } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { AuthApiService } from './auth-api.service';
 
@@ -17,7 +14,8 @@ export class AuthInterceptor implements HttpInterceptor {
   constructor(
     private auth: AuthService,
     private api: AuthApiService
-  ) {}
+  ) {
+  }
 
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
     const token = this.auth.getAccessToken();
