@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, signal } from '@angular/core';
+import { Component, DestroyRef, EventEmitter, Output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
@@ -9,14 +9,36 @@ import { CsvImportService } from '../../../services/csv-import.service';
 
 import { QuestionDefinition } from '../../../models/question-definition';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
-import { FormsModule } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder, FormControl,
+  FormGroup,
+  FormsModule, ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+  Validators
+} from '@angular/forms';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { AIGenerationMode } from '../../../models/aigeneration-mode';
+import { Utils } from '../../../utils';
+import { ImageImportModel } from '../../../models/image-import-model';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
+import { ExportType } from '../../../models/export-type';
+import { finalize } from 'rxjs';
+import { FileExportService } from '../../../services/file-export.service';
+import { NzSpinComponent } from 'ng-zorro-antd/spin';
 
 interface ImageItem {
   file: File;
   preview: string;
   isProcessing: boolean;
+}
+interface ImageImportForm {
+  hskLevel: FormControl<number | null>;
+  lessonNumber: FormControl<number | null>;
+  AIMode: FormControl<AIGenerationMode | null>;
+  exportType: FormControl<ExportType | null>;
 }
 
 @Component({
@@ -28,7 +50,11 @@ interface ImageItem {
     FormsModule,
     NzRadioGroupComponent,
     NzRadioComponent,
-    NzInputNumberComponent
+    NzInputNumberComponent,
+    ReactiveFormsModule,
+    NzOptionComponent,
+    NzSelectComponent,
+    NzSpinComponent
   ],
   templateUrl: './image-import-popup.component.html',
   styleUrl: './image-import-popup.component.css'
@@ -40,18 +66,59 @@ export class ImageImportPopupComponent {
   protected isDragOver = false;
   protected isProcessingImages = false;
   protected dragEnterCounter = 0;
-  protected hskLevel = signal(1);
-  protected lessonNumber = signal(1);
 
   protected readonly AIGenerationMode = AIGenerationMode;
-  protected AIMode = signal(AIGenerationMode.Auto);
+  protected formGroup: FormGroup<ImageImportForm>;
+  private requiredIfAIAutoMode: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const imageImportForm = control as FormGroup<ImageImportForm>;
+    if (imageImportForm.controls.AIMode.value === AIGenerationMode.Auto) {
+      const hskLevelValidationErrors = Validators.required(imageImportForm.controls.hskLevel);
+      const lessonNumberValidationErrors = Validators.required(imageImportForm.controls.lessonNumber);
+      const exportTypeValidationErrors = Validators.required(imageImportForm.controls.exportType);
+      if (hskLevelValidationErrors) {
+        Utils.addError(imageImportForm.controls.hskLevel, 'required');
+      }
+      else {
+        Utils.removeError(imageImportForm.controls.hskLevel, 'required');
+      }
+      if (lessonNumberValidationErrors) {
+        Utils.addError(imageImportForm.controls.lessonNumber, 'required');
+      }
+      else {
+        Utils.removeError(imageImportForm.controls.lessonNumber, 'required');
+      }
+      if (exportTypeValidationErrors) {
+        Utils.addError(imageImportForm.controls.exportType, 'required');
+      }
+      else {
+        Utils.removeError(imageImportForm.controls.exportType, 'required');
+      }
+      return null;
+    }
+
+    Utils.removeError(imageImportForm.controls.hskLevel, 'required');
+    Utils.removeError(imageImportForm.controls.lessonNumber, 'required');
+    Utils.removeError(imageImportForm.controls.exportType, 'required');
+    return null;
+  };
 
   constructor(
     private readonly modalRef: NzModalRef,
     private readonly aiCsvService: AiCsvService,
     private readonly csvImportService: CsvImportService,
+    private readonly fileExportService: FileExportService,
     private readonly notificationService: NzNotificationService,
+    private readonly destroyRef: DestroyRef,
+    formBuilder: FormBuilder
   ) {
+    this.formGroup = formBuilder.group<ImageImportForm>({
+      AIMode: formBuilder.control<AIGenerationMode | null>(AIGenerationMode.Auto, Validators.required),
+      hskLevel: formBuilder.control<number | null>(null),
+      lessonNumber: formBuilder.control<number | null>(null),
+      exportType: formBuilder.control<ExportType | null>(null),
+    },{
+      validators : [this.requiredIfAIAutoMode]
+    })
   }
 
   closePopup(): void {
@@ -175,6 +242,12 @@ export class ImageImportPopupComponent {
   }
 
   async submitAllImages(): Promise<void> {
+    this.formGroup.markAllAsDirty();
+    this.formGroup.updateValueAndValidity();
+    if (this.formGroup.invalid) {
+      this.notificationService.error('Tập trung vàoooo', 'Nhập đủ thông tin ei', {nzPlacement: 'top'});
+      return;
+    }
     if (this.selectedImages.length === 0) {
       this.notificationService.warning('Lỗi', 'Không có ảnh để xử lý.', {nzPlacement: 'top'});
       return;
@@ -183,25 +256,54 @@ export class ImageImportPopupComponent {
     this.isProcessingImages = true;
     const imageCount = this.selectedImages.length;
 
-    try {
-      this.selectedImages.forEach(img => img.isProcessing = true);
+    this.selectedImages.forEach(img => img.isProcessing = true);
 
-      const imageFiles = this.selectedImages.map(img => img.file);
-      const csvContent = await this.aiCsvService.generateCsvFromImages(imageFiles);
-      const rows = this.csvImportService.parseCsv(csvContent);
+    const imageFiles = this.selectedImages.map(img => img.file);
+    if (this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
+      this.aiCsvService.generateCsvFromImages(imageFiles).pipe(takeUntilDestroyed(this.destroyRef),
+        finalize(() => {
+          this.isProcessingImages = false;
+          this.selectedImages.forEach(img => img.isProcessing = false);
+        })).subscribe({
+        next: csvContent => {
+          const rows = this.csvImportService.parseCsv(csvContent);
 
-      if (rows.length === 0) {
-        this.notificationService.warning('Không có dữ liệu', 'AI không trả về dữ liệu CSV hợp lệ từ các ảnh.', {nzPlacement: 'top'});
-        return;
-      }
+          if (rows.length === 0) {
+            this.notificationService.warning('Không có dữ liệu', 'AI không trả về dữ liệu CSV hợp lệ từ các ảnh.', {nzPlacement: 'top'});
+            return;
+          }
 
-      this.importedRows.emit(rows);
-      this.clearAllImages();
-      this.closePopup();
-    } catch (error) {
-      this.notificationService.error('Lỗi nhập ảnh', error instanceof Error ? error.message : 'Không thể xử lý ảnh.', {nzPlacement: 'top'});
-    } finally {
-      this.isProcessingImages = false;
+          this.importedRows.emit(rows);
+          this.clearAllImages();
+          this.closePopup();
+        },
+        error: err => {
+          this.notificationService.error('Lỗi nhập ảnh', err instanceof Error ? err.message : 'Không thể xử lý ảnh.', {nzPlacement: 'top'});
+        },
+      });
+      return;
     }
+    this.aiCsvService.generateCsvFromImagesCreative(imageFiles, {
+      hskLevel: this.formGroup.controls.hskLevel.value,
+        AIMode: this.formGroup.controls.AIMode.value,
+        lessonNumber: this.formGroup.controls.lessonNumber.value,
+        exportType: this.formGroup.controls.exportType.value,
+    } satisfies ImageImportModel).pipe(takeUntilDestroyed(this.destroyRef),
+      finalize(() => {
+        this.isProcessingImages = false;
+        this.selectedImages.forEach(img => img.isProcessing = false);
+      })).subscribe({
+      next: csvContent => {
+        this.fileExportService.exportFileFromCsvContent('NhapFileName.csv', csvContent, this.formGroup.controls.exportType.value!);
+
+        this.clearAllImages();
+        this.closePopup();
+      },
+      error: err => {
+        this.notificationService.error('Lỗi nhập ảnh', err instanceof Error ? err.message : 'Không thể xử lý ảnh.', {nzPlacement: 'top'});
+      },
+    });
   }
+
+  protected readonly ExportType = ExportType;
 }

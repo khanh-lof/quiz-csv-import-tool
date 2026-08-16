@@ -508,7 +508,7 @@ public sealed class CsvGenerationController
                 
                 Do NOT output:
                 
-                * CSV headers unless the user explicitly includes headers in the required output.
+                * CSV headers.
                 * Markdown.
                 * Code fences.
                 * Explanations.
@@ -516,7 +516,7 @@ public sealed class CsvGenerationController
                 * Notes.
                 * Analysis.
                 * Introductory or concluding text.
-                
+                DO NOT INCLUDE CSV headers in response.
                 The final response must contain nothing except the CSV rows.
                 """
         };
@@ -598,7 +598,7 @@ public sealed class CsvGenerationController
         yield return
             "Question Text,Question Type,Option 1,Option 2,Option 3,Option 4,Option 5,Correct Answer,Time in seconds,Image Link,Answer explanation";
         yield return
-            "Question type will be \"\"Multiple Choice\"\" or \"\"Fill-in-the-Blank\"\". The option 2-5 will be the alternative answers for \"\"Fill-in-the-Blank\"\" and optional in this case";
+            "Question type will be \"\"Multiple Choice\"\" or \"\"Fill-in-the-Blank\"\". The option 2-5 must be empty for \"\"Fill-in-the-Blank\"\", the option 1 is the correct answer";
         yield return
             """
             "Text of the question

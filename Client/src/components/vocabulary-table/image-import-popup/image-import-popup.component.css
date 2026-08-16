@@ -213,7 +213,6 @@
 nz-input-number {
   border-radius: 8px;
   border-color: #ff8ecb;
-  color: #ff8ecb;
 }
 
 .ant-radio-button-wrapper.ant-radio-button-wrapper-checked {
@@ -244,7 +243,13 @@ nz-input-number {
   gap: 12px;
   width: 100%;
 }
-.ai-mode-selection {
+.export-type-select {
+  width: 100%;
+}
+.export-type-select nz-select {
+  width: 180px;
+}
+.ai-selection {
   display: flex;
   flex-direction: column;
   width: 100%;
