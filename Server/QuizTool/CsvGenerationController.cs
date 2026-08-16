@@ -380,7 +380,6 @@ public sealed class CsvGenerationController
                 * Match or distinguish similar words.
                 * Vocabulary usage in a short dialogue.
                 * Practical real-life situations.
-                * Identify information shown in a lesson image.
                 * Questions requiring students to infer simple information from an image.
                 
                 Do not force question types that are not suitable for the available vocabulary or CSV structure.
