@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, map, Observable } from 'rxjs';
 import { environment } from '../environments/environment';
+import { ImageImportModel } from '../models/image-import-model';
+import { AIGenerationMode } from '../models/aigeneration-mode';
 
 @Injectable({providedIn: 'root'})
 export class AiCsvService {
@@ -10,38 +12,39 @@ export class AiCsvService {
   constructor(private readonly httpClient: HttpClient) {
   }
 
-  async generateCsvFromImage(imageFile: File): Promise<string> {
-    const formData = new FormData();
-    formData.append('image', imageFile, imageFile.name);
-
-    const response = await firstValueFrom(this.httpClient.post(this.endpointUrl, formData, {
-      withCredentials: true,
-      responseType: 'text'
-    }));
-
-    if (!response) {
-      throw new Error('Không thể xử lý ảnh từ API.');
-    }
-
-    return this.extractCsvContent(response);
-  }
-
-  async generateCsvFromImages(imageFiles: File[]): Promise<string> {
+  generateCsvFromImagesCreative(imageFiles: File[], imageImportModel: ImageImportModel): Observable<string> {
     const formData = new FormData();
     imageFiles.forEach(file => {
       formData.append('images', file, file.name);
     });
 
-    const response = await firstValueFrom(this.httpClient.post(this.endpointUrl, formData, {
+    const response = this.httpClient.post(`${this.endpointUrl}?hskLevel=${imageImportModel.hskLevel}&lessonNumber=${imageImportModel.lessonNumber}&exportType=${imageImportModel.exportType}&isCreative=${(imageImportModel.AIMode === AIGenerationMode.Auto)}`, formData, {
       withCredentials: true,
       responseType: 'text'
-    }));
+    });
 
     if (!response) {
       throw new Error('Không thể xử lý ảnh từ API.');
     }
 
-    return this.extractCsvContent(response);
+    return response.pipe(map((text: string) => this.extractCsvContent(text)));
+  }
+  generateCsvFromImages(imageFiles: File[]): Observable<string> {
+    const formData = new FormData();
+    imageFiles.forEach(file => {
+      formData.append('images', file, file.name);
+    });
+
+    const response = this.httpClient.post(this.endpointUrl, formData, {
+      withCredentials: true,
+      responseType: 'text'
+    });
+
+    if (!response) {
+      throw new Error('Không thể xử lý ảnh từ API.');
+    }
+
+    return response.pipe(map((text: string) => this.extractCsvContent(text)));
   }
 
   extractCsvContent(rawText: string): string {

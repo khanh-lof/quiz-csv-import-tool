@@ -6,64 +6,114 @@
      (drop)="onDrop($event)"
      (paste)="onPaste($event)"
      tabindex="0">
-  <input #imageInput type="file" accept="image/*" multiple style="display: none" (change)="importFromImage($event)"/>
+  <form [formGroup]="formGroup" (ngSubmit)="submitAllImages()">
+    <input #imageInput type="file" accept="image/*" multiple style="display: none" (change)="importFromImage($event)"/>
 
-  @if (selectedImages.length > 0) {
-    <div class="images-container">
-      <div class="images-list">
-        @for (image of selectedImages; let i = $index; track i) {
-          <div class="image-item">
-            <div class="image-preview">
-              <img [src]="image.preview" alt="Preview" class="preview-img"/>
-              @if (image.isProcessing) {
-                <div class="processing-overlay">
-                  <nz-icon nzType="loading" nzTheme="outline" class="loading-icon"/>
-                </div>
+    @if (selectedImages.length > 0) {
+      <div class="images-container">
+        <div class="images-list">
+          @for (image of selectedImages; let i = $index; track i) {
+            <div class="image-item">
+              <div class="image-preview">
+                <img [src]="image.preview" alt="Preview" class="preview-img"/>
+                @if (image.isProcessing) {
+                  <div class="processing-overlay">
+                    <nz-icon nzType="loading" nzTheme="outline" class="loading-icon"/>
+                  </div>
+                }
+              </div>
+              <div class="image-info">
+                <p class="image-name">{{ image.file.name }}</p>
+                <p class="image-size">{{ (image.file.size || 0) / 1024 | number:'1.0-0' }} KB</p>
+              </div>
+              @if (!isProcessingImages) {
+                <button nz-button nzType="text" nzDanger class="remove-btn" type="button"
+                        (click)="removeImage(i)">
+                  <nz-icon nzType="delete" nzTheme="outline"/>
+                </button>
               }
             </div>
-            <div class="image-info">
-              <p class="image-name">{{ image.file.name }}</p>
-              <p class="image-size">{{ (image.file.size || 0) / 1024 | number:'1.0-0' }} KB</p>
-            </div>
-            @if (!isProcessingImages) {
-              <button nz-button nzType="text" nzDanger class="remove-btn" type="button"
-                      (click)="removeImage(i)">
-                <nz-icon nzType="delete" nzTheme="outline"/>
-              </button>
-            }
+          }
+        </div>
+
+        <div class="ai-selection">
+          <label>Chọn chế độ: </label>
+          <nz-radio-group [formControl]="formGroup.controls.AIMode" nzButtonStyle="solid">
+            <label nz-radio-button [nzValue]="AIGenerationMode.Auto">AI tự nghĩ câu hỏi</label>
+            <label nz-radio-button [nzValue]="AIGenerationMode.Formatted">"Tiếng Việt + pinyin + chữ Hán là gì?"</label>
+          </nz-radio-group>
+        </div>
+
+        @if (formGroup.controls.AIMode.value === AIGenerationMode.Auto) {
+          <div class="export-type-select">
+            <nz-select [formControl]="formGroup.controls.exportType" nzPlaceHolder="Chọn template cho">
+              <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
+              <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
+              <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
+            </nz-select>
+            <ng-container
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.hskLevel}"/>
+          </div>
+          <div class="creative-selection">
+            <span>Từ vựng thuộc HSK </span>
+            <span>
+              <nz-input-number nzId="hskLevel" [formControl]="formGroup.controls.hskLevel" [nzMin]="1" [nzMax]="9"
+                               [nzStep]="1"
+                               [nzSize]="'small'"
+                               [nzPrecision]="0"></nz-input-number>
+              <ng-container
+                *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.hskLevel}"/>
+            </span>
+            <span> - Bài </span>
+            <span>
+            <nz-input-number nzId="lessonNumber" [formControl]="formGroup.controls.lessonNumber" [nzMin]="1"
+                             [nzMax]="100" [nzStep]="1"
+                             [nzSize]="'small'"
+                             [nzPrecision]="0"></nz-input-number>
+              <ng-container
+                *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.lessonNumber}"/>
+            </span>
           </div>
         }
-      </div>
-
-      <div class="images-actions">
-        <button nz-button nzType="primary" nzSize="large" type="button"
-                (click)="submitAllImages()"
-                [disabled]="isProcessingImages">
-          <nz-icon *ngIf="!isProcessingImages" nzType="cloud-upload" nzTheme="outline"/>
-          <nz-icon *ngIf="isProcessingImages" nzType="loading" nzTheme="outline"/>
-          {{ isProcessingImages ? 'Đang xử lý...' : 'Xử lý tất cả (' + selectedImages.length + ')' }}
-        </button>
-        <button nz-button nzType="default" nzSize="large" type="button"
-                (click)="clearAllImages()"
-                [disabled]="isProcessingImages">
-          <nz-icon nzType="close" nzTheme="outline"/>
-          Xóa tất cả
-        </button>
-        @if (!isProcessingImages) {
-          <button nz-button nzType="dashed" nzSize="large" type="button"
-                  (click)="imageInput.click()">
-            <nz-icon nzType="plus" nzTheme="outline"/>
-            Thêm ảnh
+        <div class="images-actions">
+          <button nz-button nzType="primary" nzSize="large" type="submit"
+                  [disabled]="isProcessingImages">
+            @if (isProcessingImages) {
+              <nz-icon nzType="loading" nzTheme="outline"/>
+            } @else {
+              <nz-icon nzType="cloud-upload" nzTheme="outline"/>
+            }
+            {{ isProcessingImages ? 'Đang xử lý...' : 'Xử lý tất cả (' + selectedImages.length + ')' }}
           </button>
-        }
+          <button nz-button nzType="default" nzSize="large" type="button"
+                  (click)="clearAllImages()"
+                  [disabled]="isProcessingImages">
+            <nz-icon nzType="close" nzTheme="outline"/>
+            Xóa tất cả
+          </button>
+          @if (!isProcessingImages) {
+            <button nz-button nzType="dashed" nzSize="large" type="button"
+                    (click)="imageInput.click()">
+              <nz-icon nzType="plus" nzTheme="outline"/>
+              Thêm ảnh
+            </button>
+          }
+        </div>
       </div>
-    </div>
-  } @else {
-    <div class="drop-zone-content">
-      <nz-icon nzType="picture" nzTheme="outline" class="drop-zone-icon"/>
-      <p class="drop-zone-text">Kéo ảnh vào đây hoặc bấm Paste (Ctrl+V)</p>
-      <p class="drop-zone-subtext">hoặc chọn file <a href="javascript:void(0)" (click)="imageInput.click()"
-                                                     class="file-link">tại đây</a></p>
-    </div>
-  }
+    } @else {
+      <div class="drop-zone-content">
+        <nz-icon nzType="picture" nzTheme="outline" class="drop-zone-icon"/>
+        <p class="drop-zone-text">Kéo ảnh vào đây hoặc bấm Paste (Ctrl+V)</p>
+        <p class="drop-zone-subtext">hoặc chọn file <a href="javascript:void(0)" (click)="imageInput.click()"
+                                                       class="file-link"><strong>TẠI ĐÂY</strong></a></p>
+      </div>
+    }
+
+    <ng-template let-formControl let-message="message" let-errorKey="errorKey" #errorMessage>
+      @if (formControl.hasError(errorKey) && formControl.dirty) {
+        <br/>
+        <small class="text-error">{{ message }}</small>
+      }
+    </ng-template>
+  </form>
 </div>

@@ -2,14 +2,14 @@ import { Injectable } from '@angular/core';
 import { Utils } from '../utils';
 import { QuestionDefinition } from '../models/question-definition';
 import { QuestionType } from '../models/question-type';
+import { CsvBuilderBase } from './csv-builder-base';
 @Injectable({
   providedIn: 'root',
 })
-export class WaygroundCsvBuilder {
+export class WaygroundCsvBuilder extends CsvBuilderBase {
   private separator = ',';
 
-  public build(rows: QuestionDefinition[]) {
-    let csvResult = `Question Text,Question Type,Option 1,Option 2,Option 3,Option 4,Option 5,Correct Answer,Time in seconds,Image Link,Answer explanation
+  protected override readonly CsvHeader = `Question Text,Question Type,Option 1,Option 2,Option 3,Option 4,Option 5,Correct Answer,Time in seconds,Image Link,Answer explanation
 "Text of the question
 
 (required)
@@ -53,6 +53,9 @@ Leave blank for ""Open-Ended"", ""Poll"", ""Draw"" and ""Fill-in-the-Blank"".","
 
 
 "`;
+
+  public buildFromRows(rows: QuestionDefinition[]) {
+    let csvResult = this.CsvHeader;
 
 
     csvResult += '\n' +

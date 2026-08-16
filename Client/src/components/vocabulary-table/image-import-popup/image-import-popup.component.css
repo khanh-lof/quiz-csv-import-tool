@@ -1,3 +1,6 @@
+:host {
+  min-height: 580px;
+}
 .drop-zone {
   margin-bottom: 20px;
   padding: 24px;
@@ -202,9 +205,55 @@
 .images-actions {
   display: flex;
   gap: 12px;
-  justify-content: center;
+  justify-content: start;
   flex-wrap: wrap;
   width: 100%;
+}
+
+nz-input-number {
+  border-radius: 8px;
+  border-color: #ff8ecb;
+}
+
+.ant-radio-button-wrapper.ant-radio-button-wrapper-checked {
+  background: linear-gradient(90deg, #ff8ecb, #8fb0ff);
+  border: none;
+  box-shadow: 0 4px 12px rgba(143, 176, 255, 0.4);
+}
+
+.ant-radio-button-wrapper {
+  font-weight: 600;
+  border-color: #ff8ecb;
+  color: #ff8ecb;
+}
+.ant-radio-group-solid .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled):hover {
+  filter: brightness(1.15);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(255, 150, 170, 0.4);
+  background: linear-gradient(90deg, #ff8ecb, #8fb0ff);
+}
+.ant-radio-group-solid .ant-radio-button-wrapper:not(.ant-radio-button-wrapper-disabled):hover {
+  filter: brightness(1.05);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(255, 150, 170, 0.4);
+}
+.creative-selection {
+  display: flex;
+  justify-content: start;
+  gap: 12px;
+  width: 100%;
+}
+.export-type-select {
+  width: 100%;
+}
+.export-type-select nz-select {
+  width: 180px;
+}
+.ai-selection {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 12px;
 }
 
 .images-actions button {
@@ -244,4 +293,9 @@
 .images-actions button[nzType='dashed'] {
   border-color: #ff8ecb;
   color: #ff8ecb;
+}
+
+.images-actions button[nzType='dashed']:hover {
+  transform: scale(1.05);
+  filter: brightness(1.05);
 }
