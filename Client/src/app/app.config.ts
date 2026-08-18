@@ -13,7 +13,7 @@ import { registerLocaleData } from '@angular/common';
 import en from '@angular/common/locales/en';
 import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { AuthInterceptor } from '../services/auth.interceptor';
-import { finalize, firstValueFrom, of } from 'rxjs';
+import {delay, finalize, firstValueFrom, of} from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { AuthService } from '../services/auth.service';
@@ -32,6 +32,7 @@ export const appConfig: ApplicationConfig = {
       firstValueFrom(inject(AuthService)
         .refreshToken()
         .pipe(
+          delay(1000),
           catchError(() => of(void 0)),
           finalize(() => {
             document.getElementById('app-loader')?.remove();

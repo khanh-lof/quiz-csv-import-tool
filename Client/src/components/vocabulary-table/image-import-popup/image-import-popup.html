@@ -1,8 +1,3 @@
-@if (isProcessingImages) {
-  <div class="processing-overlay">
-    <nz-spin nzSimple />
-  </div>
-}
 <div class="drop-zone"
      [class.drag-over]="isDragOver"
      (dragenter)="onDropZoneEnter($event)"
@@ -23,7 +18,7 @@
                 <img [src]="image.preview" alt="Preview" class="preview-img"/>
                 @if (image.isProcessing) {
                   <div class="processing-overlay">
-                    <nz-icon nzType="loading" nzTheme="outline" class="loading-icon"/>
+                    <nz-spin nzSimple />
                   </div>
                 }
               </div>
@@ -84,7 +79,7 @@
           <button nz-button nzType="primary" nzSize="large" type="submit"
                   [disabled]="isProcessingImages">
             @if (isProcessingImages) {
-              <nz-icon nzType="loading" nzTheme="outline"/>
+              <nz-spin nzSimple />
             } @else {
               <nz-icon nzType="cloud-upload" nzTheme="outline"/>
             }
