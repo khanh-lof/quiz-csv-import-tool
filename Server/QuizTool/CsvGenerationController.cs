@@ -400,10 +400,9 @@ public sealed class CsvGenerationController
                 
                 ## IMAGE USAGE
                 
-                If the CSV template contains a optional field for a question image:
+                If the CSV template contains a optional field for a question image (Image Link), you may include an image when it meaningfully supports the question:
                 
                 * Use images when they meaningfully improve the question.
-                * Prefer images for medium and hard questions.
                 * Very easy questions generally do not need an image.
                 * If an image is needed, you may search the web for a suitable real photograph or image.
                 * Never generate an image yourself.
