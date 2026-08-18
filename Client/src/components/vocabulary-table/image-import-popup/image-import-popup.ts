@@ -56,10 +56,10 @@ interface ImageImportForm {
     NzSelectComponent,
     NzSpinComponent
   ],
-  templateUrl: './image-import-popup.component.html',
-  styleUrl: './image-import-popup.component.css'
+  templateUrl: './image-import-popup.html',
+  styleUrl: './image-import-popup.css'
 })
-export class ImageImportPopupComponent {
+export class ImageImportPopup {
   @Output() readonly importedRows = new EventEmitter<QuestionDefinition[]>();
 
   protected selectedImages: ImageItem[] = [];

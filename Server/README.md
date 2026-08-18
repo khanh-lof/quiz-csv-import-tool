@@ -17,10 +17,13 @@ controllers/routing):
   `logout-all` revokes every token for that user.
 - **`UsersController`** — `users` (requires a Function/Admin key). Creates users directly against
   `ICosmosUserRepository`, hashing passwords with `PasswordHasher`.
-- **`CsvGenerationController`** — `GenerateCsvFromImage` (anonymous trigger, validates a `Bearer` JWT
-  inside the method body). Accepts multipart/form-data with one or more image files, enforces the
+- **`CsvGenerationController`** — `csv/generate-from-image` (anonymous trigger, validates a `Bearer`
+  JWT inside the method body). Accepts multipart/form-data with one or more image files, enforces the
   per-user AI-call rate limit, sends all images in a single OpenAI-compatible chat-completions
-  request with base64 `image_url` content parts, and returns the parsed CSV as `text/csv`.
+  request with base64 `image_url` content parts, and returns the parsed CSV as `text/csv`. A
+  `isCreative` query flag switches between a simple two-column vocabulary prompt and a longer
+  HSK-teacher prompt tailored to the target export platform's column layout (`hskLevel`,
+  `lessonNumber`, `exportType` query params required in that mode).
 
 Auth flow: `TokenController` → `AuthenticationService` → `ICosmosUserRepository`. The repository is
 resolved from `IServiceProvider` at call time (not constructor injection) since it's only registered

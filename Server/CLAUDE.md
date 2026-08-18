@@ -57,11 +57,23 @@ ASP.NET Core controllers/routing — this is the Functions isolated-worker model
   revokes every token for that user.
 - **`UsersController`** (`users`, requires Function/Admin key via `AuthorizationLevel.Admin`) —
   creates users directly against `ICosmosUserRepository`, hashing passwords with `PasswordHasher`.
-- **`CsvGenerationController`** (`GenerateCsvFromImage`, anonymous trigger but manually validates a
-  `Bearer` JWT inside the method body) — accepts multipart/form-data with one or more image files,
-  enforces the AI-call rate limit (`AiCallCountInRound` / `StartRoundTime` on `QuizToolUser`), sends
-  all images in a single OpenAI-compatible chat-completions request with base64 `image_url` content
-  parts, and returns the parsed CSV as `text/csv`.
+- **`CsvGenerationController`** (function name `GenerateCsvFromImage`, route `csv/generate-from-image`,
+  anonymous trigger but manually validates a `Bearer` JWT inside the method body) — accepts
+  multipart/form-data with one or more image files, enforces the AI-call rate limit
+  (`AiCallCountInRound` / `StartRoundTime` on `QuizToolUser`), sends all images in a single
+  OpenAI-compatible chat-completions request with base64 `image_url` content parts, and returns the
+  parsed CSV as `text/csv`.
+
+  Two request shapes, chosen by the `isCreative` query param (see
+  [../CLAUDE.md](../CLAUDE.md#the-two-ai-generation-modes) for the client-side half of this):
+  - `isCreative` absent/false → `BuildSimpleWordQuestionRequest`: a short prompt asking for a
+    two-column CSV (`Câu hỏi`/`Đáp án`) with header included.
+  - `isCreative=true` → also requires `exportType`, `hskLevel`, `lessonNumber` query params (400 if
+    missing/invalid) → `BuildCreativeRequest`, a long HSK-teacher system prompt, plus
+    `GetAdditionalUserMessagesForExportType` appending the exact column layout for the target
+    platform (`Models/ExportType.cs`: `GimKit`/`Blooket`/`Wayground`, passed by ordinal — keep in
+    sync with `Client/src/models/export-type.ts`). This mode asks the LLM to return rows **without**
+    a header, since the client prepends one itself.
 
 Auth flow: `TokenController` → `AuthenticationService` (in `Services/`) → `ICosmosUserRepository`.
 `AuthenticationService` resolves `ICosmosUserRepository` from `IServiceProvider` at call time rather

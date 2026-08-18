@@ -1,17 +1,16 @@
-import { Component, DestroyRef, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
-import { NzFormModule } from 'ng-zorro-antd/form';
-import { NzInputModule } from 'ng-zorro-antd/input';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzCardModule } from 'ng-zorro-antd/card';
-import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
-import { NzSpinModule } from 'ng-zorro-antd/spin';
-import { AuthApiService } from '../../services/auth-api.service';
-import { AuthService } from '../../services/auth.service';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NzNotificationService } from 'ng-zorro-antd/notification';
+import {Component, DestroyRef, inject, OnInit} from '@angular/core';
+import {CommonModule} from '@angular/common';
+import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
+import {Router} from '@angular/router';
+import {NzFormModule} from 'ng-zorro-antd/form';
+import {NzInputModule} from 'ng-zorro-antd/input';
+import {NzButtonModule} from 'ng-zorro-antd/button';
+import {NzCardModule} from 'ng-zorro-antd/card';
+import {NzCheckboxModule} from 'ng-zorro-antd/checkbox';
+import {NzSpinModule} from 'ng-zorro-antd/spin';
+import {AuthService} from '../../services/auth.service';
+import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
+import {NzNotificationService} from 'ng-zorro-antd/notification';
 
 @Component({
   selector: 'app-login',
@@ -31,25 +30,22 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
   styleUrl: './login.css'
 })
 export class LoginComponent implements OnInit {
-  private authApi = inject(AuthApiService);
-  private authService = inject(AuthService);
+  private readonly authService = inject(AuthService);
   private router = inject(Router);
   private fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly notificationService = inject(NzNotificationService);
 
   loginForm!: FormGroup;
   isLoading = false;
   rememberMe = false;
 
-  constructor(private readonly destroyRef: DestroyRef, private readonly notificationService: NzNotificationService) {
-  }
-
   ngOnInit() {
     this.initializeForm();
     this.loadRememberedUsername();
-    if (this.authService.isLoggedIn()) {
+    if (this.authService.hasAccessToken()) {
       this.router.navigate(['/']);
     }
-
   }
 
   private initializeForm() {
@@ -75,7 +71,7 @@ export class LoginComponent implements OnInit {
     this.isLoading = true;
     const {username, password} = this.loginForm.value;
 
-    this.authApi.login(username, password).pipe(
+    this.authService.login(username, password).pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: (response) => {

@@ -22,7 +22,7 @@ import { Utils } from '../../utils';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { CsvImportService } from '../../services/csv-import.service';
-import { ImageImportPopupComponent } from './image-import-popup/image-import-popup.component';
+import { ImageImportPopup } from './image-import-popup/image-import-popup';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { QuestionDefinitionForm } from '../../models/question-definition-form';
 import { QuestionDefinition } from '../../models/question-definition';
@@ -124,14 +124,14 @@ export class VocabularyTable {
   openImagePopup(): void {
     const modalRef = this.modalService.create({
       nzTitle: 'Nhập từ ảnh',
-      nzContent: ImageImportPopupComponent,
+      nzContent: ImageImportPopup,
       nzFooter: null,
       nzWidth: '720px',
       nzCentered: true,
       nzMaskClosable: true
     });
 
-    const componentInstance = modalRef.componentInstance as ImageImportPopupComponent;
+    const componentInstance = modalRef.componentInstance as ImageImportPopup;
     componentInstance.importedRows.pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe((rows: QuestionDefinition[]) => {
