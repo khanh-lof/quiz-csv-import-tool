@@ -52,7 +52,7 @@
               <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
             </nz-select>
             <ng-container
-              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.hskLevel}"/>
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.exportType}"/>
           </div>
           <div class="creative-selection">
             <span>Từ vựng thuộc HSK </span>

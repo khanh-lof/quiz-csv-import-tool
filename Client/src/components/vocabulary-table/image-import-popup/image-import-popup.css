@@ -174,7 +174,9 @@
   text-overflow: ellipsis;
   width: 100%;
 }
-
+.ng-invalid.ng-dirty:not(form) {
+  border: 2px solid red;
+}
 .image-size {
   margin: 2px 0 0 0;
   font-size: 11px;
