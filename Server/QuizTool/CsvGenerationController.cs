@@ -662,7 +662,7 @@ public sealed class CsvGenerationController
 
         var fenced = Regex.Match(
             trimmed,
-            @"```(?:csv)?\\s*([\\s\\S]*?)```",
+            @"```(?:csv)?\s*([\s\S]*?)```",
             RegexOptions.IgnoreCase);
 
         if (fenced.Success)
@@ -670,7 +670,7 @@ public sealed class CsvGenerationController
 
         var header = Regex.Match(
             trimmed,
-            @"(?:^|\\n)(Câu hỏi\\s*,\\s*Đáp án[\\s\\S]*)",
+            @"(?:^|\n)(Câu hỏi\s*,\s*Đáp án[\s\S]*)",
             RegexOptions.IgnoreCase);
 
         if (header.Success)

@@ -5,9 +5,53 @@
   <title>QuizTool</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="icon" type="image/x-icon" href="logo.ico">
+  <style>/* HTML: <div class="loader"></div> */
+  #spinner {
+    width: fit-content;
+    font-weight: bold;
+    font-family: monospace;
+    font-size: 30px;
+    color: #0000;
+    background: linear-gradient(
+      90deg,
+      #ff8ecb calc(50% + 0.5ch),
+      #000 0
+    ) right / calc(200% + 1ch) 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: l7 2s infinite steps(11);
+  }
+
+  #spinner:before {
+    content: "Chờ xíu ngaa...";
+  }
+
+  @keyframes l7 {
+    to {
+      background-position: left
+    }
+  }
+
+  #app-loader {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: #fff;
+    z-index: 9999;
+
+    background: linear-gradient(135deg, #ffe0f0 0%, #e0ecff 100%);
+  }
+  </style>
 </head>
 <body>
-<app-root></app-root>
+  <div id="app-loader">
+    <div>
+      <img src="logo.ico" />
+      <div id="spinner"></div>
+    </div>
+  </div>
+  <app-root></app-root>
 </body>
 </html>

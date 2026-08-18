@@ -3,7 +3,6 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
 import { catchError, filter, switchMap, take } from 'rxjs/operators';
 import { AuthService } from './auth.service';
-import { AuthApiService } from './auth-api.service';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
@@ -12,22 +11,17 @@ export class AuthInterceptor implements HttpInterceptor {
   private refreshSubject = new BehaviorSubject<string | null>(null);
 
   constructor(
-    private auth: AuthService,
-    private api: AuthApiService
+    private authService: AuthService
   ) {
   }
 
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    const token = this.auth.getAccessToken();
+    const token = this.authService.getAccessToken();
 
     let authReq = req;
 
     if (token) {
-      authReq = req.clone({
-        setHeaders: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      authReq = this.addToken(req, token);
     }
 
     return next.handle(authReq).pipe(
@@ -45,7 +39,7 @@ export class AuthInterceptor implements HttpInterceptor {
       this.isRefreshing = true;
       this.refreshSubject.next(null);
 
-      return this.api.refreshToken().pipe(
+      return this.authService.refreshToken().pipe(
         switchMap((res: any) => {
           this.isRefreshing = false;
           this.refreshSubject.next(res.accessToken);
@@ -54,7 +48,7 @@ export class AuthInterceptor implements HttpInterceptor {
         }),
         catchError(err => {
           this.isRefreshing = false;
-          this.auth.clear();
+          this.authService.clear();
           return throwError(() => err);
         })
       );

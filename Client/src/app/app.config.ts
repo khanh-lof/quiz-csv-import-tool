@@ -13,12 +13,10 @@ import { registerLocaleData } from '@angular/common';
 import en from '@angular/common/locales/en';
 import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { AuthInterceptor } from '../services/auth.interceptor';
-import { AuthService } from '../services/auth.service';
-import { AuthApiService } from '../services/auth-api.service';
-import { firstValueFrom, of } from 'rxjs';
+import { finalize, firstValueFrom, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { AiCsvService } from '../services/ai-csv.service';
+import { AuthService } from '../services/auth.service';
 
 registerLocaleData(en);
 
@@ -31,18 +29,19 @@ export const appConfig: ApplicationConfig = {
     provideNzI18n(en_US),
     provideHttpClient(withInterceptorsFromDi()),
     provideAppInitializer(() =>
-      firstValueFrom(inject(AuthApiService)
+      firstValueFrom(inject(AuthService)
         .refreshToken()
         .pipe(
-          catchError(() => of(void 0))
+          catchError(() => of(void 0)),
+          finalize(() => {
+            document.getElementById('app-loader')?.remove();
+          })
         ))
     ),
-    AuthService,
     {
       provide: HTTP_INTERCEPTORS,
       useClass: AuthInterceptor,
       multi: true
-    },
-    AiCsvService
+    }
   ]
 };

@@ -1,3 +1,8 @@
+@if (isProcessingImages) {
+  <div class="processing-overlay">
+    <nz-spin nzSimple />
+  </div>
+}
 <div class="drop-zone"
      [class.drag-over]="isDragOver"
      (dragenter)="onDropZoneEnter($event)"
