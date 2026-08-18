@@ -108,54 +108,12 @@ public class CosmosUserRepository : ICosmosUserRepository
     // Removes every token entry for the user (logout of all devices/sessions).
     public async Task ClearAllRefreshTokensAsync(string username, CancellationToken cancellationToken)
     {
-        for (var attempt = 0; attempt < 5; attempt++)
+        await MutateUserWithRetryAsync(username, user =>
         {
-            ItemResponse<QuizToolUser> response;
-
-            try
-            {
-                response = await _userContainer.ReadItemAsync<QuizToolUser>(
-                    username,
-                    new PartitionKey(username),
-                    cancellationToken: cancellationToken);
-            }
-            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-            {
-                return;
-            }
-
-            if (response.Resource.RefreshTokens.Count == 0)
-            {
-                return;
-            }
-
-            try
-            {
-                await _userContainer.PatchItemAsync<QuizToolUser>(
-                    username,
-                    new PartitionKey(username),
-                    [
-                        PatchOperation.Set(
-                            "/refreshTokens",
-                            Array.Empty<RefreshTokenEntry>())
-                    ],
-                    new PatchItemRequestOptions
-                    {
-                        IfMatchEtag = response.ETag
-                    },
-                    cancellationToken);
-
-                return;
-            }
-            catch (CosmosException ex)
-                when (ex.StatusCode == HttpStatusCode.PreconditionFailed)
-            {
-                // Concurrent update. Read again and retry.
-            }
-        }
-
-        throw new InvalidOperationException(
-            $"Failed to clear refresh tokens for user '{username}'.");
+            if (user.RefreshTokens.Count == 0) return false;
+            user.RefreshTokens.Clear();
+            return true;
+        }, cancellationToken);
     }
 
     public async Task<QuizToolUser?> GetUserByRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
