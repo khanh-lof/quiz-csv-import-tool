@@ -135,7 +135,7 @@ public sealed class CsvGenerationController
 
         var callCountAcceptedInARound = int.Parse(Environment.GetEnvironmentVariable("CALL_COUNT_ACCEPTED_IN_A_ROUND") ?? "2");
         var roundMinutes = int.Parse(Environment.GetEnvironmentVariable("ROUND_MINUTES") ?? "1");
-        if (user.AiCallCountInRound > callCountAcceptedInARound && user.StartRoundTime.HasValue && user.StartRoundTime.Value.AddMinutes(roundMinutes) > DateTime.UtcNow)
+        if (user.AiCallCountInRound >= callCountAcceptedInARound && user.StartRoundTime.HasValue && user.StartRoundTime.Value.AddMinutes(roundMinutes) > DateTime.UtcNow)
         {
             var r = req.CreateResponse(HttpStatusCode.Forbidden);
             await r.WriteStringAsync("You have reached the limit for AI calls.", cancellationToken);

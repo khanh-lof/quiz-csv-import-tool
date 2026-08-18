@@ -224,8 +224,8 @@ public class CosmosUserRepository : ICosmosUserRepository
     {
         await MutateUserWithRetryAsync(user.Username, u =>
         {
-            u.AiCallCountInRound = user.AiCallCountInRound;
-            u.StartRoundTime = user.StartRoundTime;
+            u.AiCallCountInRound = 1;
+            u.StartRoundTime = DateTime.UtcNow;
             return true;
         }, cancellationToken);
     }
