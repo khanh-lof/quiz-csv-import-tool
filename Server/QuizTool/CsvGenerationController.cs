@@ -142,7 +142,7 @@ public sealed class CsvGenerationController
             return r;
         }
 
-        if (user.StartRoundTime.HasValue && user.StartRoundTime.Value.AddMinutes(roundMinutes) <= DateTime.UtcNow)
+        if (user.StartRoundTime.HasValue && DateTime.UtcNow.AddMinutes(-roundMinutes) <= user.StartRoundTime.Value)
         {
             await _userRepo.IncreaseAiCallCountInRound(user, cancellationToken);
         }

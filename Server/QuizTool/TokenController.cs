@@ -139,13 +139,17 @@ public sealed class TokenController
         CancellationToken cancellationToken)
     {
         var refreshToken = ExtractRefreshTokenFromCookie(req);
+        var logouted = false;
         if (!string.IsNullOrEmpty(refreshToken))
         {
-            await _authService.LogoutAllAsync(refreshToken, cancellationToken);
+            logouted = await _authService.LogoutAllAsync(refreshToken, cancellationToken);
         }
-
-        var resp = req.CreateResponse(HttpStatusCode.OK);
-        ClearRefreshTokenCookie(resp);
+        
+        var resp = logouted ? req.CreateResponse(HttpStatusCode.OK) : req.CreateResponse(HttpStatusCode.BadRequest);
+        if (logouted)
+        {
+            ClearRefreshTokenCookie(resp);
+        }
         return resp;
     }
 
