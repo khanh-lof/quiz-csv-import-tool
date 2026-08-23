@@ -1,5 +1,5 @@
 import {Component, DestroyRef, inject, OnInit} from '@angular/core';
-import {CommonModule} from '@angular/common';
+
 import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
 import {Router} from '@angular/router';
 import {NzFormModule} from 'ng-zorro-antd/form';
@@ -16,7 +16,6 @@ import {NzNotificationService} from 'ng-zorro-antd/notification';
   selector: 'app-login',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     ReactiveFormsModule,
     NzFormModule,
@@ -25,7 +24,7 @@ import {NzNotificationService} from 'ng-zorro-antd/notification';
     NzCardModule,
     NzCheckboxModule,
     NzSpinModule
-  ],
+],
   templateUrl: './login.html',
   styleUrl: './login.css'
 })

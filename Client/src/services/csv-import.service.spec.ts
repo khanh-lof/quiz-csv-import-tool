@@ -1,4 +1,5 @@
 import { CsvImportService } from './csv-import.service';
+import { QuestionType } from '../models/question-type';
 
 describe('CsvImportService', () => {
   let service: CsvImportService;
@@ -11,7 +12,7 @@ describe('CsvImportService', () => {
     const rows = service.parseCsv('Câu hỏi,Đáp án\n"Hello, world","Chào, bạn"');
 
     expect(rows).toEqual([
-      {question: 'Hello, world', answer: 'Chào, bạn'},
+      {question: 'Hello, world', answer: 'Chào, bạn', questionType: QuestionType.MultipleChoice},
     ]);
   });
 });
