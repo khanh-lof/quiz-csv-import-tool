@@ -11,12 +11,14 @@ import { routes } from './app.routes';
 import { en_US, provideNzI18n } from 'ng-zorro-antd/i18n';
 import { registerLocaleData } from '@angular/common';
 import en from '@angular/common/locales/en';
-import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/common/http';
 import { AuthInterceptor } from '../services/auth.interceptor';
 import {delay, finalize, firstValueFrom, of} from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { AuthService } from '../services/auth.service';
+import { provideNzDateFnsAdapter } from 'ng-zorro-antd/core/time';
+
 
 registerLocaleData(en);
 
@@ -27,7 +29,7 @@ export const appConfig: ApplicationConfig = {
     provideAnimationsAsync(),
     provideRouter(routes),
     provideNzI18n(en_US),
-    provideHttpClient(withInterceptorsFromDi()),
+    provideHttpClient(withXhr(), withInterceptorsFromDi()),
     provideAppInitializer(() =>
       firstValueFrom(inject(AuthService)
         .refreshToken()
@@ -43,6 +45,6 @@ export const appConfig: ApplicationConfig = {
       provide: HTTP_INTERCEPTORS,
       useClass: AuthInterceptor,
       multi: true
-    }
+    }, provideNzDateFnsAdapter()
   ]
 };

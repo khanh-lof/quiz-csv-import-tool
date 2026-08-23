@@ -24,7 +24,7 @@
           <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
         </nz-select>
         <!-- Export Button -->
-        @if (questionForms.length >= minRows && formGroup.get('exportType')?.value !== null) {
+        @if (questionForms.length >= minRows && $safeNavigationMigration(formGroup.get('exportType')?.value) !== null) {
           <button nz-button nzType="default" type="submit">
             <nz-icon nzType="download"/>
             Tải file

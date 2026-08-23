@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, OnInit } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 
 import { Router } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -17,6 +17,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
     NzIconDirective
 ],
   templateUrl: './offline.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './offline.css'
 })
 export class OfflineComponent implements OnInit {

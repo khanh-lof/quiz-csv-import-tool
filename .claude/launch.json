@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "quiz-tool-client",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev-start", "--prefix", "Client"],
+      "port": 4200
+    }
+  ]
+}

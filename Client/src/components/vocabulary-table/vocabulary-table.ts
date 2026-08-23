@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, QueryList, ViewChildren } from '@angular/core';
+import { Component, DestroyRef, ElementRef, QueryList, ViewChildren, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzTableModule } from 'ng-zorro-antd/table';
@@ -47,6 +47,7 @@ import { CdkTextareaAutosize } from '@angular/cdk/text-field';
     CdkTextareaAutosize
   ],
   templateUrl: './vocabulary-table.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './vocabulary-table.css',
 })
 export class VocabularyTable {

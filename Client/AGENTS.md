@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-The Angular (v20, standalone components) frontend for QuizTool. It lets a user build a table of
+The Angular (v22, standalone components) frontend for QuizTool. It lets a user build a table of
 question/answer vocabulary pairs (manually, via CSV import, or via AI image import), then export
 them as a CSV formatted for either GimKit or Blooket import. Auth (JWT access token + HttpOnly
 refresh cookie) and the AI image-to-CSV endpoint are served by the sibling `../Server` Azure

@@ -1,4 +1,4 @@
-import { Component, DestroyRef, EventEmitter, Output, signal } from '@angular/core';
+import { Component, DestroyRef, EventEmitter, Output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
@@ -57,6 +57,7 @@ interface ImageImportForm {
     NzSpinComponent
   ],
   templateUrl: './image-import-popup.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './image-import-popup.css'
 })
 export class ImageImportPopup {
