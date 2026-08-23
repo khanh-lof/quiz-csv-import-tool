@@ -76,12 +76,12 @@ This is the one feature that only makes sense by reading both sides. The image-i
 completely different paths through the system:
 
 - **`Formatted`** → `POST csv/generate-from-image` with no query params → server's
-  `BuildSimpleWordQuestionRequest` prompt (two columns, `Câu hỏi`/`Đáp án`) → client parses the CSV
+  `SimpleWordQuestionService` (`ISimpleWordQuestionService`) prompt (two columns, `Câu hỏi`/`Đáp án`) → client parses the CSV
   with `CsvImportService.parseCsv` and **emits rows into the vocabulary table**, where the user edits
   them and later exports via `FileExportService.exportFile` (client-side builders synthesize the
   distractors).
 - **`Auto`** (sent as `isCreative=true`, alongside required `exportType`, `hskLevel`,
-  `lessonNumber`) → server's `BuildCreativeRequest`, a long HSK-teacher prompt that is told the exact
+  `lessonNumber`) → server's `CreativeRequestService` (`ICreativeRequestService`), a long HSK-teacher prompt that is told the exact
   column layout of the *target platform* via `GetAdditionalUserMessagesForExportType` and asked to
   return **rows without a header** → client never touches the table: it prepends the header through
   `CsvBuilderBase.buildFromCsvContent` and downloads immediately.

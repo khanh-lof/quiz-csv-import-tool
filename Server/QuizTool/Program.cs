@@ -28,6 +28,8 @@ if (!string.IsNullOrWhiteSpace(cosmosEndpoint) && !string.IsNullOrWhiteSpace(cos
 
 // Register authentication service (uses Cosmos repo if available, otherwise falls back to env-based auth)
 builder.Services.AddSingleton<IAuthenticationService, AuthenticationService>();
+builder.Services.AddSingleton<ISimpleWordQuestionService, SimpleWordQuestionService>();
+builder.Services.AddSingleton<ICreativeRequestService, CreativeRequestService>();
 
 builder.ConfigureFunctionsWebApplication();
 
