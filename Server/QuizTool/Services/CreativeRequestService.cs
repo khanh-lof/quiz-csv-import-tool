@@ -315,7 +315,7 @@ public class CreativeRequestService : ICreativeRequestService
     private static IEnumerable<string> GetAdditionalUserMessagesForWayground()
     {
         yield return
-            "Question Text,Question Type,Option 1,Option 2,Option 3,Option 4,Option 5,Correct Answer,Time in seconds,Image Link,Answer explanation";
+            "CSV columns: Question Text,Question Type,Option 1,Option 2,Option 3,Option 4,Option 5,Correct Answer,Time in seconds,Image Link,Answer explanation";
         yield return
             "Question type will be \"\"Multiple Choice\"\" or \"\"Fill-in-the-Blank\"\". The option 2-5 must be empty for \"\"Fill-in-the-Blank\"\", the option 1 is the correct answer";
         yield return
