@@ -2,7 +2,7 @@ using QuizTool.Models;
 
 namespace QuizTool.Repository;
 
-public interface ICosmosUserRepository
+public interface IUserRepository
 {
     Task<QuizToolUser?> GetUserByUsernameAsync(string username, CancellationToken cancellationToken);
     Task CreateUserAsync(QuizToolUser quizToolUser, CancellationToken cancellationToken);

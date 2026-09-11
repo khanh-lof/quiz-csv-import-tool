@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="QuizTool/QuizTool.csproj" />
+  <Project Path="QuizTool.Data/QuizTool.Data.csproj" />
+</Solution>

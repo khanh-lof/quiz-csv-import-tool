@@ -10,10 +10,10 @@ namespace QuizTool;
 
 public sealed class UsersController
 {
-    private readonly ICosmosUserRepository _userRepo;
+    private readonly IUserRepository _userRepo;
     private readonly PasswordHasher _hasher;
 
-    public UsersController(ICosmosUserRepository userRepo, PasswordHasher hasher)
+    public UsersController(IUserRepository userRepo, PasswordHasher hasher)
     {
         _userRepo = userRepo;
         _hasher = hasher;

@@ -19,12 +19,12 @@ namespace QuizTool;
 
 public sealed class CsvGenerationController
 {
-    private readonly ICosmosUserRepository _userRepo;
+    private readonly IUserRepository _userRepo;
     private readonly ISimpleWordQuestionService _simpleWordQuestionService;
     private readonly ICreativeRequestService _creativeRequestService;
 
     public CsvGenerationController(
-        ICosmosUserRepository userRepo,
+        IUserRepository userRepo,
         ISimpleWordQuestionService simpleWordQuestionService,
         ICreativeRequestService creativeRequestService)
     {

@@ -1,44 +1,35 @@
-using System.Net;
-using Microsoft.Azure.Cosmos;
+using Microsoft.EntityFrameworkCore;
+using QuizTool.Data;
 using QuizTool.Models;
 using QuizTool.Utils;
 
 namespace QuizTool.Repository;
 
-public class CosmosUserRepository : ICosmosUserRepository
+public class UserRepository : IUserRepository
 {
-    private readonly Container _userContainer;
+    private readonly IDbContextFactory<QuizToolDbContext> _contextFactory;
     private readonly PasswordHasher _hasher;
     private readonly int _maxRefreshTokensPerUser;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
 
-    public CosmosUserRepository(CosmosClient client, PasswordHasher hasher)
+    public UserRepository(IDbContextFactory<QuizToolDbContext> contextFactory, PasswordHasher hasher,
+        CosmosSettings settings)
     {
+        _contextFactory = contextFactory;
         _hasher = hasher;
-        var dbName = Environment.GetEnvironmentVariable("COSMOS_DATABASE") ?? "QuizDb";
-        var containerName = Environment.GetEnvironmentVariable("COSMOS_CONTAINER") ?? "Users";
-        _maxRefreshTokensPerUser = int.Parse(Environment.GetEnvironmentVariable("MAX_REFRESH_TOKENS_PER_USER") ?? "5");
-
-        var dbResponse = client.CreateDatabaseIfNotExistsAsync(dbName).GetAwaiter().GetResult();
-        var containerResponse = dbResponse.Database
-            .CreateContainerIfNotExistsAsync(new ContainerProperties(containerName, "/username")).GetAwaiter()
-            .GetResult();
-        _userContainer = containerResponse.Container;
+        _maxRefreshTokensPerUser = settings.MaxRefreshTokensPerUser;
     }
 
     public async Task<QuizToolUser?> GetUserByUsernameAsync(string username, CancellationToken cancellationToken)
     {
         try
         {
-            var sql = "SELECT * FROM c WHERE c.username = @username";
-            var query = _userContainer.GetItemQueryIterator<QuizToolUser>(
-                new QueryDefinition(sql).WithParameter("@username", username));
-            while (query.HasMoreResults)
-            {
-                var res = await query.ReadNextAsync(cancellationToken);
-                if (res.Any()) return res.First();
-            }
-
-            return null;
+            await using var db = await CreateContextAsync(cancellationToken);
+            return await db.Users
+                .WithPartitionKey(username)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Username == username, cancellationToken);
         }
         catch
         {
@@ -49,7 +40,25 @@ public class CosmosUserRepository : ICosmosUserRepository
     public async Task CreateUserAsync(QuizToolUser quizToolUser, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(quizToolUser.Id)) quizToolUser.Id = quizToolUser.Username;
-        await _userContainer.UpsertItemAsync(quizToolUser, new PartitionKey(quizToolUser.Username), cancellationToken: cancellationToken);
+
+        await using var db = await CreateContextAsync(cancellationToken);
+        var existing = await db.Users
+            .WithPartitionKey(quizToolUser.Username)
+            .FirstOrDefaultAsync(u => u.Id == quizToolUser.Id, cancellationToken);
+
+        if (existing is null)
+        {
+            db.Users.Add(quizToolUser);
+        }
+        else
+        {
+            // Upsert semantics: overwrite the stored document with the supplied one.
+            db.Entry(existing).CurrentValues.SetValues(quizToolUser);
+            existing.Roles = quizToolUser.Roles;
+            existing.RefreshTokens = quizToolUser.RefreshTokens;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<(bool Valid, string[] Roles)> ValidateCredentialsAsync(string username, string password,
@@ -120,15 +129,10 @@ public class CosmosUserRepository : ICosmosUserRepository
     {
         try
         {
-            var sql = "SELECT DISTINCT VALUE c FROM c JOIN t IN c.refreshTokens WHERE t.token = @token";
-            var query = _userContainer.GetItemQueryIterator<QuizToolUser>(
-                new QueryDefinition(sql).WithParameter("@token", refreshToken));
-            while (query.HasMoreResults)
-            {
-                var res = await query.ReadNextAsync(cancellationToken);
-                if (res.Any()) return res.First();
-            }
-            return null;
+            await using var db = await CreateContextAsync(cancellationToken);
+            return await db.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.RefreshTokens.Any(t => t.Token == refreshToken), cancellationToken);
         }
         catch
         {
@@ -136,8 +140,9 @@ public class CosmosUserRepository : ICosmosUserRepository
         }
     }
 
-    // Read-modify-write with optimistic concurrency: retries on a concurrent write (HTTP 412)
-    // so two devices logging in/refreshing at the same time can't silently drop each other's entries.
+    // Read-modify-write with optimistic concurrency: retries when a concurrent write bumped the
+    // ETag first, so two devices logging in/refreshing at the same time cannot silently drop each
+    // other's entries.
     private async Task<QuizToolUser?> MutateUserWithRetryAsync(
         string username,
         Func<QuizToolUser, bool> mutate,
@@ -146,29 +151,21 @@ public class CosmosUserRepository : ICosmosUserRepository
     {
         for (var attempt = 0; attempt < maxAttempts; attempt++)
         {
-            ItemResponse<QuizToolUser> readResponse;
-            try
-            {
-                readResponse = await _userContainer.ReadItemAsync<QuizToolUser>(
-                    username, new PartitionKey(username), cancellationToken: cancellationToken);
-            }
-            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-            {
-                return null;
-            }
+            await using var db = await CreateContextAsync(cancellationToken);
 
-            var user = readResponse.Resource;
+            var user = await db.Users
+                .WithPartitionKey(username)
+                .FirstOrDefaultAsync(u => u.Id == username, cancellationToken);
+            if (user is null) return null;
+
             if (!mutate(user)) return user;
 
             try
             {
-                var writeResponse = await _userContainer.UpsertItemAsync(
-                    user, new PartitionKey(user.Username),
-                    new ItemRequestOptions { IfMatchEtag = readResponse.ETag },
-                    cancellationToken);
-                return writeResponse.Resource;
+                await db.SaveChangesAsync(cancellationToken);
+                return user;
             }
-            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.PreconditionFailed)
+            catch (DbUpdateConcurrencyException)
             {
                 // Concurrent update landed first — reread and retry.
             }
@@ -195,5 +192,29 @@ public class CosmosUserRepository : ICosmosUserRepository
             u.AiCallCountInRound++;
             return true;
         }, cancellationToken);
+    }
+
+    // The Cosmos database and container are created on first use, mirroring the
+    // CreateDatabaseIfNotExists/CreateContainerIfNotExists calls the old constructor made eagerly.
+    private async Task<QuizToolDbContext> CreateContextAsync(CancellationToken cancellationToken)
+    {
+        var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        if (_initialized) return db;
+
+        await _initLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (!_initialized)
+            {
+                await db.Database.EnsureCreatedAsync(cancellationToken);
+                _initialized = true;
+            }
+        }
+        finally
+        {
+            _initLock.Release();
+        }
+
+        return db;
     }
 }

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>QuizTool</RootNamespace>
+        <!-- Suppress known advisory NU1902 until packages are updated upstream -->
+        <NoWarn>$(NoWarn);NU1902</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Cosmos" Version="10.0.0"/>
+    </ItemGroup>
+
+</Project>

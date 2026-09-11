@@ -20,8 +20,8 @@ namespace QuizTool.Services
         public async Task<(bool Valid, string[] Roles, string? Token, string? RefreshToken)> AuthenticateAsync(
             string username, string password, CancellationToken cancellationToken)
         {
-            // Try Cosmos repo if registered
-            var repo = _provider.GetService<ICosmosUserRepository>();
+            // Try the user repository if registered
+            var repo = _provider.GetService<IUserRepository>();
             if (repo != null)
             {
                 var (valid, roles) = await repo.ValidateCredentialsAsync(username, password, cancellationToken);
@@ -39,7 +39,7 @@ namespace QuizTool.Services
 
         public async Task<(bool Valid, string[] Roles, string? Token, string? RefreshToken)> RefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
         {
-            var repo = _provider.GetService<ICosmosUserRepository>();
+            var repo = _provider.GetService<IUserRepository>();
             if (repo != null)
             {
                 var user = await repo.GetUserByRefreshTokenAsync(refreshToken, cancellationToken);
@@ -59,7 +59,7 @@ namespace QuizTool.Services
 
         public async Task<bool> LogoutAsync(string refreshToken, CancellationToken cancellationToken)
         {
-            var repo = _provider.GetService<ICosmosUserRepository>();
+            var repo = _provider.GetService<IUserRepository>();
             if (repo == null) return false;
             var user = await repo.GetUserByRefreshTokenAsync(refreshToken, cancellationToken);
             if (user == null) return false;
@@ -69,7 +69,7 @@ namespace QuizTool.Services
 
         public async Task<bool> LogoutAllAsync(string refreshToken, CancellationToken cancellationToken)
         {
-            var repo = _provider.GetService<ICosmosUserRepository>();
+            var repo = _provider.GetService<IUserRepository>();
             if (repo == null) return false;
             var user = await repo.GetUserByRefreshTokenAsync(refreshToken, cancellationToken);
             if (user == null) return false;

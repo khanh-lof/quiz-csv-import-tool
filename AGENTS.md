@@ -9,13 +9,14 @@ Blooket, or Wayground. It is one git repo holding two independently built and in
 projects:
 
 - `Client/` — Angular 20 SPA (standalone components, ng-zorro-antd). Deployed to Vercel.
-- `Server/` — Azure Functions isolated worker, .NET 10. Deployed to Azure Function App `quiz-tool`.
+- `Server/` — Azure Functions isolated worker, .NET 10 (`QuizTool`), plus the `QuizTool.Data` class
+  library holding the EF Core Cosmos persistence layer. Deployed to Azure Function App `quiz-tool`.
 
 Each half has its own `CLAUDE.md` with the detail for that side — read
 [Client/CLAUDE.md](Client/CLAUDE.md) or [Server/CLAUDE.md](Server/CLAUDE.md) before working inside
 either directory. This file covers only what spans both.
 
-There is no root-level build, no workspace/solution tying the two together, and no shared code or
+There is no root-level build, no workspace/solution tying the two halves together, and no shared code or
 generated client — the contract between them is hand-written on both sides and must be kept in sync
 manually.
 
@@ -30,7 +31,7 @@ npm run build    # runs scripts/set-env.js first (prebuild), then ng build
 
 Server (run from `Server/`):
 ```bash
-dotnet build QuizTool.sln
+dotnet build QuizTool.slnx
 dotnet run --project QuizTool/QuizTool.csproj   # Functions host on http://localhost:7071
 ```
 
