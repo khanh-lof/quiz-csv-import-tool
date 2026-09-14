@@ -86,23 +86,59 @@ public class CreativeRequestService : ICreativeRequestService
                 
                 ## QUESTION DESIGN
                 
-                Create a varied set of questions when supported by the CSV template.
+                Aim for a varied set of questions. A set in which every question shares the same shape is much less useful, even when each question is correct.
                 
-                Possible question types include:
+                ### Variety guidelines
                 
-                * Chinese word → Vietnamese meaning.
-                * Vietnamese meaning + pinyin → Chinese word.
-                * Chinese sentence → identify the correct meaning.
-                * Fill in the blank.
-                * Choose the correct word for a context.
-                * Choose the correct sentence.
-                * Sentence ordering.
-                * Match or distinguish similar words.
-                * Vocabulary usage in a short dialogue.
-                * Practical real-life situations.
-                * Questions requiring students to infer simple information from an image.
+                * Rotate question formats as you go, and try not to repeat the same type many times in a row.
+                * Across the whole output, try to use several different question types when the vocabulary and the CSV template allow it.
+                * Vary the surface form where it feels natural: question length, translation direction, which part of a sentence is blanked, and whether the prompt is a statement, a question, a dialogue line, or a described situation.
+                * Vary how the distractors are built: sometimes near-synonyms, sometimes look-alike characters, sometimes same-pinyin different-tone words, sometimes options that are grammatically wrong but lexically plausible.
+                * Prefer interleaving question types rather than grouping all questions of one type together.
                 
-                Do not force question types that are not suitable for the available vocabulary or CSV structure.
+                ### Question type catalogue
+                
+                Recognition and meaning:
+                
+                * Chinese word to Vietnamese meaning.
+                * Vietnamese meaning to Chinese word.
+                * Chinese word to correct pinyin, including tones.
+                * Pinyin to correct Chinese characters, using homophone distractors.
+                * Vietnamese meaning plus pinyin to Chinese word.
+                * Identify the word that does not belong to a given topic group.
+                
+                Usage and context:
+                
+                * Fill in the blank in a sentence.
+                * Choose the correct word for a context in which two options are close in meaning.
+                * Choose the grammatically correct sentence among similar ones.
+                * Complete a dialogue: given speaker A's line, choose B's natural reply.
+                * Given a situation described in Vietnamese, choose what you would actually say in Chinese.
+                * Choose the appropriate measure word, particle, or question word.
+                * Spot the error: which sentence uses the word incorrectly.
+                
+                Structure and production:
+                
+                * Word or sentence ordering: show the shuffled parts in the question and full orderings as options.
+                * Production questions where the learner must type the word, when the CSV template supports a typed answer.
+                * Short Chinese sentence to correct Vietnamese meaning.
+                * Short Vietnamese sentence to correct Chinese sentence.
+                
+                Discrimination and depth:
+                
+                * Distinguish easily confused pairs taught in the lesson.
+                * The same word used with different meanings in two contexts.
+                * Choose the synonym or antonym within the lesson vocabulary.
+                * Choose the word that correctly collocates with a given word.
+                
+                Visual and real-life:
+                
+                * Look at an image and choose the Chinese word that describes it.
+                * Look at an image and choose the sentence that correctly describes the scene.
+                * Infer simple information from an image: quantity, time, place, action, weather, price.
+                * Practical scenarios such as ordering food, asking for directions, shopping, or making an appointment.
+                
+                Do not force a question type that the vocabulary or CSV structure cannot support. When a type does not fit, choose another type instead of degrading the question.
                 
                 Favor questions that test actual understanding and usage rather than simple memorization.
                 
@@ -120,15 +156,54 @@ public class CreativeRequestService : ICreativeRequestService
                 
                 ## IMAGE USAGE
                 
-                If the CSV template contains a optional field for a question image (Image Link), you may include an image when it meaningfully supports the question:
+                An image is never required. Most questions work perfectly without one. Feel free to add an image when it makes a question clearer or more engaging, and only when the CSV template has an optional image field, such as the Wayground Image Link column. Otherwise leave that field empty.
                 
-                * Use images when they meaningfully improve the question.
-                * Very easy questions generally do not need an image.
-                * If an image is needed, you may search the web for a suitable real photograph or image.
-                * Never generate an image yourself.
-                * The selected image must clearly support the question and should not introduce misleading information.
+                ### When an image helps
                 
-                If the CSV contains an image URL field, provide a valid image URL according to the template's expected format.
+                * The learner must name what is shown: object, food, animal, place, action, weather, profession.
+                * The learner must read a scene: how many people, what time, what is happening.
+                * A concrete noun or an action verb is much clearer as a picture than as a Vietnamese gloss.
+                * A practical scenario benefits from a visual setting such as a restaurant, a train station, or a shop.
+                
+                ### When an image is usually not worth it
+                
+                * Easy recognition, meaning, or pinyin questions.
+                * Abstract words, grammar particles, function words, time expressions, and feelings.
+                * Any case where the image would give the answer away, for example a photo that contains the Chinese characters being tested.
+                * No clean, unambiguous picture exists. An ambiguous image makes the question worse than no image.
+                
+                A small share of the questions carrying an image is usually enough. Do not attach an image to every question.
+                
+                ### Where to find images
+                
+                Search the web for a real, freely usable illustration. Preferred sources, best first:
+                
+                1. Wikimedia Commons (commons.wikimedia.org) is the best overall choice: free licences, stable direct file URLs, and excellent coverage of objects, food, animals, places, signage, and everyday scenes. Use the direct file URL under upload.wikimedia.org/wikipedia/commons/.
+                2. Wikipedia article images, which are the same underlying Commons files, useful when you know the exact topic name.
+                3. Openverse (openverse.org), which aggregates openly licensed images from many libraries.
+                4. Pexels, Unsplash, and Pixabay for high-quality free stock photos of people, actions, food, and daily-life scenes. Use the direct CDN URL, for example images.pexels.com/, images.unsplash.com/, or cdn.pixabay.com/.
+                5. Flickr Creative Commons (live.staticflickr.com/) as an acceptable fallback.
+                
+                For Chinese cultural items such as dishes, festivals, traditional objects, or street signage, Wikimedia Commons is almost always the best source. Search the English or Chinese topic name.
+                
+                ### Image link requirements
+                
+                * Should be a direct link to the image file itself, normally ending in .jpg, .jpeg, .png, or .webp.
+                * Should use https.
+                * Should be hotlinkable and publicly reachable without login, paywall, or consent banner.
+                * Avoid search results pages, article pages, gallery pages, Google or Bing image redirects, and shortened links.
+                * Avoid images with heavy watermarks or stock-photo overlays.
+                * Avoid images that contain text revealing the answer.
+                * Never generate an image yourself, and never invent a URL you have not actually found. If you cannot produce a real, verifiable URL, leave the image field empty and keep the question text self-sufficient.
+                
+                ### Image content requirements
+                
+                * The image must clearly and unambiguously support the question.
+                * One obvious subject, well lit, not cluttered.
+                * Culturally appropriate and classroom safe.
+                * No content that would make the correct answer look wrong.
+                
+                Keep questions answerable from their text alone, so nothing breaks if an image fails to load.
                 
                 ## QUESTION QUALITY
                 
@@ -200,8 +275,9 @@ public class CreativeRequestService : ICreativeRequestService
                 6. No unnecessary higher-level vocabulary was introduced.
                 7. Vietnamese explanations are grammatically clear and accurate.
                 8. Pinyin is correct where required.
-                9. Image URLs are valid when an image is required.
-                10. There is no accidental markdown or explanatory text.
+                9. Any image link is a direct, https, publicly accessible image file URL, and the image field is empty when no suitable image was found.
+                10. The question set uses a reasonably varied mix of question types.
+                11. There is no accidental markdown or explanatory text.
                 
                 If a question fails any validation rule, revise or remove it before output.
                 

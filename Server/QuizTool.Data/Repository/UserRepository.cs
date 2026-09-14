@@ -194,8 +194,6 @@ public class UserRepository : IUserRepository
         }, cancellationToken);
     }
 
-    // The Cosmos database and container are created on first use, mirroring the
-    // CreateDatabaseIfNotExists/CreateContainerIfNotExists calls the old constructor made eagerly.
     private async Task<QuizToolDbContext> CreateContextAsync(CancellationToken cancellationToken)
     {
         var db = await _contextFactory.CreateDbContextAsync(cancellationToken);

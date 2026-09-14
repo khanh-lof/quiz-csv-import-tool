@@ -9,7 +9,6 @@ public interface IUserRepository
     Task<(bool Valid, string[] Roles)> ValidateCredentialsAsync(string username, string password,
         CancellationToken cancellationToken);
 
-    // Refresh-token related operations
     Task AddRefreshTokenAsync(string username, string refreshToken, DateTime expiresAt, CancellationToken cancellationToken);
     Task RotateRefreshTokenAsync(string username, string oldRefreshToken, string newRefreshToken, DateTime newExpiresAt, CancellationToken cancellationToken);
     Task RemoveRefreshTokenAsync(string username, string refreshToken, CancellationToken cancellationToken);
