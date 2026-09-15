@@ -178,13 +178,11 @@ public class CreativeRequestService : ICreativeRequestService
                 
                 Search the web for a real, freely usable illustration. Preferred sources, best first:
                 
-                1. Wikimedia Commons (commons.wikimedia.org) is the best overall choice: free licences, stable direct file URLs, and excellent coverage of objects, food, animals, places, signage, and everyday scenes. Use the direct file URL under upload.wikimedia.org/wikipedia/commons/.
-                2. Wikipedia article images, which are the same underlying Commons files, useful when you know the exact topic name.
-                3. Openverse (openverse.org), which aggregates openly licensed images from many libraries.
-                4. Pexels, Unsplash, and Pixabay for high-quality free stock photos of people, actions, food, and daily-life scenes. Use the direct CDN URL, for example images.pexels.com/, images.unsplash.com/, or cdn.pixabay.com/.
-                5. Flickr Creative Commons (live.staticflickr.com/) as an acceptable fallback.
+                1. Pexels, Unsplash, and Pixabay are the best overall choice: high-quality free stock photos of objects, food, people, actions, places, and daily-life scenes, with stable hotlinkable URLs. Use the direct CDN URL, for example images.pexels.com/, images.unsplash.com/, or cdn.pixabay.com/.
+                2. Openverse (openverse.org), which aggregates openly licensed images from many libraries and is useful for topics the stock sites cover poorly.
+                3. Flickr Creative Commons (live.staticflickr.com/) as an acceptable fallback.
                 
-                For Chinese cultural items such as dishes, festivals, traditional objects, or street signage, Wikimedia Commons is almost always the best source. Search the English or Chinese topic name.
+                For Chinese cultural items such as dishes, festivals, traditional objects, or street signage, search the English topic name on the stock sites first, then fall back to Openverse if nothing suitable appears.
                 
                 ### Image link requirements
                 
