@@ -237,8 +237,18 @@ nz-input-number {
 .creative-selection {
   display: flex;
   justify-content: start;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   width: 100%;
+}
+.creative-selection .course-type-select {
+  width: 110px;
+}
+.creative-selection .course-name-input {
+  width: 200px;
+  border-radius: 8px;
+  border-color: #ff8ecb;
 }
 .export-type-select {
   width: 100%;

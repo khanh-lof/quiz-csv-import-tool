@@ -76,8 +76,11 @@ ASP.NET Core controllers/routing — this is the Functions isolated-worker model
   [../CLAUDE.md](../CLAUDE.md#the-two-ai-generation-modes) for the client-side half of this):
   - `isCreative` absent/false → `SimpleWordQuestionService` (`ISimpleWordQuestionService`): a short prompt asking for a
     two-column CSV (`Câu hỏi`/`Đáp án`) with header included.
-  - `isCreative=true` → also requires `exportType`, `hskLevel`, `lessonNumber` query params (400 if
-    missing/invalid) → `CreativeRequestService` (`ICreativeRequestService`), a long HSK-teacher system prompt, plus
+  - `isCreative=true` → also requires `exportType`, `courseType`, `lessonNumber` query params, plus
+    `level` (HSK/YCT only — optional for `courseType=Other`) and `courseName` (`Other` only), all
+    parsed by `ParseCreativeOptions` into a `CsvGenerationOptions` (400 if missing/invalid). Images
+    are optional in this mode; without them the prompt falls back to the lesson's standard word list.
+    → `CreativeRequestService` (`ICreativeRequestService`), a long Chinese-teacher system prompt, plus
     `GetAdditionalUserMessagesForExportType` appending the exact column layout for the target
     platform (`Models/ExportType.cs`: `GimKit`/`Blooket`/`Wayground`, passed by ordinal — keep in
     sync with `Client/src/models/export-type.ts`). This mode asks the LLM to return rows **without**

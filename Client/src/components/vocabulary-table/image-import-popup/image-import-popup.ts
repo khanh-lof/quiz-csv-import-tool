@@ -24,7 +24,9 @@ import { Utils } from '../../../utils';
 import { ImageImportModel } from '../../../models/image-import-model';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
+import { NzInputDirective } from 'ng-zorro-antd/input';
 import { ExportType } from '../../../models/export-type';
+import { CourseType } from '../../../models/course-type';
 import { finalize } from 'rxjs';
 import { FileExportService } from '../../../services/file-export.service';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
@@ -35,7 +37,9 @@ interface ImageItem {
   isProcessing: boolean;
 }
 interface ImageImportForm {
-  hskLevel: FormControl<number | null>;
+  courseType: FormControl<CourseType | null>;
+  courseName: FormControl<string | null>;
+  level: FormControl<number | null>;
   lessonNumber: FormControl<number | null>;
   AIMode: FormControl<AIGenerationMode | null>;
   exportType: FormControl<ExportType | null>;
@@ -54,6 +58,7 @@ interface ImageImportForm {
     ReactiveFormsModule,
     NzOptionComponent,
     NzSelectComponent,
+    NzInputDirective,
     NzSpinComponent
   ],
   templateUrl: './image-import-popup.html',
@@ -72,36 +77,26 @@ export class ImageImportPopup {
   protected formGroup: FormGroup<ImageImportForm>;
   private requiredIfAIAutoMode: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
     const imageImportForm = control as FormGroup<ImageImportForm>;
-    if (imageImportForm.controls.AIMode.value === AIGenerationMode.Auto) {
-      const hskLevelValidationErrors = Validators.required(imageImportForm.controls.hskLevel);
-      const lessonNumberValidationErrors = Validators.required(imageImportForm.controls.lessonNumber);
-      const exportTypeValidationErrors = Validators.required(imageImportForm.controls.exportType);
-      if (hskLevelValidationErrors) {
-        Utils.addError(imageImportForm.controls.hskLevel, 'required');
-      }
-      else {
-        Utils.removeError(imageImportForm.controls.hskLevel, 'required');
-      }
-      if (lessonNumberValidationErrors) {
-        Utils.addError(imageImportForm.controls.lessonNumber, 'required');
-      }
-      else {
-        Utils.removeError(imageImportForm.controls.lessonNumber, 'required');
-      }
-      if (exportTypeValidationErrors) {
-        Utils.addError(imageImportForm.controls.exportType, 'required');
-      }
-      else {
-        Utils.removeError(imageImportForm.controls.exportType, 'required');
-      }
-      return null;
-    }
+    const isAutoMode = imageImportForm.controls.AIMode.value === AIGenerationMode.Auto;
+    const courseType = imageImportForm.controls.courseType.value;
 
-    Utils.removeError(imageImportForm.controls.hskLevel, 'required');
-    Utils.removeError(imageImportForm.controls.lessonNumber, 'required');
-    Utils.removeError(imageImportForm.controls.exportType, 'required');
+    this.setRequired(imageImportForm.controls.exportType, isAutoMode);
+    this.setRequired(imageImportForm.controls.courseType, isAutoMode);
+    this.setRequired(imageImportForm.controls.lessonNumber, isAutoMode);
+    // HSK and YCT always have a level; a course typed in by hand may not, so there the level is optional.
+    this.setRequired(imageImportForm.controls.level, isAutoMode && courseType !== null && courseType !== CourseType.Other);
+    this.setRequired(imageImportForm.controls.courseName, isAutoMode && courseType === CourseType.Other);
     return null;
   };
+
+  private setRequired(control: AbstractControl, isRequired: boolean): void {
+    if (isRequired && Validators.required(control)) {
+      Utils.addError(control, 'required');
+    }
+    else {
+      Utils.removeError(control, 'required');
+    }
+  }
 
   constructor(
     private readonly modalRef: NzModalRef,
@@ -114,7 +109,9 @@ export class ImageImportPopup {
   ) {
     this.formGroup = formBuilder.group<ImageImportForm>({
       AIMode: formBuilder.control<AIGenerationMode | null>(AIGenerationMode.Auto, Validators.required),
-      hskLevel: formBuilder.control<number | null>(null),
+      courseType: formBuilder.control<CourseType | null>(CourseType.Hsk),
+      courseName: formBuilder.control<string | null>(null),
+      level: formBuilder.control<number | null>(null),
       lessonNumber: formBuilder.control<number | null>(null),
       exportType: formBuilder.control<ExportType | null>(null),
     },{
@@ -249,7 +246,8 @@ export class ImageImportPopup {
       this.notificationService.error('Tập trung vàoooo', 'Nhập đủ thông tin ei', {nzPlacement: 'top'});
       return;
     }
-    if (this.selectedImages.length === 0) {
+    // Only the formatted mode needs images: the creative mode can work from the lesson identifiers alone.
+    if (this.selectedImages.length === 0 && this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
       this.notificationService.warning('Lỗi', 'Không có ảnh để xử lý.', {nzPlacement: 'top'});
       return;
     }
@@ -285,7 +283,9 @@ export class ImageImportPopup {
       return;
     }
     this.aiCsvService.generateCsvFromImagesCreative(imageFiles, {
-      hskLevel: this.formGroup.controls.hskLevel.value,
+      courseType: this.formGroup.controls.courseType.value,
+        courseName: this.formGroup.controls.courseName.value,
+        level: this.formGroup.controls.level.value,
         AIMode: this.formGroup.controls.AIMode.value,
         lessonNumber: this.formGroup.controls.lessonNumber.value,
         exportType: this.formGroup.controls.exportType.value,
@@ -306,5 +306,15 @@ export class ImageImportPopup {
     });
   }
 
+  protected get submitButtonLabel(): string {
+    if (this.isProcessingImages) {
+      return 'Đang xử lý...';
+    }
+    return this.selectedImages.length > 0
+      ? `Xử lý tất cả (${this.selectedImages.length})`
+      : 'Tạo câu hỏi';
+  }
+
   protected readonly ExportType = ExportType;
+  protected readonly CourseType = CourseType;
 }

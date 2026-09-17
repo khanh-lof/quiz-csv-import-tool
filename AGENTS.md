@@ -81,11 +81,17 @@ completely different paths through the system:
   with `CsvImportService.parseCsv` and **emits rows into the vocabulary table**, where the user edits
   them and later exports via `FileExportService.exportFile` (client-side builders synthesize the
   distractors).
-- **`Auto`** (sent as `isCreative=true`, alongside required `exportType`, `hskLevel`,
-  `lessonNumber`) → server's `CreativeRequestService` (`ICreativeRequestService`), a long HSK-teacher prompt that is told the exact
+- **`Auto`** (sent as `isCreative=true`, alongside `exportType`, `courseType`, `lessonNumber`, and
+  `level`/`courseName` depending on the course) → server's `CreativeRequestService`
+  (`ICreativeRequestService`), a long Chinese-teacher prompt that is told the exact
   column layout of the *target platform* via `GetAdditionalUserMessagesForExportType` and asked to
   return **rows without a header** → client never touches the table: it prepends the header through
-  `CsvBuilderBase.buildFromCsvContent` and downloads immediately.
+  `CsvBuilderBase.buildFromCsvContent` and downloads immediately. **Images are optional in this
+  mode**: with none attached the prompt tells the model to work from the standard word list of the
+  identified lesson instead. The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`, another
+  by-ordinal enum duplicated on both sides), a `level` that is required for HSK and YCT but optional
+  for `Other`, a `courseName` required only for `Other`, and a `lessonNumber`. Everything the prompt
+  needs travels in `Models/CsvGenerationOptions.cs`.
 
 Consequences to keep in mind when changing anything here:
 

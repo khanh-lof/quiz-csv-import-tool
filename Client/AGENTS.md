@@ -87,7 +87,8 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
    - **`Formatted`** → response text is cleaned by `AiCsvService.extractCsvContent` (strips markdown
      code fences, or extracts from the first Vietnamese CSV header it finds) → re-parsed by the same
      `CsvImportService.parseCsv` → rows pushed into the table like any other import.
-   - **`Auto`** (requires `hskLevel`/`lessonNumber`/`exportType` in the popup form) → response is CSV
+   - **`Auto`** (requires `courseType`/`lessonNumber`/`exportType` in the popup form, plus `level`
+     for HSK/YCT or `courseName` for `Other`; images are optional here) → response is CSV
      rows with no header → passed straight to `FileExportService.exportFileFromCsvContent`, which
      calls the matching `CsvBuilder.buildFromCsvContent` to prepend the platform's `CsvHeader` and
      downloads immediately. The vocabulary table is never touched in this path.
