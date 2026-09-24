@@ -9,13 +9,14 @@ Blooket, or Wayground. It is one git repo holding two independently built and in
 projects:
 
 - `Client/` — Angular 20 SPA (standalone components, ng-zorro-antd). Deployed to Vercel.
-- `Server/` — Azure Functions isolated worker, .NET 10. Deployed to Azure Function App `quiz-tool`.
+- `Server/` — Azure Functions isolated worker, .NET 10 (`QuizTool`), plus the `QuizTool.Data` class
+  library holding the EF Core Cosmos persistence layer. Deployed to Azure Function App `quiz-tool`.
 
 Each half has its own `CLAUDE.md` with the detail for that side — read
 [Client/CLAUDE.md](Client/CLAUDE.md) or [Server/CLAUDE.md](Server/CLAUDE.md) before working inside
 either directory. This file covers only what spans both.
 
-There is no root-level build, no workspace/solution tying the two together, and no shared code or
+There is no root-level build, no workspace/solution tying the two halves together, and no shared code or
 generated client — the contract between them is hand-written on both sides and must be kept in sync
 manually.
 
@@ -30,7 +31,7 @@ npm run build    # runs scripts/set-env.js first (prebuild), then ng build
 
 Server (run from `Server/`):
 ```bash
-dotnet build QuizTool.sln
+dotnet build QuizTool.slnx
 dotnet run --project QuizTool/QuizTool.csproj   # Functions host on http://localhost:7071
 ```
 
@@ -80,11 +81,17 @@ completely different paths through the system:
   with `CsvImportService.parseCsv` and **emits rows into the vocabulary table**, where the user edits
   them and later exports via `FileExportService.exportFile` (client-side builders synthesize the
   distractors).
-- **`Auto`** (sent as `isCreative=true`, alongside required `exportType`, `hskLevel`,
-  `lessonNumber`) → server's `CreativeRequestService` (`ICreativeRequestService`), a long HSK-teacher prompt that is told the exact
+- **`Auto`** (sent as `isCreative=true`, alongside `exportType`, `courseType`, `lessonNumber`, and
+  `level`/`courseName` depending on the course) → server's `CreativeRequestService`
+  (`ICreativeRequestService`), a long Chinese-teacher prompt that is told the exact
   column layout of the *target platform* via `GetAdditionalUserMessagesForExportType` and asked to
   return **rows without a header** → client never touches the table: it prepends the header through
-  `CsvBuilderBase.buildFromCsvContent` and downloads immediately.
+  `CsvBuilderBase.buildFromCsvContent` and downloads immediately. **Images are optional in this
+  mode**: with none attached the prompt tells the model to work from the standard word list of the
+  identified lesson instead. The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`, another
+  by-ordinal enum duplicated on both sides), a `level` that is required for HSK and YCT but optional
+  for `Other`, a `courseName` required only for `Other`, and a `lessonNumber`. Everything the prompt
+  needs travels in `Models/CsvGenerationOptions.cs`.
 
 Consequences to keep in mind when changing anything here:
 

@@ -22,8 +22,9 @@ controllers/routing):
   per-user AI-call rate limit, sends all images in a single OpenAI-compatible chat-completions
   request with base64 `image_url` content parts, and returns the parsed CSV as `text/csv`. A
   `isCreative` query flag switches between a simple two-column vocabulary prompt and a longer
-  HSK-teacher prompt tailored to the target export platform's column layout (`hskLevel`,
-  `lessonNumber`, `exportType` query params required in that mode).
+  Chinese-teacher prompt tailored to the target export platform's column layout (`exportType`,
+  `courseType`, `lessonNumber` query params required in that mode, plus `level` for HSK/YCT and
+  `courseName` for other courses). Images are optional in the creative mode.
 
 Auth flow: `TokenController` → `AuthenticationService` → `ICosmosUserRepository`. The repository is
 resolved from `IServiceProvider` at call time (not constructor injection) since it's only registered

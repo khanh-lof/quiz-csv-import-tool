@@ -1,32 +1,16 @@
-using Microsoft.Azure.Cosmos;
-using Microsoft.Azure.Cosmos.Fluent;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using QuizTool.Repository;
+using QuizTool.Data;
 using QuizTool.Services;
-using QuizTool.Utils;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
-// Configure Cosmos DB client if env vars are present
-var cosmosEndpoint = Environment.GetEnvironmentVariable("COSMOS_ENDPOINT");
-var cosmosKey = Environment.GetEnvironmentVariable("COSMOS_KEY");
-if (!string.IsNullOrWhiteSpace(cosmosEndpoint) && !string.IsNullOrWhiteSpace(cosmosKey))
-{
-    var cosmosClient = new CosmosClientBuilder(cosmosEndpoint, cosmosKey)
-        .WithSerializerOptions(new CosmosSerializationOptions
-        {
-            PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
-        })
-        .Build();
-    builder.Services.AddSingleton(cosmosClient);
-    // Register user repository and hasher
-    builder.Services.AddSingleton<PasswordHasher>();
-    builder.Services.AddSingleton<ICosmosUserRepository, CosmosUserRepository>();
-}
+// Registers the EF Core Cosmos data layer (repository + password hasher) when the Cosmos
+// environment variables are present; a no-op otherwise.
+builder.Services.AddQuizToolData();
 
-// Register authentication service (uses Cosmos repo if available, otherwise falls back to env-based auth)
+// Register authentication service (uses the user repository if available, otherwise falls back to env-based auth)
 builder.Services.AddSingleton<IAuthenticationService, AuthenticationService>();
 builder.Services.AddSingleton<ISimpleWordQuestionService, SimpleWordQuestionService>();
 builder.Services.AddSingleton<ICreativeRequestService, CreativeRequestService>();

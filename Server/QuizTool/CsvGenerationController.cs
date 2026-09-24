@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -19,12 +20,12 @@ namespace QuizTool;
 
 public sealed class CsvGenerationController
 {
-    private readonly ICosmosUserRepository _userRepo;
+    private readonly IUserRepository _userRepo;
     private readonly ISimpleWordQuestionService _simpleWordQuestionService;
     private readonly ICreativeRequestService _creativeRequestService;
 
     public CsvGenerationController(
-        ICosmosUserRepository userRepo,
+        IUserRepository userRepo,
         ISimpleWordQuestionService simpleWordQuestionService,
         ICreativeRequestService creativeRequestService)
     {
@@ -113,32 +114,61 @@ public sealed class CsvGenerationController
         }
 
         var reader = new MultipartReader(boundary, req.Body);
-        var section = await reader.ReadNextSectionAsync(cancellationToken);
         var images = new List<(MemoryStream Stream, string ContentType)>();
 
-        while (section != null)
+        try
         {
-            var hasContentDispositionHeader =
-                ContentDispositionHeaderValue.TryParse(section.ContentDisposition, out var contentDisposition);
-            if (hasContentDispositionHeader && contentDisposition != null &&
-                contentDisposition.DispositionType.Equals("form-data") &&
-                !string.IsNullOrEmpty(contentDisposition.FileName.Value))
+            // A body carrying no file at all is fine here: the creative mode can run without images.
+            var section = await reader.ReadNextSectionAsync(cancellationToken);
+            while (section != null)
             {
-                var contentTypeHeader = section.ContentType ?? "application/octet-stream";
-                var ms = new MemoryStream();
-                await section.Body.CopyToAsync(ms, cancellationToken);
-                ms.Position = 0;
-                images.Add((ms, contentTypeHeader));
-            }
+                var hasContentDispositionHeader =
+                    ContentDispositionHeaderValue.TryParse(section.ContentDisposition, out var contentDisposition);
+                if (hasContentDispositionHeader && contentDisposition != null &&
+                    contentDisposition.DispositionType.Equals("form-data") &&
+                    !string.IsNullOrEmpty(contentDisposition.FileName.Value))
+                {
+                    var contentTypeHeader = section.ContentType ?? "application/octet-stream";
+                    var ms = new MemoryStream();
+                    await section.Body.CopyToAsync(ms, cancellationToken);
+                    ms.Position = 0;
+                    images.Add((ms, contentTypeHeader));
+                }
 
-            section = await reader.ReadNextSectionAsync(cancellationToken);
+                section = await reader.ReadNextSectionAsync(cancellationToken);
+            }
+        }
+        catch (IOException ex)
+        {
+            // Even an empty multipart body ends with its closing delimiter, so this means it was truncated.
+            logger.LogWarning(ex, "Malformed multipart body");
+            var r = req.CreateResponse(HttpStatusCode.BadRequest);
+            await r.WriteStringAsync("Malformed multipart body.", cancellationToken);
+            return r;
         }
 
-        if (images.Count == 0)
+        var isCreative = bool.TryParse(req.Query.Get("isCreative"), out var creative) && creative;
+
+        // Creative mode can work from the lesson identifiers alone; the formatted mode has nothing to read without images.
+        if (!isCreative && images.Count == 0)
         {
             var r = req.CreateResponse(HttpStatusCode.BadRequest);
             await r.WriteStringAsync("Image is required.", cancellationToken);
             return r;
+        }
+
+        var options = new CsvGenerationOptions();
+        if (isCreative)
+        {
+            var (parsedOptions, error) = ParseCreativeOptions(req.Query);
+            if (parsedOptions is null)
+            {
+                var r = req.CreateResponse(HttpStatusCode.BadRequest);
+                await r.WriteStringAsync(error!, cancellationToken);
+                return r;
+            }
+
+            options = parsedOptions;
         }
 
         var callCountAcceptedInARound = int.Parse(Environment.GetEnvironmentVariable("CALL_COUNT_ACCEPTED_IN_A_ROUND") ?? "2");
@@ -166,38 +196,7 @@ public sealed class CsvGenerationController
             var base64 = await ReadStreamAsBase64(ms);
             imageData.Add((base64, ct));
         }
-        var isCreative = bool.TryParse(req.Query.Get("isCreative"), out var creative) && creative;
-        var exportType = ExportType.GimKit;
-        var hskLevel = 0;
-        var lessonNumber = 0;
-        if (isCreative)
-        {
-            if (Enum.TryParse<ExportType>(req.Query.Get("exportType"), out var type) && Enum.IsDefined(type))
-            {
-                exportType = type;
-            }
-            else
-            {
-                var r = req.CreateResponse(HttpStatusCode.BadRequest);
-                await r.WriteStringAsync("Invalid or missing exportType parameter.", cancellationToken);
-                return r;
-            }
-
-            if (!int.TryParse(req.Query.Get("hskLevel"), out hskLevel))
-            {
-                var r = req.CreateResponse(HttpStatusCode.BadRequest);
-                await r.WriteStringAsync("Invalid or missing hskLevel parameter.", cancellationToken);
-                return r;
-            }
-
-            if (!int.TryParse(req.Query.Get("lessonNumber"), out lessonNumber))
-            {
-                var r = req.CreateResponse(HttpStatusCode.BadRequest);
-                await r.WriteStringAsync("Invalid or missing lessonNumber parameter.", cancellationToken);
-                return r;
-            }
-        }
-        var csv = await GenerateCsvFromImageAsync(imageData, isCreative, exportType, hskLevel, lessonNumber, logger, cancellationToken);
+        var csv = await GenerateCsvFromImageAsync(imageData, isCreative, options, logger, cancellationToken);
 
         var ok = req.CreateResponse(HttpStatusCode.OK);
         ok.Headers.Add("Content-Type", "text/csv; charset=utf-8");
@@ -205,10 +204,59 @@ public sealed class CsvGenerationController
         return ok;
     }
 
+    private static (CsvGenerationOptions? Options, string? Error) ParseCreativeOptions(NameValueCollection query)
+    {
+        if (!Enum.TryParse<ExportType>(query.Get("exportType"), out var exportType) || !Enum.IsDefined(exportType))
+        {
+            return (null, "Invalid or missing exportType parameter.");
+        }
+
+        if (!Enum.TryParse<CourseType>(query.Get("courseType"), true, out var courseType) || !Enum.IsDefined(courseType))
+        {
+            return (null, "Invalid or missing courseType parameter.");
+        }
+
+        var courseName = query.Get("courseName")?.Trim();
+        if (courseType == CourseType.Other && string.IsNullOrWhiteSpace(courseName))
+        {
+            return (null, "Invalid or missing courseName parameter.");
+        }
+
+        int? level = null;
+        var rawLevel = query.Get("level");
+        if (!string.IsNullOrWhiteSpace(rawLevel))
+        {
+            if (!int.TryParse(rawLevel, out var parsedLevel))
+            {
+                return (null, "Invalid level parameter.");
+            }
+
+            level = parsedLevel;
+        }
+        else if (courseType != CourseType.Other)
+        {
+            // Only a free-form course may come without a level.
+            return (null, "Invalid or missing level parameter.");
+        }
+
+        if (!int.TryParse(query.Get("lessonNumber"), out var lessonNumber))
+        {
+            return (null, "Invalid or missing lessonNumber parameter.");
+        }
+
+        return (new CsvGenerationOptions
+        {
+            ExportType = exportType,
+            CourseType = courseType,
+            CourseName = courseType == CourseType.Other ? courseName : null,
+            Level = level,
+            LessonNumber = lessonNumber
+        }, null);
+    }
+
     private async Task<string> GenerateCsvFromImageAsync(List<(string base64, string contentType)> images,
         bool isCreative,
-        ExportType exportType,
-        int hskLevel, int lessonNumber,
+        CsvGenerationOptions options,
         ILogger<CsvGenerationController> logger, CancellationToken cancellationToken)
     {
         var apiKey = GetEnv("OPENAI_API_KEY");
@@ -221,7 +269,7 @@ public sealed class CsvGenerationController
             new AuthenticationHeaderValue("Bearer", apiKey);
 
         ICsvRequestService requestService = isCreative ? _creativeRequestService : _simpleWordQuestionService;
-        var request = requestService.BuildRequest(images, model, exportType, hskLevel, lessonNumber);
+        var request = requestService.BuildRequest(images, model, options);
 
         var response = await httpClient.PostAsJsonAsync(
             $"{baseUrl}/chat/completions",
