@@ -1,0 +1,24 @@
+# Local stack: MongoDB plus the API on http://localhost:7071.
+#   docker compose up --build        (or: podman compose up --build)
+# Settings other than the MongoDB URI come from .env (copy .env.example).
+services:
+  mongo:
+    image: mongo:8
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      PORT: "7071"
+      MONGODB_URI: mongodb://mongo:27017
+    ports:
+      - "7071:7071"
+    depends_on:
+      - mongo
+
+volumes:
+  mongo-data:

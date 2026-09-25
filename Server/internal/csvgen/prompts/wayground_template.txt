@@ -1,0 +1,38 @@
+"Text of the question
+
+(required)
+
+
+","Question Type
+
+(default is Multiple Choice)
+
+","Text for option 1
+
+(required in all cases)","Text for option 2","Text for option 3
+
+(optional)
+
+
+","Text for option 4
+
+(optional)
+
+
+","Text for option 5
+
+(optional)
+
+
+","The correct option choice (between 1-5).
+
+Leave blank for ""Fill-in-the-Blank"".","Time in seconds
+
+(optional, default value is 30 seconds)
+","Link of the image
+
+(optional)
+
+
+","Explanation for the answer
+(optional)

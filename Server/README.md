@@ -1,84 +1,73 @@
-# QuizTool
+# QuizTool API
 
-An Azure Functions (isolated worker, .NET 10) HTTP API that turns a photo of Chinese vocabulary
-into a quiz. Users log in with a JWT-based auth flow, upload one or more images, and an LLM vision
-call converts the vocabulary into a CSV of questions (Vietnamese meaning / pinyin) and answers
-(Chinese characters). AI calls are rate-limited per user, with state stored in Cosmos DB.
-
-## Architecture
-
-Three HTTP-triggered function controllers (Azure Functions isolated-worker model — no ASP.NET Core
-controllers/routing):
-
-- **`TokenController`** — `auth/login`, `auth/refresh`, `auth/logout`, `auth/logout-all`. Issues
-  access tokens and rotates refresh tokens via `IAuthenticationService`. Refresh tokens are set as an
-  `HttpOnly; Secure; SameSite=None` cookie, not returned in the JSON body. Each user can hold multiple
-  concurrent refresh tokens (one per device/session); `logout` revokes the calling device's token,
-  `logout-all` revokes every token for that user.
-- **`UsersController`** — `users` (requires a Function/Admin key). Creates users directly against
-  `ICosmosUserRepository`, hashing passwords with `PasswordHasher`.
-- **`CsvGenerationController`** — `csv/generate-from-image` (anonymous trigger, validates a `Bearer`
-  JWT inside the method body). Accepts multipart/form-data with one or more image files, enforces the
-  per-user AI-call rate limit, sends all images in a single OpenAI-compatible chat-completions
-  request with base64 `image_url` content parts, and returns the parsed CSV as `text/csv`. A
-  `isCreative` query flag switches between a simple two-column vocabulary prompt and a longer
-  Chinese-teacher prompt tailored to the target export platform's column layout (`exportType`,
-  `courseType`, `lessonNumber` query params required in that mode, plus `level` for HSK/YCT and
-  `courseName` for other courses). Images are optional in the creative mode.
-
-Auth flow: `TokenController` → `AuthenticationService` → `ICosmosUserRepository`. The repository is
-resolved from `IServiceProvider` at call time (not constructor injection) since it's only registered
-when Cosmos env vars are present — if absent, auth calls fail closed (`Valid = false`) instead of
-throwing.
-
-JWT handling is split into two pieces: `JwtTokenIssuer` creates tokens (used by
-`AuthenticationService`), and `JwtAuth` validates tokens / checks role claims (used directly inside
-`CsvGenerationController`).
-
-Data model: `QuizToolUser` (`Models/QuizToolUser.cs`) is the single Cosmos document type, partitioned
-by `/username`. It holds the password hash, roles, a list of `RefreshTokenEntry` (one per active
-device/session), and AI-call rate-limit state (`AiCallCountInRound`, `StartRoundTime`). Refresh-token
-mutations use ETag-guarded optimistic concurrency since concurrent logins/refreshes from different
-devices touch the same document.
+A Go HTTP API that turns photos of Chinese vocabulary into a quiz. Users log in with a JWT-based
+auth flow, upload one or more images, and an LLM vision call converts the vocabulary into a CSV of
+questions and answers. Users, sessions and the per-user AI rate limit are stored in MongoDB.
 
 ## Requirements
 
-- .NET 10 SDK
-- Azure Functions Core Tools (for local hosting)
-- A Cosmos DB account (for auth/user storage) and an OpenAI-compatible LLM endpoint (for CSV
-  generation) — both optional locally; endpoints that depend on them fail gracefully if unconfigured
+- Go 1.27+
+- MongoDB (local, Docker, or a hosted cluster such as Atlas)
+- An OpenAI-compatible chat-completions endpoint for CSV generation (optional locally — the rest of
+  the API works without it)
 
 ## Getting started
 
-Build:
-
 ```bash
-dotnet build QuizTool.sln
+cp .env.example .env        # then fill in JWT_SECRET, ADMIN_API_KEY, LLM settings
+docker compose up -d mongo  # or point MONGODB_URI at your own MongoDB
+go run ./cmd/server         # http://localhost:7071
 ```
 
-Run locally (Azure Functions Core Tools host, port 7071):
+Or run everything in containers: `docker compose up --build`.
+
+Create a user (the endpoint needs `ADMIN_API_KEY`):
 
 ```bash
-dotnet run --project QuizTool/QuizTool.csproj
+curl -X POST http://localhost:7071/api/users \
+  -H "X-Admin-Key: $ADMIN_API_KEY" -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"secret","roles":["User"]}'
 ```
 
-### Local configuration
+## Endpoints
 
-The Functions host reads settings from `QuizTool/local.settings.json` (gitignored — create it
-yourself in a fresh clone). Required app settings, read via `Environment.GetEnvironmentVariable`:
+| Method & path | Auth | Purpose |
+|---|---|---|
+| `POST /api/auth/login` | — | `{username, password}` → `{accessToken}` + `refreshToken` cookie |
+| `POST /api/auth/refresh` | refresh cookie | New access token, rotated refresh cookie |
+| `POST /api/auth/logout` | refresh cookie | Revoke this device's session |
+| `POST /api/auth/logout-all` | refresh cookie | Revoke all sessions of the user |
+| `POST /api/users` | `X-Admin-Key` | Create a user |
+| `POST /api/csv/generate-from-image` | `Bearer` token, role `User`/`Admin` | Multipart images → `text/csv` |
+| `GET /healthz` | — | Liveness check |
 
-| Setting | Notes |
-|---|---|
-| `JWT_SECRET` | Required to issue/validate tokens |
-| `JWT_ISSUER`, `JWT_AUDIENCE` | Optional — issuer/audience validation is skipped if unset |
-| `JWT_ACCESS_TOKEN_EXPIRES_MINUTES` | Default 15 |
-| `JWT_REFRESH_TOKEN_EXPIRES_DAYS` | Default 30 |
-| `COSMOS_ENDPOINT`, `COSMOS_KEY` | If either is missing, Cosmos-backed services aren't registered and endpoints depending on `ICosmosUserRepository` fail DI resolution |
-| `COSMOS_DATABASE` | Default `QuizDb` |
-| `COSMOS_CONTAINER` | No default — must be set |
-| `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LLM_MODEL` | Used by `CsvGenerationController` for the `/chat/completions` call |
-| `CALL_COUNT_ACCEPTED_IN_A_ROUND` | Default 2 — AI-call rate limit per user |
-| `ROUND_MINUTES` | Default 1 — rate limit window |
-| `MAX_REFRESH_TOKENS_PER_USER` | Default 5 — oldest refresh tokens are evicted once a new login would exceed the cap |
+## Configuration
 
-There are no test projects in this solution currently.
+All configuration is via environment variables; `.env.example` lists every one with its default.
+`MONGODB_URI` and `JWT_SECRET` are required. Set `ALLOWED_ORIGINS` to the exact origin(s) of the
+web client — the browser sends the refresh cookie cross-origin only to allowed origins.
+
+## Deployment
+
+Build the image from `Dockerfile` (static binary on distroless, listens on `PORT`, default 8080 in
+the image) and run it anywhere containers run. The refresh cookie is `Secure; SameSite=None`, so the
+API must be served over HTTPS in production.
+
+## Migrating users from Cosmos DB
+
+Export the old container as a JSON array (e.g. `SELECT * FROM c` in Cosmos Data Explorer, save the
+results), then:
+
+```bash
+MONGODB_URI=... go run ./cmd/import-users users.json
+```
+
+Password hashes are compatible, so users keep their passwords. Sessions are not migrated; everyone
+logs in again.
+
+## Tests
+
+```bash
+go test ./...
+MONGODB_TEST_URI=mongodb://localhost:27017 go test ./internal/store/   # MongoDB integration tests
+```
