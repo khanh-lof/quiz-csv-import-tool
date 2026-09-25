@@ -32,6 +32,13 @@ const (
 
 var courseTypeNames = []string{"Hsk", "Yct", "Other"}
 
+// IntelligenceLevels is how many "Độ thông minh" levels the GUI offers (1 = Thấp, 2 = Cao); each
+// picks one model from LLM_INTELLIGENCE_MODELS, cheapest first.
+const IntelligenceLevels = 2
+
+// DefaultIntelligence is used when the client sends none; it matches the GUI default (Thấp).
+const DefaultIntelligence = 1
+
 // Options is everything the creative prompt needs to know about the lesson. Level is optional for
 // CourseType Other, and images are optional altogether: without them the model falls back to the
 // canonical word list of the lesson.
@@ -42,6 +49,8 @@ type Options struct {
 	CourseName   string
 	Level        *int
 	LessonNumber *int
+	// Intelligence is 1..IntelligenceLevels and selects the model, see Client.modelFor.
+	Intelligence int
 }
 
 // CourseDisplayName is the course name handed to the model, e.g. "HSK (HSK 3.0 Standard)".
@@ -94,6 +103,15 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 		return Options{}, errors.New("Invalid or missing lessonNumber parameter.")
 	}
 	opts.LessonNumber = &lesson
+
+	opts.Intelligence = DefaultIntelligence
+	if raw := strings.TrimSpace(q.Get("intelligence")); raw != "" {
+		intelligence, err := strconv.Atoi(raw)
+		if err != nil || intelligence < 1 || intelligence > IntelligenceLevels {
+			return Options{}, errors.New("Invalid intelligence parameter.")
+		}
+		opts.Intelligence = intelligence
+	}
 	return opts, nil
 }
 

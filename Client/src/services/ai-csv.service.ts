@@ -29,6 +29,9 @@ export class AiCsvService {
     if (imageImportModel.level !== null) {
       params = params.set('level', imageImportModel.level);
     }
+    if (imageImportModel.intelligence !== null) {
+      params = params.set('intelligence', imageImportModel.intelligence);
+    }
     if (imageImportModel.courseType === CourseType.Other && imageImportModel.courseName) {
       params = params.set('courseName', imageImportModel.courseName);
     }

@@ -20,7 +20,13 @@ func TestParseCreativeOptions(t *testing.T) {
 	}{
 		{query: "exportType=2&courseType=0&level=3&lessonNumber=7", check: func(o Options) bool {
 			return o.ExportType == Wayground && o.CourseType == Hsk && *o.Level == 3 && *o.LessonNumber == 7 &&
-				o.CourseDisplayName() == "HSK (HSK 3.0 Standard)"
+				o.CourseDisplayName() == "HSK (HSK 3.0 Standard)" && o.Intelligence == 1
+		}},
+		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=1", check: func(o Options) bool {
+			return o.Intelligence == 1
+		}},
+		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=2", check: func(o Options) bool {
+			return o.Intelligence == 2
 		}},
 		{query: "exportType=Blooket&courseType=yct&level=1&lessonNumber=2", check: func(o Options) bool {
 			return o.ExportType == Blooket && o.CourseType == Yct
@@ -38,6 +44,9 @@ func TestParseCreativeOptions(t *testing.T) {
 		{query: "exportType=0&courseType=0&level=x&lessonNumber=1", wantErr: "Invalid level parameter."},
 		{query: "exportType=0&courseType=1&lessonNumber=1", wantErr: "Invalid or missing level parameter."},
 		{query: "exportType=0&courseType=0&level=1", wantErr: "Invalid or missing lessonNumber parameter."},
+		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=0", wantErr: "Invalid intelligence parameter."},
+		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=3", wantErr: "Invalid intelligence parameter."},
+		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=x", wantErr: "Invalid intelligence parameter."},
 	}
 	for _, tt := range tests {
 		q, _ := url.ParseQuery(tt.query)
@@ -86,7 +95,7 @@ func textsOf(t *testing.T, req chatRequest) []string {
 func TestBuildCreativeRequest(t *testing.T) {
 	level, lesson := 2, 5
 	req := buildCreativeRequest("m", nil, Options{ExportType: Wayground, CourseType: Yct, Level: &level, LessonNumber: &lesson})
-	if req.Model != "m" || req.MaxOutputTokens != 10000 || req.Messages[0].Role != "system" {
+	if req.Model != "m" || req.MaxCompletionTokens != 10000 || req.ReasoningEffort != "" || req.Messages[0].Role != "system" {
 		t.Fatalf("unexpected request %+v", req)
 	}
 	system := req.Messages[0].Content.(string)
@@ -131,7 +140,7 @@ func TestGenerateCallsChatCompletions(t *testing.T) {
 	}))
 	defer llm.Close()
 
-	c := NewClient(llm.URL+"/v1/", "key", "gpt-x", slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL+"/v1/", "key", "gpt-x", nil, slog.New(slog.DiscardHandler))
 	csv, err := c.Generate(context.Background(), []Image{{ContentType: "image/jpeg", Data: []byte("img")}}, false, Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -139,7 +148,7 @@ func TestGenerateCallsChatCompletions(t *testing.T) {
 	if csv != "Câu hỏi,Đáp án\na,b" {
 		t.Fatalf("unexpected csv %q", csv)
 	}
-	if got["model"] != "gpt-x" || got["max_output_tokens"] != float64(10000) {
+	if got["model"] != "gpt-x" || got["max_completion_tokens"] != float64(10000) || got["reasoning_effort"] != "low" {
 		t.Fatalf("unexpected payload %v", got)
 	}
 }
@@ -149,8 +158,21 @@ func TestGenerateFailsOnErrorStatus(t *testing.T) {
 		http.Error(w, "nope", http.StatusTooManyRequests)
 	}))
 	defer llm.Close()
-	c := NewClient(llm.URL, "key", "m", slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
 	if _, err := c.Generate(context.Background(), nil, true, Options{}); err == nil {
 		t.Fatal("want error on non-2xx status")
+	}
+}
+
+func TestModelForIntelligence(t *testing.T) {
+	models := []string{"m1", "m2"}
+	c := NewClient("http://x", "key", "base", models, slog.New(slog.DiscardHandler))
+	for level, want := range map[int]string{1: "m1", 2: "m2", 0: "m1", 3: "m1"} {
+		if got := c.modelFor(Options{Intelligence: level}); got != want {
+			t.Errorf("intelligence %d: want %q, got %q", level, want, got)
+		}
+	}
+	if got := NewClient("http://x", "key", "base", nil, slog.New(slog.DiscardHandler)).modelFor(Options{Intelligence: 2}); got != "base" {
+		t.Errorf("without intelligence models want the base model, got %q", got)
 	}
 }

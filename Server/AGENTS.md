@@ -45,7 +45,10 @@ All settings are env vars (see `.env.example`; `go run` also reads `.env`, real 
   `MAX_REFRESH_TOKENS_PER_USER` (5 — oldest session evicted beyond this)
 - `ADMIN_API_KEY` — required in the `X-Admin-Key` header by `POST /api/users`; empty rejects every call
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LLM_MODEL` — if any is missing the server still starts, but
-  CSV generation answers 500
+  CSV generation answers 500. `LLM_MODEL` serves the formatted mode (sent with `reasoning_effort: low`)
+- `LLM_INTELLIGENCE_MODELS` — optional, exactly 2 comma-separated models: the creative-mode model for
+  the client's "Độ thông minh" Thấp / Cao (`intelligence` query param 1 or 2, default 1).
+  Empty means both use `LLM_MODEL`
 - `CALL_COUNT_ACCEPTED_IN_A_ROUND` (2), `ROUND_MINUTES` (1) — AI-call rate limit per user
 
 ## Architecture

@@ -23,9 +23,10 @@ type Image struct {
 }
 
 type chatRequest struct {
-	Model           string        `json:"model"`
-	Messages        []chatMessage `json:"messages"`
-	MaxOutputTokens int           `json:"max_output_tokens"`
+	Model               string        `json:"model"`
+	Messages            []chatMessage `json:"messages"`
+	MaxCompletionTokens int           `json:"max_completion_tokens"`
+	ReasoningEffort     string        `json:"reasoning_effort,omitempty"`
 }
 
 type chatMessage struct {
@@ -47,7 +48,8 @@ type imageURL struct {
 // loads into its vocabulary table.
 func buildSimpleRequest(model string, images []Image) chatRequest {
 	parts := []contentPart{textPart("Convert the image to CSV using the required format.")}
-	return newRequest(model, simpleSystemPrompt, append(parts, imageParts(images)...))
+	// Plain transcription: low reasoning effort is enough and is the cheapest rate.
+	return newRequest(model, simpleSystemPrompt, "low", append(parts, imageParts(images)...))
 }
 
 // buildCreativeRequest asks for ready-to-import rows, without a header, laid out for the target
@@ -64,7 +66,9 @@ func buildCreativeRequest(model string, images []Image, opts Options) chatReques
 	for _, msg := range lessonMessages(opts) {
 		parts = append(parts, textPart(msg))
 	}
-	return newRequest(model, creativeSystemPrompt, append(parts, imageParts(images)...))
+	// No reasoning effort: the model is picked by "Độ thông minh" and some of them (gpt-6-astra) have
+	// no effort levels, so each runs at its own default.
+	return newRequest(model, creativeSystemPrompt, "", append(parts, imageParts(images)...))
 }
 
 func lessonMessages(opts Options) []string {
@@ -98,14 +102,15 @@ func exportTypeMessages(t ExportType) []string {
 	panic(fmt.Sprintf("csvgen: unknown export type %d", t))
 }
 
-func newRequest(model, systemPrompt string, userParts []contentPart) chatRequest {
+func newRequest(model, systemPrompt, reasoningEffort string, userParts []contentPart) chatRequest {
 	return chatRequest{
 		Model: model,
 		Messages: []chatMessage{
 			{Role: "system", Content: normalizePrompt(systemPrompt)},
 			{Role: "user", Content: userParts},
 		},
-		MaxOutputTokens: 10000,
+		MaxCompletionTokens: 10000,
+		ReasoningEffort:     reasoningEffort,
 	}
 }
 

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"quiz-csv-import-tool/server/internal/csvgen"
 )
 
 type Config struct {
@@ -42,7 +44,12 @@ type Config struct {
 type LLMConfig struct {
 	APIKey  string
 	BaseURL string
-	Model   string
+	// Model serves the formatted mode, and the creative mode when IntelligenceModels is empty.
+	Model string
+	// IntelligenceModels are the creative-mode models for "Độ thông minh" Thấp and Cao, cheapest first
+	// (LLM_INTELLIGENCE_MODELS, comma-separated). Optional; when set it must list exactly
+	// csvgen.IntelligenceLevels models.
+	IntelligenceModels []string
 }
 
 func (c LLMConfig) Missing() []string {
@@ -93,9 +100,10 @@ func FromEnv() (Config, error) {
 		AdminAPIKey: os.Getenv("ADMIN_API_KEY"),
 
 		LLM: LLMConfig{
-			APIKey:  os.Getenv("OPENAI_API_KEY"),
-			BaseURL: strings.TrimRight(os.Getenv("OPENAI_BASE_URL"), "/"),
-			Model:   os.Getenv("LLM_MODEL"),
+			APIKey:             os.Getenv("OPENAI_API_KEY"),
+			BaseURL:            strings.TrimRight(os.Getenv("OPENAI_BASE_URL"), "/"),
+			Model:              os.Getenv("LLM_MODEL"),
+			IntelligenceModels: splitList(os.Getenv("LLM_INTELLIGENCE_MODELS")),
 		},
 
 		AICallsPerRound: intVar("CALL_COUNT_ACCEPTED_IN_A_ROUND", 2),
@@ -107,6 +115,9 @@ func FromEnv() (Config, error) {
 	}
 	if len(cfg.JWTSecret) == 0 {
 		errs = append(errs, errors.New("JWT_SECRET is required"))
+	}
+	if n := len(cfg.LLM.IntelligenceModels); n != 0 && n != csvgen.IntelligenceLevels {
+		errs = append(errs, fmt.Errorf("LLM_INTELLIGENCE_MODELS must list %d models, got %d", csvgen.IntelligenceLevels, n))
 	}
 	if cfg.MaxRefreshTokensPerUser < 1 {
 		errs = append(errs, errors.New("MAX_REFRESH_TOKENS_PER_USER must be at least 1"))

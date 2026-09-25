@@ -105,6 +105,15 @@
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.lessonNumber}"/>
           </span>
         </div>
+        <div class="intelligence-selection">
+          <span>Độ thông minh </span>
+          <nz-segmented [formControl]="formGroup.controls.intelligence" [nzOptions]="intelligenceOptions"></nz-segmented>
+          @if (formGroup.controls.intelligence.value === 2) {
+            <small class="intelligence-warning">
+              <nz-icon nzType="warning" nzTheme="outline"/> Chậm hơn, tốn gấp ~3 lần
+            </small>
+          }
+        </div>
       }
 
       <div class="images-actions">

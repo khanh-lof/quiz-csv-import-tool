@@ -19,18 +19,34 @@ type Client struct {
 	baseURL string
 	apiKey  string
 	model   string
-	logger  *slog.Logger
+	// intelligenceModels are the creative-mode models for "Độ thông minh" 1..IntelligenceLevels.
+	// Empty means every level uses model.
+	intelligenceModels []string
+	logger             *slog.Logger
 }
 
-func NewClient(baseURL, apiKey, model string, logger *slog.Logger) *Client {
+func NewClient(baseURL, apiKey, model string, intelligenceModels []string, logger *slog.Logger) *Client {
 	return &Client{
 		// Long outputs (up to 10k tokens) can take minutes.
-		http:    &http.Client{Timeout: 5 * time.Minute},
-		baseURL: strings.TrimRight(baseURL, "/"),
-		apiKey:  apiKey,
-		model:   model,
-		logger:  logger,
+		http:               &http.Client{Timeout: 5 * time.Minute},
+		baseURL:            strings.TrimRight(baseURL, "/"),
+		apiKey:             apiKey,
+		model:              model,
+		intelligenceModels: intelligenceModels,
+		logger:             logger,
 	}
+}
+
+// modelFor returns the creative-mode model for the requested intelligence level.
+func (c *Client) modelFor(opts Options) string {
+	if len(c.intelligenceModels) == 0 {
+		return c.model
+	}
+	level := opts.Intelligence
+	if level < 1 || level > len(c.intelligenceModels) {
+		level = DefaultIntelligence
+	}
+	return c.intelligenceModels[level-1]
 }
 
 // Generate returns the CSV the model produced. creative selects the platform-specific prompt
@@ -38,7 +54,7 @@ func NewClient(baseURL, apiKey, model string, logger *slog.Logger) *Client {
 func (c *Client) Generate(ctx context.Context, images []Image, creative bool, opts Options) (string, error) {
 	req := buildSimpleRequest(c.model, images)
 	if creative {
-		req = buildCreativeRequest(c.model, images, opts)
+		req = buildCreativeRequest(c.modelFor(opts), images, opts)
 	}
 	body, err := json.Marshal(req)
 	if err != nil {

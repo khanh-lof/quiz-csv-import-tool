@@ -250,6 +250,16 @@ nz-input-number {
   border-radius: 8px;
   border-color: #ff8ecb;
 }
+.intelligence-selection {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+}
+.intelligence-warning {
+  color: #fa8c16;
+}
 .export-type-select {
   width: 100%;
 }
