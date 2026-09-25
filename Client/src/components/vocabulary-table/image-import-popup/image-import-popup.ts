@@ -30,7 +30,6 @@ import { CourseType } from '../../../models/course-type';
 import { finalize } from 'rxjs';
 import { FileExportService } from '../../../services/file-export.service';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
-import { NzSegmentedComponent, NzSegmentedOptions } from 'ng-zorro-antd/segmented';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { ImageCompressionService, UploadTooLargeError } from '../../../services/image-compression.service';
 
@@ -63,8 +62,7 @@ interface ImageImportForm {
     NzOptionComponent,
     NzSelectComponent,
     NzInputDirective,
-    NzSpinComponent,
-    NzSegmentedComponent
+    NzSpinComponent
   ],
   templateUrl: './image-import-popup.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -79,11 +77,6 @@ export class ImageImportPopup {
   protected dragEnterCounter = 0;
 
   protected readonly AIGenerationMode = AIGenerationMode;
-  // Values are the server's intelligence levels: 1 = LLM_INTELLIGENCE_MODELS[0], 2 = [1].
-  protected readonly intelligenceOptions: NzSegmentedOptions = [
-    {label: 'Thấp', value: 1},
-    {label: 'Cao', value: 2},
-  ];
   protected formGroup: FormGroup<ImageImportForm>;
   private requiredIfAIAutoMode: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
     const imageImportForm = control as FormGroup<ImageImportForm>;

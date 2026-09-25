@@ -106,8 +106,12 @@
           </span>
         </div>
         <div class="intelligence-selection">
-          <span>Độ thông minh </span>
-          <nz-segmented [formControl]="formGroup.controls.intelligence" [nzOptions]="intelligenceOptions"></nz-segmented>
+          <label>Độ thông minh: </label>
+          <!-- Values are the server's intelligence levels: 1 = LLM_INTELLIGENCE_MODELS[0], 2 = [1]. -->
+          <nz-radio-group [formControl]="formGroup.controls.intelligence" nzButtonStyle="solid">
+            <label nz-radio-button [nzValue]="1">Thấp</label>
+            <label nz-radio-button [nzValue]="2">Cao</label>
+          </nz-radio-group>
           @if (formGroup.controls.intelligence.value === 2) {
             <small class="intelligence-warning">
               <nz-icon nzType="warning" nzTheme="outline"/> Chậm hơn, tốn gấp ~3 lần

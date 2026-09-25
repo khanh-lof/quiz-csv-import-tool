@@ -106,12 +106,13 @@ func TestBuildCreativeRequest(t *testing.T) {
 	}
 
 	texts := textsOf(t, req)
-	if len(texts) != 7 {
-		t.Fatalf("want 7 text parts (intro, 3 Wayground, 3 lesson), got %d: %q", len(texts), texts)
+	if len(texts) != 8 {
+		t.Fatalf("want 8 text parts (intro, 4 Wayground, 3 lesson), got %d: %q", len(texts), texts)
 	}
 	if !strings.HasPrefix(texts[0], "No image is provided.") ||
 		!strings.HasPrefix(texts[3], `"Text of the question`) || !strings.HasSuffix(texts[3], "(optional)") ||
-		texts[4] != "Course: YCT (Youth Chinese Test)" || texts[5] != "Level: 2" || texts[6] != "Lesson number: 5" {
+		!strings.HasPrefix(texts[4], "Image Link:") ||
+		texts[5] != "Course: YCT (Youth Chinese Test)" || texts[6] != "Level: 2" || texts[7] != "Lesson number: 5" {
 		t.Fatalf("unexpected text parts %q", texts)
 	}
 

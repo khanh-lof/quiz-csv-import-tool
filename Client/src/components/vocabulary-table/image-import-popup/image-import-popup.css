@@ -252,10 +252,9 @@ nz-input-number {
 }
 .intelligence-selection {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+  flex-direction: column;
   width: 100%;
+  gap: 12px;
 }
 .intelligence-warning {
   color: #fa8c16;

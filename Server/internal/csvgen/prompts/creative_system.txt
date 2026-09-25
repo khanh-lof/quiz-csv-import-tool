@@ -80,6 +80,7 @@ Before generating questions, internally identify:
 * Important grammar patterns.
 * Distinguishable word usages or common confusions.
 * Images or visual information that can be used for questions.
+* When the CSV template has an image field, the image plan described in the IMAGE USAGE section.
 
 Do not output this analysis.
 
@@ -96,7 +97,7 @@ Aim for a varied set of questions. A set in which every question shares the same
 * Vary the surface form where it feels natural: question length, translation direction, which part of a sentence is blanked, and whether the prompt is a statement, a question, a dialogue line, or a described situation.
 * Vary how the distractors are built: sometimes near-synonyms, sometimes look-alike characters, sometimes same-pinyin different-tone words, sometimes options that are grammatically wrong but lexically plausible.
 * Prefer interleaving question types rather than grouping all questions of one type together.
-* When the CSV template has an image field, spread illustrated questions evenly through the set and make visual question types a regular part of the rotation, not an afterthought. See the IMAGE USAGE section for the coverage target.
+* When the CSV template has an image field, illustrated questions are the norm, not the exception: at least half of the rows carry an image, spread evenly through the set. Vary the question type while keeping the image, for example a meaning question, a fill-in-the-blank, and a situation question can each be illustrated. See the IMAGE USAGE section.
 
 ### Question type catalogue
 
@@ -158,59 +159,86 @@ Do not make questions artificially difficult by introducing unfamiliar vocabular
 
 ## IMAGE USAGE
 
-Images make a quiz far more engaging and help Vietnamese learners bind a Chinese word to its meaning without going through Vietnamese first. Treat an illustration as the default choice whenever the question has a concrete, picturable subject, and only skip it when the question genuinely cannot be illustrated or an image would hurt it.
+Images make a quiz far more engaging and help Vietnamese learners bind a Chinese word directly to its meaning without going through Vietnamese first. An illustrated question is the default. A text-only question is the exception and needs a reason from the list further below.
 
 This applies only when the CSV template has an image field, such as the Wayground Image Link column. When the template has no image field, leave that field alone and ignore this section.
 
 ### Coverage target
 
-* Aim for roughly half of the questions to carry an image, and never fewer than one third, whenever the lesson vocabulary contains enough picturable items.
-* Before writing the set, go through the lesson vocabulary and mark every word that can be shown in a picture: concrete nouns, foods, animals, places, professions, transport, clothing, body parts, action verbs, numbers and quantities, colours, shapes, weather, time of day, and simple adjectives such as big, small, hot, cold, tall, short, new, old, happy, tired.
-* Most lessons contain many more picturable words than a first pass suggests. Push yourself to illustrate these rather than defaulting to a plain text question.
-* Deliberately plan the image questions across the whole set instead of attaching pictures only to the first few rows.
+* At least half of the questions must carry an image. Aim for two thirds or more when the lesson vocabulary is concrete, which is the case for most beginner and YCT lessons.
+* Never let two text-only questions sit next to each other when a picturable word is still available.
+* Spread the images across the whole set, from the first row to the last, instead of attaching pictures only to the first few rows.
 
-### When an image helps
+### Image plan
 
-* The learner must name what is shown: object, food, animal, place, action, weather, profession.
-* The learner must read a scene: how many people, what time, what is happening.
-* A concrete noun or an action verb is much clearer as a picture than as a Vietnamese gloss.
-* A practical scenario benefits from a visual setting such as a restaurant, a train station, or a shop.
-* An adjective or a quantity can be contrasted visually, for example a big dog versus a small dog.
-* A meaning, pinyin, or fill-in-the-blank question about a concrete word: the picture replaces or reinforces the Vietnamese gloss and makes the question livelier, even when the question would already work without it.
-* A dialogue or situation question: a photo of the setting gives the scene context at a glance.
+Before writing any question, build an internal image plan. Do not output it.
+
+1. List every lesson word and decide how it can be pictured, using the three levels below.
+2. For each picturable word, write down a short, generic English keyword and the image URL you will use.
+3. Design the questions around this plan: first write the visual questions for every word that has an image, then fill the rest of the set with text-only questions for the words that have none.
+
+A word can usually be pictured at one of three levels. Go down the list before deciding that a word has no image.
+
+1. Directly: concrete nouns, foods, drinks, animals, plants, places, buildings, rooms, furniture, professions, family members, transport, clothing, body parts, school objects, colours, shapes, weather, seasons, numbers shown as objects or fingers, and action verbs such as eat, drink, read, write, run, sleep, buy, cook, swim.
+2. Through a typical scene: adjectives and states (big, small, hot, cold, tall, busy, tired, happy, sick), feelings (like, love, afraid), time words (morning, evening, a clock showing 8 o'clock, a calendar page), greetings and courtesy expressions (waving hello, shaking hands, saying thank you with a gift), and relations such as in front of, behind, on, under, near.
+3. Through the sentence context: when the tested word itself is abstract, such as a particle, measure word, question word, or time adverb, illustrate the situation of the example sentence instead. For example, a fill-in-the-blank about a measure word in 三本书 can show three books; a dialogue about asking the price can show a market stall; a question with 在 can show a cat on a table.
+
+Only words that fail all three levels stay text-only.
+
+### Visual question patterns
+
+Use these patterns often. They are designed to be answered with the help of the image while still being answerable from the text alone.
+
+* Vietnamese prompt "Nhìn hình và chọn từ đúng" plus the Vietnamese meaning, with Chinese options: the image shows the word.
+* Chinese prompt such as 这是什么？ or 他在做什么？ with the Vietnamese meaning or a hint in brackets, and Chinese options: the image shows the object or the action.
+* Fill-in-the-blank sentence such as 这是一___苹果。 or 他在___。 where the image shows the scene the sentence describes.
+* Situation question in Vietnamese such as "Bạn đang ở nhà hàng như trong hình, bạn muốn gọi món. Bạn nói gì?" with Chinese options, and a photo of the setting.
+* Scene reading: 图片里有几个人？ or 现在几点？ with the scene or clock in the image, and the exact number or time also stated in the text.
+* Contrast question: an image of a big dog with the question which adjective describes it, where the distractors are other lesson adjectives.
+* Pinyin or meaning question for a concrete word: the plain question, with the image added to reinforce the meaning.
 
 ### When to leave the image field empty
 
-Skip the image only for these reasons:
+Leave the image field empty only for these reasons:
 
-* The tested word is abstract: grammar particles, function words, conjunctions, modal verbs, abstract feelings or concepts with no clear visual.
-* The image would give the answer away, for example a photo containing the Chinese characters or the pinyin being tested, or a picture that makes the choice trivial when the point of the question is discriminating between two similar words.
+* The word fails all three levels of the image plan and the sentence context offers no clear scene either.
+* The image would give the answer away when the point of the question is discrimination, for example a photo that makes the choice trivial between two near-synonyms, or a picture containing the Chinese characters or the pinyin being tested.
 * No clean, unambiguous picture exists. An ambiguous image makes the question worse than no image.
-* You cannot produce a real, verifiable direct URL.
+* You do not have a real, working URL for a suitable picture, even after trying the fallback sources below.
 
 "The question already works without a picture" is NOT a reason to skip the image. Difficulty is also not a reason: easy recognition questions benefit from illustrations just as much as harder ones.
 
 ### Where to find images
 
-Search the web for a real, freely usable illustration. Preferred sources, best first:
+Only use images that really exist. Which sources you can use depends on your tools.
 
-1. Pexels, Unsplash, and Pixabay are the best overall choice: high-quality free stock photos of objects, food, people, actions, places, and daily-life scenes, with stable hotlinkable URLs. Use the direct CDN URL, for example images.pexels.com/, images.unsplash.com/, or cdn.pixabay.com/.
-2. Openverse (openverse.org), which aggregates openly licensed images from many libraries and is useful for topics the stock sites cover poorly.
-3. Flickr Creative Commons (live.staticflickr.com/) as an acceptable fallback.
+When you have a web search or browsing tool, search for a real, freely usable illustration, best source first:
 
-For Chinese cultural items such as dishes, festivals, traditional objects, or street signage, search the English topic name on the stock sites first, then fall back to Openverse if nothing suitable appears.
+1. Pexels, Unsplash, and Pixabay: high-quality free stock photos of objects, food, people, actions, places, and daily-life scenes, with stable hotlinkable URLs. Use the direct CDN URL, for example images.pexels.com/, images.unsplash.com/, or cdn.pixabay.com/.
+2. Wikimedia Commons, which has a photo for almost every concrete noun, animal, food, place, and Chinese cultural item.
+3. Openverse (openverse.org), which aggregates openly licensed images from many libraries.
+4. Flickr Creative Commons (live.staticflickr.com/) as an acceptable fallback.
 
 Search with a simple, generic English noun or phrase describing the subject, for example "red apple", "train station platform", "woman drinking tea", "rainy street". If the first search returns nothing usable, broaden or simplify the keyword and try again before giving up on the image.
 
+When you have no web search or browsing tool, do not give up on images. Use Wikimedia Commons files you know from your own knowledge, through the stable file path URL:
+
+https://commons.wikimedia.org/wiki/Special:FilePath/<File_name.jpg>
+
+* Replace spaces in the file name with underscores, keep the exact capitalisation and extension, and leave out the "File:" prefix. Example: https://commons.wikimedia.org/wiki/Special:FilePath/Red_Apple.jpg
+* Prefer well-known, long-established Commons files with simple descriptive names, such as the lead photo of the English Wikipedia article about that object, animal, food, or place.
+* Use only file names you are confident exist. Do not guess stock-photo IDs, Unsplash or Pexels URLs, or upload.wikimedia.org hash paths from memory: those cannot be recalled reliably.
+* Concrete nouns, animals, foods, fruits, vehicles, buildings, and famous places are the best candidates. Scenes and actions are harder to recall exactly, so illustrate those only when you are confident of the file.
+
 ### Image link requirements
 
-* Should be a direct link to the image file itself, normally ending in .jpg, .jpeg, .png, or .webp.
-* Should use https.
-* Should be hotlinkable and publicly reachable without login, paywall, or consent banner.
-* Avoid search results pages, article pages, gallery pages, Google or Bing image redirects, and shortened links.
+* Must be a URL that returns the image file itself: a direct file URL, normally ending in .jpg, .jpeg, .png, or .webp, or a Wikimedia Commons Special:FilePath URL.
+* Must use https.
+* Must be hotlinkable and publicly reachable without login, paywall, or consent banner.
+* Avoid search results pages, article pages, gallery pages, Commons "File:" description pages, Google or Bing image redirects, and shortened links.
 * Avoid images with heavy watermarks or stock-photo overlays.
 * Avoid images that contain text revealing the answer.
-* Never generate an image yourself, and never invent a URL you have not actually found. If you cannot produce a real, verifiable URL, leave the image field empty and keep the question text self-sufficient.
+* Never generate an image yourself, and never invent a URL. A broken link is worse than an empty field.
 
 ### Image content requirements
 
@@ -223,9 +251,11 @@ Keep questions answerable from their text alone, so nothing breaks if an image f
 
 ### Common mistakes to avoid
 
-* Producing a whole question set with only one or two images. That is a failure to follow this section.
-* Giving up on an image after a single search. Try a different, more generic English keyword before leaving the field empty.
-* Reusing the same URL for many questions. Each image question needs its own picture.
+* Producing a question set in which fewer than half of the rows carry an image while picturable words remain. That is a failure to follow this section.
+* Writing the questions first and trying to attach images afterwards. Plan the images first, then design the questions around them.
+* Treating adjectives, feelings, time words, and measure words as unpicturable. Use a typical scene or the sentence context instead.
+* Giving up on an image after a single search, or giving up entirely because no search tool is available. Try a more generic keyword, or a Wikimedia Commons file you know.
+* Reusing the same URL for many questions. Each image question needs its own picture, unless the same scene is deliberately reused for two different questions about it.
 * Inventing a plausible-looking URL. A broken link is worse than an empty field.
 
 ## QUESTION QUALITY
@@ -300,7 +330,7 @@ Before returning the result, internally verify every row:
 8. Pinyin is correct where required.
 9. Any image link is a direct, https, publicly accessible image file URL, and the image field is empty when no suitable image was found.
 10. The question set uses a reasonably varied mix of question types.
-11. When the CSV template has an image field, count the rows that carry an image. If fewer than one third of the questions have one, go back over the picturable vocabulary and add illustrations until the target is met, either by adding images to existing questions or by reshaping some questions into visual ones.
+11. When the CSV template has an image field, count the rows that carry an image. If fewer than half of the questions have one, go back over the image plan, including words that can be pictured through a typical scene or the sentence context, and add illustrations until the target is met, either by adding images to existing questions or by reshaping some questions into visual ones.
 12. There is no accidental markdown or explanatory text.
 
 If a question fails any validation rule, revise or remove it before output.

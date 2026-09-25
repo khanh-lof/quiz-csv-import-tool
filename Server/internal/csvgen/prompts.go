@@ -97,6 +97,7 @@ func exportTypeMessages(t ExportType) []string {
 			"CSV columns: Question Text,Question Type,Option 1,Option 2,Option 3,Option 4,Option 5,Correct Answer,Time in seconds,Image Link,Answer explanation",
 			`Question type will be ""Multiple Choice"" or ""Fill-in-the-Blank"". The option 2-5 must be empty for ""Fill-in-the-Blank"", the option 1 is the correct answer`,
 			normalizePrompt(waygroundTemplate),
+			"Image Link: fill it for at least half of the rows, following the IMAGE USAGE section. Plan the images before writing the questions.",
 		}
 	}
 	panic(fmt.Sprintf("csvgen: unknown export type %d", t))
