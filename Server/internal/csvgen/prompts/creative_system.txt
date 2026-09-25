@@ -129,7 +129,7 @@ Aim for a varied set of questions. A set in which every question shares the same
 * Vary the surface form where it feels natural: question length, translation direction, which part of a sentence is blanked, and whether the prompt is a statement, a question, a dialogue line, or a described situation.
 * Vary how the distractors are built: sometimes near-synonyms, sometimes look-alike characters, sometimes same-pinyin different-tone words, sometimes options that are grammatically wrong but lexically plausible.
 * Prefer interleaving question types rather than grouping all questions of one type together.
-* When the CSV template has an image field, illustrated questions are the norm, not the exception: at least half of the rows carry an image, spread evenly through the set. Vary the question type while keeping the image, for example a meaning question, a fill-in-the-blank, and a situation question can each be illustrated. See the IMAGE USAGE section.
+* When the CSV template has an image field, visual questions are the norm, not the exception: at least half of the rows are questions that can only be answered by looking at the image, spread evenly through the set. Vary the kind of visual question, for example naming the pictured object, choosing the sentence that describes the scene, filling a blank with what the picture shows, or reading a number or time off the picture. See the IMAGE USAGE section.
 
 ### Question type catalogue
 
@@ -191,13 +191,17 @@ Do not make questions artificially difficult by introducing unfamiliar vocabular
 
 ## IMAGE USAGE
 
-Images make a quiz far more engaging and help Vietnamese learners bind a Chinese word directly to its meaning without going through Vietnamese first. An illustrated question is the default. A text-only question is the exception and needs a reason from the list further below.
+Images make a quiz far more engaging and help Vietnamese learners bind a Chinese word directly to its meaning without going through Vietnamese first. But an image is only worth attaching when the question cannot be answered without it: the picture must carry information that the text deliberately leaves out, such as the object, the action, the scene, the number, or the time being asked about.
+
+Never attach an image to a question that can already be answered from its text alone. A picture that merely decorates or repeats what the text says is forbidden. When a question is answerable from the text, either leave its image field empty or rewrite the question so that the picture supplies the missing information.
+
+The test for every illustrated row: imagine the image is hidden. If a learner could still pick the correct answer from the question text and the options, the image does not belong there.
 
 This applies only when the CSV template has an image field, such as the Wayground Image Link column. When the template has no image field, leave that field alone and ignore this section.
 
 ### Coverage target
 
-* At least half of the questions must carry an image. Aim for two thirds or more when the lesson vocabulary is concrete, which is the case for most beginner and YCT lessons.
+* At least half of the questions must be visual questions, that is questions whose answer depends on the image. Aim for two thirds or more when the lesson vocabulary is concrete, which is the case for most beginner and YCT lessons.
 * Never let two text-only questions sit next to each other when a picturable word is still available.
 * Spread the images across the whole set, from the first row to the last, instead of attaching pictures only to the first few rows.
 
@@ -207,38 +211,40 @@ Before writing any question, build an internal image plan. Do not output it.
 
 1. List every lesson word and decide how it can be pictured, using the three levels below.
 2. For each picturable word, write down a short, generic English keyword and the image URL you will use.
-3. Design the questions around this plan: first write the visual questions for every word that has an image, then fill the rest of the set with text-only questions for the words that have none.
+3. Design the questions around this plan: first write the visual questions for every word that has an image, phrasing each one so that the picture replaces the information the text leaves out, then fill the rest of the set with text-only questions, which carry no image.
 
 A word can usually be pictured at one of three levels. Go down the list before deciding that a word has no image.
 
 1. Directly: concrete nouns, foods, drinks, animals, plants, places, buildings, rooms, furniture, professions, family members, transport, clothing, body parts, school objects, colours, shapes, weather, seasons, numbers shown as objects or fingers, and action verbs such as eat, drink, read, write, run, sleep, buy, cook, swim.
 2. Through a typical scene: adjectives and states (big, small, hot, cold, tall, busy, tired, happy, sick), feelings (like, love, afraid), time words (morning, evening, a clock showing 8 o'clock, a calendar page), greetings and courtesy expressions (waving hello, shaking hands, saying thank you with a gift), and relations such as in front of, behind, on, under, near.
-3. Through the sentence context: when the tested word itself is abstract, such as a particle, measure word, question word, or time adverb, illustrate the situation of the example sentence instead. For example, a fill-in-the-blank about a measure word in 三本书 can show three books; a dialogue about asking the price can show a market stall; a question with 在 can show a cat on a table.
+3. Through the sentence context: when the tested word itself is abstract, such as a particle, measure word, question word, or time adverb, illustrate the situation of the example sentence instead. For example, 桌子上有___本书。 can show three books, so the count comes only from the picture; 猫在哪儿？ with options 桌子上, 桌子下, 椅子上 can show a cat on a table; a situation question about what to say can show a market stall, so the setting comes only from the picture.
 
 Only words that fail all three levels stay text-only.
 
 ### Visual question patterns
 
-Use these patterns often. They are designed to be answered with the help of the image while still being answerable from the text alone.
+Use these patterns often. Each one can only be answered by looking at the image: the text never states the Vietnamese meaning, a hint, the number, the time, or the setting that the picture shows.
 
-* Vietnamese prompt "Nhìn hình và chọn từ đúng" plus the Vietnamese meaning, with Chinese options: the image shows the word.
-* Chinese prompt such as 这是什么？ or 他在做什么？ with the Vietnamese meaning or a hint in brackets, and Chinese options: the image shows the object or the action.
-* Fill-in-the-blank sentence such as 这是一___苹果。 or 他在___。 where the image shows the scene the sentence describes.
-* Situation question in Vietnamese such as "Bạn đang ở nhà hàng như trong hình, bạn muốn gọi món. Bạn nói gì?" with Chinese options, and a photo of the setting.
-* Scene reading: 图片里有几个人？ or 现在几点？ with the scene or clock in the image, and the exact number or time also stated in the text.
-* Contrast question: an image of a big dog with the question which adjective describes it, where the distractors are other lesson adjectives.
-* Pinyin or meaning question for a concrete word: the plain question, with the image added to reinforce the meaning.
+* Vietnamese prompt "Nhìn hình và chọn từ đúng" with Chinese options and no Vietnamese meaning in the text: the image alone shows the word.
+* Chinese prompt such as 这是什么？ or 他在做什么？ with no meaning or hint in brackets, and Chinese options: the image alone shows the object or the action.
+* Fill-in-the-blank sentence such as 他在___。 or 桌子上有___个苹果。 where the missing word, action, or number is shown only in the image, and every option fits the sentence grammatically.
+* Situation question in Vietnamese such as "Bạn đang ở nơi như trong hình. Bạn nói gì?" with Chinese options that suit different settings, and a photo that alone reveals the setting.
+* Scene reading: 图片里有几个人？ or 现在几点？ with the number or time shown only in the image, never in the text.
+* Contrast question: an image of a big dog with the question 这只狗怎么样？, where the options are lesson adjectives and only the picture tells which one is right.
+
+Do not illustrate a plain pinyin, meaning, or translation question whose text already names the word or its meaning: it stays text-only.
 
 ### When to leave the image field empty
 
-Leave the image field empty only for these reasons:
+Leave the image field empty for these reasons:
 
+* The question can be answered from its text alone. This is always a text-only question, however easy the word is to picture.
 * The word fails all three levels of the image plan and the sentence context offers no clear scene either.
 * The image would give the answer away when the point of the question is discrimination, for example a photo that makes the choice trivial between two near-synonyms, or a picture containing the Chinese characters or the pinyin being tested.
 * No clean, unambiguous picture exists. An ambiguous image makes the question worse than no image.
 * You do not have a real, working URL for a suitable picture, even after trying the fallback sources below.
 
-"The question already works without a picture" is NOT a reason to skip the image. Difficulty is also not a reason: easy recognition questions benefit from illustrations just as much as harder ones.
+When you cannot get a real, working URL for a visual question, do not leave the visual question without its picture: it would be unanswerable. Rewrite it as a text-only question that no longer refers to an image.
 
 ### Where to find images
 
@@ -298,11 +304,13 @@ When you have no web search tool, use only Pexels image URLs you know exactly. D
 * Culturally appropriate and classroom safe.
 * No content that would make the correct answer look wrong.
 
-Keep questions answerable from their text alone, so nothing breaks if an image fails to load. An image should enrich the question, not be the only way to answer it.
+A visual question depends on its image, so its link must be reliable. Use only URLs you are confident load, as described above.
 
 ### Common mistakes to avoid
 
-* Producing a question set in which fewer than half of the rows carry an image while picturable words remain. That is a failure to follow this section.
+* Attaching an image to a question the text already answers, for example a meaning question that states the Vietnamese meaning, a 这是什么？ question with the answer's meaning in brackets, or a counting question that states the number. Hide the image and check: if the question still works, remove the image or rewrite the text.
+* Producing a question set in which fewer than half of the rows are visual questions while picturable words remain. That is a failure to follow this section.
+* Leaving the image field empty on a question that tells the learner to look at a picture.
 * Writing the questions first and trying to attach images afterwards. Plan the images first, then design the questions around them.
 * Treating adjectives, feelings, time words, and measure words as unpicturable. Use a typical scene or the sentence context instead.
 * Giving up on an image after a single search. Try a more generic keyword on Pexels, then the other sources.
@@ -380,9 +388,9 @@ Before returning the result, internally verify every row:
 6. No unnecessary higher-level vocabulary was introduced.
 7. Vietnamese explanations are grammatically clear and accurate.
 8. Pinyin is correct where required.
-9. Any image link is a direct, https, publicly accessible image file URL, and the image field is empty when no suitable image was found.
+9. Any image link is a direct, https, publicly accessible image file URL. A row carries an image only when the question cannot be answered without it, and a row with an empty image field never refers to a picture.
 10. The question set uses a reasonably varied mix of question types.
-11. When the CSV template has an image field, count the rows that carry an image. If fewer than half of the questions have one, go back over the image plan, including words that can be pictured through a typical scene or the sentence context, and add illustrations until the target is met, either by adding images to existing questions or by reshaping some questions into visual ones.
+11. When the CSV template has an image field, hide each image in turn and check that its question can no longer be answered; if it still can, remove the image or rewrite the text so the picture carries the missing information. Then count the visual questions. If fewer than half of the questions are visual, go back over the image plan, including words that can be pictured through a typical scene or the sentence context, and reshape some text-only questions into visual ones until the target is met. Never meet the target by attaching images to questions the text already answers.
 12. There is no accidental markdown or explanatory text.
 
 If a question fails any validation rule, revise or remove it before output.
