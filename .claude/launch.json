@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev-start", "--prefix", "Client"],
       "port": 4200
+    },
+    {
+      "name": "quiz-tool-server",
+      "runtimeExecutable": "go",
+      "runtimeArgs": ["-C", "Server", "run", "./cmd/server"],
+      "port": 7071
     }
   ]
 }

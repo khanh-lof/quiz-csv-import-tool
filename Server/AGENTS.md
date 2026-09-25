@@ -4,122 +4,111 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-An Azure Functions (isolated worker, .NET 10) HTTP API. It issues JWTs for login, and uses an LLM
-vision call to convert an uploaded image of Chinese vocabulary into a CSV (Vietnamese meaning +
-pinyin question / Chinese-character answer), gated by JWT auth and a per-user rate limit stored in
-Cosmos DB.
+A Go (`net/http`) HTTP API backed by MongoDB. It issues JWTs for login, and uses an LLM vision call
+to convert uploaded images of Chinese vocabulary into a quiz CSV, gated by JWT auth and a per-user
+rate limit stored in MongoDB. It runs as a single standalone binary: the `Dockerfile` image, or the `server`
+service of the root `vercel.json`, where Vercel's Go preset builds `cmd/server` and runs it on
+Fluid compute with `PORT` set — the code has no Vercel-specific parts.
 
-Two projects:
+Module `quiz-csv-import-tool/server`, laid out as:
 
-- `QuizTool/` — the Functions host: controllers, services, JWT handling.
-- `QuizTool.Data/` — class library holding the persistence layer: `QuizToolDbContext` (EF Core
-  Cosmos provider), `IUserRepository`/`UserRepository`, the `QuizToolUser` document model and
-  `PasswordHasher`. It knows nothing about Functions; `QuizTool` references it and calls the single
-  `services.AddQuizToolData()` entry point from `Program.cs`.
+- `cmd/server` — entry point: reads config, connects to MongoDB, wires everything, graceful shutdown.
+- `cmd/import-users` — one-off tool importing users exported from the old Cosmos DB container.
+- `internal/config` — env-var configuration (`FromEnv`) and a small `.env` loader for local dev.
+- `internal/api` — routing (`Server.Handler`) and all handlers.
+- `internal/auth` — JWT issue/parse, PBKDF2 password hashing, and `Service` (login/refresh/logout).
+- `internal/store` — the `User` document, the `Users` interface, `Mongo` (production) and `Memory`
+  (tests) implementations.
+- `internal/csvgen` — creative-mode option parsing, the two prompts (embedded from `prompts/*.txt`),
+  and the OpenAI-compatible client (`/chat/completions` for the formatted mode, `/responses` for the
+  creative mode).
 
 ## Commands
 
-Build:
 ```bash
-dotnet build QuizTool.slnx
+go build ./...
+go vet ./...
+go test ./...                                    # Mongo integration tests are skipped…
+MONGODB_TEST_URI=mongodb://localhost:27017 go test ./internal/store/   # …unless this is set
+go run ./cmd/server                              # http://localhost:7071 (reads .env if present)
+docker compose up --build                        # MongoDB + API on 7071
 ```
 
-Run locally (Azure Functions Core Tools host, port 7071):
-```bash
-dotnet run --project QuizTool/QuizTool.csproj
-```
+### Configuration
 
-There are no test projects in this solution currently.
+All settings are env vars (see `.env.example`; `go run` also reads `.env`, real env vars win).
+`MONGODB_URI` and `JWT_SECRET` are required — the server refuses to start without them.
 
-### Local configuration
-
-The Functions host reads settings from `QuizTool/local.settings.json` (gitignored, not present in a
-fresh clone — create it yourself). Required app settings, based on env vars read via
-`Environment.GetEnvironmentVariable`:
-
-- `JWT_SECRET` (required to issue/validate tokens), `JWT_ISSUER`, `JWT_AUDIENCE` (optional — validation
-  of issuer/audience is skipped if unset)
-- `JWT_ACCESS_TOKEN_EXPIRES_MINUTES` (default 15), `JWT_REFRESH_TOKEN_EXPIRES_DAYS` (default 30)
-- `COSMOS_ENDPOINT`, `COSMOS_KEY` — if either is missing, Cosmos-backed services are not registered
-  and auth/user-creation/CSV-generation endpoints that depend on `IUserRepository` will fail
-  DI resolution
-- `COSMOS_DATABASE` (default `QuizDb`), `COSMOS_CONTAINER` (no default — must be set for the container
-  to resolve correctly)
-- `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LLM_MODEL` — used only by `CsvGenerationController` when
-  calling the OpenAI-compatible `/chat/completions` endpoint
-- `CALL_COUNT_ACCEPTED_IN_A_ROUND` (default 2), `ROUND_MINUTES` (default 1) — rate limit for AI calls
-  per user
-- `MAX_REFRESH_TOKENS_PER_USER` (default 5) — cap on concurrent refresh tokens (devices/sessions) per
-  user; oldest entries are evicted once a new login would exceed the cap
+- `PORT` (default 7071 — the client's `ng serve` proxy points there)
+- `MONGODB_URI`, `MONGODB_DATABASE` (default `QuizDb`), `MONGODB_COLLECTION` (default `Users`)
+- `JWT_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE` (issuer/audience validation skipped if unset)
+- `JWT_ACCESS_TOKEN_EXPIRES_MINUTES` (15), `JWT_REFRESH_TOKEN_EXPIRES_DAYS` (30),
+  `MAX_REFRESH_TOKENS_PER_USER` (5 — oldest session evicted beyond this)
+- `ADMIN_API_KEY` — required in the `X-Admin-Key` header by `POST /api/users`; empty rejects every call
+- `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LLM_MODEL` — if any is missing the server still starts, but
+  CSV generation answers 500. `LLM_MODEL` serves the formatted mode (sent with `reasoning_effort: low`)
+- `LLM_INTELLIGENCE_MODELS` — optional, exactly 2 comma-separated models: the creative-mode model for
+  the client's "Độ thông minh" Thấp / Cao (`intelligence` query param 1 or 2, default 1).
+  Empty means both use `LLM_MODEL`
+- `LLM_TIMEOUT_SECONDS` (280) — per-call LLM deadline; kept under Vercel's 300 s function limit so
+  the handler answers 504 itself. The HTTP server's write timeout is derived from it
+- `CALL_COUNT_ACCEPTED_IN_A_ROUND` (2), `ROUND_MINUTES` (1) — AI-call rate limit per user
 
 ## Architecture
 
-Three HTTP-triggered function controllers, each a plain class with `[Function(...)]` methods (no
-ASP.NET Core controllers/routing — this is the Functions isolated-worker model):
+Routes (`internal/api/server.go`), all under `/api` because the client calls relative `/api/...` URLs:
 
-- **`TokenController`** (`auth/login`, `auth/refresh`, `auth/logout`, `auth/logout-all`, anonymous) —
-  issues access tokens and rotates refresh tokens via `IAuthenticationService`. Refresh tokens are set
-  as an `HttpOnly; Secure; SameSite=None` cookie (see `SetRefreshTokenCookie`), not returned in the
-  JSON body. A user can hold multiple concurrent refresh tokens (one per device/session, capped by
-  `MAX_REFRESH_TOKENS_PER_USER`); `auth/logout` revokes just the calling device's token, `auth/logout-all`
-  revokes every token for that user.
-- **`UsersController`** (`users`, requires Function/Admin key via `AuthorizationLevel.Admin`) —
-  creates users directly against `IUserRepository`, hashing passwords with `PasswordHasher`.
-- **`CsvGenerationController`** (function name `GenerateCsvFromImage`, route `csv/generate-from-image`,
-  anonymous trigger but manually validates a `Bearer` JWT inside the method body) — accepts
-  multipart/form-data with one or more image files, enforces the AI-call rate limit
-  (`AiCallCountInRound` / `StartRoundTime` on `QuizToolUser`), sends all images in a single
-  OpenAI-compatible chat-completions request with base64 `image_url` content parts, and returns the
-  parsed CSV as `text/csv`.
+- **Auth** (`auth_handlers.go`): `auth/login`, `auth/refresh`, `auth/logout`, `auth/logout-all`.
+  Login/refresh return `{"accessToken": ...}` and set the refresh token as an
+  `HttpOnly; Secure; SameSite=Strict` cookie — never in the body. A user holds one refresh token per
+  device (capped); `logout` revokes the calling device's token, `logout-all` every token of that user.
+  Refresh rotates the token.
+- **Users** (`auth_handlers.go`): `users`, admin-only via `X-Admin-Key` (replaces the Azure Functions
+  admin key). 409 if the user exists.
+- **CSV** (`csv_handler.go`): `csv/generate-from-image`. Validates the `Bearer` JWT by hand, requires
+  the `User` or `Admin` role, reads a multipart body of zero or more files, enforces the rate limit,
+  and returns `text/csv`. `isCreative=true` switches to the creative prompt and requires `exportType`,
+  `courseType`, `lessonNumber`, plus `level` (HSK/YCT) or `courseName` (`Other`) — parsed by
+  `csvgen.ParseCreativeOptions` (400 with the message on failure). Images are optional only in
+  creative mode. The LLM call runs under `LLM_TIMEOUT_SECONDS`; hitting it answers
+  `504 AI generation timed out.` (other LLM failures stay `502`). See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
 
-  Two request shapes, chosen by the `isCreative` query param (see
-  [../CLAUDE.md](../CLAUDE.md#the-two-ai-generation-modes) for the client-side half of this):
-  - `isCreative` absent/false → `SimpleWordQuestionService` (`ISimpleWordQuestionService`): a short prompt asking for a
-    two-column CSV (`Câu hỏi`/`Đáp án`) with header included.
-  - `isCreative=true` → also requires `exportType`, `courseType`, `lessonNumber` query params, plus
-    `level` (HSK/YCT only — optional for `courseType=Other`) and `courseName` (`Other` only), all
-    parsed by `ParseCreativeOptions` into a `CsvGenerationOptions` (400 if missing/invalid). Images
-    are optional in this mode; without them the prompt falls back to the lesson's standard word list.
-    → `CreativeRequestService` (`ICreativeRequestService`), a long Chinese-teacher system prompt, plus
-    `GetAdditionalUserMessagesForExportType` appending the exact column layout for the target
-    platform (`Models/ExportType.cs`: `GimKit`/`Blooket`/`Wayground`, passed by ordinal — keep in
-    sync with `Client/src/models/export-type.ts`). This mode asks the LLM to return rows **without**
-    a header, since the client prepends one itself.
+The plain-text error bodies and status codes are part of the contract with the client and were kept
+identical to the former .NET implementation; `internal/api/api_test.go` pins them down.
 
-Auth flow: `TokenController` → `AuthenticationService` (in `Services/`) → `IUserRepository`.
-`AuthenticationService` resolves `IUserRepository` from `IServiceProvider` at call time rather
-than via constructor injection, since the repository is only registered when Cosmos env vars are
-present (see `Program.cs`) — if it's absent, auth always returns `Valid = false` rather than throwing.
+There is no CORS handling: the API is only ever called from the SPA's own origin (Vercel Services in
+production, the `ng serve` proxy locally), which is also why the refresh cookie can be
+`SameSite=Strict`. Putting the SPA on another origin would need CORS back and a `SameSite=None`
+cookie.
 
-JWT handling is split: `JwtTokenIssuer` creates tokens (used by `AuthenticationService`),
-`JwtAuth.ValidateToken`/`HasAnyRole` validate tokens and check role claims (used directly inside
-`CsvGenerationController`, not via ASP.NET Core auth middleware — there is no `[Authorize]` attribute
-pattern here).
+`csvgen`:
 
-`CsvGenerationController.ExtractCsvContent` strips markdown code fences / leading prose from the LLM
-response before returning it, since the model isn't always compliant with the "CSV only" system
-prompt.
+- `ExportType` (`GimKit`/`Blooket`/`Wayground`) and `CourseType` (`Hsk`/`Yct`/`Other`) are passed by
+  **ordinal** and must stay in the same order as `Client/src/models/export-type.ts` and
+  `course-type.ts`. `exportTypeMessages` must describe the same columns as the client's CsvBuilders.
+- Prompts live in `prompts/*.txt` (`go:embed`); CRLF from a Windows checkout is normalized at use.
+- `ExtractCSVContent` strips code fences / leading prose the model sometimes adds.
+- The creative mode uses the Responses API because Wayground requests carry the `web_search` tool:
+  the model searches Pexels for the Image Link column and builds `images.pexels.com` URLs from the
+  photo IDs it finds (Wikimedia is banned; Wayground cannot load it). Other platforms have no image
+  column and get no tool. An `incomplete` response (output token cap hit) fails the call rather than
+  returning cut-off rows. The `OPENAI_BASE_URL` gateway must support `/responses` with `web_search`,
+  and requires `max_output_tokens` to be set.
 
-Data model: `QuizToolUser` (`QuizTool.Data/Models/QuizToolUser.cs`) is the single Cosmos document
-type, partitioned by `/username`, holding password hash, roles, a list of `RefreshTokenEntry` (one per
-active device/session), and AI-call rate-limit state (`AiCallCountInRound`, `StartRoundTime`) in one
-document. Refresh-token mutations in `UserRepository` use ETag-guarded optimistic concurrency
-(`MutateUserWithRetryAsync`) since concurrent logins/refreshes from different devices touch the same
-document's token list.
+Data model (`internal/store`): one `User` document per user in one collection, `_id` = username,
+holding `passwordHash`, `roles`, `createdAt`, `refreshTokens` (`token`, `expiresAt`, `createdAt`),
+`aiCallCountInRound`, `startRoundTime`, and `version`.
 
-Persistence goes through EF Core's Cosmos provider, not the raw `Microsoft.Azure.Cosmos` SDK. Things
-that matter when touching `QuizToolDbContext`:
+- Refresh-token changes go through `UpdateRefreshTokens`: read, apply the mutation, write back only
+  if `version` is unchanged (`$inc` on success), retry up to 5 times. This keeps concurrent logins
+  from different devices from dropping each other's tokens. Documents without `version` count as 0.
+  The token policy itself (prune expired, cap, rotate) lives in `auth.Service`, not the store.
+- `TryConsumeAICall` enforces the rate limit atomically with two conditional updates (increment
+  within a running round under the limit, else start a new round) instead of read-then-write.
+- `EnsureIndexes` creates the `refreshTokens.token` index used by `FindByRefreshToken`. The server
+  does not call it (it would slow every serverless cold start); `cmd/import-users` does, or create
+  the index once by hand. Without it, refresh lookups scan the collection — fine for few users.
 
-- The mapping exists to keep the *existing* document shape: every property is pinned to its camelCase
-  JSON name with `ToJsonProperty`, `HasNoDiscriminator()` keeps EF from adding (and then filtering
-  on) a discriminator field, and `HasShadowId(false)` keeps `id` as the plain username. Changing any
-  of these silently stops matching documents already in the container.
-- `UseETagConcurrency()` maps Cosmos's `_etag`, so a losing write surfaces as
-  `DbUpdateConcurrencyException` — that is what `MutateUserWithRetryAsync` retries on.
-- The repository is a singleton and takes `IDbContextFactory<QuizToolDbContext>`, creating a
-  short-lived context per operation. That keeps it resolvable from singleton services (see
-  `AuthenticationService`) and guarantees each retry attempt re-reads with a fresh change tracker.
-- `GetUserByRefreshTokenAsync` is a cross-partition query: `Any()` over the owned `RefreshTokens`
-  collection, which the provider translates to an `EXISTS` subquery over `c["refreshTokens"]`.
-- The database and container are created on first use via `EnsureCreatedAsync`, replacing the old
-  eager `CreateDatabaseIfNotExists`/`CreateContainerIfNotExists` calls.
+Password hashes are `iterations.base64(salt).base64(key)` with PBKDF2-HMAC-SHA256 — the same format
+the .NET version wrote, so users imported with `cmd/import-users` keep their passwords. Access
+tokens are HS256 with `unique_name`/`role` claims, validated with 2 minutes of clock skew.

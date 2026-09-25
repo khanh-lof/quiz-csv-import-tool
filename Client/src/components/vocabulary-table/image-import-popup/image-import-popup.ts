@@ -30,11 +30,12 @@ import { CourseType } from '../../../models/course-type';
 import { finalize } from 'rxjs';
 import { FileExportService } from '../../../services/file-export.service';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
+import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
+import { ImageCompressionService, UploadTooLargeError } from '../../../services/image-compression.service';
 
 interface ImageItem {
   file: File;
   preview: string;
-  isProcessing: boolean;
 }
 interface ImageImportForm {
   courseType: FormControl<CourseType | null>;
@@ -43,6 +44,7 @@ interface ImageImportForm {
   lessonNumber: FormControl<number | null>;
   AIMode: FormControl<AIGenerationMode | null>;
   exportType: FormControl<ExportType | null>;
+  intelligence: FormControl<number | null>;
 }
 
 @Component({
@@ -68,9 +70,11 @@ interface ImageImportForm {
 export class ImageImportPopup {
   @Output() readonly importedRows = new EventEmitter<QuestionDefinition[]>();
 
-  protected selectedImages: ImageItem[] = [];
+  // Signals, not plain fields: the ng-zorro modal host is OnPush, so a field changed from an async
+  // callback (FileReader, HTTP) would not re-render until the next user event in the popup.
+  protected readonly selectedImages = signal<ImageItem[]>([]);
   protected isDragOver = false;
-  protected isProcessingImages = false;
+  protected readonly isProcessingImages = signal(false);
   protected dragEnterCounter = 0;
 
   protected readonly AIGenerationMode = AIGenerationMode;
@@ -103,17 +107,19 @@ export class ImageImportPopup {
     private readonly aiCsvService: AiCsvService,
     private readonly csvImportService: CsvImportService,
     private readonly fileExportService: FileExportService,
+    private readonly imageCompressionService: ImageCompressionService,
     private readonly notificationService: NzNotificationService,
     private readonly destroyRef: DestroyRef,
     formBuilder: FormBuilder
   ) {
     this.formGroup = formBuilder.group<ImageImportForm>({
       AIMode: formBuilder.control<AIGenerationMode | null>(AIGenerationMode.Auto, Validators.required),
-      courseType: formBuilder.control<CourseType | null>(CourseType.Hsk),
+      courseType: formBuilder.control<CourseType | null>(null),
       courseName: formBuilder.control<string | null>(null),
       level: formBuilder.control<number | null>(null),
       lessonNumber: formBuilder.control<number | null>(null),
       exportType: formBuilder.control<ExportType | null>(null),
+      intelligence: formBuilder.control<number | null>(1),
     },{
       validators : [this.requiredIfAIAutoMode]
     })
@@ -202,7 +208,7 @@ export class ImageImportPopup {
         this.notificationService.error('File không hợp lệ', `${file.name} không phải là ảnh.`, {nzPlacement: 'top'});
         return false;
       }
-      const duplicate = this.selectedImages.some(
+      const duplicate = this.selectedImages().some(
         x => x.file.name === file.name &&
           x.file.size === file.size &&
           x.file.lastModified === file.lastModified
@@ -221,22 +227,21 @@ export class ImageImportPopup {
     validFiles.forEach(file => {
       const reader = new FileReader();
       reader.onload = () => {
-        this.selectedImages.push({
+        this.selectedImages.update(images => [...images, {
           file: file,
-          preview: reader.result as string,
-          isProcessing: false
-        });
+          preview: reader.result as string
+        }]);
       };
       reader.readAsDataURL(file);
     });
   }
 
   removeImage(index: number): void {
-    this.selectedImages.splice(index, 1);
+    this.selectedImages.update(images => images.filter((_, i) => i !== index));
   }
 
   clearAllImages(): void {
-    this.selectedImages = [];
+    this.selectedImages.set([]);
   }
 
   async submitAllImages(): Promise<void> {
@@ -247,23 +252,24 @@ export class ImageImportPopup {
       return;
     }
     // Only the formatted mode needs images: the creative mode can work from the lesson identifiers alone.
-    if (this.selectedImages.length === 0 && this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
+    if (this.selectedImages().length === 0 && this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
       this.notificationService.warning('Lỗi', 'Không có ảnh để xử lý.', {nzPlacement: 'top'});
       return;
     }
 
-    this.isProcessingImages = true;
-    const imageCount = this.selectedImages.length;
+    this.isProcessingImages.set(true);
 
-    this.selectedImages.forEach(img => img.isProcessing = true);
-
-    const imageFiles = this.selectedImages.map(img => img.file);
+    let imageFiles: File[];
+    try {
+      imageFiles = await this.imageCompressionService.compressForUpload(this.selectedImages().map(img => img.file));
+    } catch (err) {
+      this.isProcessingImages.set(false);
+      this.showGenerationError(err);
+      return;
+    }
     if (this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
       this.aiCsvService.generateCsvFromImages(imageFiles).pipe(takeUntilDestroyed(this.destroyRef),
-        finalize(() => {
-          this.isProcessingImages = false;
-          this.selectedImages.forEach(img => img.isProcessing = false);
-        })).subscribe({
+        finalize(() => this.isProcessingImages.set(false))).subscribe({
         next: csvContent => {
           const rows = this.csvImportService.parseCsv(csvContent);
 
@@ -276,9 +282,7 @@ export class ImageImportPopup {
           this.clearAllImages();
           this.closePopup();
         },
-        error: err => {
-          this.notificationService.error('Lỗi nhập ảnh', err instanceof Error ? err.message : 'Không thể xử lý ảnh.', {nzPlacement: 'top'});
-        },
+        error: err => this.showGenerationError(err),
       });
       return;
     }
@@ -289,29 +293,45 @@ export class ImageImportPopup {
         AIMode: this.formGroup.controls.AIMode.value,
         lessonNumber: this.formGroup.controls.lessonNumber.value,
         exportType: this.formGroup.controls.exportType.value,
+        intelligence: this.formGroup.controls.intelligence.value,
     } satisfies ImageImportModel).pipe(takeUntilDestroyed(this.destroyRef),
-      finalize(() => {
-        this.isProcessingImages = false;
-        this.selectedImages.forEach(img => img.isProcessing = false);
-      })).subscribe({
+      finalize(() => this.isProcessingImages.set(false))).subscribe({
       next: csvContent => {
         this.fileExportService.exportFileFromCsvContent('NhapFileName.csv', csvContent, this.formGroup.controls.exportType.value!);
 
         this.clearAllImages();
         this.closePopup();
       },
-      error: err => {
-        this.notificationService.error('Lỗi nhập ảnh', err instanceof Error ? err.message : 'Không thể xử lý ảnh.', {nzPlacement: 'top'});
-      },
+      error: err => this.showGenerationError(err),
     });
   }
 
+  // A too-large upload (our own check, or the platform's 413) and an AI timeout (the server's 504, or
+  // the platform stopping the function) are both fixed by sending fewer images, so say so; they stay
+  // on screen until closed.
+  private showGenerationError(err: unknown): void {
+    const status = err instanceof HttpErrorResponse ? err.status : null;
+    if (err instanceof UploadTooLargeError || status === HttpStatusCode.PayloadTooLarge) {
+      this.notificationService.error('Ảnh quá lớn',
+        'Tổng dung lượng ảnh vượt quá giới hạn tải lên. Vui lòng giảm số lượng ảnh rồi thử lại.',
+        {nzPlacement: 'top', nzDuration: 0});
+      return;
+    }
+    if (status === HttpStatusCode.GatewayTimeout) {
+      this.notificationService.error('Quá thời gian xử lý',
+        'AI xử lý quá lâu. Vui lòng giảm số lượng ảnh hoặc thử lại.',
+        {nzPlacement: 'top', nzDuration: 0});
+      return;
+    }
+    this.notificationService.error('Lỗi nhập ảnh', err instanceof Error ? err.message : 'Không thể xử lý ảnh.', {nzPlacement: 'top'});
+  }
+
   protected get submitButtonLabel(): string {
-    if (this.isProcessingImages) {
+    if (this.isProcessingImages()) {
       return 'Đang xử lý...';
     }
-    return this.selectedImages.length > 0
-      ? `Xử lý tất cả (${this.selectedImages.length})`
+    return this.selectedImages().length > 0
+      ? `Xử lý tất cả (${this.selectedImages().length})`
       : 'Tạo câu hỏi';
   }
 
