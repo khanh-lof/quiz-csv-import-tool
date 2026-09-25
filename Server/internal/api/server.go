@@ -1,11 +1,10 @@
-// Package api is the HTTP layer: routing, CORS, and the handlers for every /api endpoint.
+// Package api is the HTTP layer: routing and the handlers for every /api endpoint.
 package api
 
 import (
 	"context"
 	"log/slog"
 	"net/http"
-	"slices"
 	"time"
 
 	"quiz-csv-import-tool/server/internal/auth"
@@ -25,11 +24,12 @@ type Server struct {
 	// Generator is nil when the LLM settings are incomplete; CSV generation then fails with 500.
 	Generator Generator
 
-	AllowedOrigins  []string
 	AdminAPIKey     string
 	RefreshTokenTTL time.Duration
 	AICallsPerRound int
 	RoundDuration   time.Duration
+	// LLMTimeout bounds each Generator call; zero means no limit beyond the request context.
+	LLMTimeout time.Duration
 
 	Logger *slog.Logger
 }
@@ -45,33 +45,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeText(w, http.StatusOK, "ok")
 	})
-	return s.logRequests(s.cors(mux))
-}
-
-// cors allows credentialed requests from the configured origins only: the SPA and the API are
-// always on different origins, and the refresh-token cookie must travel with auth requests.
-func (s *Server) cors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-		allowed := origin != "" && slices.Contains(s.AllowedOrigins, origin)
-		if allowed {
-			h := w.Header()
-			h.Set("Access-Control-Allow-Origin", origin)
-			h.Set("Access-Control-Allow-Credentials", "true")
-			h.Add("Vary", "Origin")
-		}
-		if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
-			if allowed {
-				h := w.Header()
-				h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-				h.Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
-				h.Set("Access-Control-Max-Age", "600")
-			}
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+	return s.logRequests(mux)
 }
 
 func (s *Server) logRequests(next http.Handler) http.Handler {

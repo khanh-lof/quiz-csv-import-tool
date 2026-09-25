@@ -15,9 +15,6 @@ import (
 type Config struct {
 	// Port the HTTP server listens on. The client's dev environment expects 7071.
 	Port string
-	// AllowedOrigins are the exact origins allowed to make credentialed cross-origin requests.
-	// The SPA always runs on a different origin than the API, so this must list it.
-	AllowedOrigins []string
 
 	MongoURI        string
 	MongoDatabase   string
@@ -50,6 +47,9 @@ type LLMConfig struct {
 	// (LLM_INTELLIGENCE_MODELS, comma-separated). Optional; when set it must list exactly
 	// csvgen.IntelligenceLevels models.
 	IntelligenceModels []string
+	// Timeout bounds one generation call. Its default stays under Vercel's 300 s function limit so
+	// the handler can still answer a clean 504 instead of the platform killing the request.
+	Timeout time.Duration
 }
 
 func (c LLMConfig) Missing() []string {
@@ -83,8 +83,7 @@ func FromEnv() (Config, error) {
 	}
 
 	cfg := Config{
-		Port:           envOr("PORT", "7071"),
-		AllowedOrigins: splitList(envOr("ALLOWED_ORIGINS", "http://localhost:4200")),
+		Port: envOr("PORT", "7071"),
 
 		MongoURI:        os.Getenv("MONGODB_URI"),
 		MongoDatabase:   envOr("MONGODB_DATABASE", "QuizDb"),
@@ -104,6 +103,7 @@ func FromEnv() (Config, error) {
 			BaseURL:            strings.TrimRight(os.Getenv("OPENAI_BASE_URL"), "/"),
 			Model:              os.Getenv("LLM_MODEL"),
 			IntelligenceModels: splitList(os.Getenv("LLM_INTELLIGENCE_MODELS")),
+			Timeout:            time.Duration(intVar("LLM_TIMEOUT_SECONDS", 280)) * time.Second,
 		},
 
 		AICallsPerRound: intVar("CALL_COUNT_ACCEPTED_IN_A_ROUND", 2),
@@ -115,6 +115,9 @@ func FromEnv() (Config, error) {
 	}
 	if len(cfg.JWTSecret) == 0 {
 		errs = append(errs, errors.New("JWT_SECRET is required"))
+	}
+	if cfg.LLM.Timeout <= 0 {
+		errs = append(errs, errors.New("LLM_TIMEOUT_SECONDS must be positive"))
 	}
 	if n := len(cfg.LLM.IntelligenceModels); n != 0 && n != csvgen.IntelligenceLevels {
 		errs = append(errs, fmt.Errorf("LLM_INTELLIGENCE_MODELS must list %d models, got %d", csvgen.IntelligenceLevels, n))

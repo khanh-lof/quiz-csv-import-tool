@@ -19,19 +19,23 @@ import (
 	"quiz-csv-import-tool/server/internal/store"
 )
 
-const spaOrigin = "https://quiz.example"
-
 type fakeGenerator struct {
 	calls    int
 	images   []csvgen.Image
 	creative bool
 	opts     csvgen.Options
 	err      error
+	// block makes Generate wait for the context to end, like a stalled LLM call.
+	block bool
 }
 
-func (g *fakeGenerator) Generate(_ context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (string, error) {
+func (g *fakeGenerator) Generate(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (string, error) {
 	g.calls++
 	g.images, g.creative, g.opts = images, creative, opts
+	if g.block {
+		<-ctx.Done()
+		return "", ctx.Err()
+	}
 	return "a,b", g.err
 }
 
@@ -52,7 +56,6 @@ func newEnv(t *testing.T) *testEnv {
 		Auth:            auth.NewService(users, jwt, 30*24*time.Hour, 5),
 		JWT:             jwt,
 		Generator:       gen,
-		AllowedOrigins:  []string{spaOrigin},
 		AdminAPIKey:     "admin-key",
 		RefreshTokenTTL: 30 * 24 * time.Hour,
 		AICallsPerRound: 2,
@@ -104,7 +107,7 @@ func refreshCookie(t *testing.T, rec *httptest.ResponseRecorder) *http.Cookie {
 	return nil
 }
 
-func TestLoginSetsCrossSiteRefreshCookie(t *testing.T) {
+func TestLoginSetsRefreshCookie(t *testing.T) {
 	env := newEnv(t)
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"alice","password":"pw"}`))
 	rec := env.do(req)
@@ -117,7 +120,7 @@ func TestLoginSetsCrossSiteRefreshCookie(t *testing.T) {
 		t.Fatalf("unexpected body %v", body)
 	}
 	setCookie := rec.Header().Get("Set-Cookie")
-	for _, attr := range []string{"refreshToken=", "Path=/", "Max-Age=2592000", "HttpOnly", "Secure", "SameSite=None"} {
+	for _, attr := range []string{"refreshToken=", "Path=/", "Max-Age=2592000", "HttpOnly", "Secure", "SameSite=Strict"} {
 		if !strings.Contains(setCookie, attr) {
 			t.Errorf("Set-Cookie %q lacks %q", setCookie, attr)
 		}
@@ -235,27 +238,6 @@ func TestCreateUserRequiresAdminKey(t *testing.T) {
 	}
 	if u, _ := env.users.FindByUsername(context.Background(), "bob"); u == nil || u.Roles == nil || len(u.Roles) != 0 {
 		t.Fatalf("stored user %+v", u)
-	}
-}
-
-func TestCORS(t *testing.T) {
-	env := newEnv(t)
-
-	preflight := httptest.NewRequest(http.MethodOptions, "/api/csv/generate-from-image", nil)
-	preflight.Header.Set("Origin", spaOrigin)
-	preflight.Header.Set("Access-Control-Request-Method", "POST")
-	preflight.Header.Set("Access-Control-Request-Headers", "authorization")
-	rec := env.do(preflight)
-	h := rec.Header()
-	if rec.Code != http.StatusNoContent || h.Get("Access-Control-Allow-Origin") != spaOrigin ||
-		h.Get("Access-Control-Allow-Credentials") != "true" || !strings.Contains(h.Get("Access-Control-Allow-Headers"), "Authorization") {
-		t.Fatalf("preflight: %d %v", rec.Code, h)
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
-	req.Header.Set("Origin", "https://evil.example")
-	if h := env.do(req).Header(); h.Get("Access-Control-Allow-Origin") != "" || h.Get("Access-Control-Allow-Credentials") != "" {
-		t.Fatalf("disallowed origin got CORS headers: %v", h)
 	}
 }
 
@@ -392,5 +374,16 @@ func TestGenerateCSVUpstreamFailure(t *testing.T) {
 	env.srv.Generator = nil
 	if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("unconfigured generator: %d", rec.Code)
+	}
+}
+
+func TestGenerateCSVTimeout(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	env.gen.block = true
+	env.srv.LLMTimeout = 10 * time.Millisecond
+	rec := env.upload(t, upload{token: token, files: 1})
+	if rec.Code != http.StatusGatewayTimeout || rec.Body.String() != "AI generation timed out." {
+		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
 	}
 }

@@ -1,7 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { tap } from 'rxjs';
-import { environment } from '../environments/environment';
 
 @Injectable({providedIn: 'root'})
 export class AuthService {
@@ -24,13 +23,12 @@ export class AuthService {
   hasAccessToken(): boolean {
     return !!this.accessToken;
   }
-  private baseUrl = `${environment.apiUrl}/api/auth`;
+  private baseUrl = '/api/auth';
 
   login(username: string, password: string) {
     return this.http.post<any>(
       `${this.baseUrl}/login`,
-      {username, password},
-      {withCredentials: true}
+      {username, password}
     ).pipe(
       tap((res: any) => {
         this.setNewAccessToken(res);
@@ -47,8 +45,7 @@ export class AuthService {
   refreshToken() {
     return this.http.post<any>(
       `${this.baseUrl}/refresh`,
-      {},
-      {withCredentials: true}
+      {}
     ).pipe(
       tap((res: any) => {
         this.setNewAccessToken(res);

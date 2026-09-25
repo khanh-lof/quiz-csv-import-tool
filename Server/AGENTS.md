@@ -6,15 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Go (`net/http`) HTTP API backed by MongoDB. It issues JWTs for login, and uses an LLM vision call
 to convert uploaded images of Chinese vocabulary into a quiz CSV, gated by JWT auth and a per-user
-rate limit stored in MongoDB. It runs as a single standalone binary (or the `Dockerfile` image) — no
-cloud-specific hosting.
+rate limit stored in MongoDB. It runs as a single standalone binary: the `Dockerfile` image, or the `server`
+service of the root `vercel.json`, where Vercel's Go preset builds `cmd/server` and runs it on
+Fluid compute with `PORT` set — the code has no Vercel-specific parts.
 
 Module `quiz-csv-import-tool/server`, laid out as:
 
 - `cmd/server` — entry point: reads config, connects to MongoDB, wires everything, graceful shutdown.
 - `cmd/import-users` — one-off tool importing users exported from the old Cosmos DB container.
 - `internal/config` — env-var configuration (`FromEnv`) and a small `.env` loader for local dev.
-- `internal/api` — routing (`Server.Handler`), CORS, and all handlers.
+- `internal/api` — routing (`Server.Handler`) and all handlers.
 - `internal/auth` — JWT issue/parse, PBKDF2 password hashing, and `Service` (login/refresh/logout).
 - `internal/store` — the `User` document, the `Users` interface, `Mongo` (production) and `Memory`
   (tests) implementations.
@@ -37,8 +38,7 @@ docker compose up --build                        # MongoDB + API on 7071
 All settings are env vars (see `.env.example`; `go run` also reads `.env`, real env vars win).
 `MONGODB_URI` and `JWT_SECRET` are required — the server refuses to start without them.
 
-- `PORT` (default 7071 — the client's dev environment points there), `ALLOWED_ORIGINS`
-  (comma-separated exact origins, default `http://localhost:4200`)
+- `PORT` (default 7071 — the client's `ng serve` proxy points there)
 - `MONGODB_URI`, `MONGODB_DATABASE` (default `QuizDb`), `MONGODB_COLLECTION` (default `Users`)
 - `JWT_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE` (issuer/audience validation skipped if unset)
 - `JWT_ACCESS_TOKEN_EXPIRES_MINUTES` (15), `JWT_REFRESH_TOKEN_EXPIRES_DAYS` (30),
@@ -49,15 +49,17 @@ All settings are env vars (see `.env.example`; `go run` also reads `.env`, real 
 - `LLM_INTELLIGENCE_MODELS` — optional, exactly 2 comma-separated models: the creative-mode model for
   the client's "Độ thông minh" Thấp / Cao (`intelligence` query param 1 or 2, default 1).
   Empty means both use `LLM_MODEL`
+- `LLM_TIMEOUT_SECONDS` (280) — per-call LLM deadline; kept under Vercel's 300 s function limit so
+  the handler answers 504 itself. The HTTP server's write timeout is derived from it
 - `CALL_COUNT_ACCEPTED_IN_A_ROUND` (2), `ROUND_MINUTES` (1) — AI-call rate limit per user
 
 ## Architecture
 
-Routes (`internal/api/server.go`), all under `/api` because the client builds `${apiUrl}/api/...`:
+Routes (`internal/api/server.go`), all under `/api` because the client calls relative `/api/...` URLs:
 
 - **Auth** (`auth_handlers.go`): `auth/login`, `auth/refresh`, `auth/logout`, `auth/logout-all`.
   Login/refresh return `{"accessToken": ...}` and set the refresh token as an
-  `HttpOnly; Secure; SameSite=None` cookie — never in the body. A user holds one refresh token per
+  `HttpOnly; Secure; SameSite=Strict` cookie — never in the body. A user holds one refresh token per
   device (capped); `logout` revokes the calling device's token, `logout-all` every token of that user.
   Refresh rotates the token.
 - **Users** (`auth_handlers.go`): `users`, admin-only via `X-Admin-Key` (replaces the Azure Functions
@@ -67,14 +69,16 @@ Routes (`internal/api/server.go`), all under `/api` because the client builds `$
   and returns `text/csv`. `isCreative=true` switches to the creative prompt and requires `exportType`,
   `courseType`, `lessonNumber`, plus `level` (HSK/YCT) or `courseName` (`Other`) — parsed by
   `csvgen.ParseCreativeOptions` (400 with the message on failure). Images are optional only in
-  creative mode. See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
+  creative mode. The LLM call runs under `LLM_TIMEOUT_SECONDS`; hitting it answers
+  `504 AI generation timed out.` (other LLM failures stay `502`). See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
 
 The plain-text error bodies and status codes are part of the contract with the client and were kept
 identical to the former .NET implementation; `internal/api/api_test.go` pins them down.
 
-CORS is implemented in code (`Server.cors`): credentialed requests are allowed only from the exact
-origins in `ALLOWED_ORIGINS`. The SPA is always on another origin, so the production SPA URL must be
-listed there or the silent refresh on boot breaks.
+There is no CORS handling: the API is only ever called from the SPA's own origin (Vercel Services in
+production, the `ng serve` proxy locally), which is also why the refresh cookie can be
+`SameSite=Strict`. Putting the SPA on another origin would need CORS back and a `SameSite=None`
+cookie.
 
 `csvgen`:
 
@@ -94,8 +98,9 @@ holding `passwordHash`, `roles`, `createdAt`, `refreshTokens` (`token`, `expires
   The token policy itself (prune expired, cap, rotate) lives in `auth.Service`, not the store.
 - `TryConsumeAICall` enforces the rate limit atomically with two conditional updates (increment
   within a running round under the limit, else start a new round) instead of read-then-write.
-- `EnsureIndexes` (run at startup) creates the `refreshTokens.token` index used by
-  `FindByRefreshToken`.
+- `EnsureIndexes` creates the `refreshTokens.token` index used by `FindByRefreshToken`. The server
+  does not call it (it would slow every serverless cold start); `cmd/import-users` does, or create
+  the index once by hand. Without it, refresh lookups scan the collection — fine for few users.
 
 Password hashes are `iterations.base64(salt).base64(key)` with PBKDF2-HMAC-SHA256 — the same format
 the .NET version wrote, so users imported with `cmd/import-users` keep their passwords. Access

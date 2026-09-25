@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"io"
 	"mime"
@@ -80,7 +81,19 @@ func (s *Server) generateCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	csv, err := s.Generator.Generate(r.Context(), images, creative, opts)
+	ctx := r.Context()
+	if s.LLMTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, s.LLMTimeout)
+		defer cancel()
+	}
+	csv, err := s.Generator.Generate(ctx, images, creative, opts)
+	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		// The client tells the user to send fewer images or retry on this status.
+		s.Logger.Warn("CSV generation timed out", "user", user.Username, "images", len(images), "timeout", s.LLMTimeout)
+		writeText(w, http.StatusGatewayTimeout, "AI generation timed out.")
+		return
+	}
 	if err != nil {
 		s.Logger.Error("CSV generation failed", "user", user.Username, "error", err)
 		writeText(w, http.StatusBadGateway, "AI generation failed.")

@@ -8,9 +8,17 @@ QuizTool turns photos of a Chinese (HSK) lesson into a quiz file that can be imp
 Blooket, or Wayground. It is one git repo holding two independently built and independently deployed
 projects:
 
-- `Client/` — Angular 20 SPA (standalone components, ng-zorro-antd). Deployed to Vercel.
+- `Client/` — Angular 20 SPA (standalone components, ng-zorro-antd).
 - `Server/` — Go (`net/http`) API with MongoDB persistence. Runs as a standalone binary / Docker
   image (`Server/Dockerfile`).
+
+Both deploy together as one Vercel project via [Vercel Services](https://vercel.com/docs/services),
+configured in the root `vercel.json`: the `client` service (Angular preset, SPA fallback to
+`index.html`) and the `server` service (Go preset, which runs `Server/cmd/server` listening on
+`PORT`). Top-level rewrites send `/api/*` and `/healthz` to `server` — with the path unchanged, so
+the Go mux still sees `/api/...` — and everything else to `client`. The Vercel project's Root
+Directory must be the repo root, and the server's env vars (`MONGODB_URI`, `JWT_SECRET`, …) are set
+in the same project.
 
 Each half has its own `AGENTS.md` with the detail for that side — read
 [Client/AGENTS.md](Client/AGENTS.md) or [Server/AGENTS.md](Server/AGENTS.md) before working inside
@@ -25,8 +33,8 @@ manually.
 Client (run from `Client/`):
 ```bash
 npm start        # ng serve → http://localhost:4200
-npm test         # Karma + Jasmine (only spec: csv-import.service.spec.ts)
-npm run build    # runs scripts/set-env.js first (prebuild), then ng build
+npm test         # Karma + Jasmine (specs: csv-import, image-compression services)
+npm run build    # ng build (production)
 ```
 
 Server (run from `Server/`):
@@ -35,12 +43,13 @@ go test ./...
 go run ./cmd/server   # http://localhost:7071; needs MongoDB and a .env (see Server/.env.example)
 ```
 
-Running the full app locally means starting both: the SPA on 4200 and the API on 7071.
+Running the full app locally means starting both: the SPA on 4200 and the API on 7071. `ng serve`
+proxies `/api` to 7071 (`Client/proxy.conf.json`), so the browser only ever talks to 4200.
 
 ## The client/server contract
 
-All server routes are under `/api`. The client builds every URL as
-`${environment.apiUrl}/api/...`:
+All server routes are under `/api`. The client calls them by relative URL (`/api/...`) — there is
+no configurable backend URL:
 
 | Client caller | Server endpoint |
 |---|---|
@@ -51,25 +60,16 @@ All server routes are under `/api`. The client builds every URL as
 
 Two things make the wiring non-obvious:
 
-- **Cross-origin by design.** Client and server are always on different origins (4200/7071 locally,
-  separate hosts in production), so every auth-relevant request sets `withCredentials: true` and the
-  server sets the refresh token as an `HttpOnly; Secure; SameSite=None` cookie. CORS is handled by
-  the Go server itself and only allows the exact origins in its `ALLOWED_ORIGINS` env var — the
-  production SPA origin must be listed there. Changing origins, cookie flags, or CORS config breaks
+- **Same-origin everywhere, no CORS.** On Vercel the SPA and API are services of one deployment
+  (every preview included); locally the `ng serve` proxy puts them on one origin too. The server
+  therefore has no CORS handling, and the refresh token is an `HttpOnly; Secure; SameSite=Strict`
+  cookie (`Secure` is accepted on `http://localhost`). Serving the SPA and API from different
+  origins is not supported: the browser would block the calls and never send the cookie, breaking
   the silent-refresh-on-boot flow in `app.config.ts`.
 - **Auth is split across two mechanisms.** The access token is a Bearer JWT the client attaches via
   `AuthInterceptor`; only `csv/generate-from-image` requires it, and validates it by hand at the top
   of the handler (`auth.JWT.Parse`) — there is no auth middleware.
   The refresh token lives only in the cookie and is never in a JSON body.
-
-### Backend URL configuration
-
-`Client/src/environments/environment.ts` (dev) hardcodes `http://localhost:7071`.
-`environment.prod.ts` is **generated at build time** by `Client/scripts/set-env.js` (npm `prebuild`
-hook) from the `API_URL` env var, which Vercel injects from Project Settings per environment. So the
-production backend URL is not in source — do not hand-edit `environment.prod.ts`, and remember that
-a local `npm run build` without `API_URL` set silently produces a bundle pointing at
-`https://localhost`.
 
 ## The two AI generation modes
 
@@ -111,3 +111,16 @@ AI calls are capped per user (`CALL_COUNT_ACCEPTED_IN_A_ROUND` per `ROUND_MINUTE
 stored on the user's MongoDB document. The client has no matching UI state — it discovers the limit
 only as a `403` with a plain-text body from `csv/generate-from-image`, which surfaces as a generic
 error notification.
+
+## Upload size and LLM timeout (Vercel limits)
+
+Vercel functions reject request bodies over 4.5 MB (413) and stop after 300 s by default (504). The
+two sides guard against both:
+
+- The client shrinks images before upload (`ImageCompressionService.compressForUpload`): JPEG,
+  longest side 2048 px, stepping down in size/quality until the batch fits a 4 MB budget, else it
+  refuses the upload itself.
+- The server bounds each LLM call with `LLM_TIMEOUT_SECONDS` (default 280, under Vercel's limit) and
+  answers `504 AI generation timed out.` The call still counts against the rate limit.
+- `ImageImportPopup.showGenerationError` maps 413 (or the client's own refusal) and 504 (the
+  server's, or Vercel's own) to messages asking the user to send fewer images or retry.

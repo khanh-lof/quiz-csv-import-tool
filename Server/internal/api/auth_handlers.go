@@ -166,8 +166,9 @@ func (s *Server) writeSession(w http.ResponseWriter, session auth.Session) {
 		MaxAge:   int(s.RefreshTokenTTL.Seconds()),
 		HttpOnly: true,
 		Secure:   true,
-		// None: the SPA calls the API cross-site and must still send the cookie.
-		SameSite: http.SameSiteNoneMode,
+		// Strict: the SPA and the API share one origin (Vercel in production, the ng serve proxy
+		// locally), so the cookie never has to travel cross-site.
+		SameSite: http.SameSiteStrictMode,
 	})
 	writeJSON(w, http.StatusOK, map[string]string{"accessToken": session.AccessToken})
 }
@@ -180,7 +181,7 @@ func clearRefreshCookie(w http.ResponseWriter) {
 		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   true,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: http.SameSiteStrictMode,
 	})
 }
 

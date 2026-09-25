@@ -1,14 +1,13 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom, map, Observable } from 'rxjs';
-import { environment } from '../environments/environment';
 import { ImageImportModel } from '../models/image-import-model';
 import { AIGenerationMode } from '../models/aigeneration-mode';
 import { CourseType } from '../models/course-type';
 
 @Injectable({providedIn: 'root'})
 export class AiCsvService {
-  private readonly endpointUrl = `${environment.apiUrl}/api/csv/generate-from-image`;
+  private readonly endpointUrl = '/api/csv/generate-from-image';
 
   constructor(private readonly httpClient: HttpClient) {
   }
@@ -38,7 +37,6 @@ export class AiCsvService {
 
     const response = this.httpClient.post(this.endpointUrl, formData, {
       params,
-      withCredentials: true,
       responseType: 'text'
     });
 
@@ -55,7 +53,6 @@ export class AiCsvService {
     });
 
     const response = this.httpClient.post(this.endpointUrl, formData, {
-      withCredentials: true,
       responseType: 'text'
     });
 

@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-	"time"
 )
 
 // Client calls an OpenAI-compatible /chat/completions endpoint.
@@ -27,8 +26,9 @@ type Client struct {
 
 func NewClient(baseURL, apiKey, model string, intelligenceModels []string, logger *slog.Logger) *Client {
 	return &Client{
-		// Long outputs (up to 10k tokens) can take minutes.
-		http:               &http.Client{Timeout: 5 * time.Minute},
+		// No client-level timeout: the caller's context carries the deadline (LLM_TIMEOUT_SECONDS),
+		// so a timeout surfaces as context.DeadlineExceeded rather than an opaque transport error.
+		http:               &http.Client{},
 		baseURL:            strings.TrimRight(baseURL, "/"),
 		apiKey:             apiKey,
 		model:              model,

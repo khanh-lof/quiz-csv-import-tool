@@ -60,9 +60,6 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("pinging MongoDB: %w", err)
 	}
 	users := store.NewMongo(client.Database(cfg.MongoDatabase).Collection(cfg.MongoCollection))
-	if err := users.EnsureIndexes(startupCtx); err != nil {
-		return fmt.Errorf("creating MongoDB indexes: %w", err)
-	}
 
 	if len(cfg.JWTSecret) < 32 {
 		logger.Warn("JWT_SECRET is shorter than 32 bytes; use a longer secret for HS256")
@@ -83,11 +80,11 @@ func run(logger *slog.Logger) error {
 		Auth:            auth.NewService(users, jwt, cfg.RefreshTokenTTL, cfg.MaxRefreshTokensPerUser),
 		JWT:             jwt,
 		Generator:       generator,
-		AllowedOrigins:  cfg.AllowedOrigins,
 		AdminAPIKey:     cfg.AdminAPIKey,
 		RefreshTokenTTL: cfg.RefreshTokenTTL,
 		AICallsPerRound: cfg.AICallsPerRound,
 		RoundDuration:   cfg.RoundDuration,
+		LLMTimeout:      cfg.LLM.Timeout,
 		Logger:          logger,
 	}
 
@@ -96,14 +93,14 @@ func run(logger *slog.Logger) error {
 		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       2 * time.Minute,
-		// Must outlast the LLM call (up to 5 minutes).
-		WriteTimeout: 6 * time.Minute,
+		// Must outlast the LLM call so its timeout can still be answered.
+		WriteTimeout: cfg.LLM.Timeout + time.Minute,
 		IdleTimeout:  2 * time.Minute,
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Info("listening", "addr", httpServer.Addr, "allowedOrigins", cfg.AllowedOrigins)
+		logger.Info("listening", "addr", httpServer.Addr)
 		errCh <- httpServer.ListenAndServe()
 	}()
 

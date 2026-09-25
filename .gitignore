@@ -494,3 +494,5 @@ fabric.properties
 .idea/
 .run/
 CLAUDE.local.md
+# Vercel CLI
+.vercel/

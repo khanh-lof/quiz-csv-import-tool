@@ -44,14 +44,17 @@ curl -X POST http://localhost:7071/api/users \
 ## Configuration
 
 All configuration is via environment variables; `.env.example` lists every one with its default.
-`MONGODB_URI` and `JWT_SECRET` are required. Set `ALLOWED_ORIGINS` to the exact origin(s) of the
-web client — the browser sends the refresh cookie cross-origin only to allowed origins.
+`MONGODB_URI` and `JWT_SECRET` are required. The API has no CORS support: it must be served from the
+same origin as the web client (the refresh cookie is `SameSite=Strict`).
 
 ## Deployment
 
-Build the image from `Dockerfile` (static binary on distroless, listens on `PORT`, default 8080 in
-the image) and run it anywhere containers run. The refresh cookie is `Secure; SameSite=None`, so the
-API must be served over HTTPS in production.
+On Vercel, the API deploys together with the client as the `server` service of the root
+`vercel.json` (Go preset, `cmd/server`). Set the env vars above in the Vercel project.
+
+Elsewhere, build the image from `Dockerfile` (static binary on distroless, listens on `PORT`, default 8080 in
+the image) and run it anywhere containers run, behind a reverse proxy that serves the client on the
+same origin. The refresh cookie is `Secure`, so it must be served over HTTPS in production.
 
 ## Migrating users from Cosmos DB
 

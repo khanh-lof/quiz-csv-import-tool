@@ -31,6 +31,8 @@ import { finalize } from 'rxjs';
 import { FileExportService } from '../../../services/file-export.service';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
 import { NzSegmentedComponent, NzSegmentedOptions } from 'ng-zorro-antd/segmented';
+import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
+import { ImageCompressionService, UploadTooLargeError } from '../../../services/image-compression.service';
 
 interface ImageItem {
   file: File;
@@ -111,6 +113,7 @@ export class ImageImportPopup {
     private readonly aiCsvService: AiCsvService,
     private readonly csvImportService: CsvImportService,
     private readonly fileExportService: FileExportService,
+    private readonly imageCompressionService: ImageCompressionService,
     private readonly notificationService: NzNotificationService,
     private readonly destroyRef: DestroyRef,
     formBuilder: FormBuilder
@@ -266,7 +269,15 @@ export class ImageImportPopup {
 
     this.selectedImages.forEach(img => img.isProcessing = true);
 
-    const imageFiles = this.selectedImages.map(img => img.file);
+    let imageFiles: File[];
+    try {
+      imageFiles = await this.imageCompressionService.compressForUpload(this.selectedImages.map(img => img.file));
+    } catch (err) {
+      this.isProcessingImages = false;
+      this.selectedImages.forEach(img => img.isProcessing = false);
+      this.showGenerationError(err);
+      return;
+    }
     if (this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
       this.aiCsvService.generateCsvFromImages(imageFiles).pipe(takeUntilDestroyed(this.destroyRef),
         finalize(() => {
@@ -285,9 +296,7 @@ export class ImageImportPopup {
           this.clearAllImages();
           this.closePopup();
         },
-        error: err => {
-          this.notificationService.error('Lỗi nhập ảnh', err instanceof Error ? err.message : 'Không thể xử lý ảnh.', {nzPlacement: 'top'});
-        },
+        error: err => this.showGenerationError(err),
       });
       return;
     }
@@ -310,10 +319,28 @@ export class ImageImportPopup {
         this.clearAllImages();
         this.closePopup();
       },
-      error: err => {
-        this.notificationService.error('Lỗi nhập ảnh', err instanceof Error ? err.message : 'Không thể xử lý ảnh.', {nzPlacement: 'top'});
-      },
+      error: err => this.showGenerationError(err),
     });
+  }
+
+  // A too-large upload (our own check, or the platform's 413) and an AI timeout (the server's 504, or
+  // the platform stopping the function) are both fixed by sending fewer images, so say so; they stay
+  // on screen until closed.
+  private showGenerationError(err: unknown): void {
+    const status = err instanceof HttpErrorResponse ? err.status : null;
+    if (err instanceof UploadTooLargeError || status === HttpStatusCode.PayloadTooLarge) {
+      this.notificationService.error('Ảnh quá lớn',
+        'Tổng dung lượng ảnh vượt quá giới hạn tải lên. Vui lòng giảm số lượng ảnh rồi thử lại.',
+        {nzPlacement: 'top', nzDuration: 0});
+      return;
+    }
+    if (status === HttpStatusCode.GatewayTimeout) {
+      this.notificationService.error('Quá thời gian xử lý',
+        'AI xử lý quá lâu. Vui lòng giảm số lượng ảnh hoặc thử lại.',
+        {nzPlacement: 'top', nzDuration: 0});
+      return;
+    }
+    this.notificationService.error('Lỗi nhập ảnh', err instanceof Error ? err.message : 'Không thể xử lý ảnh.', {nzPlacement: 'top'});
   }
 
   protected get submitButtonLabel(): string {
