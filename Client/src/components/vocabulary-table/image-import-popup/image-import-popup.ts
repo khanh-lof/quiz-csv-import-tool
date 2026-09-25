@@ -36,7 +36,6 @@ import { ImageCompressionService, UploadTooLargeError } from '../../../services/
 interface ImageItem {
   file: File;
   preview: string;
-  isProcessing: boolean;
 }
 interface ImageImportForm {
   courseType: FormControl<CourseType | null>;
@@ -71,9 +70,11 @@ interface ImageImportForm {
 export class ImageImportPopup {
   @Output() readonly importedRows = new EventEmitter<QuestionDefinition[]>();
 
-  protected selectedImages: ImageItem[] = [];
+  // Signals, not plain fields: the ng-zorro modal host is OnPush, so a field changed from an async
+  // callback (FileReader, HTTP) would not re-render until the next user event in the popup.
+  protected readonly selectedImages = signal<ImageItem[]>([]);
   protected isDragOver = false;
-  protected isProcessingImages = false;
+  protected readonly isProcessingImages = signal(false);
   protected dragEnterCounter = 0;
 
   protected readonly AIGenerationMode = AIGenerationMode;
@@ -113,7 +114,7 @@ export class ImageImportPopup {
   ) {
     this.formGroup = formBuilder.group<ImageImportForm>({
       AIMode: formBuilder.control<AIGenerationMode | null>(AIGenerationMode.Auto, Validators.required),
-      courseType: formBuilder.control<CourseType | null>(CourseType.Hsk),
+      courseType: formBuilder.control<CourseType | null>(null),
       courseName: formBuilder.control<string | null>(null),
       level: formBuilder.control<number | null>(null),
       lessonNumber: formBuilder.control<number | null>(null),
@@ -207,7 +208,7 @@ export class ImageImportPopup {
         this.notificationService.error('File không hợp lệ', `${file.name} không phải là ảnh.`, {nzPlacement: 'top'});
         return false;
       }
-      const duplicate = this.selectedImages.some(
+      const duplicate = this.selectedImages().some(
         x => x.file.name === file.name &&
           x.file.size === file.size &&
           x.file.lastModified === file.lastModified
@@ -226,22 +227,21 @@ export class ImageImportPopup {
     validFiles.forEach(file => {
       const reader = new FileReader();
       reader.onload = () => {
-        this.selectedImages.push({
+        this.selectedImages.update(images => [...images, {
           file: file,
-          preview: reader.result as string,
-          isProcessing: false
-        });
+          preview: reader.result as string
+        }]);
       };
       reader.readAsDataURL(file);
     });
   }
 
   removeImage(index: number): void {
-    this.selectedImages.splice(index, 1);
+    this.selectedImages.update(images => images.filter((_, i) => i !== index));
   }
 
   clearAllImages(): void {
-    this.selectedImages = [];
+    this.selectedImages.set([]);
   }
 
   async submitAllImages(): Promise<void> {
@@ -252,31 +252,24 @@ export class ImageImportPopup {
       return;
     }
     // Only the formatted mode needs images: the creative mode can work from the lesson identifiers alone.
-    if (this.selectedImages.length === 0 && this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
+    if (this.selectedImages().length === 0 && this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
       this.notificationService.warning('Lỗi', 'Không có ảnh để xử lý.', {nzPlacement: 'top'});
       return;
     }
 
-    this.isProcessingImages = true;
-    const imageCount = this.selectedImages.length;
-
-    this.selectedImages.forEach(img => img.isProcessing = true);
+    this.isProcessingImages.set(true);
 
     let imageFiles: File[];
     try {
-      imageFiles = await this.imageCompressionService.compressForUpload(this.selectedImages.map(img => img.file));
+      imageFiles = await this.imageCompressionService.compressForUpload(this.selectedImages().map(img => img.file));
     } catch (err) {
-      this.isProcessingImages = false;
-      this.selectedImages.forEach(img => img.isProcessing = false);
+      this.isProcessingImages.set(false);
       this.showGenerationError(err);
       return;
     }
     if (this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
       this.aiCsvService.generateCsvFromImages(imageFiles).pipe(takeUntilDestroyed(this.destroyRef),
-        finalize(() => {
-          this.isProcessingImages = false;
-          this.selectedImages.forEach(img => img.isProcessing = false);
-        })).subscribe({
+        finalize(() => this.isProcessingImages.set(false))).subscribe({
         next: csvContent => {
           const rows = this.csvImportService.parseCsv(csvContent);
 
@@ -302,10 +295,7 @@ export class ImageImportPopup {
         exportType: this.formGroup.controls.exportType.value,
         intelligence: this.formGroup.controls.intelligence.value,
     } satisfies ImageImportModel).pipe(takeUntilDestroyed(this.destroyRef),
-      finalize(() => {
-        this.isProcessingImages = false;
-        this.selectedImages.forEach(img => img.isProcessing = false);
-      })).subscribe({
+      finalize(() => this.isProcessingImages.set(false))).subscribe({
       next: csvContent => {
         this.fileExportService.exportFileFromCsvContent('NhapFileName.csv', csvContent, this.formGroup.controls.exportType.value!);
 
@@ -337,11 +327,11 @@ export class ImageImportPopup {
   }
 
   protected get submitButtonLabel(): string {
-    if (this.isProcessingImages) {
+    if (this.isProcessingImages()) {
       return 'Đang xử lý...';
     }
-    return this.selectedImages.length > 0
-      ? `Xử lý tất cả (${this.selectedImages.length})`
+    return this.selectedImages().length > 0
+      ? `Xử lý tất cả (${this.selectedImages().length})`
       : 'Tạo câu hỏi';
   }
 

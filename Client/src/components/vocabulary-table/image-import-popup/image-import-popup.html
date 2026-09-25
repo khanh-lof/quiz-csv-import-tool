@@ -10,13 +10,13 @@
     <input #imageInput type="file" accept="image/*" multiple style="display: none" (change)="importFromImage($event)"/>
 
     <div class="images-container">
-      @if (selectedImages.length > 0) {
+      @if (selectedImages().length > 0) {
         <div class="images-list">
-          @for (image of selectedImages; let i = $index; track i) {
+          @for (image of selectedImages(); let i = $index; track i) {
             <div class="image-item">
               <div class="image-preview">
                 <img [src]="image.preview" alt="Preview" class="preview-img"/>
-                @if (image.isProcessing) {
+                @if (isProcessingImages()) {
                   <div class="processing-overlay">
                     <nz-spin nzSimple />
                   </div>
@@ -26,7 +26,7 @@
                 <p class="image-name">{{ image.file.name }}</p>
                 <p class="image-size">{{ (image.file.size || 0) / 1024 | number:'1.0-0' }} KB</p>
               </div>
-              @if (!isProcessingImages) {
+              @if (!isProcessingImages()) {
                 <button nz-button nzType="text" nzDanger class="remove-btn" type="button"
                         (click)="removeImage(i)">
                   <nz-icon nzType="delete" nzTheme="outline"/>
@@ -65,9 +65,9 @@
           <ng-container
             *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.exportType}"/>
         </div>
+        <!-- Each .field stacks its control over its error message, so a message never shifts the row. -->
         <div class="creative-selection">
-          <span>Giáo trình </span>
-          <span>
+          <div class="field">
             <nz-select nzId="courseType" [formControl]="formGroup.controls.courseType" nzSize="small"
                        nzPlaceHolder="Chọn giáo trình" class="course-type-select">
               <nz-option [nzValue]="CourseType.Hsk" nzLabel="HSK"></nz-option>
@@ -76,34 +76,39 @@
             </nz-select>
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.courseType}"/>
-          </span>
+          </div>
           @if (formGroup.controls.courseType.value === CourseType.Other) {
-            <span>
+            <div class="field course-name-field">
               <input nz-input nzId="courseName" [formControl]="formGroup.controls.courseName" nzSize="small"
                      placeholder="Tên giáo trình" class="course-name-input"/>
               <ng-container
                 *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.courseName}"/>
-            </span>
+            </div>
           }
-          <span> - Cấp </span>
-          <span>
-            <nz-input-number nzId="level" [formControl]="formGroup.controls.level" [nzMin]="1" [nzMax]="9"
-                             [nzStep]="1"
-                             [nzSize]="'small'"
-                             [nzPlaceHolder]="formGroup.controls.courseType.value === CourseType.Other ? 'Không bắt buộc' : ''"
-                             [nzPrecision]="0"></nz-input-number>
+          <div class="field">
+            <div class="field-row">
+              <label class="field-label" for="level">Cấp</label>
+              <nz-input-number nzId="level" [formControl]="formGroup.controls.level" [nzMin]="1" [nzMax]="9"
+                               [nzStep]="1"
+                               [nzSize]="'small'"
+                               [nzPlaceHolder]="formGroup.controls.courseType.value === CourseType.Other ? 'Không bắt buộc' : ''"
+                               [class.optional-level]="formGroup.controls.courseType.value === CourseType.Other"
+                               [nzPrecision]="0"></nz-input-number>
+            </div>
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.level}"/>
-          </span>
-          <span> - Bài </span>
-          <span>
-            <nz-input-number nzId="lessonNumber" [formControl]="formGroup.controls.lessonNumber" [nzMin]="1"
-                             [nzMax]="100" [nzStep]="1"
-                             [nzSize]="'small'"
-                             [nzPrecision]="0"></nz-input-number>
+          </div>
+          <div class="field">
+            <div class="field-row">
+              <label class="field-label" for="lessonNumber">Bài</label>
+              <nz-input-number nzId="lessonNumber" [formControl]="formGroup.controls.lessonNumber" [nzMin]="1"
+                               [nzMax]="100" [nzStep]="1"
+                               [nzSize]="'small'"
+                               [nzPrecision]="0"></nz-input-number>
+            </div>
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.lessonNumber}"/>
-          </span>
+          </div>
         </div>
         <div class="intelligence-selection">
           <label>Độ thông minh: </label>
@@ -122,23 +127,23 @@
 
       <div class="images-actions">
         <button nz-button nzType="primary" nzSize="large" type="submit"
-                [disabled]="isProcessingImages">
-          @if (isProcessingImages) {
+                [disabled]="isProcessingImages()">
+          @if (isProcessingImages()) {
             <nz-spin nzSimple />
           } @else {
             <nz-icon nzType="cloud-upload" nzTheme="outline"/>
           }
           {{ submitButtonLabel }}
         </button>
-        @if (selectedImages.length > 0) {
+        @if (selectedImages().length > 0) {
           <button nz-button nzType="default" nzSize="large" type="button"
                   (click)="clearAllImages()"
-                  [disabled]="isProcessingImages">
+                  [disabled]="isProcessingImages()">
             <nz-icon nzType="close" nzTheme="outline"/>
             Xóa tất cả
           </button>
         }
-        @if (!isProcessingImages) {
+        @if (!isProcessingImages()) {
           <button nz-button nzType="dashed" nzSize="large" type="button"
                   (click)="imageInput.click()">
             <nz-icon nzType="plus" nzTheme="outline"/>
@@ -150,7 +155,6 @@
 
     <ng-template let-formControl let-message="message" let-errorKey="errorKey" #errorMessage>
       @if (formControl.hasError(errorKey) && formControl.dirty) {
-        <br/>
         <small class="text-error">{{ message }}</small>
       }
     </ng-template>

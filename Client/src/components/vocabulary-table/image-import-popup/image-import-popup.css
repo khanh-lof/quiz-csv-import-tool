@@ -237,24 +237,57 @@ nz-input-number {
 .creative-selection {
   display: flex;
   justify-content: start;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 12px 16px;
   width: 100%;
 }
+.creative-selection .field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.creative-selection .field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.creative-selection .field-label {
+  white-space: nowrap;
+}
 .creative-selection .course-type-select {
-  width: 110px;
+  width: 150px;
+}
+/* Takes whatever is left of the row, so choosing "Khác" keeps Cấp/Bài on the same line when they fit. */
+.creative-selection .course-name-field {
+  flex: 1 1 160px;
+  min-width: 160px;
 }
 .creative-selection .course-name-input {
-  width: 200px;
+  width: 100%;
   border-radius: 8px;
   border-color: #ff8ecb;
 }
+.creative-selection nz-input-number {
+  width: 80px;
+}
+/* Wide enough for the "Không bắt buộc" placeholder. */
+.creative-selection nz-input-number.optional-level {
+  width: 130px;
+}
+.text-error {
+  display: block;
+}
 .intelligence-selection {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  flex-wrap: wrap;
   width: 100%;
   gap: 12px;
+}
+.ai-selection > label,
+.intelligence-selection > label {
+  font-weight: bold;
 }
 .intelligence-warning {
   color: #fa8c16;
