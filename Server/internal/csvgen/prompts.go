@@ -44,6 +44,37 @@ type imageURL struct {
 	URL string `json:"url"`
 }
 
+// responsesRequest is an OpenAI /responses call, used by the creative mode because web search is a
+// Responses API tool.
+type responsesRequest struct {
+	Model           string           `json:"model"`
+	Instructions    string           `json:"instructions"`
+	Input           []responsesInput `json:"input"`
+	MaxOutputTokens int              `json:"max_output_tokens"`
+	Tools           []responsesTool  `json:"tools,omitempty"`
+}
+
+type responsesInput struct {
+	Role    string      `json:"role"`
+	Content []inputPart `json:"content"`
+}
+
+type inputPart struct {
+	Type     string `json:"type"` // input_text or input_image
+	Text     string `json:"text,omitempty"`
+	ImageURL string `json:"image_url,omitempty"`
+}
+
+type responsesTool struct {
+	Type string `json:"type"`
+}
+
+const (
+	maxOutputTokens = 10000
+	// Searching for images adds reasoning between the searches, which counts as output.
+	maxOutputTokensWithSearch = 16000
+)
+
 // buildSimpleRequest asks for a two-column CSV (Câu hỏi / Đáp án), header included, that the client
 // loads into its vocabulary table.
 func buildSimpleRequest(model string, images []Image) chatRequest {
@@ -54,21 +85,34 @@ func buildSimpleRequest(model string, images []Image) chatRequest {
 
 // buildCreativeRequest asks for ready-to-import rows, without a header, laid out for the target
 // platform; the client prepends the header and downloads the file directly.
-func buildCreativeRequest(model string, images []Image, opts Options) chatRequest {
+func buildCreativeRequest(model string, images []Image, opts Options) responsesRequest {
 	intro := "Convert the images to CSV using the required format."
 	if len(images) == 0 {
-		intro = "No image is provided. Use the standard vocabulary list of the lesson identified below, and generate the CSV using the required format."
+		intro = "No image is provided. Follow the LESSON SOURCE section: identify the textbook for the course and level below, recall the new words of that lesson, and generate the CSV using the required format."
 	}
-	parts := []contentPart{textPart(intro)}
-	for _, msg := range exportTypeMessages(opts.ExportType) {
-		parts = append(parts, textPart(msg))
+	texts := append([]string{intro}, exportTypeMessages(opts.ExportType)...)
+	texts = append(texts, lessonMessages(opts)...)
+	content := make([]inputPart, 0, len(texts)+len(images))
+	for _, text := range texts {
+		content = append(content, inputPart{Type: "input_text", Text: text})
 	}
-	for _, msg := range lessonMessages(opts) {
-		parts = append(parts, textPart(msg))
+	for _, img := range images {
+		content = append(content, inputPart{Type: "input_image", ImageURL: dataURL(img)})
 	}
 	// No reasoning effort: the model is picked by "Độ thông minh" and some of them (gpt-6-astra) have
 	// no effort levels, so each runs at its own default.
-	return newRequest(model, creativeSystemPrompt, "", append(parts, imageParts(images)...))
+	req := responsesRequest{
+		Model:           model,
+		Instructions:    normalizePrompt(creativeSystemPrompt),
+		Input:           []responsesInput{{Role: "user", Content: content}},
+		MaxOutputTokens: maxOutputTokens,
+	}
+	// Only Wayground has an image column; web search lets the model find real Pexels photos for it.
+	if opts.ExportType == Wayground {
+		req.Tools = []responsesTool{{Type: "web_search"}}
+		req.MaxOutputTokens = maxOutputTokensWithSearch
+	}
+	return req
 }
 
 func lessonMessages(opts Options) []string {
@@ -110,7 +154,7 @@ func newRequest(model, systemPrompt, reasoningEffort string, userParts []content
 			{Role: "system", Content: normalizePrompt(systemPrompt)},
 			{Role: "user", Content: userParts},
 		},
-		MaxCompletionTokens: 10000,
+		MaxCompletionTokens: maxOutputTokens,
 		ReasoningEffort:     reasoningEffort,
 	}
 }
@@ -124,10 +168,14 @@ func imageParts(images []Image) []contentPart {
 	for _, img := range images {
 		parts = append(parts, contentPart{
 			Type:     "image_url",
-			ImageURL: &imageURL{URL: "data:" + img.ContentType + ";base64," + base64.StdEncoding.EncodeToString(img.Data)},
+			ImageURL: &imageURL{URL: dataURL(img)},
 		})
 	}
 	return parts
+}
+
+func dataURL(img Image) string {
+	return "data:" + img.ContentType + ";base64," + base64.StdEncoding.EncodeToString(img.Data)
 }
 
 // normalizePrompt undoes a CRLF checkout of the embedded prompt files and drops the trailing newline.

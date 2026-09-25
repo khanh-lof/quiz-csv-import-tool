@@ -20,7 +20,8 @@ Module `quiz-csv-import-tool/server`, laid out as:
 - `internal/store` — the `User` document, the `Users` interface, `Mongo` (production) and `Memory`
   (tests) implementations.
 - `internal/csvgen` — creative-mode option parsing, the two prompts (embedded from `prompts/*.txt`),
-  and the OpenAI-compatible chat-completions client.
+  and the OpenAI-compatible client (`/chat/completions` for the formatted mode, `/responses` for the
+  creative mode).
 
 ## Commands
 
@@ -87,6 +88,12 @@ cookie.
   `course-type.ts`. `exportTypeMessages` must describe the same columns as the client's CsvBuilders.
 - Prompts live in `prompts/*.txt` (`go:embed`); CRLF from a Windows checkout is normalized at use.
 - `ExtractCSVContent` strips code fences / leading prose the model sometimes adds.
+- The creative mode uses the Responses API because Wayground requests carry the `web_search` tool:
+  the model searches Pexels for the Image Link column and builds `images.pexels.com` URLs from the
+  photo IDs it finds (Wikimedia is banned; Wayground cannot load it). Other platforms have no image
+  column and get no tool. An `incomplete` response (output token cap hit) fails the call rather than
+  returning cut-off rows. The `OPENAI_BASE_URL` gateway must support `/responses` with `web_search`,
+  and requires `max_output_tokens` to be set.
 
 Data model (`internal/store`): one `User` document per user in one collection, `_id` = username,
 holding `passwordHash`, `roles`, `createdAt`, `refreshTokens` (`token`, `expiresAt`, `createdAt`),

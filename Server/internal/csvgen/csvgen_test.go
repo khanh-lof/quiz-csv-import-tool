@@ -20,7 +20,7 @@ func TestParseCreativeOptions(t *testing.T) {
 	}{
 		{query: "exportType=2&courseType=0&level=3&lessonNumber=7", check: func(o Options) bool {
 			return o.ExportType == Wayground && o.CourseType == Hsk && *o.Level == 3 && *o.LessonNumber == 7 &&
-				o.CourseDisplayName() == "HSK (HSK 3.0 Standard)" && o.Intelligence == 1
+				o.CourseDisplayName() == "HSK, taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)" && o.Intelligence == 1
 		}},
 		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=1", check: func(o Options) bool {
 			return o.Intelligence == 1
@@ -80,12 +80,11 @@ func TestExtractCSVContent(t *testing.T) {
 	}
 }
 
-func textsOf(t *testing.T, req chatRequest) []string {
+func textsOf(t *testing.T, req responsesRequest) []string {
 	t.Helper()
-	parts := req.Messages[1].Content.([]contentPart)
 	var texts []string
-	for _, p := range parts {
-		if p.Type == "text" {
+	for _, p := range req.Input[0].Content {
+		if p.Type == "input_text" {
 			texts = append(texts, p.Text)
 		}
 	}
@@ -95,10 +94,11 @@ func textsOf(t *testing.T, req chatRequest) []string {
 func TestBuildCreativeRequest(t *testing.T) {
 	level, lesson := 2, 5
 	req := buildCreativeRequest("m", nil, Options{ExportType: Wayground, CourseType: Yct, Level: &level, LessonNumber: &lesson})
-	if req.Model != "m" || req.MaxCompletionTokens != 10000 || req.ReasoningEffort != "" || req.Messages[0].Role != "system" {
+	if req.Model != "m" || req.MaxOutputTokens != 16000 || req.Input[0].Role != "user" ||
+		len(req.Tools) != 1 || req.Tools[0].Type != "web_search" {
 		t.Fatalf("unexpected request %+v", req)
 	}
-	system := req.Messages[0].Content.(string)
+	system := req.Instructions
 	if !strings.HasPrefix(system, "You are an expert Chinese-language teacher") ||
 		!strings.HasSuffix(system, "The final response must contain nothing except the CSV rows.") ||
 		strings.Contains(system, "\r") {
@@ -112,7 +112,7 @@ func TestBuildCreativeRequest(t *testing.T) {
 	if !strings.HasPrefix(texts[0], "No image is provided.") ||
 		!strings.HasPrefix(texts[3], `"Text of the question`) || !strings.HasSuffix(texts[3], "(optional)") ||
 		!strings.HasPrefix(texts[4], "Image Link:") ||
-		texts[5] != "Course: YCT (Youth Chinese Test)" || texts[6] != "Level: 2" || texts[7] != "Lesson number: 5" {
+		texts[5] != "Course: YCT (Youth Chinese Test), taught from 《YCT标准教程》 YCT Standard Course (Giáo trình chuẩn YCT)" || texts[6] != "Level: 2" || texts[7] != "Lesson number: 5" {
 		t.Fatalf("unexpected text parts %q", texts)
 	}
 
@@ -123,8 +123,12 @@ func TestBuildCreativeRequest(t *testing.T) {
 		texts[3] != "Level: this course has no level, none was given." {
 		t.Fatalf("unexpected text parts %q", texts)
 	}
-	parts := withImage.Messages[1].Content.([]contentPart)
-	if last := parts[len(parts)-1]; last.Type != "image_url" || last.ImageURL.URL != "data:image/png;base64,AQI=" {
+	// No image column on GimKit, so no search.
+	if withImage.Tools != nil || withImage.MaxOutputTokens != 10000 {
+		t.Fatalf("unexpected request %+v", withImage)
+	}
+	parts := withImage.Input[0].Content
+	if last := parts[len(parts)-1]; last.Type != "input_image" || last.ImageURL != "data:image/png;base64,AQI=" {
 		t.Fatalf("unexpected image part %+v", last)
 	}
 }
@@ -151,6 +155,45 @@ func TestGenerateCallsChatCompletions(t *testing.T) {
 	}
 	if got["model"] != "gpt-x" || got["max_completion_tokens"] != float64(10000) || got["reasoning_effort"] != "low" {
 		t.Fatalf("unexpected payload %v", got)
+	}
+}
+
+func TestGenerateCreativeCallsResponses(t *testing.T) {
+	var got map[string]any
+	reply := `{"status":"completed","output":[{"type":"reasoning"},{"type":"web_search_call","status":"completed"},` +
+		`{"type":"message","content":[{"type":"output_text","text":"` + "```csv\\na,b\\n```" + `"}]}]}`
+	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/responses" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		body, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(body, &got)
+		_, _ = io.WriteString(w, reply)
+	}))
+	defer llm.Close()
+
+	level, lesson := 1, 1
+	c := NewClient(llm.URL+"/v1", "key", "gpt-x", nil, slog.New(slog.DiscardHandler))
+	csv, err := c.Generate(context.Background(), nil, true, Options{ExportType: Wayground, CourseType: Hsk, Level: &level, LessonNumber: &lesson})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if csv != "a,b" {
+		t.Fatalf("unexpected csv %q", csv)
+	}
+	if got["model"] != "gpt-x" || got["max_output_tokens"] != float64(16000) || got["instructions"] == "" {
+		t.Fatalf("unexpected payload %v", got)
+	}
+}
+
+func TestGenerateFailsOnIncompleteResponse(t *testing.T) {
+	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"output":[{"type":"message","content":[{"type":"output_text","text":"a,b"}]}]}`)
+	}))
+	defer llm.Close()
+	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
+	if _, err := c.Generate(context.Background(), nil, true, Options{}); err == nil || !strings.Contains(err.Error(), "max_output_tokens") {
+		t.Fatalf("want incomplete error, got %v", err)
 	}
 }
 

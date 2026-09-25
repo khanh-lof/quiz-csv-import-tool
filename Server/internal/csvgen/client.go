@@ -51,37 +51,59 @@ func (c *Client) modelFor(opts Options) string {
 
 // Generate returns the CSV the model produced. creative selects the platform-specific prompt
 // (rows only, no header) over the simple two-column vocabulary prompt (header included).
+// The creative mode goes through /responses, whose web search tool finds the Wayground images; the
+// simple mode stays on /chat/completions.
 func (c *Client) Generate(ctx context.Context, images []Image, creative bool, opts Options) (string, error) {
-	req := buildSimpleRequest(c.model, images)
+	var (
+		content string
+		err     error
+	)
 	if creative {
-		req = buildCreativeRequest(c.modelFor(opts), images, opts)
+		content, err = c.respond(ctx, buildCreativeRequest(c.modelFor(opts), images, opts))
+	} else {
+		content, err = c.complete(ctx, buildSimpleRequest(c.model, images))
 	}
+	if err != nil {
+		return "", err
+	}
+	return ExtractCSVContent(content), nil
+}
+
+// post sends req as JSON to path and returns the body of a 2xx response.
+func (c *Client) post(ctx context.Context, path string, req any) ([]byte, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/chat/completions", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(body))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
 	resp, err := c.http.Do(httpReq)
 	if err != nil {
-		return "", fmt.Errorf("calling LLM: %w", err)
+		return nil, fmt.Errorf("calling LLM: %w", err)
 	}
 	defer resp.Body.Close()
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("reading LLM response: %w", err)
+		return nil, fmt.Errorf("reading LLM response: %w", err)
 	}
-	c.logger.Info("LLM response", "status", resp.StatusCode, "body", string(respBody))
+	c.logger.Info("LLM response", "path", path, "status", resp.StatusCode, "body", string(respBody))
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return "", fmt.Errorf("LLM returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("LLM returned status %d", resp.StatusCode)
 	}
+	return respBody, nil
+}
 
+func (c *Client) complete(ctx context.Context, req chatRequest) (string, error) {
+	respBody, err := c.post(ctx, "/chat/completions", req)
+	if err != nil {
+		return "", err
+	}
 	var completion struct {
 		Choices []struct {
 			Message struct {
@@ -99,7 +121,51 @@ func (c *Client) Generate(ctx context.Context, images []Image, creative bool, op
 	if msg := completion.Choices[0].Message.Content; msg != nil {
 		content = *msg
 	}
-	return ExtractCSVContent(content), nil
+	return content, nil
+}
+
+func (c *Client) respond(ctx context.Context, req responsesRequest) (string, error) {
+	respBody, err := c.post(ctx, "/responses", req)
+	if err != nil {
+		return "", err
+	}
+	var response struct {
+		Status            string `json:"status"`
+		IncompleteDetails *struct {
+			Reason string `json:"reason"`
+		} `json:"incomplete_details"`
+		Output []struct {
+			Type    string `json:"type"`
+			Content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"content"`
+		} `json:"output"`
+	}
+	if err := json.Unmarshal(respBody, &response); err != nil {
+		return "", fmt.Errorf("decoding LLM response: %w", err)
+	}
+	if response.Status == "incomplete" {
+		reason := ""
+		if response.IncompleteDetails != nil {
+			reason = response.IncompleteDetails.Reason
+		}
+		// The rows are cut off; answering with them would import a broken quiz.
+		return "", fmt.Errorf("LLM response is incomplete: %s", reason)
+	}
+	// Tool calls and reasoning are output items too; the answer is the text of the message items.
+	var text strings.Builder
+	for _, item := range response.Output {
+		if item.Type != "message" {
+			continue
+		}
+		for _, part := range item.Content {
+			if part.Type == "output_text" {
+				text.WriteString(part.Text)
+			}
+		}
+	}
+	return text.String(), nil
 }
 
 var (

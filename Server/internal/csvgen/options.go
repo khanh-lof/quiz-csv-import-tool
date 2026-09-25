@@ -53,13 +53,14 @@ type Options struct {
 	Intelligence int
 }
 
-// CourseDisplayName is the course name handed to the model, e.g. "HSK (HSK 3.0 Standard)".
+// CourseDisplayName is the course name handed to the model. For HSK and YCT it names the textbook,
+// since lesson numbers only exist there (the exam syllabuses have levels but no lessons).
 func (o Options) CourseDisplayName() string {
 	switch o.CourseType {
 	case Hsk:
-		return "HSK (HSK 3.0 Standard)"
+		return "HSK, taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"
 	case Yct:
-		return "YCT (Youth Chinese Test)"
+		return "YCT (Youth Chinese Test), taught from 《YCT标准教程》 YCT Standard Course (Giáo trình chuẩn YCT)"
 	}
 	if strings.TrimSpace(o.CourseName) == "" {
 		return "an unnamed Chinese course"
