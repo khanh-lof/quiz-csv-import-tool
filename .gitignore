@@ -496,3 +496,8 @@ fabric.properties
 CLAUDE.local.md
 # Vercel CLI
 .vercel/
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
