@@ -265,29 +265,20 @@ export class AiGeneration {
         this.notificationService.error('File không hợp lệ', `${file.name} không phải là ảnh.`, {nzPlacement: 'top'});
         return false;
       }
-      const duplicate = this.selectedImages().some(
-        x => x.file.name === file.name &&
-          x.file.size === file.size &&
-          x.file.lastModified === file.lastModified
-      );
-      if (duplicate) {
-        this.notificationService.error('File trùng lặp', `${file.name} đã được thêm trước đó.`, {nzPlacement: 'top'});
-        return false;
-      }
       return true;
     });
-
-    if (validFiles.length === 0) {
-      return;
-    }
 
     validFiles.forEach(file => {
       const reader = new FileReader();
       reader.onload = () => {
-        this.selectedImages.update(images => [...images, {
-          file: file,
-          preview: reader.result as string
-        }]);
+        const preview = reader.result as string;
+        // Compared by content, not name/size/date: every paste yields a fresh "image.png" stamped with
+        // the current time, so pasting the same image twice would otherwise slip through.
+        if (this.selectedImages().some(x => x.preview === preview)) {
+          this.notificationService.error('Ảnh trùng lặp', `${file.name} đã được thêm trước đó.`, {nzPlacement: 'top'});
+          return;
+        }
+        this.selectedImages.update(images => [...images, { file, preview }]);
       };
       reader.readAsDataURL(file);
     });

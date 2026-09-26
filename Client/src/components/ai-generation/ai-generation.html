@@ -26,15 +26,15 @@
       <div class="images-list">
         @for (image of selectedImages(); let i = $index; track i) {
           <div class="image-item">
+            @if (!isGenerating()) {
+              <button nz-button nzType="primary" nzDanger nzShape="circle" nzSize="small"
+                      class="remove-btn" type="button" aria-label="Xóa ảnh"
+                      (click)="removeImage(i)">
+                <nz-icon nzType="close" nzTheme="outline"/>
+              </button>
+            }
             <div class="image-preview">
               <img [src]="image.preview" alt="Preview" class="preview-img"/>
-              @if (!isGenerating()) {
-                <button nz-button nzType="primary" nzDanger nzShape="circle" nzSize="small"
-                        class="remove-btn" type="button" aria-label="Xóa ảnh"
-                        (click)="removeImage(i)">
-                  <nz-icon nzType="close" nzTheme="outline"/>
-                </button>
-              }
             </div>
             <div class="image-info">
               <p class="image-name">{{ image.file.name }}</p>
