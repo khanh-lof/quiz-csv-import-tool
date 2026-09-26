@@ -1,7 +1,6 @@
 :host {
   display: block;
   position: relative;
-  min-height: 580px;
 }
 
 /* Covers the whole modal body while the AI request runs. The negative inset reaches over the
@@ -39,7 +38,6 @@
   font-variant-numeric: tabular-nums;
 }
 .drop-zone {
-  margin-bottom: 20px;
   padding: 24px;
   border: 3px dashed var(--qt-border);
   border-radius: 12px;
@@ -281,11 +279,27 @@
 .intelligence-warning {
   color: #fa8c16;
 }
-.export-type-select {
+/* Template picker and intelligence share a row; flex-start keeps the picker's error message from
+   shifting the radio buttons. */
+.output-selection {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 16px;
   width: 100%;
 }
-.export-type-select nz-select {
+.output-selection .field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.output-selection .export-type-select {
   width: 180px;
+}
+.output-selection .intelligence-selection {
+  width: auto;
+  flex: 1 1 auto;
+  min-height: 32px;
 }
 .ai-selection {
   display: flex;

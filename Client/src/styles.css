@@ -155,9 +155,33 @@ body {
   box-shadow: var(--qt-focus-shadow);
 }
 
-/* The input inside a password field is borderless; the wrapper above carries the border. */
+/* ng-zorro sizes these from their content plus a 1px border, so the thicker border above makes
+   them taller than selects and radio buttons. Pin them to the same fixed heights instead
+   (border-box, so the border is inside). :where keeps specificity low. */
+input.ant-input:where(:not(.ant-input-lg, .ant-input-sm)),
+.ant-input-affix-wrapper:where(:not(.ant-input-affix-wrapper-lg, .ant-input-affix-wrapper-sm)),
+.ant-input-number:where(:not(.ant-input-number-lg, .ant-input-number-sm)) {
+  height: 32px;
+}
+input.ant-input-lg,
+.ant-input-affix-wrapper-lg,
+.ant-input-number-lg {
+  height: 40px;
+}
+input.ant-input-sm,
+.ant-input-affix-wrapper-sm,
+.ant-input-number-sm {
+  height: 24px;
+}
+.ant-input-number .ant-input-number-input-wrap,
+.ant-input-number .ant-input-number-input {
+  height: 100%;
+}
+
+/* The input inside a password field is borderless; the wrapper above carries the border and height. */
 .ant-input-affix-wrapper > input.ant-input {
   border: none;
+  height: auto;
 }
 
 .ant-select:not(.ant-select-customize-input) .ant-select-selector {

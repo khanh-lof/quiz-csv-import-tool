@@ -52,19 +52,10 @@
       </div>
 
       @if (formGroup.controls.AIMode.value === AIGenerationMode.Auto) {
-        <div class="export-type-select">
-          <nz-select [formControl]="formGroup.controls.exportType" nzPlaceHolder="Chọn template cho">
-            <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
-            <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
-            <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
-          </nz-select>
-          <ng-container
-            *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.exportType}"/>
-        </div>
         <!-- Each .field stacks its control over its error message, so a message never shifts the row. -->
         <div class="creative-selection">
           <div class="field">
-            <nz-select nzId="courseType" [formControl]="formGroup.controls.courseType" nzSize="small"
+            <nz-select nzId="courseType" [formControl]="formGroup.controls.courseType"
                        nzPlaceHolder="Chọn giáo trình" class="course-type-select">
               <nz-option [nzValue]="CourseType.Hsk" nzLabel="HSK"></nz-option>
               <nz-option [nzValue]="CourseType.Yct" nzLabel="YCT"></nz-option>
@@ -75,7 +66,7 @@
           </div>
           @if (formGroup.controls.courseType.value === CourseType.Other) {
             <div class="field course-name-field">
-              <input nz-input nzId="courseName" [formControl]="formGroup.controls.courseName" nzSize="small"
+              <input nz-input nzId="courseName" [formControl]="formGroup.controls.courseName"
                      placeholder="Tên giáo trình" class="course-name-input"/>
               <ng-container
                 *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.courseName}"/>
@@ -86,7 +77,6 @@
               <label class="field-label" for="level">Cấp</label>
               <nz-input-number nzId="level" [formControl]="formGroup.controls.level" [nzMin]="1" [nzMax]="9"
                                [nzStep]="1"
-                               [nzSize]="'small'"
                                [nzPlaceHolder]="formGroup.controls.courseType.value === CourseType.Other ? 'Không bắt buộc' : ''"
                                [class.optional-level]="formGroup.controls.courseType.value === CourseType.Other"
                                [nzPrecision]="0"></nz-input-number>
@@ -99,25 +89,36 @@
               <label class="field-label" for="lessonNumber">Bài</label>
               <nz-input-number nzId="lessonNumber" [formControl]="formGroup.controls.lessonNumber" [nzMin]="1"
                                [nzMax]="100" [nzStep]="1"
-                               [nzSize]="'small'"
                                [nzPrecision]="0"></nz-input-number>
             </div>
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.lessonNumber}"/>
           </div>
         </div>
-        <div class="intelligence-selection">
-          <label>Độ thông minh: </label>
-          <!-- Values are the server's intelligence levels: 1 = LLM_INTELLIGENCE_MODELS[0], 2 = [1]. -->
-          <nz-radio-group [formControl]="formGroup.controls.intelligence" nzButtonStyle="solid">
-            <label nz-radio-button [nzValue]="1">Thấp</label>
-            <label nz-radio-button [nzValue]="2">Cao</label>
-          </nz-radio-group>
-          @if (formGroup.controls.intelligence.value === 2) {
-            <small class="intelligence-warning">
-              <nz-icon nzType="warning" nzTheme="outline"/> Chậm hơn, tốn gấp ~3 lần
-            </small>
-          }
+        <div class="output-selection">
+          <div class="field">
+            <nz-select [formControl]="formGroup.controls.exportType" nzPlaceHolder="Tạo quiz cho"
+                       class="export-type-select">
+              <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
+              <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
+              <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
+            </nz-select>
+            <ng-container
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.exportType}"/>
+          </div>
+          <div class="intelligence-selection">
+            <label>Độ thông minh: </label>
+            <!-- Values are the server's intelligence levels: 1 = LLM_INTELLIGENCE_MODELS[0], 2 = [1]. -->
+            <nz-radio-group [formControl]="formGroup.controls.intelligence" nzButtonStyle="solid">
+              <label nz-radio-button [nzValue]="1">Thấp</label>
+              <label nz-radio-button [nzValue]="2">Cao</label>
+            </nz-radio-group>
+            @if (formGroup.controls.intelligence.value === 2) {
+              <small class="intelligence-warning">
+                <nz-icon nzType="warning" nzTheme="outline"/> Chậm hơn, tốn gấp ~3 lần
+              </small>
+            }
+          </div>
         </div>
       }
 
