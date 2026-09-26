@@ -71,7 +71,8 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   `courseType`, `lessonNumber`, plus `level` (HSK/YCT) or `courseName` (`Other`) — parsed by
   `csvgen.ParseCreativeOptions` (400 with the message on failure). Images are optional only in
   creative mode. The LLM call runs under `LLM_TIMEOUT_SECONDS`; hitting it answers
-  `504 AI generation timed out.` (other LLM failures stay `502`). See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
+  `504 AI generation timed out.` (other LLM failures stay `502`). Either failure refunds the
+  rate-limit slot (`RefundAICall`) because the client retries them. See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
 
 The plain-text error bodies and status codes are part of the contract with the client and were kept
 identical to the former .NET implementation; `internal/api/api_test.go` pins them down.
@@ -87,6 +88,10 @@ cookie.
   **ordinal** and must stay in the same order as `Client/src/models/export-type.ts` and
   `course-type.ts`. `exportTypeMessages` must describe the same columns as the client's CsvBuilders.
 - Prompts live in `prompts/*.txt` (`go:embed`); CRLF from a Windows checkout is normalized at use.
+- `post` retries transient gateway failures (429, 502/503/504, transport errors) within the caller's
+  deadline — see `retry.go` and [../AGENTS.md](../AGENTS.md#retrying-ai-requests). Non-2xx answers
+  become `*StatusError` (status, gateway `error.code`, `Retry-After`); each attempt's
+  `x-request-id` is logged.
 - `ExtractCSVContent` strips code fences / leading prose the model sometimes adds.
 - The creative mode uses the Responses API because Wayground requests carry the `web_search` tool:
   the model searches Pexels for the Image Link column and builds `images.pexels.com` URLs from the
@@ -104,7 +109,9 @@ holding `passwordHash`, `roles`, `createdAt`, `refreshTokens` (`token`, `expires
   from different devices from dropping each other's tokens. Documents without `version` count as 0.
   The token policy itself (prune expired, cap, rotate) lives in `auth.Service`, not the store.
 - `TryConsumeAICall` enforces the rate limit atomically with two conditional updates (increment
-  within a running round under the limit, else start a new round) instead of read-then-write.
+  within a running round under the limit, else start a new round) instead of read-then-write. It
+  returns the round's start; `RefundAICall` decrements only while `startRoundTime` still equals it,
+  so a refund arriving after a new round began cannot eat into that round.
 - `EnsureIndexes` creates the `refreshTokens.token` index used by `FindByRefreshToken`. The server
   does not call it (it would slow every serverless cold start); `cmd/import-users` does, or create
   the index once by hand. Without it, refresh lookups scan the collection — fine for few users.

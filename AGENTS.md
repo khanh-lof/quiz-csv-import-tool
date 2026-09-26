@@ -110,7 +110,8 @@ Consequences to keep in mind when changing anything here:
 AI calls are capped per user (`CALL_COUNT_ACCEPTED_IN_A_ROUND` per `ROUND_MINUTES`), with the counter
 stored on the user's MongoDB document. The client has no matching UI state — it discovers the limit
 only as a `403` with a plain-text body from `csv/generate-from-image`, which surfaces as a generic
-error notification.
+error notification. A call whose generation fails (`502`/`504`) is given back (`RefundAICall`), so
+the client's automatic retries below never run into the limit.
 
 ## Upload size and LLM timeout (Vercel limits)
 
@@ -121,6 +122,21 @@ two sides guard against both:
   longest side 2048 px, stepping down in size/quality until the batch fits a 4 MB budget, else it
   refuses the upload itself.
 - The server bounds each LLM call with `LLM_TIMEOUT_SECONDS` (default 280, under Vercel's limit) and
-  answers `504 AI generation timed out.` The call still counts against the rate limit.
+  answers `504 AI generation timed out.` The failed call is refunded to the rate limit.
 - `ImageImportPopup.showGenerationError` maps 413 (or the client's own refusal) and 504 (the
   server's, or Vercel's own) to messages asking the user to send fewer images or retry.
+
+## Retrying AI requests
+
+Retries are split by who can afford the time, since one Vercel invocation cannot outlive 300 s:
+
+- **Server, inside one invocation** (`csvgen/retry.go`): quick transient failures from the LLM
+  gateway — 429 and 502/503/504, and transport errors — are retried up to 3 attempts with
+  exponential backoff + jitter, honouring `Retry-After` (following the gateway's policy,
+  https://shineshop.dev/docs/errors/). All attempts share the `LLM_TIMEOUT_SECONDS` deadline, and a
+  retry is skipped when less than 30 s would be left, so this never pushes past Vercel's limit.
+  Other statuses (400/401/402/403/404/413) are never retried.
+- **Client, as a new request** (`AiCsvService.retryTransientFailures`): a `502`, `503`, `504` or
+  network failure (status 0) from our API is re-sent up to 2 times (a `504` only once, since it
+  already took ~280 s), with 2 s/4 s backoff + jitter. Each retry is a fresh Vercel invocation with a
+  fresh time budget. The popup's button shows `Đang thử lại (lần N)...` while it runs.

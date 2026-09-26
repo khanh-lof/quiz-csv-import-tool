@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strings"
+	"time"
 
 	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/store"
@@ -71,7 +72,7 @@ func (s *Server) generateCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	allowed, err := s.Users.TryConsumeAICall(r.Context(), user.Username, s.AICallsPerRound, s.RoundDuration)
+	roundStart, allowed, err := s.Users.TryConsumeAICall(r.Context(), user.Username, s.AICallsPerRound, s.RoundDuration)
 	if err != nil {
 		s.internalError(w, r, "updating AI call count failed", err)
 		return
@@ -88,6 +89,11 @@ func (s *Server) generateCSV(w http.ResponseWriter, r *http.Request) {
 		defer cancel()
 	}
 	csv, err := s.Generator.Generate(ctx, images, creative, opts)
+	if err != nil {
+		// A failed generation produced nothing (and the gateway does not bill it), so it gives the call
+		// back: the client retries 502/504 and must not run into the rate limit doing so.
+		s.refundAICall(r, user.Username, roundStart)
+	}
 	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		// The client tells the user to send fewer images or retry on this status.
 		s.Logger.Warn("CSV generation timed out", "user", user.Username, "images", len(images), "timeout", s.LLMTimeout)
@@ -102,6 +108,15 @@ func (s *Server) generateCSV(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.WriteString(w, csv)
+}
+
+func (s *Server) refundAICall(r *http.Request, username string, roundStart time.Time) {
+	// Detached from the request: the refund must happen even if the client has gone away.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 5*time.Second)
+	defer cancel()
+	if err := s.Users.RefundAICall(ctx, username, roundStart); err != nil {
+		s.Logger.Warn("refunding AI call failed", "user", username, "error", err)
+	}
 }
 
 // readImages collects every file part of the multipart body. A body with no file at all is fine:

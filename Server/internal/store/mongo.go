@@ -112,25 +112,30 @@ func versionFilter(username string, version int64) bson.M {
 	return bson.M{"_id": username, "version": version}
 }
 
-func (m *Mongo) TryConsumeAICall(ctx context.Context, username string, limit int, round time.Duration) (bool, error) {
-	now := m.now().UTC()
+func (m *Mongo) TryConsumeAICall(ctx context.Context, username string, limit int, round time.Duration) (time.Time, bool, error) {
+	// BSON dates hold milliseconds; truncating keeps the returned round start equal to the stored one.
+	now := m.now().UTC().Truncate(time.Millisecond)
 	roundStartedAfter := now.Add(-round)
 
 	// A round is running and still has room: count this call.
-	res, err := m.users.UpdateOne(ctx, bson.M{
+	var running struct {
+		StartRoundTime time.Time `bson:"startRoundTime"`
+	}
+	err := m.users.FindOneAndUpdate(ctx, bson.M{
 		"_id":                username,
 		"startRoundTime":     bson.M{"$gt": roundStartedAfter},
 		"aiCallCountInRound": bson.M{"$lt": limit},
-	}, bson.M{"$inc": bson.M{"aiCallCountInRound": 1}})
-	if err != nil {
-		return false, err
+	}, bson.M{"$inc": bson.M{"aiCallCountInRound": 1}},
+		options.FindOneAndUpdate().SetProjection(bson.M{"startRoundTime": 1})).Decode(&running)
+	if err == nil {
+		return running.StartRoundTime.UTC(), true, nil
 	}
-	if res.MatchedCount == 1 {
-		return true, nil
+	if !errors.Is(err, mongo.ErrNoDocuments) {
+		return time.Time{}, false, err
 	}
 
 	// No round running (never started, or the last one ended): this call starts a new one.
-	res, err = m.users.UpdateOne(ctx, bson.M{
+	res, err := m.users.UpdateOne(ctx, bson.M{
 		"_id": username,
 		"$or": bson.A{
 			bson.M{"startRoundTime": nil},
@@ -138,7 +143,19 @@ func (m *Mongo) TryConsumeAICall(ctx context.Context, username string, limit int
 		},
 	}, bson.M{"$set": bson.M{"aiCallCountInRound": 1, "startRoundTime": now}})
 	if err != nil {
-		return false, err
+		return time.Time{}, false, err
 	}
-	return res.MatchedCount == 1, nil
+	if res.MatchedCount != 1 {
+		return time.Time{}, false, nil
+	}
+	return now, true, nil
+}
+
+func (m *Mongo) RefundAICall(ctx context.Context, username string, roundStart time.Time) error {
+	_, err := m.users.UpdateOne(ctx, bson.M{
+		"_id":                username,
+		"startRoundTime":     roundStart,
+		"aiCallCountInRound": bson.M{"$gt": 0},
+	}, bson.M{"$inc": bson.M{"aiCallCountInRound": -1}})
+	return err
 }

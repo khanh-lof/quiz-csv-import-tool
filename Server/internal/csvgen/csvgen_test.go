@@ -199,7 +199,7 @@ func TestGenerateFailsOnIncompleteResponse(t *testing.T) {
 
 func TestGenerateFailsOnErrorStatus(t *testing.T) {
 	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		http.Error(w, "nope", http.StatusTooManyRequests)
+		http.Error(w, "nope", http.StatusBadRequest)
 	}))
 	defer llm.Close()
 	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))

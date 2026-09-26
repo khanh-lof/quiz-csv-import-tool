@@ -49,8 +49,14 @@ type Users interface {
 
 	// TryConsumeAICall atomically counts one AI call against the user's rate limit: at most limit
 	// calls per round, a round starting with the first call after the previous one ended.
-	// It returns false when the limit is already reached.
-	TryConsumeAICall(ctx context.Context, username string, limit int, round time.Duration) (bool, error)
+	// It returns the start of the round the call was counted in, and ok=false when the limit is
+	// already reached.
+	TryConsumeAICall(ctx context.Context, username string, limit int, round time.Duration) (roundStart time.Time, ok bool, err error)
+
+	// RefundAICall gives back one call counted in the round that started at roundStart, so a failed
+	// generation does not use up the user's quota (and the client can retry it). It does nothing
+	// once a newer round has replaced that one.
+	RefundAICall(ctx context.Context, username string, roundStart time.Time) error
 }
 
 const maxUpdateAttempts = 5

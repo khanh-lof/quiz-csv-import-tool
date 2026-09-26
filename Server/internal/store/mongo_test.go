@@ -148,21 +148,49 @@ func TestMongoTryConsumeAICall(t *testing.T) {
 	m.now = func() time.Time { return now }
 
 	for i := range 2 {
-		if ok, err := m.TryConsumeAICall(ctx, "alice", 2, time.Minute); !ok || err != nil {
+		if _, ok, err := m.TryConsumeAICall(ctx, "alice", 2, time.Minute); !ok || err != nil {
 			t.Fatalf("call %d: %v %v", i+1, ok, err)
 		}
 	}
-	if ok, _ := m.TryConsumeAICall(ctx, "alice", 2, time.Minute); ok {
+	if _, ok, _ := m.TryConsumeAICall(ctx, "alice", 2, time.Minute); ok {
 		t.Fatal("third call in the round allowed")
 	}
 	now = now.Add(61 * time.Second)
-	if ok, _ := m.TryConsumeAICall(ctx, "alice", 2, time.Minute); !ok {
+	if _, ok, _ := m.TryConsumeAICall(ctx, "alice", 2, time.Minute); !ok {
 		t.Fatal("call in a new round rejected")
 	}
 	if u, _ := m.FindByUsername(ctx, "alice"); u.AICallCountInRound != 1 || u.StartRoundTime == nil {
 		t.Fatalf("round not restarted: %+v", u)
 	}
-	if ok, _ := m.TryConsumeAICall(ctx, "bob", 2, time.Minute); ok {
+	if _, ok, _ := m.TryConsumeAICall(ctx, "bob", 2, time.Minute); ok {
 		t.Fatal("unknown user allowed")
+	}
+}
+
+func TestMongoRefundAICall(t *testing.T) {
+	ctx := context.Background()
+	m, _ := newTestMongo(t)
+	_ = m.Create(ctx, &User{Username: "alice", PasswordHash: "h"})
+	now := time.Now()
+	m.now = func() time.Time { return now }
+
+	first, _, _ := m.TryConsumeAICall(ctx, "alice", 2, time.Minute)
+	second, _, _ := m.TryConsumeAICall(ctx, "alice", 2, time.Minute)
+	if !first.Equal(second) {
+		t.Fatalf("round start changed within a round: %v vs %v", first, second)
+	}
+	if err := m.RefundAICall(ctx, "alice", second); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, _ := m.TryConsumeAICall(ctx, "alice", 2, time.Minute); !ok {
+		t.Fatal("refunded call not available again")
+	}
+
+	// A refund for a round that has since been replaced leaves the new round alone.
+	now = now.Add(61 * time.Second)
+	_, _, _ = m.TryConsumeAICall(ctx, "alice", 2, time.Minute)
+	_ = m.RefundAICall(ctx, "alice", first)
+	if u, _ := m.FindByUsername(ctx, "alice"); u.AICallCountInRound != 1 {
+		t.Fatalf("stale refund changed the new round: %+v", u)
 	}
 }

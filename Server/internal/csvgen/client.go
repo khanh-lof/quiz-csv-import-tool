@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // Client calls an OpenAI-compatible /chat/completions endpoint.
@@ -21,7 +22,9 @@ type Client struct {
 	// intelligenceModels are the creative-mode models for "Độ thông minh" 1..IntelligenceLevels.
 	// Empty means every level uses model.
 	intelligenceModels []string
-	logger             *slog.Logger
+	// baseBackoff is the first retry delay, doubled per attempt; tests shrink it.
+	baseBackoff time.Duration
+	logger      *slog.Logger
 }
 
 func NewClient(baseURL, apiKey, model string, intelligenceModels []string, logger *slog.Logger) *Client {
@@ -33,6 +36,7 @@ func NewClient(baseURL, apiKey, model string, intelligenceModels []string, logge
 		apiKey:             apiKey,
 		model:              model,
 		intelligenceModels: intelligenceModels,
+		baseBackoff:        defaultBaseBackoff,
 		logger:             logger,
 	}
 }
@@ -69,13 +73,17 @@ func (c *Client) Generate(ctx context.Context, images []Image, creative bool, op
 	return ExtractCSVContent(content), nil
 }
 
-// post sends req as JSON to path and returns the body of a 2xx response.
+// post sends req as JSON to path and returns the body of a 2xx response, retrying transient
+// gateway failures (see withRetry).
 func (c *Client) post(ctx context.Context, path string, req any) ([]byte, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
 	}
+	return c.withRetry(ctx, path, func() ([]byte, error) { return c.postOnce(ctx, path, body) })
+}
 
+func (c *Client) postOnce(ctx context.Context, path string, body []byte) ([]byte, error) {
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -85,16 +93,28 @@ func (c *Client) post(ctx context.Context, path string, req any) ([]byte, error)
 
 	resp, err := c.http.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("calling LLM: %w", err)
+		return nil, &transportError{err}
 	}
 	defer resp.Body.Close()
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("reading LLM response: %w", err)
+		return nil, &transportError{fmt.Errorf("reading LLM response: %w", err)}
 	}
-	c.logger.Info("LLM response", "path", path, "status", resp.StatusCode, "body", string(respBody))
+	// x-request-id identifies this attempt to the gateway's support.
+	c.logger.Info("LLM response", "path", path, "status", resp.StatusCode,
+		"requestId", resp.Header.Get("X-Request-Id"), "body", string(respBody))
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, fmt.Errorf("LLM returned status %d", resp.StatusCode)
+		var envelope struct {
+			Error struct {
+				Code string `json:"code"`
+			} `json:"error"`
+		}
+		_ = json.Unmarshal(respBody, &envelope)
+		return nil, &StatusError{
+			Status:     resp.StatusCode,
+			Code:       envelope.Error.Code,
+			RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After")),
+		}
 	}
 	return respBody, nil
 }

@@ -68,12 +68,12 @@ func (m *Memory) UpdateRefreshTokens(_ context.Context, username string,
 	return nil
 }
 
-func (m *Memory) TryConsumeAICall(_ context.Context, username string, limit int, round time.Duration) (bool, error) {
+func (m *Memory) TryConsumeAICall(_ context.Context, username string, limit int, round time.Duration) (time.Time, bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	u, ok := m.users[username]
 	if !ok {
-		return false, nil
+		return time.Time{}, false, nil
 	}
 	now := m.Now().UTC()
 	running := u.StartRoundTime != nil && u.StartRoundTime.After(now.Add(-round))
@@ -84,10 +84,22 @@ func (m *Memory) TryConsumeAICall(_ context.Context, username string, limit int,
 		u.AICallCountInRound = 1
 		u.StartRoundTime = &now
 	default:
-		return false, nil
+		return time.Time{}, false, nil
 	}
 	m.users[username] = u
-	return true, nil
+	return *u.StartRoundTime, true, nil
+}
+
+func (m *Memory) RefundAICall(_ context.Context, username string, roundStart time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[username]
+	if !ok || u.StartRoundTime == nil || !u.StartRoundTime.Equal(roundStart) || u.AICallCountInRound <= 0 {
+		return nil
+	}
+	u.AICallCountInRound--
+	m.users[username] = u
+	return nil
 }
 
 func clone(u User) *User {

@@ -377,6 +377,26 @@ func TestGenerateCSVUpstreamFailure(t *testing.T) {
 	}
 }
 
+func TestGenerateCSVFailureDoesNotUseQuota(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	now := time.Now()
+	env.users.Now = func() time.Time { return now }
+
+	env.gen.err = errors.New("boom")
+	for i := range 3 {
+		if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusBadGateway {
+			t.Fatalf("failing call %d: %d", i+1, rec.Code)
+		}
+	}
+	env.gen.err = nil
+	for i := range 2 {
+		if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusOK {
+			t.Fatalf("retry %d after failures: %d %q", i+1, rec.Code, rec.Body)
+		}
+	}
+}
+
 func TestGenerateCSVTimeout(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")

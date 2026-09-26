@@ -75,6 +75,9 @@ export class ImageImportPopup {
   protected readonly selectedImages = signal<ImageItem[]>([]);
   protected isDragOver = false;
   protected readonly isProcessingImages = signal(false);
+  // Which automatic retry of the AI request is running; 0 while on the first attempt.
+  protected readonly retryNumber = signal(0);
+  private readonly onRetry = (retryNumber: number) => this.retryNumber.set(retryNumber);
   protected dragEnterCounter = 0;
 
   protected readonly AIGenerationMode = AIGenerationMode;
@@ -258,6 +261,7 @@ export class ImageImportPopup {
     }
 
     this.isProcessingImages.set(true);
+    this.retryNumber.set(0);
 
     let imageFiles: File[];
     try {
@@ -268,7 +272,7 @@ export class ImageImportPopup {
       return;
     }
     if (this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
-      this.aiCsvService.generateCsvFromImages(imageFiles).pipe(takeUntilDestroyed(this.destroyRef),
+      this.aiCsvService.generateCsvFromImages(imageFiles, this.onRetry).pipe(takeUntilDestroyed(this.destroyRef),
         finalize(() => this.isProcessingImages.set(false))).subscribe({
         next: csvContent => {
           const rows = this.csvImportService.parseCsv(csvContent);
@@ -294,7 +298,7 @@ export class ImageImportPopup {
         lessonNumber: this.formGroup.controls.lessonNumber.value,
         exportType: this.formGroup.controls.exportType.value,
         intelligence: this.formGroup.controls.intelligence.value,
-    } satisfies ImageImportModel).pipe(takeUntilDestroyed(this.destroyRef),
+    } satisfies ImageImportModel, this.onRetry).pipe(takeUntilDestroyed(this.destroyRef),
       finalize(() => this.isProcessingImages.set(false))).subscribe({
       next: csvContent => {
         this.fileExportService.exportFileFromCsvContent('NhapFileName.csv', csvContent, this.formGroup.controls.exportType.value!);
@@ -308,7 +312,8 @@ export class ImageImportPopup {
 
   // A too-large upload (our own check, or the platform's 413) and an AI timeout (the server's 504, or
   // the platform stopping the function) are both fixed by sending fewer images, so say so; they stay
-  // on screen until closed.
+  // on screen until closed. Timeouts and gateway failures only get here once AiCsvService's automatic
+  // retries have run out.
   private showGenerationError(err: unknown): void {
     const status = err instanceof HttpErrorResponse ? err.status : null;
     if (err instanceof UploadTooLargeError || status === HttpStatusCode.PayloadTooLarge) {
@@ -328,7 +333,7 @@ export class ImageImportPopup {
 
   protected get submitButtonLabel(): string {
     if (this.isProcessingImages()) {
-      return 'Đang xử lý...';
+      return this.retryNumber() > 0 ? `Đang thử lại (lần ${this.retryNumber()})...` : 'Đang xử lý...';
     }
     return this.selectedImages().length > 0
       ? `Xử lý tất cả (${this.selectedImages().length})`
