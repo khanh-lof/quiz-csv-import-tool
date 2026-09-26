@@ -1,25 +1,17 @@
+/* Both pages are exactly one screen tall: the part of the page that can scroll on its own (the table,
+   or the AI page's usage guide) gives up height so the browser never adds a page scrollbar. The floor
+   keeps them usable on very short screens, where the page scrolls instead. */
 :host {
-  min-height: 100vh;
+  height: max(100dvh, 640px);
   display: flex;
   justify-content: center;
   padding: 20px;
 }
 
 .center-container {
-  display: block;
-  padding: 4px 20px;
-}
-
-/* The table page is exactly one screen tall: its table takes the height left under the title and
-   scrolls on its own, so the browser never adds a second scrollbar. The floor keeps the table usable
-   on very short screens, where the page scrolls instead. */
-:host(.fit-viewport) {
-  height: max(100dvh, 640px);
-}
-
-:host(.fit-viewport) .center-container {
   display: flex;
   flex-direction: column;
+  padding: 4px 20px;
 }
 
 .workspace-nav {
