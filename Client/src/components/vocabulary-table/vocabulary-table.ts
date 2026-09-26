@@ -30,10 +30,19 @@ import { QuestionDefinition } from '../../models/question-definition';
 import { ExportType } from '../../models/export-type';
 import { QuestionType } from '../../models/question-type';
 import { CdkTextareaAutosize } from '@angular/cdk/text-field';
+import { debounceTime } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 
 // Query param telling the table to open the AI popup on arrival, set when the login screen sends the user back.
 const OPEN_AI_POPUP_PARAM = 'openAi';
+// The table's rows and chosen template, kept in the browser so a reload or the trip to the login
+// screen does not lose what the user typed.
+const DRAFT_STORAGE_KEY = 'vocabulary-table-draft';
+
+interface TableDraft {
+  rows: QuestionDefinition[];
+  exportType: ExportType | null;
+}
 
 @Component({
   selector: 'app-vocabulary-table',
@@ -85,13 +94,55 @@ export class VocabularyTable implements OnInit {
       listOfData: formBuilder.array<FormGroup<QuestionDefinitionForm>>(this.createDefaultQuestionFormGroups(), [Validators.minLength(this.minRows), this.duplicateValidator]),
       exportType: new FormControl<ExportType | null>(null, [Validators.required])
     });
+    this.restoreDraft();
     this.listOfData = this.questionForms.controls;
+    this.formGroup.valueChanges.pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.saveDraft());
 
     // Prevent default drag/drop behavior on document to avoid opening files in new tab
     if (typeof document !== 'undefined') {
       document.addEventListener('dragover', (e) => e.preventDefault(), false);
       document.addEventListener('drop', (e) => e.preventDefault(), false);
     }
+  }
+
+  private restoreDraft(): void {
+    let draft: TableDraft | null = null;
+    try {
+      draft = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) ?? 'null');
+    } catch {
+      return;
+    }
+    if (!draft) {
+      return;
+    }
+    const rows = (draft.rows ?? []).filter(row => row.question || row.answer);
+    if (rows.length) {
+      this.questionForms.clear();
+      rows.forEach(row => this.questionForms.push(
+        this.createQuestionFormGroupWithValues(row.question ?? '', row.answer ?? '', row.questionType ?? QuestionType.MultipleChoice)));
+      for (let i = rows.length; i < this.minRows; i++) {
+        this.questionForms.push(this.createQuestionFormGroup());
+      }
+    }
+    this.formGroup.patchValue({exportType: draft.exportType ?? null});
+  }
+
+  private saveDraft(): void {
+    const draft: TableDraft = {rows: this.currentRows(), exportType: this.formGroup.get('exportType')?.value ?? null};
+    try {
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    } catch {
+      // Keeping the draft is only a convenience.
+    }
+  }
+
+  private currentRows(): QuestionDefinition[] {
+    return this.questionForms.controls.map(x => ({
+      question: x.controls.question.value,
+      answer: x.controls.answer.value,
+      questionType: x.controls.questionType.value
+    } as QuestionDefinition));
   }
 
   ngOnInit(): void {
@@ -210,16 +261,43 @@ export class VocabularyTable implements OnInit {
   }
 
   exportFile() {
-    this.formGroup.markAllAsDirty();
-    if (this.formGroup.invalid) {
-      this.notificationService.error('Tập trung vàoooo', 'Nhập cho đúng kàaaa', {nzPlacement: 'top'});
+    const exportTypeControl = this.formGroup.get('exportType')!;
+    if (exportTypeControl.value === null) {
+      exportTypeControl.markAsDirty();
+      this.notificationService.error('Chưa chọn template', 'Chọn Gimkit, Blooket hoặc Wayground trước khi tải file nhé.', {nzPlacement: 'top'});
       return;
     }
-    this.fileExportService.exportFile("NhapFileName.csv", this.listOfData.map(x => ({
-      answer: x.controls.answer.value,
-      question: x.controls.question.value,
-      questionType: x.controls.questionType.value
-    } as QuestionDefinition)), this.formGroup.get('exportType')?.value);
+    // Rows left completely empty are ignored rather than blocking the export, as long as enough real
+    // rows remain for the builders to draw wrong answers from.
+    const filledRowCount = this.questionForms.controls.filter(x => !this.isEmptyRow(x)).length;
+    if (filledRowCount < this.minRows) {
+      this.notificationService.error('Chưa đủ câu hỏi',
+        `Cần ít nhất ${this.minRows} câu hỏi có đáp án để tạo đáp án sai cho mỗi câu.`, {nzPlacement: 'top'});
+      return;
+    }
+    this.removeEmptyControls();
+    this.refreshTable();
+
+    this.formGroup.markAllAsDirty();
+    if (this.formGroup.invalid) {
+      const message = this.questionForms.hasError('duplicateExists')
+        ? 'Có câu hỏi hoặc đáp án bị trùng, sửa lại chỗ báo đỏ nhé.'
+        : 'Còn ô trống, điền nốt chỗ báo đỏ nhé.';
+      this.notificationService.error('Tập trung vàoooo', message, {nzPlacement: 'top'});
+      return;
+    }
+    const exportType: ExportType = exportTypeControl.value;
+    const today = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD in local time
+    const fileName = this.fileExportService.exportFile(
+      FileExportService.buildFileName(`QuizTool-${today}`, exportType), this.currentRows(), exportType);
+    if (fileName) {
+      this.notificationService.success('Tải file thành công',
+        `Đã tải ${fileName}, import vào ${FileExportService.platformName(exportType)} là dùng được nhaa.`, {nzPlacement: 'top'});
+    }
+  }
+
+  private isEmptyRow(row: FormGroup<QuestionDefinitionForm>): boolean {
+    return !row.controls.question.value?.trim() && !row.controls.answer.value?.trim();
   }
   private createQuestionFormGroup(): FormGroup<QuestionDefinitionForm> {
     return this.createQuestionFormGroupWithValues('', '');
@@ -280,7 +358,23 @@ export class VocabularyTable implements OnInit {
     return hasAnyDuplicate ? {duplicateExists: true} : null;
   };
 
-  protected deleteAllRows() {
+  protected confirmDeleteAllRows() {
+    if (this.questionForms.controls.every(x => this.isEmptyRow(x))) {
+      this.deleteAllRows();
+      return;
+    }
+    this.modalService.confirm({
+      nzTitle: 'Xóa tất cả câu hỏi?',
+      nzContent: 'Toàn bộ câu hỏi và đáp án trong bảng sẽ bị xóa.',
+      nzOkText: 'Xóa',
+      nzOkDanger: true,
+      nzCancelText: 'Giữ lại',
+      nzCentered: true,
+      nzOnOk: () => this.deleteAllRows()
+    });
+  }
+
+  private deleteAllRows() {
     this.questionForms.clear();
     for (const defaultQuestionFormGroup of this.createDefaultQuestionFormGroups()) {
       this.questionForms.push(defaultQuestionFormGroup);
@@ -289,7 +383,7 @@ export class VocabularyTable implements OnInit {
   }
 
   private removeEmptyControls(): void {
-    for (const emptyControl of this.questionForms.controls.filter(x => x.controls.question.value === '' && x.controls.answer.value === '')) {
+    for (const emptyControl of this.questionForms.controls.filter(x => this.isEmptyRow(x))) {
       this.questionForms.removeAt(this.questionForms.controls.indexOf(emptyControl));
     }
   }

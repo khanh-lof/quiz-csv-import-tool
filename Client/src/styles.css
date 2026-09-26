@@ -90,6 +90,14 @@ body {
   opacity: 0.6;
 }
 
+/* A destructive primary action (e.g. a confirm's "Xóa") stays red rather than taking the gradient. */
+.ant-btn-primary.ant-btn-dangerous,
+.ant-btn-primary.ant-btn-dangerous:hover,
+.ant-btn-primary.ant-btn-dangerous:focus,
+.ant-btn-primary.ant-btn-dangerous:active {
+  background: var(--qt-error);
+}
+
 /* Secondary buttons: plain nz-button (e.g. a confirm's Cancel), nzType="default" and "dashed". */
 .ant-btn:not(.ant-btn-primary):not(.ant-btn-text):not(.ant-btn-link):not(.ant-btn-dangerous) {
   background: var(--qt-gradient-soft);

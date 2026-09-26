@@ -8,7 +8,7 @@
         <button nz-button nzShape="circle" nzType="primary" type="button" (click)="addRow()">
           <nz-icon nzType="plus" nzTheme="outline"/>
         </button>
-        <button nz-button nzType="default" type="button" (click)="deleteAllRows()">
+        <button nz-button nzType="default" type="button" (click)="confirmDeleteAllRows()">
           <nz-icon nzType="delete" nzTheme="outline"/>
           Xóa tất cả
         </button>
@@ -23,13 +23,12 @@
           <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
           <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
         </nz-select>
-        <!-- Export Button -->
-        @if (questionForms.length >= minRows && $safeNavigationMigration(formGroup.get('exportType')?.value) !== null) {
-          <button nz-button nzType="primary" type="submit">
-            <nz-icon nzType="download"/>
-            Tải file
-          </button>
-        }
+        <!-- Always shown: clicking it explains what is still missing (template, rows) instead of the
+             button appearing only once everything is filled in. -->
+        <button nz-button nzType="primary" type="submit">
+          <nz-icon nzType="download"/>
+          Tải file
+        </button>
         <!--      <button nz-button nzType="default" type="button" (click)="fileInput.click()">-->
         <!--        <nz-icon nzType="file-text" nzTheme="outline"/>-->
         <!--        Nhập từ file csv-->

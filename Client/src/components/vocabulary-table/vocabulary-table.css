@@ -43,14 +43,17 @@ td nz-select {
 
 .header-toolbar {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
 .left-buttons,
 .right-buttons {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }

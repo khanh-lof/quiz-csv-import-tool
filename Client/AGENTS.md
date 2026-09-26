@@ -60,7 +60,8 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
   shows a "Cần đăng nhập" confirm to an anonymous user, which sends them to
   `/login?returnUrl=/quiz?openAi=1`. `LoginComponent` navigates to `returnUrl` after login (only
   in-app paths are accepted, otherwise `/quiz`), and `VocabularyTable.ngOnInit` sees `openAi`,
-  strips it from the URL and opens the popup. Table rows are not preserved across that trip.
+  strips it from the URL and opens the popup. The table survives that trip (and reloads) because
+  `VocabularyTable` keeps its rows and template as a draft in `localStorage` (`vocabulary-table-draft`).
 
 ### Vocabulary table & CSV pipeline
 
