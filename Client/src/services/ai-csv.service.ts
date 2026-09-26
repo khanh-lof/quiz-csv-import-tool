@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams, HttpStatusCode } from '@angular/common/http';
 import { map, Observable, retry, throwError, timer } from 'rxjs';
-import { ImageImportModel } from '../models/image-import-model';
+import { AiGenerationRequest } from '../models/ai-generation-request';
 import { AIGenerationMode } from '../models/aigeneration-mode';
 import { CourseType } from '../models/course-type';
 
@@ -35,26 +35,26 @@ export class AiCsvService {
   }
 
   // Images are optional here: with none, the server asks the AI to work from the lesson's own word list.
-  generateCsvFromImagesCreative(imageFiles: File[], imageImportModel: ImageImportModel, onRetry?: RetryCallback): Observable<string> {
+  generateCsvFromImagesCreative(imageFiles: File[], aiGenerationRequest: AiGenerationRequest, onRetry?: RetryCallback): Observable<string> {
     const formData = new FormData();
     imageFiles.forEach(file => {
       formData.append('images', file, file.name);
     });
 
     let params = new HttpParams()
-      .set('isCreative', imageImportModel.AIMode === AIGenerationMode.Auto)
-      .set('exportType', imageImportModel.exportType!)
-      .set('courseType', imageImportModel.courseType!)
-      .set('lessonNumber', imageImportModel.lessonNumber!);
+      .set('isCreative', aiGenerationRequest.AIMode === AIGenerationMode.Auto)
+      .set('exportType', aiGenerationRequest.exportType!)
+      .set('courseType', aiGenerationRequest.courseType!)
+      .set('lessonNumber', aiGenerationRequest.lessonNumber!);
 
-    if (imageImportModel.level !== null) {
-      params = params.set('level', imageImportModel.level);
+    if (aiGenerationRequest.level !== null) {
+      params = params.set('level', aiGenerationRequest.level);
     }
-    if (imageImportModel.intelligence !== null) {
-      params = params.set('intelligence', imageImportModel.intelligence);
+    if (aiGenerationRequest.intelligence !== null) {
+      params = params.set('intelligence', aiGenerationRequest.intelligence);
     }
-    if (imageImportModel.courseType === CourseType.Other && imageImportModel.courseName) {
-      params = params.set('courseName', imageImportModel.courseName);
+    if (aiGenerationRequest.courseType === CourseType.Other && aiGenerationRequest.courseName) {
+      params = params.set('courseName', aiGenerationRequest.courseName);
     }
 
     const response = this.httpClient.post(this.endpointUrl, formData, {

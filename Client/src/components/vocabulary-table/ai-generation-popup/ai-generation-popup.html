@@ -6,7 +6,7 @@
      (drop)="onDrop($event)"
      (paste)="onPaste($event)"
      tabindex="0">
-  <form [formGroup]="formGroup" (ngSubmit)="submitAllImages()">
+  <form [formGroup]="formGroup" (ngSubmit)="generate()">
     <input #imageInput type="file" accept="image/*" multiple style="display: none" (change)="importFromImage($event)"/>
 
     <div class="images-container">
@@ -16,7 +16,7 @@
             <div class="image-item">
               <div class="image-preview">
                 <img [src]="image.preview" alt="Preview" class="preview-img"/>
-                @if (isProcessingImages()) {
+                @if (isGenerating()) {
                   <div class="processing-overlay">
                     <nz-spin nzSimple />
                   </div>
@@ -26,7 +26,7 @@
                 <p class="image-name">{{ image.file.name }}</p>
                 <p class="image-size">{{ (image.file.size || 0) / 1024 | number:'1.0-0' }} KB</p>
               </div>
-              @if (!isProcessingImages()) {
+              @if (!isGenerating()) {
                 <button nz-button nzType="text" nzDanger class="remove-btn" type="button"
                         (click)="removeImage(i)">
                   <nz-icon nzType="delete" nzTheme="outline"/>
@@ -127,8 +127,8 @@
 
       <div class="images-actions">
         <button nz-button nzType="primary" nzSize="large" type="submit"
-                [disabled]="isProcessingImages()">
-          @if (isProcessingImages()) {
+                [disabled]="isGenerating()">
+          @if (isGenerating()) {
             <nz-spin nzSimple />
           } @else {
             <nz-icon nzType="robot" nzTheme="outline"/>
@@ -138,12 +138,12 @@
         @if (selectedImages().length > 0) {
           <button nz-button nzType="default" nzSize="large" type="button"
                   (click)="clearAllImages()"
-                  [disabled]="isProcessingImages()">
+                  [disabled]="isGenerating()">
             <nz-icon nzType="close" nzTheme="outline"/>
             Xóa tất cả
           </button>
         }
-        @if (!isProcessingImages()) {
+        @if (!isGenerating()) {
           <button nz-button nzType="dashed" nzSize="large" type="button"
                   (click)="imageInput.click()">
             <nz-icon nzType="plus" nzTheme="outline"/>

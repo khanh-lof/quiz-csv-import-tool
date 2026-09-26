@@ -21,7 +21,7 @@ import {
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { AIGenerationMode } from '../../../models/aigeneration-mode';
 import { Utils } from '../../../utils';
-import { ImageImportModel } from '../../../models/image-import-model';
+import { AiGenerationRequest } from '../../../models/ai-generation-request';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
 import { NzInputDirective } from 'ng-zorro-antd/input';
@@ -37,7 +37,7 @@ interface ImageItem {
   file: File;
   preview: string;
 }
-interface ImageImportForm {
+interface AiGenerationForm {
   courseType: FormControl<CourseType | null>;
   courseName: FormControl<string | null>;
   level: FormControl<number | null>;
@@ -48,7 +48,7 @@ interface ImageImportForm {
 }
 
 @Component({
-  selector: 'app-image-import-popup',
+  selector: 'app-ai-generation-popup',
   imports: [
     CommonModule,
     NzButtonComponent,
@@ -63,36 +63,36 @@ interface ImageImportForm {
     NzInputDirective,
     NzSpinComponent
   ],
-  templateUrl: './image-import-popup.html',
+  templateUrl: './ai-generation-popup.html',
   changeDetection: ChangeDetectionStrategy.Eager,
-  styleUrl: './image-import-popup.css'
+  styleUrl: './ai-generation-popup.css'
 })
-export class ImageImportPopup {
+export class AiGenerationPopup {
   @Output() readonly importedRows = new EventEmitter<QuestionDefinition[]>();
 
   // Signals, not plain fields: the ng-zorro modal host is OnPush, so a field changed from an async
   // callback (FileReader, HTTP) would not re-render until the next user event in the popup.
   protected readonly selectedImages = signal<ImageItem[]>([]);
   protected isDragOver = false;
-  protected readonly isProcessingImages = signal(false);
+  protected readonly isGenerating = signal(false);
   // Which automatic retry of the AI request is running; 0 while on the first attempt.
   protected readonly retryNumber = signal(0);
   private readonly onRetry = (retryNumber: number) => this.retryNumber.set(retryNumber);
   protected dragEnterCounter = 0;
 
   protected readonly AIGenerationMode = AIGenerationMode;
-  protected formGroup: FormGroup<ImageImportForm>;
+  protected formGroup: FormGroup<AiGenerationForm>;
   private requiredIfAIAutoMode: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
-    const imageImportForm = control as FormGroup<ImageImportForm>;
-    const isAutoMode = imageImportForm.controls.AIMode.value === AIGenerationMode.Auto;
-    const courseType = imageImportForm.controls.courseType.value;
+    const aiGenerationForm = control as FormGroup<AiGenerationForm>;
+    const isAutoMode = aiGenerationForm.controls.AIMode.value === AIGenerationMode.Auto;
+    const courseType = aiGenerationForm.controls.courseType.value;
 
-    this.setRequired(imageImportForm.controls.exportType, isAutoMode);
-    this.setRequired(imageImportForm.controls.courseType, isAutoMode);
-    this.setRequired(imageImportForm.controls.lessonNumber, isAutoMode);
+    this.setRequired(aiGenerationForm.controls.exportType, isAutoMode);
+    this.setRequired(aiGenerationForm.controls.courseType, isAutoMode);
+    this.setRequired(aiGenerationForm.controls.lessonNumber, isAutoMode);
     // HSK and YCT always have a level; a course typed in by hand may not, so there the level is optional.
-    this.setRequired(imageImportForm.controls.level, isAutoMode && courseType !== null && courseType !== CourseType.Other);
-    this.setRequired(imageImportForm.controls.courseName, isAutoMode && courseType === CourseType.Other);
+    this.setRequired(aiGenerationForm.controls.level, isAutoMode && courseType !== null && courseType !== CourseType.Other);
+    this.setRequired(aiGenerationForm.controls.courseName, isAutoMode && courseType === CourseType.Other);
     return null;
   };
 
@@ -115,7 +115,7 @@ export class ImageImportPopup {
     private readonly destroyRef: DestroyRef,
     formBuilder: FormBuilder
   ) {
-    this.formGroup = formBuilder.group<ImageImportForm>({
+    this.formGroup = formBuilder.group<AiGenerationForm>({
       AIMode: formBuilder.control<AIGenerationMode | null>(AIGenerationMode.Auto, Validators.required),
       courseType: formBuilder.control<CourseType | null>(null),
       courseName: formBuilder.control<string | null>(null),
@@ -247,7 +247,7 @@ export class ImageImportPopup {
     this.selectedImages.set([]);
   }
 
-  async submitAllImages(): Promise<void> {
+  async generate(): Promise<void> {
     this.formGroup.markAllAsDirty();
     this.formGroup.updateValueAndValidity();
     if (this.formGroup.invalid) {
@@ -260,20 +260,20 @@ export class ImageImportPopup {
       return;
     }
 
-    this.isProcessingImages.set(true);
+    this.isGenerating.set(true);
     this.retryNumber.set(0);
 
     let imageFiles: File[];
     try {
       imageFiles = await this.imageCompressionService.compressForUpload(this.selectedImages().map(img => img.file));
     } catch (err) {
-      this.isProcessingImages.set(false);
+      this.isGenerating.set(false);
       this.showGenerationError(err);
       return;
     }
     if (this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
       this.aiCsvService.generateCsvFromImages(imageFiles, this.onRetry).pipe(takeUntilDestroyed(this.destroyRef),
-        finalize(() => this.isProcessingImages.set(false))).subscribe({
+        finalize(() => this.isGenerating.set(false))).subscribe({
         next: csvContent => {
           const rows = this.csvImportService.parseCsv(csvContent);
 
@@ -298,8 +298,8 @@ export class ImageImportPopup {
         lessonNumber: this.formGroup.controls.lessonNumber.value,
         exportType: this.formGroup.controls.exportType.value,
         intelligence: this.formGroup.controls.intelligence.value,
-    } satisfies ImageImportModel, this.onRetry).pipe(takeUntilDestroyed(this.destroyRef),
-      finalize(() => this.isProcessingImages.set(false))).subscribe({
+    } satisfies AiGenerationRequest, this.onRetry).pipe(takeUntilDestroyed(this.destroyRef),
+      finalize(() => this.isGenerating.set(false))).subscribe({
       next: csvContent => {
         this.fileExportService.exportFileFromCsvContent('NhapFileName.csv', csvContent, this.formGroup.controls.exportType.value!);
 
@@ -332,7 +332,7 @@ export class ImageImportPopup {
   }
 
   protected get submitButtonLabel(): string {
-    if (this.isProcessingImages()) {
+    if (this.isGenerating()) {
       return this.retryNumber() > 0 ? `Đang thử lại (lần ${this.retryNumber()})...` : 'Đang xử lý...';
     }
     return this.selectedImages().length > 0

@@ -73,8 +73,8 @@ Two things make the wiring non-obvious:
 
 ## The two AI generation modes
 
-This is the one feature that only makes sense by reading both sides. The image-import popup
-(`ImageImportPopup`) offers `AIGenerationMode.Formatted` and `AIGenerationMode.Auto`, and they take
+This is the one feature that only makes sense by reading both sides. The AI generation popup
+(`AiGenerationPopup`) offers `AIGenerationMode.Formatted` and `AIGenerationMode.Auto`, and they take
 completely different paths through the system:
 
 - **`Formatted`** → `POST csv/generate-from-image` with no query params → server's simple prompt
@@ -123,7 +123,7 @@ two sides guard against both:
   refuses the upload itself.
 - The server bounds each LLM call with `LLM_TIMEOUT_SECONDS` (default 280, under Vercel's limit) and
   answers `504 AI generation timed out.` The failed call is refunded to the rate limit.
-- `ImageImportPopup.showGenerationError` maps 413 (or the client's own refusal) and 504 (the
+- `AiGenerationPopup.showGenerationError` maps 413 (or the client's own refusal) and 504 (the
   server's, or Vercel's own) to messages asking the user to send fewer images or retry.
 
 ## Retrying AI requests

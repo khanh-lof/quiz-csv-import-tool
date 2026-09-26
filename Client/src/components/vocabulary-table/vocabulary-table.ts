@@ -23,7 +23,7 @@ import { Utils } from '../../utils';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { CsvImportService } from '../../services/csv-import.service';
-import { ImageImportPopup } from './image-import-popup/image-import-popup';
+import { AiGenerationPopup } from './ai-generation-popup/ai-generation-popup';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { QuestionDefinitionForm } from '../../models/question-definition-form';
 import { QuestionDefinition } from '../../models/question-definition';
@@ -103,7 +103,7 @@ export class VocabularyTable implements OnInit {
     this.router.navigate([], {relativeTo: this.route, queryParams: {[OPEN_AI_POPUP_PARAM]: null}, replaceUrl: true})
       .then(() => {
         if (this.authService.hasAccessToken()) {
-          this.openImagePopup();
+          this.openAiGenerationPopup();
         }
       });
   }
@@ -146,7 +146,7 @@ export class VocabularyTable implements OnInit {
 
   // The rest of the table works anonymously; only AI generation needs an account (the server requires a
   // token on that endpoint), so an anonymous user is asked to log in and brought back with the popup open.
-  openImagePopup(): void {
+  openAiGenerationPopup(): void {
     if (!this.authService.hasAccessToken()) {
       this.modalService.confirm({
         nzTitle: 'Cần đăng nhập',
@@ -163,14 +163,14 @@ export class VocabularyTable implements OnInit {
 
     const modalRef = this.modalService.create({
       nzTitle: 'Tạo câu hỏi bằng AI',
-      nzContent: ImageImportPopup,
+      nzContent: AiGenerationPopup,
       nzFooter: null,
       nzWidth: '720px',
       nzCentered: true,
       nzMaskClosable: true
     });
 
-    const componentInstance = modalRef.componentInstance as ImageImportPopup;
+    const componentInstance = modalRef.componentInstance as AiGenerationPopup;
     componentInstance.importedRows.pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe((rows: QuestionDefinition[]) => {

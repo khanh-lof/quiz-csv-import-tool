@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 The Angular (v22, standalone components) frontend for QuizTool. It lets a user build a table of
-question/answer vocabulary pairs (manually, via CSV import, or via AI image import), then export
+question/answer vocabulary pairs (manually, via CSV import, or via AI generation), then export
 them as a CSV formatted for either GimKit or Blooket import. Auth (JWT access token + HttpOnly
 refresh cookie) and the AI image-to-CSV endpoint are served by the sibling `../Server` Go API
 (see `../Server/AGENTS.md`).
@@ -56,7 +56,7 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
   queues any other in-flight requests behind a `BehaviorSubject` until the refresh resolves, then
   retries with the new token. A failed refresh clears the token but does not redirect.
 - Every route is open to anonymous users (`authGuard` in `services/auth.guard.ts` is no longer
-  wired into `app.routes.ts`). Only AI generation needs a login: `VocabularyTable.openImagePopup`
+  wired into `app.routes.ts`). Only AI generation needs a login: `VocabularyTable.openAiGenerationPopup`
   shows a "Cần đăng nhập" confirm to an anonymous user, which sends them to
   `/login?returnUrl=/quiz?openAi=1`. `LoginComponent` navigates to `returnUrl` after login (only
   in-app paths are accepted, otherwise `/quiz`), and `VocabularyTable.ngOnInit` sees `openAi`,
@@ -76,7 +76,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
    quoted fields, escaped quotes, `\r\n`/`\n`) that locates the question/answer columns by matching
    diacritic-stripped headers `"cauhoi"`/`"dapan"` (i.e. Vietnamese "Câu hỏi"/"Đáp án" with accents
    removed), falling back to columns 0/1 if headers don't match.
-3. `openImagePopup` → `ImageImportPopup` modal (drag-drop / paste / file-picker for one or more
+3. `openAiGenerationPopup` → `AiGenerationPopup` modal (drag-drop / paste / file-picker for one or more
    images, `AIGenerationMode.Formatted` or `.Auto` chosen in the popup's form) →
    `AiCsvService.generateCsvFromImages`/`generateCsvFromImagesCreative` posts to the Server's
    `/api/csv/generate-from-image` endpoint. The two modes diverge from here (see

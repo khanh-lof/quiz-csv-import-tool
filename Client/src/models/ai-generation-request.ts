@@ -2,7 +2,7 @@ import { AIGenerationMode } from './aigeneration-mode';
 import { ExportType } from './export-type';
 import { CourseType } from './course-type';
 
-export interface ImageImportModel {
+export interface AiGenerationRequest {
   courseType: CourseType | null;
   courseName: string | null;
   level: number | null;
