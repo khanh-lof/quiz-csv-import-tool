@@ -1,7 +1,7 @@
 import {Component, DestroyRef, inject, OnInit, ChangeDetectionStrategy} from '@angular/core';
 
 import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
-import {ActivatedRoute, Router} from '@angular/router';
+import {ActivatedRoute, Router, RouterLink} from '@angular/router';
 import {NzFormModule} from 'ng-zorro-antd/form';
 import {NzInputModule} from 'ng-zorro-antd/input';
 import {NzButtonModule} from 'ng-zorro-antd/button';
@@ -23,7 +23,8 @@ import {NzNotificationService} from 'ng-zorro-antd/notification';
     NzButtonModule,
     NzCardModule,
     NzCheckboxModule,
-    NzSpinModule
+    NzSpinModule,
+    RouterLink
 ],
   templateUrl: './login.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -95,7 +96,7 @@ export class LoginComponent implements OnInit {
         this.isLoading = false;
         let errorMessage = 'Vui lòng thử lại.';
         if (error.status === 401) {
-          errorMessage = 'Sai username hoặc password.';
+          errorMessage = 'Sai tên đăng nhập hoặc mật khẩu.';
         } else if (error.status === 0) {
           errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối của bạn.';
         }

@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { tap } from 'rxjs';
+import { finalize, tap } from 'rxjs';
 
 @Injectable({providedIn: 'root'})
 export class AuthService {
@@ -40,6 +40,14 @@ export class AuthService {
     if (res && res.accessToken) {
       this.setAccessToken(res.accessToken);
     }
+  }
+
+  // Revokes this device's refresh cookie on the server; the local token is dropped whatever the outcome,
+  // so the user is logged out here even when the server cannot be reached.
+  logout() {
+    return this.http.post(`${this.baseUrl}/logout`, {}, {responseType: 'text'}).pipe(
+      finalize(() => this.clear())
+    );
   }
 
   refreshToken() {

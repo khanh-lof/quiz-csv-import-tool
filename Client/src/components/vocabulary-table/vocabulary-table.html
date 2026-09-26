@@ -1,4 +1,18 @@
 <div class="center-container">
+  <!-- The app works anonymously, so logging in is optional and offered here as well as from the AI button. -->
+  <div class="account-bar">
+    @if (isLoggedIn()) {
+      <button nz-button nzType="link" type="button" (click)="logout()">
+        <nz-icon nzType="logout" nzTheme="outline"/>
+        Đăng xuất
+      </button>
+    } @else {
+      <button nz-button nzType="link" type="button" (click)="login()">
+        <nz-icon nzType="login" nzTheme="outline"/>
+        Đăng nhập
+      </button>
+    }
+  </div>
   <h1 style="text-align: center">Tool tạo file cho import Gimkit/Blooket/Wayground</h1>
   <form [formGroup]="formGroup" (ngSubmit)="exportFile()">
     <div class="header-toolbar">

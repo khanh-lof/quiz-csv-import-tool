@@ -1,16 +1,16 @@
 <div class="qt-centered-page">
   <div class="login-card">
-    <nz-card nzTitle="Quiz Tool Login">
+    <nz-card nzTitle="Đăng nhập Quiz Tool">
       <form [formGroup]="loginForm" (ngSubmit)="onLogin()">
         <div nz-row [nzGutter]="16">
           <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24">
             <nz-form-item>
-              <nz-form-control [nzErrorTip]="'Please input your username!'">
-                <label [for]="'username'">Username</label>
+              <nz-form-control [nzErrorTip]="'Nhập tên đăng nhập nhé'">
+                <label [for]="'username'">Tên đăng nhập</label>
                 <input
                   nz-input
                   formControlName="username"
-                  placeholder="Enter your username"
+                  placeholder="Nhập tên đăng nhập"
                   id="username"
                 />
               </nz-form-control>
@@ -19,11 +19,11 @@
 
           <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24">
             <nz-form-item>
-              <nz-form-control [nzErrorTip]="'Please input your password!'">
-                <label [for]="'password'">Password</label>
+              <nz-form-control [nzErrorTip]="'Nhập mật khẩu nhé'">
+                <label [for]="'password'">Mật khẩu</label>
                 <nz-input-password>
                   <input nz-input formControlName="password"
-                         placeholder="Enter your password"
+                         placeholder="Nhập mật khẩu"
                          id="password"/>
                 </nz-input-password>
               </nz-form-control>
@@ -32,7 +32,7 @@
 
           <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24">
             <label nz-checkbox [(ngModel)]="rememberMe" [ngModelOptions]="{standalone: true}">
-              Remember me
+              Ghi nhớ tên đăng nhập
             </label>
           </div>
 
@@ -46,8 +46,13 @@
               [nzLoading]="isLoading"
               type="submit"
             >
-              Login
+              Đăng nhập
             </button>
+          </div>
+
+          <!-- Everything but AI generation works without an account, so let the user go back. -->
+          <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24" class="back-link">
+            <a routerLink="/quiz">← Quay lại, dùng không cần đăng nhập</a>
           </div>
         </div>
       </form>

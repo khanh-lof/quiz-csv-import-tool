@@ -54,7 +54,8 @@ no configurable backend URL:
 | Client caller | Server endpoint |
 |---|---|
 | `AuthService.login` / `.refreshToken` | `auth/login`, `auth/refresh` (`internal/api/auth_handlers.go`, anonymous) |
-| — (no client caller) | `auth/logout`, `auth/logout-all` (`auth_handlers.go`) |
+| `AuthService.logout` | `auth/logout` (`auth_handlers.go`) |
+| — (no client caller) | `auth/logout-all` (`auth_handlers.go`) |
 | — (admin only, `X-Admin-Key` header) | `users` (`auth_handlers.go`) |
 | `AiCsvService.generateCsvFromImages*` | `csv/generate-from-image` (`internal/api/csv_handler.go`) |
 

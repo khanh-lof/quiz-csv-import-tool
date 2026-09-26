@@ -30,7 +30,7 @@ import { QuestionDefinition } from '../../models/question-definition';
 import { ExportType } from '../../models/export-type';
 import { QuestionType } from '../../models/question-type';
 import { CdkTextareaAutosize } from '@angular/cdk/text-field';
-import { debounceTime } from 'rxjs';
+import { catchError, debounceTime, of } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 
 // Query param telling the table to open the AI popup on arrival, set when the login screen sends the user back.
@@ -228,6 +228,23 @@ export class VocabularyTable implements OnInit {
     componentInstance.sessionExpired.pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(() => this.loginThenReopenAiPopup());
+  }
+
+  protected isLoggedIn(): boolean {
+    return this.authService.hasAccessToken();
+  }
+
+  protected login(): void {
+    this.router.navigate(['/login']);
+  }
+
+  protected logout(): void {
+    this.authService.logout().pipe(
+      catchError(() => of(null)),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(() => {
+      this.notificationService.success('Đã đăng xuất', 'Hẹn gặp lại nhaa.', {nzPlacement: 'top'});
+    });
   }
 
   private loginThenReopenAiPopup(): void {

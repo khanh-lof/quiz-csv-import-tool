@@ -21,6 +21,11 @@ button[nz-button] {
   margin-top: 10px;
 }
 
+.back-link {
+  margin-top: 16px;
+  text-align: center;
+}
+
 input[nz-input],
 nz-input-password {
   height: 42px;
