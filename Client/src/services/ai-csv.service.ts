@@ -63,7 +63,7 @@ export class AiCsvService {
     });
 
     if (!response) {
-      throw new Error('Không thể xử lý ảnh từ API.');
+      throw new Error('Không thể tạo câu hỏi từ API.');
     }
 
     return response.pipe(this.retryTransientFailures(onRetry), map((text: string) => this.extractCsvContent(text)));

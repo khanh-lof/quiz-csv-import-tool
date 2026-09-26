@@ -124,7 +124,7 @@ export class VocabularyTable {
 
   openImagePopup(): void {
     const modalRef = this.modalService.create({
-      nzTitle: 'Nhập từ ảnh',
+      nzTitle: 'Tạo câu hỏi bằng AI',
       nzContent: ImageImportPopup,
       nzFooter: null,
       nzWidth: '720px',

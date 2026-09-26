@@ -256,7 +256,7 @@ export class ImageImportPopup {
     }
     // Only the formatted mode needs images: the creative mode can work from the lesson identifiers alone.
     if (this.selectedImages().length === 0 && this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
-      this.notificationService.warning('Lỗi', 'Không có ảnh để xử lý.', {nzPlacement: 'top'});
+      this.notificationService.warning('Thiếu ảnh', 'Chế độ này cần ít nhất 1 ảnh bài học.', {nzPlacement: 'top'});
       return;
     }
 
@@ -324,11 +324,11 @@ export class ImageImportPopup {
     }
     if (status === HttpStatusCode.GatewayTimeout) {
       this.notificationService.error('Quá thời gian xử lý',
-        'AI xử lý quá lâu. Vui lòng giảm số lượng ảnh hoặc thử lại.',
+        'AI xử lý quá lâu. Vui lòng thử lại hoặc giảm số lượng ảnh.',
         {nzPlacement: 'top', nzDuration: 0});
       return;
     }
-    this.notificationService.error('Lỗi nhập ảnh', err instanceof Error ? err.message : 'Không thể xử lý ảnh.', {nzPlacement: 'top'});
+    this.notificationService.error('Lỗi tạo câu hỏi', err instanceof Error ? err.message : 'Không thể tạo câu hỏi.', {nzPlacement: 'top'});
   }
 
   protected get submitButtonLabel(): string {
@@ -336,7 +336,7 @@ export class ImageImportPopup {
       return this.retryNumber() > 0 ? `Đang thử lại (lần ${this.retryNumber()})...` : 'Đang xử lý...';
     }
     return this.selectedImages().length > 0
-      ? `Xử lý tất cả (${this.selectedImages().length})`
+      ? `Tạo câu hỏi (${this.selectedImages().length} ảnh)`
       : 'Tạo câu hỏi';
   }
 
