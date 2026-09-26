@@ -349,3 +349,28 @@ input.ant-input-sm,
 .ant-table-tbody > tr.ant-table-row:hover > td {
   background: linear-gradient(90deg, #ffe9f3 0%, #e9f3ff 100%);
 }
+
+/* ===== Collapse (the usage guides) ===== */
+
+.ant-collapse {
+  border: 1px solid rgba(255, 180, 210, 0.6);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.ant-collapse > .ant-collapse-item {
+  border-bottom: none;
+}
+
+.ant-collapse > .ant-collapse-item > .ant-collapse-header {
+  background: var(--qt-gradient-soft);
+  font-weight: 600;
+  color: var(--qt-text);
+}
+
+.ant-collapse-content {
+  border-top: 1px solid rgba(255, 180, 210, 0.4);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--qt-text);
+}

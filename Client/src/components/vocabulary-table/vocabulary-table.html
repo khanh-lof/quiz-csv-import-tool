@@ -1,3 +1,12 @@
+<app-usage-guide storageKey="quiz">
+  <ol>
+    <li>Chọn nền tảng ở ô <b>Tạo quiz cho</b> (Gimkit, Blooket hoặc Wayground).</li>
+    <li>Nhập câu hỏi và đáp án vào bảng, bấm <b>+</b> để thêm dòng. Với Wayground, chọn thêm loại câu hỏi cho từng dòng.</li>
+    <li>Cần ít nhất {{ minRows }} câu có đáp án: đáp án sai của mỗi câu được lấy ngẫu nhiên từ đáp án các câu khác. Dòng để trống sẽ bị bỏ qua.</li>
+    <li>Bấm <b>Tải file</b>, rồi import file vừa tải vào nền tảng đã chọn.</li>
+  </ol>
+  <p>Bảng được tự lưu trên trình duyệt này, tải lại trang không bị mất.</p>
+</app-usage-guide>
 <form [formGroup]="formGroup" (ngSubmit)="exportFile()">
   <div class="header-toolbar">
 

@@ -30,6 +30,7 @@ import { QuestionType } from '../../models/question-type';
 import { CdkTextareaAutosize } from '@angular/cdk/text-field';
 import { debounceTime } from 'rxjs';
 import { PendingImportService } from '../../services/pending-import.service';
+import { UsageGuide } from '../usage-guide/usage-guide';
 
 // The table's rows and chosen template, kept in the browser so a reload or a visit to another screen
 // (the AI page, the login) does not lose what the user typed.
@@ -44,6 +45,7 @@ interface TableDraft {
   selector: 'app-vocabulary-table',
   imports: [
     CommonModule,
+    UsageGuide,
     NzButtonComponent,
     NzTableModule,
     FormsModule,

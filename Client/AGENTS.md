@@ -68,7 +68,9 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
 the title, and a "Tạo thủ công"/"Tạo bằng AI" radio switch that navigates between its child routes
 `/quiz` (`VocabularyTable`) and `/ai` (`AiGeneration`, `src/components/ai-generation/`). While an AI
 request runs, `canLeaveAiGeneration` refuses to leave `/ai` (leaving would cancel it) and the
-switch snaps back.
+switch snaps back. Each screen starts with a `UsageGuide` (`src/components/usage-guide/`), a
+collapsible how-to whose closed state is remembered per page in `localStorage`
+(`usage-guide-collapsed:<key>`); keep its text in step with the screen when the flow changes.
 
 `VocabularyTable` (`src/components/vocabulary-table/`) is the manual screen: a reactive `FormArray`
 of `question`/`answer` `FormGroup`s (`QuestionDefinitionForm`), with a form-level

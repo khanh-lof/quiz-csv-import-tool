@@ -16,11 +16,13 @@
   <h1 style="text-align: center">Tool tạo file cho import Gimkit/Blooket/Wayground</h1>
   <div class="mode-switch">
     <nz-radio-group [formControl]="mode" nzButtonStyle="solid" nzSize="large">
-      <label nz-radio-button nzValue="/quiz">
+      <label nz-radio-button nzValue="/quiz" nz-tooltip nzTooltipPlacement="bottom"
+             nzTooltipTitle="Tự nhập câu hỏi và đáp án vào bảng, rồi tải file quiz. Không cần đăng nhập.">
         <nz-icon nzType="table" nzTheme="outline"/>
         Tạo thủ công
       </label>
-      <label nz-radio-button nzValue="/ai">
+      <label nz-radio-button nzValue="/ai" nz-tooltip nzTooltipPlacement="bottom"
+             nzTooltipTitle="Gửi ảnh bài học (hoặc chỉ chọn bài) để AI soạn câu hỏi giúp. Cần đăng nhập.">
         <nz-icon nzType="robot" nzTheme="outline"/>
         Tạo bằng AI
       </label>

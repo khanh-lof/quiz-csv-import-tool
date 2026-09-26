@@ -7,6 +7,7 @@ import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { NzTooltipDirective } from 'ng-zorro-antd/tooltip';
 import { AuthService } from '../../services/auth.service';
 
 // The two ways of building a quiz, as the routes that host them.
@@ -22,7 +23,8 @@ type WorkspaceMode = '/quiz' | '/ai';
     NzButtonComponent,
     NzIconDirective,
     NzRadioGroupComponent,
-    NzRadioComponent
+    NzRadioComponent,
+    NzTooltipDirective
   ],
   templateUrl: './workspace.html',
   changeDetection: ChangeDetectionStrategy.Eager,

@@ -31,6 +31,7 @@ import { FileExportService } from '../../services/file-export.service';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { ImageCompressionService, UploadTooLargeError } from '../../services/image-compression.service';
+import { UsageGuide } from '../usage-guide/usage-guide';
 
 interface ImageItem {
   file: File;
@@ -54,6 +55,7 @@ interface AiGenerationForm {
   selector: 'app-ai-generation',
   imports: [
     CommonModule,
+    UsageGuide,
     NzButtonComponent,
     NzIconDirective,
     FormsModule,
