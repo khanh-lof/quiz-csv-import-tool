@@ -11,6 +11,20 @@
   font-size: 20px;
 }
 
+/* nzScroll's `y` would force `overflow-y: scroll` (a scrollbar even when rows fit), so the table
+   scrolls on its single content box instead, with the header kept in view via sticky.
+   !important beats the inline `overflow-y: hidden` ng-zorro sets when only `x` is given. */
+:host ::ng-deep .ant-table-content {
+  max-height: 65vh;
+  overflow-y: auto !important;
+}
+
+:host ::ng-deep .ant-table-content .ant-table-thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
 :host ::ng-deep .ant-table-tbody > tr > td {
   font-size: 16px;
 }
