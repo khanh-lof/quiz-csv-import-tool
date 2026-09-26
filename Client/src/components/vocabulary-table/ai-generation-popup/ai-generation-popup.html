@@ -1,4 +1,6 @@
+<!-- inert while generating: nothing behind the overlay can be clicked, focused or typed into. -->
 <div class="drop-zone"
+     [attr.inert]="isGenerating() ? '' : null"
      [class.drag-over]="isDragOver"
      (dragenter)="onDropZoneEnter($event)"
      (dragover)="onDropZoneDragOver($event)"
@@ -15,11 +17,6 @@
             <div class="image-item">
               <div class="image-preview">
                 <img [src]="image.preview" alt="Preview" class="preview-img"/>
-                @if (isGenerating()) {
-                  <div class="processing-overlay">
-                    <nz-spin nzSimple />
-                  </div>
-                }
               </div>
               <div class="image-info">
                 <p class="image-name">{{ image.file.name }}</p>
@@ -159,3 +156,11 @@
     </ng-template>
   </form>
 </div>
+@if (isGenerating()) {
+  <div class="generating-overlay" role="status" aria-live="polite">
+    <nz-spin nzSimple nzSize="large"/>
+    <p class="generating-title">{{ generatingStatus }}</p>
+    <p class="generating-hint">Có thể mất vài phút, đừng đóng trang nhé.</p>
+    <p class="generating-elapsed">Đã chờ {{ elapsedLabel }}</p>
+  </div>
+}

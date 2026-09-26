@@ -83,6 +83,9 @@ export class AiGenerationPopup {
   protected readonly isGenerating = signal(false);
   // Which automatic retry of the AI request is running; 0 while on the first attempt.
   protected readonly retryNumber = signal(0);
+  // Seconds since the generation started, shown on the overlay so a minutes-long wait visibly progresses.
+  protected readonly elapsedSeconds = signal(0);
+  private elapsedTimer: ReturnType<typeof setInterval> | null = null;
   private readonly onRetry = (retryNumber: number) => this.retryNumber.set(retryNumber);
   protected dragEnterCounter = 0;
 
@@ -133,6 +136,7 @@ export class AiGenerationPopup {
       validators : [this.requiredIfAIAutoMode]
     })
     this.restoreSettings();
+    this.destroyRef.onDestroy(() => this.stopElapsedTimer());
   }
 
   private restoreSettings(): void {
@@ -159,6 +163,18 @@ export class AiGenerationPopup {
   private setGenerating(isGenerating: boolean): void {
     this.isGenerating.set(isGenerating);
     this.modalRef.updateConfig({nzClosable: !isGenerating, nzMaskClosable: !isGenerating, nzKeyboard: !isGenerating});
+    this.stopElapsedTimer();
+    if (isGenerating) {
+      this.elapsedSeconds.set(0);
+      this.elapsedTimer = setInterval(() => this.elapsedSeconds.update(seconds => seconds + 1), 1000);
+    }
+  }
+
+  private stopElapsedTimer(): void {
+    if (this.elapsedTimer !== null) {
+      clearInterval(this.elapsedTimer);
+      this.elapsedTimer = null;
+    }
   }
 
   closePopup(): void {
@@ -192,6 +208,9 @@ export class AiGenerationPopup {
     event.stopPropagation();
     this.isDragOver = false;
     this.dragEnterCounter = 0;
+    if (this.isGenerating()) {
+      return;
+    }
 
     const files = event.dataTransfer?.files;
     if (!files || files.length === 0) {
@@ -414,6 +433,15 @@ export class AiGenerationPopup {
       return;
     }
     this.notificationService.error('Lỗi tạo câu hỏi', err instanceof Error ? err.message : 'Không thể tạo câu hỏi.', {nzPlacement: 'top'});
+  }
+
+  protected get generatingStatus(): string {
+    return this.retryNumber() > 0 ? `AI đang thử lại (lần ${this.retryNumber()})...` : 'AI đang tạo câu hỏi...';
+  }
+
+  protected get elapsedLabel(): string {
+    const seconds = this.elapsedSeconds();
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   }
 
   protected get submitButtonLabel(): string {
