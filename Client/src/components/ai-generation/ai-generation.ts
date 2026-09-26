@@ -1,13 +1,12 @@
-import { Component, DestroyRef, EventEmitter, HostListener, Output, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, DestroyRef, HostListener, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
-import { NzModalRef } from 'ng-zorro-antd/modal';
+import { CanDeactivateFn, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { AiCsvService } from '../../../services/ai-csv.service';
-import { CsvImportService } from '../../../services/csv-import.service';
-
-import { QuestionDefinition } from '../../../models/question-definition';
+import { AiCsvService } from '../../services/ai-csv.service';
+import { CsvImportService } from '../../services/csv-import.service';
+import { PendingImportService } from '../../services/pending-import.service';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
 import {
   AbstractControl,
@@ -19,25 +18,25 @@ import {
   Validators
 } from '@angular/forms';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
-import { AIGenerationMode } from '../../../models/aigeneration-mode';
-import { Utils } from '../../../utils';
-import { AiGenerationRequest } from '../../../models/ai-generation-request';
+import { AIGenerationMode } from '../../models/aigeneration-mode';
+import { Utils } from '../../utils';
+import { AiGenerationRequest } from '../../models/ai-generation-request';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
 import { NzInputDirective } from 'ng-zorro-antd/input';
-import { ExportType } from '../../../models/export-type';
-import { CourseType } from '../../../models/course-type';
+import { ExportType } from '../../models/export-type';
+import { CourseType } from '../../models/course-type';
 import { finalize } from 'rxjs';
-import { FileExportService } from '../../../services/file-export.service';
+import { FileExportService } from '../../services/file-export.service';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
-import { ImageCompressionService, UploadTooLargeError } from '../../../services/image-compression.service';
+import { ImageCompressionService, UploadTooLargeError } from '../../services/image-compression.service';
 
 interface ImageItem {
   file: File;
   preview: string;
 }
-// The popup's choices, remembered between openings so a teacher going lesson by lesson does not
+// The page's choices, remembered between visits so a teacher going lesson by lesson does not
 // re-enter the course, level and platform every time.
 const SETTINGS_STORAGE_KEY = 'ai-generation-settings';
 
@@ -52,7 +51,7 @@ interface AiGenerationForm {
 }
 
 @Component({
-  selector: 'app-ai-generation-popup',
+  selector: 'app-ai-generation',
   imports: [
     CommonModule,
     NzButtonComponent,
@@ -67,17 +66,13 @@ interface AiGenerationForm {
     NzInputDirective,
     NzSpinComponent
   ],
-  templateUrl: './ai-generation-popup.html',
+  templateUrl: './ai-generation.html',
   changeDetection: ChangeDetectionStrategy.Eager,
-  styleUrl: './ai-generation-popup.css'
+  styleUrl: './ai-generation.css'
 })
-export class AiGenerationPopup {
-  @Output() readonly importedRows = new EventEmitter<QuestionDefinition[]>();
-  // The access token expired and could not be refreshed; the host sends the user to log in again.
-  @Output() readonly sessionExpired = new EventEmitter<void>();
-
-  // Signals, not plain fields: the ng-zorro modal host is OnPush, so a field changed from an async
-  // callback (FileReader, HTTP) would not re-render until the next user event in the popup.
+export class AiGeneration {
+  // Signals, not plain fields, so a change made from an async callback (FileReader, HTTP) re-renders
+  // right away.
   protected readonly selectedImages = signal<ImageItem[]>([]);
   protected isDragOver = false;
   protected readonly isGenerating = signal(false);
@@ -115,9 +110,10 @@ export class AiGenerationPopup {
   }
 
   constructor(
-    private readonly modalRef: NzModalRef,
+    private readonly router: Router,
     private readonly aiCsvService: AiCsvService,
     private readonly csvImportService: CsvImportService,
+    private readonly pendingImportService: PendingImportService,
     private readonly fileExportService: FileExportService,
     private readonly imageCompressionService: ImageCompressionService,
     private readonly notificationService: NzNotificationService,
@@ -158,11 +154,18 @@ export class AiGenerationPopup {
     }
   }
 
-  // While a generation runs (it can take minutes) the popup cannot be dismissed, since closing it
-  // would silently cancel the request.
+  // While a generation runs (it can take minutes) the page cannot be left, since leaving it would
+  // silently cancel the request (see canLeaveAiGeneration).
+  canLeave(): boolean {
+    if (this.isGenerating()) {
+      this.notificationService.warning('AI đang tạo câu hỏi', 'Chờ tạo xong rồi hãy chuyển trang nhé.', {nzPlacement: 'top'});
+      return false;
+    }
+    return true;
+  }
+
   private setGenerating(isGenerating: boolean): void {
     this.isGenerating.set(isGenerating);
-    this.modalRef.updateConfig({nzClosable: !isGenerating, nzMaskClosable: !isGenerating, nzKeyboard: !isGenerating});
     this.stopElapsedTimer();
     if (isGenerating) {
       this.elapsedSeconds.set(0);
@@ -175,10 +178,6 @@ export class AiGenerationPopup {
       clearInterval(this.elapsedTimer);
       this.elapsedTimer = null;
     }
-  }
-
-  closePopup(): void {
-    this.modalRef.close();
   }
 
   onDropZoneEnter(event: DragEvent): void {
@@ -220,7 +219,7 @@ export class AiGenerationPopup {
     this.processImageFiles(Array.from(files));
   }
 
-  // Listens on the whole document so Ctrl+V works as soon as the popup is open, without clicking the
+  // Listens on the whole document so Ctrl+V works as soon as the page is open, without clicking the
   // drop zone first. Only a paste carrying images is taken over; pasting text into a field still works.
   @HostListener('document:paste', ['$event'])
   onPaste(event: ClipboardEvent): void {
@@ -336,9 +335,11 @@ export class AiGenerationPopup {
             return;
           }
 
-          this.importedRows.emit(rows);
+          // Hand the rows to the table for review; stop generating first so the page may be left.
+          this.setGenerating(false);
           this.clearAllImages();
-          this.closePopup();
+          this.pendingImportService.set(rows);
+          this.router.navigateByUrl('/quiz');
         },
         error: err => this.showGenerationError(err),
       });
@@ -367,7 +368,6 @@ export class AiGenerationPopup {
           {nzPlacement: 'top'});
 
         this.clearAllImages();
-        this.closePopup();
       },
       error: err => this.showGenerationError(err),
     });
@@ -391,8 +391,8 @@ export class AiGenerationPopup {
     const serverMessage = err instanceof HttpErrorResponse && typeof err.error === 'string' ? err.error.trim() : '';
     if (status === HttpStatusCode.Unauthorized) {
       this.notificationService.warning('Hết phiên đăng nhập', 'Vui lòng đăng nhập lại để tiếp tục tạo câu hỏi.', {nzPlacement: 'top'});
-      this.sessionExpired.emit();
-      this.closePopup();
+      this.setGenerating(false);
+      this.router.navigate(['/login'], {queryParams: {returnUrl: '/ai'}});
       return;
     }
     if (status === HttpStatusCode.Forbidden) {
@@ -456,3 +456,5 @@ export class AiGenerationPopup {
   protected readonly ExportType = ExportType;
   protected readonly CourseType = CourseType;
 }
+
+export const canLeaveAiGeneration: CanDeactivateFn<AiGeneration> = component => component.canLeave();

@@ -74,13 +74,14 @@ Two things make the wiring non-obvious:
 
 ## The two AI generation modes
 
-This is the one feature that only makes sense by reading both sides. The AI generation popup
-(`AiGenerationPopup`) offers `AIGenerationMode.Formatted` and `AIGenerationMode.Auto`, and they take
+This is the one feature that only makes sense by reading both sides. The AI generation page
+(`AiGeneration`, route `/ai`) offers `AIGenerationMode.Formatted` and `AIGenerationMode.Auto`, and they take
 completely different paths through the system:
 
 - **`Formatted`** → `POST csv/generate-from-image` with no query params → server's simple prompt
   (`Server/internal/csvgen/prompts/simple_system.txt`, two columns, `Câu hỏi`/`Đáp án`) → client parses the CSV
-  with `CsvImportService.parseCsv` and **emits rows into the vocabulary table**, where the user edits
+  with `CsvImportService.parseCsv` and **hands the rows to the vocabulary table** (`PendingImportService`,
+  then navigates to `/quiz`), where the user edits
   them and later exports via `FileExportService.exportFile` (client-side builders synthesize the
   distractors).
 - **`Auto`** (sent as `isCreative=true`, alongside `exportType`, `courseType`, `lessonNumber`, and
@@ -111,7 +112,7 @@ Consequences to keep in mind when changing anything here:
 AI calls are capped per user (`CALL_COUNT_ACCEPTED_IN_A_ROUND` per `ROUND_MINUTES`), with the counter
 stored on the user's MongoDB document. The client has no matching UI state — it discovers the limit
 only as a `403` with a plain-text body from `csv/generate-from-image`, which
-`AiGenerationPopup.showGenerationError` turns into a "Hết lượt dùng AI" notification (a `403` with an
+`AiGeneration.showGenerationError` turns into a "Hết lượt dùng AI" notification (a `403` with an
 empty body is the role check instead, shown as "Không có quyền"). A call whose generation fails (`502`/`504`) is given back (`RefundAICall`), so
 the client's automatic retries below never run into the limit.
 
@@ -125,7 +126,7 @@ two sides guard against both:
   refuses the upload itself.
 - The server bounds each LLM call with `LLM_TIMEOUT_SECONDS` (default 280, under Vercel's limit) and
   answers `504 AI generation timed out.` The failed call is refunded to the rate limit.
-- `AiGenerationPopup.showGenerationError` maps 413 (or the client's own refusal) and 504 (the
+- `AiGeneration.showGenerationError` maps 413 (or the client's own refusal) and 504 (the
   server's, or Vercel's own) to messages asking the user to send fewer images or retry.
 
 ## Retrying AI requests
@@ -141,4 +142,4 @@ Retries are split by who can afford the time, since one Vercel invocation cannot
 - **Client, as a new request** (`AiCsvService.retryTransientFailures`): a `502`, `503`, `504` or
   network failure (status 0) from our API is re-sent up to 2 times (a `504` only once, since it
   already took ~280 s), with 2 s/4 s backoff + jitter. Each retry is a fresh Vercel invocation with a
-  fresh time budget. The popup's button shows `Đang thử lại (lần N)...` while it runs.
+  fresh time budget. The page's button shows `Đang thử lại (lần N)...` while it runs.

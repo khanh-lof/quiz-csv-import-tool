@@ -55,17 +55,22 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
   (except from `/api/auth/refresh` itself, to avoid a loop) transparently calls `refreshToken()`,
   queues any other in-flight requests behind a `BehaviorSubject` until the refresh resolves, then
   retries with the new token. A failed refresh clears the token but does not redirect.
-- Every route is open to anonymous users (`authGuard` in `services/auth.guard.ts` is no longer
-  wired into `app.routes.ts`). Only AI generation needs a login: `VocabularyTable.openAiGenerationPopup`
-  shows a "Cần đăng nhập" confirm to an anonymous user, which sends them to
-  `/login?returnUrl=/quiz?openAi=1`. `LoginComponent` navigates to `returnUrl` after login (only
-  in-app paths are accepted, otherwise `/quiz`), and `VocabularyTable.ngOnInit` sees `openAi`,
-  strips it from the URL and opens the popup. The table survives that trip (and reloads) because
-  `VocabularyTable` keeps its rows and template as a draft in `localStorage` (`vocabulary-table-draft`).
+- `/quiz` (the vocabulary table) is open to anonymous users; only `/ai` (AI generation) needs a
+  login, enforced by `authGuard` (`services/auth.guard.ts`), which redirects to
+  `/login?returnUrl=/ai`. `LoginComponent` navigates to `returnUrl` after login (only in-app paths
+  are accepted, otherwise `/quiz`). A 401 from the AI endpoint sends the user the same way. The
+  table survives these trips (and reloads) because `VocabularyTable` keeps its rows and template as
+  a draft in `localStorage` (`vocabulary-table-draft`).
 
 ### Vocabulary table & CSV pipeline
 
-`VocabularyTable` (`src/components/vocabulary-table/`) is the main screen: a reactive `FormArray`
+`Workspace` (`src/components/workspace/`) is the shell of the two main screens: the account bar,
+the title, and a "Tạo thủ công"/"Tạo bằng AI" radio switch that navigates between its child routes
+`/quiz` (`VocabularyTable`) and `/ai` (`AiGeneration`, `src/components/ai-generation/`). While an AI
+request runs, `canLeaveAiGeneration` refuses to leave `/ai` (leaving would cancel it) and the
+switch snaps back.
+
+`VocabularyTable` (`src/components/vocabulary-table/`) is the manual screen: a reactive `FormArray`
 of `question`/`answer` `FormGroup`s (`QuestionDefinitionForm`), with a form-level
 `duplicateValidator` that cross-checks all rows for duplicate questions or answers and tags the
 offending controls with a custom `duplicate` error (see `Utils.addError`/`removeError`, which
@@ -77,15 +82,17 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
    quoted fields, escaped quotes, `\r\n`/`\n`) that locates the question/answer columns by matching
    diacritic-stripped headers `"cauhoi"`/`"dapan"` (i.e. Vietnamese "Câu hỏi"/"Đáp án" with accents
    removed), falling back to columns 0/1 if headers don't match.
-3. `openAiGenerationPopup` → `AiGenerationPopup` modal (drag-drop / paste / file-picker for one or more
-   images, `AIGenerationMode.Formatted` or `.Auto` chosen in the popup's form) →
+3. The `/ai` page, `AiGeneration` (drag-drop / paste / file-picker for one or more images,
+   `AIGenerationMode.Formatted` or `.Auto` chosen in the page's form) →
    `AiCsvService.generateCsvFromImages`/`generateCsvFromImagesCreative` posts to the Server's
    `/api/csv/generate-from-image` endpoint. The two modes diverge from here (see
    [../CLAUDE.md](../CLAUDE.md#the-two-ai-generation-modes) for the full picture):
    - **`Formatted`** → response text is cleaned by `AiCsvService.extractCsvContent` (strips markdown
      code fences, or extracts from the first Vietnamese CSV header it finds) → re-parsed by the same
-     `CsvImportService.parseCsv` → rows pushed into the table like any other import.
-   - **`Auto`** (requires `courseType`/`lessonNumber`/`exportType` in the popup form, plus `level`
+     `CsvImportService.parseCsv` → rows left in `PendingImportService` (in memory) and the page
+     navigates to `/quiz`, where `VocabularyTable.ngOnInit` takes them and adds them like any other
+     import.
+   - **`Auto`** (requires `courseType`/`lessonNumber`/`exportType` in the page's form, plus `level`
      for HSK/YCT or `courseName` for `Other`; images are optional here) → response is CSV
      rows with no header → passed straight to `FileExportService.exportFileFromCsvContent`, which
      calls the matching `CsvBuilder.buildFromCsvContent` to prepend the platform's `CsvHeader` and

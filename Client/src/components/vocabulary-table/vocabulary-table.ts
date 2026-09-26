@@ -1,5 +1,4 @@
 import { Component, DestroyRef, ElementRef, OnInit, QueryList, ViewChildren, ChangeDetectionStrategy } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzTableModule } from 'ng-zorro-antd/table';
@@ -23,20 +22,17 @@ import { Utils } from '../../utils';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { CsvImportService } from '../../services/csv-import.service';
-import { AiGenerationPopup } from './ai-generation-popup/ai-generation-popup';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { QuestionDefinitionForm } from '../../models/question-definition-form';
 import { QuestionDefinition } from '../../models/question-definition';
 import { ExportType } from '../../models/export-type';
 import { QuestionType } from '../../models/question-type';
 import { CdkTextareaAutosize } from '@angular/cdk/text-field';
-import { catchError, debounceTime, of } from 'rxjs';
-import { AuthService } from '../../services/auth.service';
+import { debounceTime } from 'rxjs';
+import { PendingImportService } from '../../services/pending-import.service';
 
-// Query param telling the table to open the AI popup on arrival, set when the login screen sends the user back.
-const OPEN_AI_POPUP_PARAM = 'openAi';
-// The table's rows and chosen template, kept in the browser so a reload or the trip to the login
-// screen does not lose what the user typed.
+// The table's rows and chosen template, kept in the browser so a reload or a visit to another screen
+// (the AI page, the login) does not lose what the user typed.
 const DRAFT_STORAGE_KEY = 'vocabulary-table-draft';
 
 interface TableDraft {
@@ -86,9 +82,7 @@ export class VocabularyTable implements OnInit {
               private readonly notificationService: NzNotificationService,
               private readonly modalService: NzModalService,
               private readonly destroyRef: DestroyRef,
-              private readonly authService: AuthService,
-              private readonly router: Router,
-              private readonly route: ActivatedRoute,
+              private readonly pendingImportService: PendingImportService,
               formBuilder: FormBuilder) {
     this.formGroup = formBuilder.group({
       listOfData: formBuilder.array<FormGroup<QuestionDefinitionForm>>(this.createDefaultQuestionFormGroups(), [Validators.minLength(this.minRows), this.duplicateValidator]),
@@ -98,12 +92,6 @@ export class VocabularyTable implements OnInit {
     this.listOfData = this.questionForms.controls;
     this.formGroup.valueChanges.pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.saveDraft());
-
-    // Prevent default drag/drop behavior on document to avoid opening files in new tab
-    if (typeof document !== 'undefined') {
-      document.addEventListener('dragover', (e) => e.preventDefault(), false);
-      document.addEventListener('drop', (e) => e.preventDefault(), false);
-    }
   }
 
   private restoreDraft(): void {
@@ -145,18 +133,12 @@ export class VocabularyTable implements OnInit {
     } as QuestionDefinition));
   }
 
+  // Rows the AI page generated in its formatted mode arrive here to be reviewed before export.
   ngOnInit(): void {
-    if (!this.route.snapshot.queryParamMap.has(OPEN_AI_POPUP_PARAM)) {
-      return;
+    const rows = this.pendingImportService.take();
+    if (rows?.length) {
+      this.applyImportedRows(rows);
     }
-    // Drop the param so a reload or a later visit does not open the popup again; open it only once that
-    // navigation is done, so it cannot close the popup.
-    this.router.navigate([], {relativeTo: this.route, queryParams: {[OPEN_AI_POPUP_PARAM]: null}, replaceUrl: true})
-      .then(() => {
-        if (this.authService.hasAccessToken()) {
-          this.openAiGenerationPopup();
-        }
-      });
   }
 
   addRow() {
@@ -193,62 +175,6 @@ export class VocabularyTable implements OnInit {
 
     reader.readAsText(file);
     input.value = '';
-  }
-
-  // The rest of the table works anonymously; only AI generation needs an account (the server requires a
-  // token on that endpoint), so an anonymous user is asked to log in and brought back with the popup open.
-  openAiGenerationPopup(): void {
-    if (!this.authService.hasAccessToken()) {
-      this.modalService.confirm({
-        nzTitle: 'Cần đăng nhập',
-        nzContent: 'Tính năng tạo câu hỏi bằng AI cần đăng nhập. Đăng nhập ngay nhé?',
-        nzOkText: 'Đăng nhập',
-        nzCancelText: 'Để sau',
-        nzCentered: true,
-        nzOnOk: () => this.loginThenReopenAiPopup()
-      });
-      return;
-    }
-
-    const modalRef = this.modalService.create({
-      nzTitle: 'Tạo câu hỏi bằng AI',
-      nzContent: AiGenerationPopup,
-      nzFooter: null,
-      nzWidth: '720px',
-      nzCentered: true,
-      nzMaskClosable: true
-    });
-
-    const componentInstance = modalRef.componentInstance as AiGenerationPopup;
-    componentInstance.importedRows.pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe((rows: QuestionDefinition[]) => {
-      this.applyImportedRows(rows);
-    });
-    componentInstance.sessionExpired.pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe(() => this.loginThenReopenAiPopup());
-  }
-
-  protected isLoggedIn(): boolean {
-    return this.authService.hasAccessToken();
-  }
-
-  protected login(): void {
-    this.router.navigate(['/login']);
-  }
-
-  protected logout(): void {
-    this.authService.logout().pipe(
-      catchError(() => of(null)),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe(() => {
-      this.notificationService.success('Đã đăng xuất', 'Hẹn gặp lại nhaa.', {nzPlacement: 'top'});
-    });
-  }
-
-  private loginThenReopenAiPopup(): void {
-    this.router.navigate(['/login'], {queryParams: {returnUrl: `/quiz?${OPEN_AI_POPUP_PARAM}=1`}});
   }
 
   private applyImportedRows(rows: QuestionDefinition[]) {

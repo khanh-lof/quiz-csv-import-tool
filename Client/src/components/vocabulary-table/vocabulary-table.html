@@ -1,119 +1,97 @@
-<div class="center-container">
-  <!-- The app works anonymously, so logging in is optional and offered here as well as from the AI button. -->
-  <div class="account-bar">
-    @if (isLoggedIn()) {
-      <button nz-button nzType="link" type="button" (click)="logout()">
-        <nz-icon nzType="logout" nzTheme="outline"/>
-        Đăng xuất
+<form [formGroup]="formGroup" (ngSubmit)="exportFile()">
+  <div class="header-toolbar">
+
+    <!-- LEFT BUTTON -->
+    <div class="left-buttons">
+      <button nz-button nzShape="circle" nzType="primary" type="button" (click)="addRow()">
+        <nz-icon nzType="plus" nzTheme="outline"/>
       </button>
-    } @else {
-      <button nz-button nzType="link" type="button" (click)="login()">
-        <nz-icon nzType="login" nzTheme="outline"/>
-        Đăng nhập
+      <button nz-button nzType="default" type="button" (click)="confirmDeleteAllRows()">
+        <nz-icon nzType="delete" nzTheme="outline"/>
+        Xóa tất cả
       </button>
-    }
-  </div>
-  <h1 style="text-align: center">Tool tạo file cho import Gimkit/Blooket/Wayground</h1>
-  <form [formGroup]="formGroup" (ngSubmit)="exportFile()">
-    <div class="header-toolbar">
-
-      <!-- LEFT BUTTON -->
-      <div class="left-buttons">
-        <button nz-button nzShape="circle" nzType="primary" type="button" (click)="addRow()">
-          <nz-icon nzType="plus" nzTheme="outline"/>
-        </button>
-        <button nz-button nzType="default" type="button" (click)="confirmDeleteAllRows()">
-          <nz-icon nzType="delete" nzTheme="outline"/>
-          Xóa tất cả
-        </button>
-      </div>
-
-      <!-- RIGHT BUTTONS -->
-      <div class="right-buttons">
-
-        <!-- Select page template -->
-        <nz-select formControlName="exportType" nzSize="large" nzPlaceHolder="Tạo quiz cho">
-          <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
-          <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
-          <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
-        </nz-select>
-        <!-- Always shown: clicking it explains what is still missing (template, rows) instead of the
-             button appearing only once everything is filled in. -->
-        <button nz-button nzType="primary" type="submit">
-          <nz-icon nzType="download"/>
-          Tải file
-        </button>
-        <!--      <button nz-button nzType="default" type="button" (click)="fileInput.click()">-->
-        <!--        <nz-icon nzType="file-text" nzTheme="outline"/>-->
-        <!--        Nhập từ file csv-->
-        <!--      </button>-->
-        <button nz-button nzType="primary" type="button" (click)="openAiGenerationPopup()">
-          <nz-icon nzType="robot" nzTheme="outline"/>
-          Tạo bằng AI
-        </button>
-        <input #fileInput type="file" accept=".csv,text/csv" style="display: none" (change)="importFromCsv($event)"/>
-      </div>
-
     </div>
 
-    <nz-table #tableWord [nzData]="listOfData" nzBordered [nzShowPagination]="false" [nzFrontPagination]="false"
+    <!-- RIGHT BUTTONS -->
+    <div class="right-buttons">
 
-              [nzScroll]="{y: '65vh', x: '60vw'}">
-      <thead>
-      <tr>
-        <th nzWidth="50%">Câu hỏi</th>
-        <th nzWidth="30%">Đáp án</th>
-        @if (formGroup.get('exportType')?.value === ExportType.Wayground) {
-          <th style="text-align: center" nzWidth="15%"></th>
-        }
-        @if (tableWord.data.length > minRows) {
-          <th style="text-align: center" nzWidth="5%"></th>
-        }
-      </tr>
-      </thead>
+      <!-- Select page template -->
+      <nz-select formControlName="exportType" nzSize="large" nzPlaceHolder="Tạo quiz cho">
+        <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
+        <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
+        <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
+      </nz-select>
+      <!-- Always shown: clicking it explains what is still missing (template, rows) instead of the
+           button appearing only once everything is filled in. -->
+      <button nz-button nzType="primary" type="submit">
+        <nz-icon nzType="download"/>
+        Tải file
+      </button>
+      <!--      <button nz-button nzType="default" type="button" (click)="fileInput.click()">-->
+      <!--        <nz-icon nzType="file-text" nzTheme="outline"/>-->
+      <!--        Nhập từ file csv-->
+      <!--      </button>-->
+      <input #fileInput type="file" accept=".csv,text/csv" style="display: none" (change)="importFromCsv($event)"/>
+    </div>
 
-      <tbody formArrayName="listOfData">
-        @for (item of tableWord.data; track item; let i = $index) {
-          <tr [formGroup]="item">
-            <td class="cell-flex">
-              <textarea nz-input [formControl]="item.controls.question" #rowSourceInputs cdkTextareaAutosize></textarea>
-              <ng-container
-                *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: 'Trùng câu hỏi nàa', $implicit: item.controls.question}"/>
-              <ng-container
-                *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: item.controls.question}"/>
-            </td>
-            <td class="cell-flex">
-              <textarea nz-input [formControl]="item.controls.answer" #rowSourceInputs cdkTextareaAutosize></textarea>
-              <ng-container
-                *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: 'Trùng đáp án nàa', $implicit: item.controls.answer}"/>
-              <ng-container
-                *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: item.controls.answer}"/>
-            </td>
-            @if (formGroup.get('exportType')?.value === ExportType.Wayground) {
-              <td class="cell-flex">
-                <nz-select [formControl]="item.controls.questionType" nzPlaceHolder="Chọn loại câu hỏi">
-                  <nz-option [nzValue]="QuestionType.MultipleChoice" nzLabel="Trắc nghiệm"></nz-option>
-                  <nz-option [nzValue]="QuestionType.FillInTheBlank" nzLabel="Điền từ"></nz-option>
-                </nz-select>
-              </td>
-            }
-            @if (tableWord.data.length > minRows) {
-              <td style="text-align: center">
-                <button nz-button nzShape="circle" nzType="default" (click)="deleteRow(i)" type="button">
-                  <nz-icon nzType="delete" nzTheme="outline"/>
-                </button>
-              </td>
-            }
-          </tr>
-        }
-      </tbody>
-    </nz-table>
+  </div>
 
-    <ng-template let-formControl let-message="message" let-errorKey="errorKey" #errorMessage>
-      @if (formControl.hasError(errorKey) && formControl.dirty) {
-        <small class="text-error">{{ message }}</small>
+  <nz-table #tableWord [nzData]="listOfData" nzBordered [nzShowPagination]="false" [nzFrontPagination]="false"
+
+            [nzScroll]="{y: '65vh', x: '60vw'}">
+    <thead>
+    <tr>
+      <th nzWidth="50%">Câu hỏi</th>
+      <th nzWidth="30%">Đáp án</th>
+      @if (formGroup.get('exportType')?.value === ExportType.Wayground) {
+        <th style="text-align: center" nzWidth="15%"></th>
       }
-    </ng-template>
-  </form>
+      @if (tableWord.data.length > minRows) {
+        <th style="text-align: center" nzWidth="5%"></th>
+      }
+    </tr>
+    </thead>
 
-</div>
+    <tbody formArrayName="listOfData">
+      @for (item of tableWord.data; track item; let i = $index) {
+        <tr [formGroup]="item">
+          <td class="cell-flex">
+            <textarea nz-input [formControl]="item.controls.question" #rowSourceInputs cdkTextareaAutosize></textarea>
+            <ng-container
+              *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: 'Trùng câu hỏi nàa', $implicit: item.controls.question}"/>
+            <ng-container
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: item.controls.question}"/>
+          </td>
+          <td class="cell-flex">
+            <textarea nz-input [formControl]="item.controls.answer" #rowSourceInputs cdkTextareaAutosize></textarea>
+            <ng-container
+              *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: 'Trùng đáp án nàa', $implicit: item.controls.answer}"/>
+            <ng-container
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: item.controls.answer}"/>
+          </td>
+          @if (formGroup.get('exportType')?.value === ExportType.Wayground) {
+            <td class="cell-flex">
+              <nz-select [formControl]="item.controls.questionType" nzPlaceHolder="Chọn loại câu hỏi">
+                <nz-option [nzValue]="QuestionType.MultipleChoice" nzLabel="Trắc nghiệm"></nz-option>
+                <nz-option [nzValue]="QuestionType.FillInTheBlank" nzLabel="Điền từ"></nz-option>
+              </nz-select>
+            </td>
+          }
+          @if (tableWord.data.length > minRows) {
+            <td style="text-align: center">
+              <button nz-button nzShape="circle" nzType="default" (click)="deleteRow(i)" type="button">
+                <nz-icon nzType="delete" nzTheme="outline"/>
+              </button>
+            </td>
+          }
+        </tr>
+      }
+    </tbody>
+  </nz-table>
+
+  <ng-template let-formControl let-message="message" let-errorKey="errorKey" #errorMessage>
+    @if (formControl.hasError(errorKey) && formControl.dirty) {
+      <small class="text-error">{{ message }}</small>
+    }
+  </ng-template>
+</form>

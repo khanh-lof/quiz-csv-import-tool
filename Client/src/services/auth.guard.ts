@@ -2,18 +2,10 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
 
-
-function hasAccess(authService: AuthService, router: Router): boolean {
-  if (authService.hasAccessToken()) {
+// Sends an anonymous user to the login screen, which brings them back to the page they asked for.
+export const authGuard: CanActivateFn = (route, state) => {
+  if (inject(AuthService).hasAccessToken()) {
     return true;
   }
-  router.navigate(['/login']);
-  return false;
-}
-
-export const authGuard: CanActivateFn = (route, state) => {
-  const authService = inject(AuthService);
-  const router = inject(Router);
-
-  return hasAccess(authService, router);
+  return inject(Router).createUrlTree(['/login'], {queryParams: {returnUrl: state.url}});
 };

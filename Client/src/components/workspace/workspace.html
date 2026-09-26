@@ -1,0 +1,30 @@
+<div class="center-container">
+  <!-- The table works anonymously, so logging in is optional; the AI page asks for it on its own. -->
+  <div class="account-bar">
+    @if (isLoggedIn()) {
+      <button nz-button nzType="link" type="button" (click)="logout()">
+        <nz-icon nzType="logout" nzTheme="outline"/>
+        Đăng xuất
+      </button>
+    } @else {
+      <button nz-button nzType="link" type="button" (click)="login()">
+        <nz-icon nzType="login" nzTheme="outline"/>
+        Đăng nhập
+      </button>
+    }
+  </div>
+  <h1 style="text-align: center">Tool tạo file cho import Gimkit/Blooket/Wayground</h1>
+  <div class="mode-switch">
+    <nz-radio-group [formControl]="mode" nzButtonStyle="solid" nzSize="large">
+      <label nz-radio-button nzValue="/quiz">
+        <nz-icon nzType="table" nzTheme="outline"/>
+        Tạo thủ công
+      </label>
+      <label nz-radio-button nzValue="/ai">
+        <nz-icon nzType="robot" nzTheme="outline"/>
+        Tạo bằng AI
+      </label>
+    </nz-radio-group>
+  </div>
+  <router-outlet/>
+</div>

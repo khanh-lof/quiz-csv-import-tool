@@ -1,0 +1,26 @@
+:host {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+
+.center-container {
+  display: block;
+  padding: 4px 20px;
+}
+
+.account-bar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mode-switch {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.mode-switch label[nz-radio-button] {
+  font-size: 18px;
+}
