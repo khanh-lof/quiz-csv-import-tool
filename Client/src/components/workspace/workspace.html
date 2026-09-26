@@ -1,33 +1,31 @@
 <div class="center-container">
-  <!-- The table works anonymously, so logging in is optional; the AI page asks for it on its own. -->
-  <div class="account-bar">
+  <!-- The items stay unselectable on click: the two modes are highlighted from the route alone
+       (nzMatchRouter), so a refused navigation leaves the current page highlighted. -->
+  <ul nz-menu nzMode="horizontal" [nzSelectable]="false" class="workspace-nav">
+    <!-- A tooltip only on the item not shown: the page itself already explains the current one. -->
+    <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="bottom"
+        [nzTooltipTitle]="mode() === '/quiz' ? null : 'Tự nhập câu hỏi và đáp án vào bảng, rồi tải file quiz. Không cần đăng nhập.'">
+      <nz-icon nzType="table" nzTheme="outline"/>
+      <span><a routerLink="/quiz">Tạo thủ công</a></span>
+    </li>
+    <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="bottom"
+        [nzTooltipTitle]="mode() === '/ai' ? null : 'Gửi ảnh bài học (hoặc chỉ chọn bài) để AI soạn câu hỏi giúp. Cần đăng nhập.'">
+      <nz-icon nzType="robot" nzTheme="outline"/>
+      <span><a routerLink="/ai">Tạo bằng AI</a></span>
+    </li>
+    <!-- The table works anonymously, so logging in is optional; the AI page asks for it on its own. -->
     @if (isLoggedIn()) {
-      <button nz-button nzType="link" type="button" (click)="logout()">
+      <li nz-menu-item class="account-item" (click)="logout()">
         <nz-icon nzType="logout" nzTheme="outline"/>
-        Đăng xuất
-      </button>
+        <span>Đăng xuất</span>
+      </li>
     } @else {
-      <button nz-button nzType="link" type="button" (click)="login()">
+      <li nz-menu-item class="account-item" (click)="login()">
         <nz-icon nzType="login" nzTheme="outline"/>
-        Đăng nhập
-      </button>
+        <span>Đăng nhập</span>
+      </li>
     }
-  </div>
+  </ul>
   <h1 style="text-align: center">Tool tạo file cho import Gimkit/Blooket/Wayground</h1>
-  <div class="mode-switch">
-    <!-- A tooltip only on the option not shown: the page itself already explains the current one. -->
-    <nz-radio-group [formControl]="mode" nzButtonStyle="solid" nzSize="large">
-      <label nz-radio-button nzValue="/quiz" nz-tooltip nzTooltipPlacement="bottom"
-             [nzTooltipTitle]="mode.value === '/quiz' ? null : 'Tự nhập câu hỏi và đáp án vào bảng, rồi tải file quiz. Không cần đăng nhập.'">
-        <nz-icon nzType="table" nzTheme="outline"/>
-        Tạo thủ công
-      </label>
-      <label nz-radio-button nzValue="/ai" nz-tooltip nzTooltipPlacement="bottom"
-             [nzTooltipTitle]="mode.value === '/ai' ? null : 'Gửi ảnh bài học (hoặc chỉ chọn bài) để AI soạn câu hỏi giúp. Cần đăng nhập.'">
-        <nz-icon nzType="robot" nzTheme="outline"/>
-        Tạo bằng AI
-      </label>
-    </nz-radio-group>
-  </div>
   <router-outlet/>
 </div>

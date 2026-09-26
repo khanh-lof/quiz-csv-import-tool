@@ -22,17 +22,11 @@
   flex-direction: column;
 }
 
-.account-bar {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.mode-switch {
-  display: flex;
-  justify-content: center;
+.workspace-nav {
   margin-bottom: 16px;
+  font-size: 16px;
 }
 
-.mode-switch label[nz-radio-button] {
-  font-size: 18px;
+.account-item {
+  float: right;
 }

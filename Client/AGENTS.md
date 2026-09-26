@@ -64,11 +64,12 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
 
 ### Vocabulary table & CSV pipeline
 
-`Workspace` (`src/components/workspace/`) is the shell of the two main screens: the account bar,
-the title, and a "Tạo thủ công"/"Tạo bằng AI" radio switch that navigates between its child routes
+`Workspace` (`src/components/workspace/`) is the shell of the two main screens: a horizontal `nz-menu`
+(the "Tạo thủ công"/"Tạo bằng AI" `routerLink` items, highlighted via `nzMatchRouter`, plus the
+login/logout item) and the title. The menu navigates between its child routes
 `/quiz` (`VocabularyTable`) and `/ai` (`AiGeneration`, `src/components/ai-generation/`). While an AI
 request runs, `canLeaveAiGeneration` refuses to leave `/ai` (leaving would cancel it) and the
-switch snaps back. Each screen starts with a `UsageGuide` (`src/components/usage-guide/`), a
+menu keeps the current item highlighted. Each screen starts with a `UsageGuide` (`src/components/usage-guide/`), a
 collapsible how-to whose closed state is remembered per page in `localStorage`
 (`usage-guide-collapsed:<key>`); keep its text in step with the screen when the flow changes.
 

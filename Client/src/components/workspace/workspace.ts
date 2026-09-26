@@ -1,11 +1,9 @@
 import { Component, DestroyRef, inject, ChangeDetectionStrategy } from '@angular/core';
-import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, filter, of } from 'rxjs';
-import { NzButtonComponent } from 'ng-zorro-antd/button';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { catchError, filter, map, of } from 'rxjs';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
-import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
+import { NzMenuDirective, NzMenuItemComponent } from 'ng-zorro-antd/menu';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTooltipDirective } from 'ng-zorro-antd/tooltip';
 import { AuthService } from '../../services/auth.service';
@@ -13,21 +11,21 @@ import { AuthService } from '../../services/auth.service';
 // The two ways of building a quiz, as the routes that host them.
 type WorkspaceMode = '/quiz' | '/ai';
 
-// Frame shared by the vocabulary table and the AI page: the account bar, the title and the switch
-// between the two. Switching is plain navigation, so /ai's auth guard sends an anonymous user to log in.
+// Frame shared by the vocabulary table and the AI page: the nav menu (the two modes and the account
+// action) and the title. Switching is plain router navigation, so /ai's auth guard sends an anonymous
+// user to log in, and a refused navigation simply leaves the current item highlighted.
 @Component({
   selector: 'app-workspace',
   imports: [
     RouterOutlet,
-    ReactiveFormsModule,
-    NzButtonComponent,
+    RouterLink,
     NzIconDirective,
-    NzRadioGroupComponent,
-    NzRadioComponent,
+    NzMenuDirective,
+    NzMenuItemComponent,
     NzTooltipDirective
   ],
   templateUrl: './workspace.html',
-  host: {'[class.fit-viewport]': "mode.value === '/quiz'"},
+  host: {'[class.fit-viewport]': "mode() === '/quiz'"},
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './workspace.css'
 })
@@ -37,32 +35,16 @@ export class Workspace {
   private readonly notificationService = inject(NzNotificationService);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly mode = new FormControl<WorkspaceMode>(this.currentMode(), {nonNullable: true});
-
-  constructor() {
-    this.mode.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(mode => this.switchMode(mode));
+  protected readonly mode = toSignal(
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe(() => this.showCurrentMode());
-  }
-
-  private showCurrentMode(): void {
-    this.mode.setValue(this.currentMode(), {emitEvent: false});
-  }
+      map(() => this.currentMode())
+    ),
+    {initialValue: this.currentMode()}
+  );
 
   private currentMode(): WorkspaceMode {
     return this.router.url.startsWith('/ai') ? '/ai' : '/quiz';
-  }
-
-  private switchMode(mode: WorkspaceMode): void {
-    // A refused navigation (e.g. leaving the AI page mid-generation) puts the radio back on the page shown.
-    this.router.navigateByUrl(mode).then(navigated => {
-      if (!navigated) {
-        this.showCurrentMode();
-      }
-    });
   }
 
   protected isLoggedIn(): boolean {
