@@ -27,6 +27,7 @@ type WorkspaceMode = '/quiz' | '/ai';
     NzTooltipDirective
   ],
   templateUrl: './workspace.html',
+  host: {'[class.fit-viewport]': "mode.value === '/quiz'"},
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './workspace.css'
 })

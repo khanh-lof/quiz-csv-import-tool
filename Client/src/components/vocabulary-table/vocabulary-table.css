@@ -1,5 +1,25 @@
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Shrinks to the height the workspace leaves for the page; the table content absorbs the squeeze. */
+form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* The same column chain through ng-zorro's wrappers down to the scrolling .ant-table-content. */
+:host ::ng-deep .ant-table-wrapper,
+:host ::ng-deep .ant-table-wrapper .ant-spin-nested-loading,
+:host ::ng-deep .ant-table-wrapper .ant-spin-container,
+:host ::ng-deep .ant-table-wrapper .ant-table,
+:host ::ng-deep .ant-table-wrapper .ant-table-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 /* The table screen uses larger type than the library default; colors come from styles.css. */
@@ -15,7 +35,7 @@
    scrolls on its single content box instead, with the header kept in view via sticky.
    !important beats the inline `overflow-y: hidden` ng-zorro sets when only `x` is given. */
 :host ::ng-deep .ant-table-content {
-  max-height: 65vh;
+  min-height: 0;
   overflow-y: auto !important;
 }
 

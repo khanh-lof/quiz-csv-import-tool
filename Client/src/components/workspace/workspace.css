@@ -10,6 +10,18 @@
   padding: 4px 20px;
 }
 
+/* The table page is exactly one screen tall: its table takes the height left under the title and
+   scrolls on its own, so the browser never adds a second scrollbar. The floor keeps the table usable
+   on very short screens, where the page scrolls instead. */
+:host(.fit-viewport) {
+  height: max(100dvh, 640px);
+}
+
+:host(.fit-viewport) .center-container {
+  display: flex;
+  flex-direction: column;
+}
+
 .account-bar {
   display: flex;
   justify-content: flex-end;
