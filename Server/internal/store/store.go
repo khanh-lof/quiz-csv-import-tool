@@ -15,10 +15,26 @@ var (
 	ErrConflict = errors.New("too many concurrent updates")
 )
 
+// RefreshToken is one device's active session. Only a hash of the token is stored, so reading the
+// database does not hand out sessions.
 type RefreshToken struct {
-	Token     string    `bson:"token"`
+	Hash      string    `bson:"tokenHash"`
 	ExpiresAt time.Time `bson:"expiresAt"`
 	CreatedAt time.Time `bson:"createdAt"`
+}
+
+// SpentRefreshToken remembers a token that was rotated away, so presenting it again can be
+// recognised as reuse (a sign it was stolen) rather than an unknown token.
+type SpentRefreshToken struct {
+	Hash      string    `bson:"tokenHash"`
+	SpentAt   time.Time `bson:"spentAt"`
+	ExpiresAt time.Time `bson:"expiresAt"`
+}
+
+// Sessions is a user's refresh-token state, read and written as a unit by UpdateSessions.
+type Sessions struct {
+	Active []RefreshToken      `bson:"refreshTokens"`
+	Spent  []SpentRefreshToken `bson:"spentRefreshTokens"`
 }
 
 type User struct {
@@ -28,24 +44,27 @@ type User struct {
 	CreatedAt     time.Time      `bson:"createdAt"`
 	RefreshTokens []RefreshToken `bson:"refreshTokens"`
 
+	SpentRefreshTokens []SpentRefreshToken `bson:"spentRefreshTokens"`
+
 	AICallCountInRound int        `bson:"aiCallCountInRound"`
 	StartRoundTime     *time.Time `bson:"startRoundTime,omitempty"`
 
-	// Version guards refresh-token read-modify-writes (optimistic concurrency).
+	// Version guards session read-modify-writes (optimistic concurrency).
 	Version int64 `bson:"version"`
 }
 
 // Users is implemented by Mongo (production) and Memory (tests).
 type Users interface {
 	FindByUsername(ctx context.Context, username string) (*User, error)
-	FindByRefreshToken(ctx context.Context, token string) (*User, error)
+	// FindByRefreshTokenHash finds the user holding hash as an active or a spent refresh token.
+	FindByRefreshTokenHash(ctx context.Context, hash string) (*User, error)
 	Create(ctx context.Context, user *User) error
 
-	// UpdateRefreshTokens applies mutate to the user's current token list and stores the result,
-	// re-reading and retrying when another writer got there first, so concurrent logins from two
-	// devices cannot drop each other's tokens. mutate returns false to skip the write.
-	UpdateRefreshTokens(ctx context.Context, username string,
-		mutate func(tokens []RefreshToken) ([]RefreshToken, bool)) error
+	// UpdateSessions applies mutate to the user's current sessions and stores the result,
+	// re-reading and retrying when another writer got there first, so concurrent logins or
+	// refreshes cannot drop or double-spend each other's tokens. mutate may run more than once and
+	// returns false to skip the write.
+	UpdateSessions(ctx context.Context, username string, mutate func(s *Sessions) bool) error
 
 	// TryConsumeAICall atomically counts one AI call against the user's rate limit: at most limit
 	// calls per round, a round starting with the first call after the previous one ended.

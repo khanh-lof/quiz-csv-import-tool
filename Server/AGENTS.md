@@ -37,11 +37,13 @@ docker compose up --build                        # MongoDB + API on 7071
 ### Configuration
 
 All settings are env vars (see `.env.example`; `go run` also reads `.env`, real env vars win).
-`MONGODB_URI` and `JWT_SECRET` are required — the server refuses to start without them.
+`MONGODB_URI` and `JWT_SECRET` (at least 32 bytes) are required — the server refuses to start
+without them.
 
 - `PORT` (default 7071 — the client's `ng serve` proxy points there)
 - `MONGODB_URI`, `MONGODB_DATABASE` (default `QuizDb`), `MONGODB_COLLECTION` (default `Users`)
-- `JWT_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE` (issuer/audience validation skipped if unset)
+- `JWT_SECRET` (≥ 32 bytes, RFC 7518 §3.2 for HS256), `JWT_ISSUER` (default `quiztool`),
+  `JWT_AUDIENCE` (default `quiztool-api`) — issuer and audience are always set and validated
 - `JWT_ACCESS_TOKEN_EXPIRES_MINUTES` (15), `JWT_REFRESH_TOKEN_EXPIRES_DAYS` (30),
   `MAX_REFRESH_TOKENS_PER_USER` (5 — oldest session evicted beyond this)
 - `ADMIN_API_KEY` — required in the `X-Admin-Key` header by `POST /api/users`; empty rejects every call
@@ -62,17 +64,26 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   Login/refresh return `{"accessToken": ...}` and set the refresh token as an
   `HttpOnly; Secure; SameSite=Strict` cookie — never in the body. A user holds one refresh token per
   device (capped); `logout` revokes the calling device's token, `logout-all` every token of that user.
-  Refresh rotates the token.
+  Refresh rotates the token; replaying a rotated token later than 30 s after its rotation is
+  treated as theft and revokes every session of the user (see the data model below).
 - **Users** (`auth_handlers.go`): `users`, admin-only via `X-Admin-Key` (replaces the Azure Functions
-  admin key). 409 if the user exists.
-- **CSV** (`csv_handler.go`): `csv/generate-from-image`. Validates the `Bearer` JWT by hand, requires
-  the `User` or `Admin` role, reads a multipart body of zero or more files, enforces the rate limit,
-  and returns `text/csv`. `isCreative=true` switches to the creative prompt and requires `exportType`,
+  admin key), enforced by the `requireAdminKey` middleware. 409 if the user exists.
+- **CSV** (`csv_handler.go`): `csv/generate-from-image`. Wrapped in `authenticate` (Bearer JWT → 401
+  with `WWW-Authenticate`) and `requireRole(auth.RoleUser, auth.RoleAdmin)` (→ 403); the handler
+  reads the claims with `auth.FromContext`, loads the user (404 if deleted since the token was
+  issued), reads a multipart body of zero or more files, enforces the rate limit, and returns
+  `text/csv`. `isCreative=true` switches to the creative prompt and requires `exportType`,
   `courseType`, `lessonNumber`, plus `level` (HSK/YCT) or `courseName` (`Other`) — parsed by
   `csvgen.ParseCreativeOptions` (400 with the message on failure). Images are optional only in
   creative mode. The LLM call runs under `LLM_TIMEOUT_SECONDS`; hitting it answers
   `504 AI generation timed out.` (other LLM failures stay `502`). Either failure refunds the
   rate-limit slot (`RefundAICall`) because the client retries them. See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
+
+Auth is net/http middleware (`middleware.go`), composed per route in `Server.Handler`: `authenticate`
+stores the validated `*auth.Claims` in the request context under an unexported key
+(`auth.NewContext` / `auth.FromContext`); `requireRole` must sit inside it and fails closed (401) if
+it finds no claims. Protect a new route by wrapping it the same way rather than checking tokens in
+the handler.
 
 The plain-text error bodies and status codes are part of the contract with the client and were kept
 identical to the former .NET implementation; `internal/api/api_test.go` pins them down.
@@ -101,21 +112,35 @@ cookie.
   and requires `max_output_tokens` to be set.
 
 Data model (`internal/store`): one `User` document per user in one collection, `_id` = username,
-holding `passwordHash`, `roles`, `createdAt`, `refreshTokens` (`token`, `expiresAt`, `createdAt`),
-`aiCallCountInRound`, `startRoundTime`, and `version`.
+holding `passwordHash`, `roles`, `createdAt`, `refreshTokens` (`tokenHash`, `expiresAt`,
+`createdAt`), `spentRefreshTokens` (`tokenHash`, `spentAt`, `expiresAt`), `aiCallCountInRound`,
+`startRoundTime`, and `version`.
 
-- Refresh-token changes go through `UpdateRefreshTokens`: read, apply the mutation, write back only
-  if `version` is unchanged (`$inc` on success), retry up to 5 times. This keeps concurrent logins
-  from different devices from dropping each other's tokens. Documents without `version` count as 0.
-  The token policy itself (prune expired, cap, rotate) lives in `auth.Service`, not the store.
+- Refresh tokens are opaque 512-bit random strings; only their SHA-256 (`tokenHash`, base64url) is
+  stored, so a database leak hands out no sessions. `auth.Service` hashes; the store only sees hashes.
+- Session changes go through `UpdateSessions` (active + spent tokens as one `store.Sessions`):
+  read, apply the mutation, write back only if `version` is unchanged (`$inc` on success), retry up
+  to 5 times. This keeps concurrent logins from dropping each other's tokens, and — because
+  `Refresh` checks the token inside the mutation — two concurrent refreshes with one token cannot
+  both succeed. Documents without `version` count as 0. The token policy (prune expired, cap,
+  rotate, reuse detection) lives in `auth.Service`, not the store.
+- Reuse detection: a rotated token moves to `spentRefreshTokens` (last 50 kept, each until its
+  original expiry). Presenting a spent token within 30 s of its rotation is a benign race (two tabs
+  refreshing at once) and just gets 401; later, it clears every active session of the user
+  (`auth.ErrRefreshTokenReused`, logged as a warning) and still answers `401 Invalid refresh token`.
+  `logout-all` only accepts an active token.
 - `TryConsumeAICall` enforces the rate limit atomically with two conditional updates (increment
   within a running round under the limit, else start a new round) instead of read-then-write. It
   returns the round's start; `RefundAICall` decrements only while `startRoundTime` still equals it,
   so a refund arriving after a new round began cannot eat into that round.
-- `EnsureIndexes` creates the `refreshTokens.token` index used by `FindByRefreshToken`. The server
+- `EnsureIndexes` creates the `refreshTokens.tokenHash` and `spentRefreshTokens.tokenHash` indexes
+  used by `FindByRefreshTokenHash`. The server
   does not call it (it would slow every serverless cold start); `cmd/import-users` does, or create
   the index once by hand. Without it, refresh lookups scan the collection — fine for few users.
 
 Password hashes are `iterations.base64(salt).base64(key)` with PBKDF2-HMAC-SHA256 — the same format
-the .NET version wrote, so users imported with `cmd/import-users` keep their passwords. Access
-tokens are HS256 with `unique_name`/`role` claims, validated with 2 minutes of clock skew.
+the .NET version wrote, so users imported with `cmd/import-users` keep their passwords. Login with
+an unknown username still runs PBKDF2 (against `dummyHash`) so response time does not reveal which
+usernames exist. Access tokens are HS256 with the username in `sub` and a `roles` array, validated
+with 2 minutes of clock skew (the algorithm is pinned; `exp`, `iss` and `aud` are required). Expired
+tokens are logged at debug level (`auth.ErrTokenExpired`), other validation failures as warnings.

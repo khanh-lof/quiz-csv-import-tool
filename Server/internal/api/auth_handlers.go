@@ -1,7 +1,6 @@
 package api
 
 import (
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"io"
@@ -50,6 +49,9 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session, err := s.Auth.Refresh(r.Context(), token)
+	if errors.Is(err, auth.ErrRefreshTokenReused) {
+		s.Logger.Warn("refresh token reuse detected; revoked every session of the user", "error", err)
+	}
 	if errors.Is(err, auth.ErrInvalidRefreshToken) {
 		writeText(w, http.StatusUnauthorized, "Invalid refresh token")
 		return
@@ -93,14 +95,8 @@ func (s *Server) logoutAll(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// createUser is an admin-only endpoint guarded by the X-Admin-Key header.
+// createUser is admin-only; the route wraps it in requireAdminKey.
 func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get("X-Admin-Key")
-	if s.AdminAPIKey == "" || subtle.ConstantTimeCompare([]byte(key), []byte(s.AdminAPIKey)) != 1 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
 	var req struct {
 		Username string   `json:"username"`
 		Password string   `json:"password"`

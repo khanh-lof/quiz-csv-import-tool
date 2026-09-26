@@ -61,7 +61,7 @@ func TestMongoCreateAndFind(t *testing.T) {
 
 	var raw bson.M
 	_ = coll.FindOne(ctx, bson.M{"_id": "alice"}).Decode(&raw)
-	for _, field := range []string{"passwordHash", "roles", "createdAt", "refreshTokens", "aiCallCountInRound", "version"} {
+	for _, field := range []string{"passwordHash", "roles", "createdAt", "refreshTokens", "spentRefreshTokens", "aiCallCountInRound", "version"} {
 		if _, ok := raw[field]; !ok {
 			t.Errorf("stored document lacks %q: %v", field, raw)
 		}
@@ -73,43 +73,55 @@ func TestMongoRefreshTokens(t *testing.T) {
 	m, coll := newTestMongo(t)
 	_ = m.Create(ctx, &User{Username: "alice", PasswordHash: "h"})
 
-	add := func(token string) func([]RefreshToken) ([]RefreshToken, bool) {
-		return func(ts []RefreshToken) ([]RefreshToken, bool) {
-			return append(ts, RefreshToken{Token: token, ExpiresAt: time.Now().Add(time.Hour), CreatedAt: time.Now()}), true
+	add := func(hash string) func(*Sessions) bool {
+		return func(s *Sessions) bool {
+			s.Active = append(s.Active, RefreshToken{Hash: hash, ExpiresAt: time.Now().Add(time.Hour), CreatedAt: time.Now()})
+			return true
 		}
 	}
-	if err := m.UpdateRefreshTokens(ctx, "alice", add("t1")); err != nil {
+	if err := m.UpdateSessions(ctx, "alice", add("t1")); err != nil {
 		t.Fatal(err)
 	}
-	u, err := m.FindByRefreshToken(ctx, "t1")
+	u, err := m.FindByRefreshTokenHash(ctx, "t1")
 	if err != nil || u.Username != "alice" || u.Version != 1 {
-		t.Fatalf("FindByRefreshToken: %+v %v", u, err)
+		t.Fatalf("FindByRefreshTokenHash: %+v %v", u, err)
 	}
-	if _, err := m.FindByRefreshToken(ctx, "nope"); !errors.Is(err, ErrNotFound) {
+	if _, err := m.FindByRefreshTokenHash(ctx, "nope"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("want ErrNotFound, got %v", err)
 	}
-	if err := m.UpdateRefreshTokens(ctx, "bob", add("x")); !errors.Is(err, ErrNotFound) {
+	if err := m.UpdateSessions(ctx, "bob", add("x")); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("want ErrNotFound for missing user, got %v", err)
 	}
 
 	// Skipped writes leave the version alone.
-	_ = m.UpdateRefreshTokens(ctx, "alice", func(ts []RefreshToken) ([]RefreshToken, bool) { return ts, false })
+	_ = m.UpdateSessions(ctx, "alice", func(*Sessions) bool { return false })
 	if u, _ := m.FindByUsername(ctx, "alice"); u.Version != 1 {
 		t.Fatalf("version bumped by a skipped write: %d", u.Version)
 	}
 
 	// Documents imported without a version field still update.
 	_, _ = coll.InsertOne(ctx, bson.M{"_id": "legacy", "passwordHash": "h"})
-	if err := m.UpdateRefreshTokens(ctx, "legacy", add("t2")); err != nil {
+	if err := m.UpdateSessions(ctx, "legacy", add("t2")); err != nil {
 		t.Fatalf("legacy document: %v", err)
 	}
 
-	// Clearing stores an empty array, not null.
-	_ = m.UpdateRefreshTokens(ctx, "alice", func([]RefreshToken) ([]RefreshToken, bool) { return nil, true })
+	// Spent tokens are found too.
+	_ = m.UpdateSessions(ctx, "alice", func(s *Sessions) bool {
+		s.Spent = append(s.Spent, SpentRefreshToken{Hash: "old", SpentAt: time.Now(), ExpiresAt: time.Now().Add(time.Hour)})
+		return true
+	})
+	if u, err := m.FindByRefreshTokenHash(ctx, "old"); err != nil || u.Username != "alice" || len(u.SpentRefreshTokens) != 1 {
+		t.Fatalf("FindByRefreshTokenHash(spent): %+v %v", u, err)
+	}
+
+	// Clearing stores empty arrays, not null.
+	_ = m.UpdateSessions(ctx, "alice", func(s *Sessions) bool { *s = Sessions{}; return true })
 	var raw bson.M
 	_ = coll.FindOne(ctx, bson.M{"_id": "alice"}).Decode(&raw)
-	if arr, ok := raw["refreshTokens"].(bson.A); !ok || len(arr) != 0 {
-		t.Fatalf("refreshTokens = %#v", raw["refreshTokens"])
+	for _, field := range []string{"refreshTokens", "spentRefreshTokens"} {
+		if arr, ok := raw[field].(bson.A); !ok || len(arr) != 0 {
+			t.Fatalf("%s = %#v", field, raw[field])
+		}
 	}
 }
 
@@ -123,8 +135,9 @@ func TestMongoConcurrentTokenUpdatesDoNotLoseWrites(t *testing.T) {
 	errs := make(chan error, writers)
 	for i := range writers {
 		wg.Go(func() {
-			errs <- m.UpdateRefreshTokens(ctx, "alice", func(ts []RefreshToken) ([]RefreshToken, bool) {
-				return append(ts, RefreshToken{Token: fmt.Sprint("t", i), ExpiresAt: time.Now().Add(time.Hour)}), true
+			errs <- m.UpdateSessions(ctx, "alice", func(s *Sessions) bool {
+				s.Active = append(s.Active, RefreshToken{Hash: fmt.Sprint("t", i), ExpiresAt: time.Now().Add(time.Hour)})
+				return true
 			})
 		})
 	}

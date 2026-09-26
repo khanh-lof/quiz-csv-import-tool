@@ -10,39 +10,26 @@ import (
 	"strings"
 	"time"
 
+	"quiz-csv-import-tool/server/internal/auth"
 	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/store"
 )
 
 const maxUploadBytes = 50 << 20
 
-// generateCSV handles POST /api/csv/generate-from-image: a Bearer-authenticated multipart upload of
-// zero or more images, rate-limited per user, answered with the CSV the model produced.
+// generateCSV handles POST /api/csv/generate-from-image: a multipart upload of zero or more images,
+// rate-limited per user, answered with the CSV the model produced. The route wraps it in
+// authenticate and requireRole, so the caller's claims are always in the context.
 func (s *Server) generateCSV(w http.ResponseWriter, r *http.Request) {
-	scheme, token, found := strings.Cut(strings.TrimSpace(r.Header.Get("Authorization")), " ")
-	token = strings.TrimSpace(token)
-	if !found || !strings.EqualFold(scheme, "Bearer") || token == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-	claims, err := s.JWT.Parse(token)
-	if err != nil {
-		s.Logger.Warn("JWT validation failed", "error", err)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	user, err := s.Users.FindByUsername(r.Context(), claims.Name)
+	claims, _ := auth.FromContext(r.Context())
+	// The token outlives a deleted user by up to its lifetime; the rate limit needs the document.
+	user, err := s.Users.FindByUsername(r.Context(), claims.Username())
 	if errors.Is(err, store.ErrNotFound) {
 		writeText(w, http.StatusNotFound, "User not found")
 		return
 	}
 	if err != nil {
 		s.internalError(w, r, "loading user failed", err)
-		return
-	}
-	if !claims.HasAnyRole("User", "Admin") {
-		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 

@@ -40,8 +40,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/auth/refresh", s.refresh)
 	mux.HandleFunc("POST /api/auth/logout", s.logout)
 	mux.HandleFunc("POST /api/auth/logout-all", s.logoutAll)
-	mux.HandleFunc("POST /api/users", s.createUser)
-	mux.HandleFunc("POST /api/csv/generate-from-image", s.generateCSV)
+	mux.Handle("POST /api/users", s.requireAdminKey(http.HandlerFunc(s.createUser)))
+	mux.Handle("POST /api/csv/generate-from-image",
+		s.authenticate(requireRole(auth.RoleUser, auth.RoleAdmin)(http.HandlerFunc(s.generateCSV))))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeText(w, http.StatusOK, "ok")
 	})

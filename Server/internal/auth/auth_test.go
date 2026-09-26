@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -35,6 +36,9 @@ func TestHashPasswordRoundTrip(t *testing.T) {
 	if !VerifyPassword("secret", hash) || VerifyPassword("Secret", hash) {
 		t.Fatal("round trip failed")
 	}
+	if VerifyPassword("", dummyHash) || VerifyPassword("secret", dummyHash) {
+		t.Fatal("dummy hash verified")
+	}
 	for _, bad := range []string{"", "abc", "x.y.z", "0.AA==.AA==", "100000.!!.AA=="} {
 		if VerifyPassword("secret", bad) {
 			t.Fatalf("malformed hash %q verified", bad)
@@ -56,7 +60,7 @@ func TestJWTIssueAndParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if claims.Name != "alice" || !claims.HasAnyRole("admin", "user") || claims.HasAnyRole("Admin") {
+	if claims.Username() != "alice" || !claims.HasAnyRole("admin", "user") || claims.HasAnyRole("Admin") {
 		t.Fatalf("unexpected claims %+v", claims)
 	}
 
@@ -97,21 +101,40 @@ func TestJWTExpiryHonorsClockSkew(t *testing.T) {
 func TestJWTRejectsOtherAlgorithms(t *testing.T) {
 	j := testJWT("", "")
 	unsigned, _ := jwt.NewWithClaims(jwt.SigningMethodNone, Claims{
-		Name:             "alice",
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour))},
+		RegisteredClaims: jwt.RegisteredClaims{Subject: "alice", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour))},
 	}).SignedString(jwt.UnsafeAllowNoneSignatureType)
 	if _, err := j.Parse(unsigned); err == nil {
 		t.Fatal("alg=none accepted")
 	}
 }
 
-func TestRolesAcceptsStringOrArray(t *testing.T) {
-	var c Claims
-	if err := json.Unmarshal([]byte(`{"unique_name":"a","role":"Admin"}`), &c); err != nil || !c.HasAnyRole("admin") {
-		t.Fatalf("single role: %v %+v", err, c)
+func TestJWTUsesStandardClaimNames(t *testing.T) {
+	token, _ := testJWT("quiz", "spa").Issue("alice", []string{"User"})
+	payload, err := base64.RawURLEncoding.DecodeString(strings.Split(token, ".")[1])
+	if err != nil {
+		t.Fatal(err)
 	}
-	if err := json.Unmarshal([]byte(`{"unique_name":"a","role":["User","Admin"]}`), &c); err != nil || len(c.Roles) != 2 {
-		t.Fatalf("role array: %v %+v", err, c)
+	var raw map[string]any
+	_ = json.Unmarshal(payload, &raw)
+	if raw["sub"] != "alice" || raw["iss"] != "quiz" || raw["aud"] == nil || raw["roles"] == nil {
+		t.Fatalf("payload %s", payload)
+	}
+	if _, ok := raw["unique_name"]; ok {
+		t.Fatalf("legacy claim still issued: %s", payload)
+	}
+}
+
+func TestJWTExpiredErrorIsDistinguishable(t *testing.T) {
+	j := testJWT("", "")
+	issued := time.Now()
+	j.now = func() time.Time { return issued }
+	token, _ := j.Issue("alice", nil)
+	j.now = func() time.Time { return issued.Add(time.Hour) }
+	if _, err := j.Parse(token); !errors.Is(err, ErrTokenExpired) {
+		t.Fatalf("want ErrTokenExpired, got %v", err)
+	}
+	if _, err := j.Parse("garbage"); errors.Is(err, ErrTokenExpired) {
+		t.Fatal("malformed token reported as expired")
 	}
 }
 
@@ -213,5 +236,102 @@ func TestLoginEvictsOldestSessionAndPrunesExpired(t *testing.T) {
 	_, _ = svc.Login(ctx, "alice", "pw")
 	if u, _ := users.FindByUsername(ctx, "alice"); len(u.RefreshTokens) != 1 {
 		t.Fatalf("expired tokens not pruned: %d left", len(u.RefreshTokens))
+	}
+}
+
+func TestRefreshTokensAreStoredHashed(t *testing.T) {
+	ctx := context.Background()
+	svc, users, _ := newTestService(t, 5)
+	s, _ := svc.Login(ctx, "alice", "pw")
+
+	u, _ := users.FindByUsername(ctx, "alice")
+	if len(u.RefreshTokens) != 1 || u.RefreshTokens[0].Hash == s.RefreshToken || u.RefreshTokens[0].Hash != hashRefreshToken(s.RefreshToken) {
+		t.Fatalf("stored %+v for token %q", u.RefreshTokens, s.RefreshToken)
+	}
+	// Presenting the stored hash itself is not a valid token.
+	if _, err := svc.Refresh(ctx, u.RefreshTokens[0].Hash); err != ErrInvalidRefreshToken {
+		t.Fatalf("hash accepted as token: %v", err)
+	}
+}
+
+func TestRefreshTokenReuseRevokesEverySession(t *testing.T) {
+	ctx := context.Background()
+	svc, users, now := newTestService(t, 5)
+	stolen, _ := svc.Login(ctx, "alice", "pw")
+	laptop, _ := svc.Login(ctx, "alice", "pw")
+
+	// The thief refreshes first; later the victim presents the same (now spent) token.
+	thief, err := svc.Refresh(ctx, stolen.RefreshToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	*now = now.Add(reuseGracePeriod + time.Second)
+	if _, err := svc.Refresh(ctx, stolen.RefreshToken); !errors.Is(err, ErrRefreshTokenReused) || !errors.Is(err, ErrInvalidRefreshToken) {
+		t.Fatalf("reuse not detected: %v", err)
+	}
+	for name, token := range map[string]string{"thief": thief.RefreshToken, "laptop": laptop.RefreshToken} {
+		if _, err := svc.Refresh(ctx, token); err == nil {
+			t.Fatalf("%s session survived reuse detection", name)
+		}
+	}
+	if u, _ := users.FindByUsername(ctx, "alice"); len(u.RefreshTokens) != 0 {
+		t.Fatalf("active sessions left: %d", len(u.RefreshTokens))
+	}
+	// A further replay is still recognised.
+	if _, err := svc.Refresh(ctx, stolen.RefreshToken); !errors.Is(err, ErrRefreshTokenReused) {
+		t.Fatalf("second replay: %v", err)
+	}
+}
+
+func TestRefreshTokenReuseWithinGracePeriodIsARace(t *testing.T) {
+	ctx := context.Background()
+	svc, _, now := newTestService(t, 5)
+	s, _ := svc.Login(ctx, "alice", "pw")
+
+	rotated, _ := svc.Refresh(ctx, s.RefreshToken)
+	*now = now.Add(reuseGracePeriod - time.Second)
+	if _, err := svc.Refresh(ctx, s.RefreshToken); err != ErrInvalidRefreshToken {
+		t.Fatalf("concurrent refresh treated as reuse: %v", err)
+	}
+	if _, err := svc.Refresh(ctx, rotated.RefreshToken); err != nil {
+		t.Fatalf("winning session revoked by a racing refresh: %v", err)
+	}
+}
+
+func TestSpentTokensArePrunedAndCapped(t *testing.T) {
+	ctx := context.Background()
+	svc, users, now := newTestService(t, 5)
+	s, _ := svc.Login(ctx, "alice", "pw")
+	first := s.RefreshToken
+	for range maxSpentTokens + 5 {
+		s, _ = svc.Refresh(ctx, s.RefreshToken)
+	}
+	if u, _ := users.FindByUsername(ctx, "alice"); len(u.SpentRefreshTokens) != maxSpentTokens {
+		t.Fatalf("want %d spent tokens, got %d", maxSpentTokens, len(u.SpentRefreshTokens))
+	}
+	// The oldest spent token fell out of the list: replaying it is a plain invalid token.
+	*now = now.Add(time.Hour)
+	if _, err := svc.Refresh(ctx, first); err != ErrInvalidRefreshToken {
+		t.Fatalf("evicted spent token: %v", err)
+	}
+
+	*now = now.Add(31 * 24 * time.Hour)
+	_, _ = svc.Login(ctx, "alice", "pw")
+	if u, _ := users.FindByUsername(ctx, "alice"); len(u.SpentRefreshTokens) != 0 {
+		t.Fatalf("expired spent tokens not pruned: %d", len(u.SpentRefreshTokens))
+	}
+}
+
+func TestLogoutAllRequiresActiveToken(t *testing.T) {
+	ctx := context.Background()
+	svc, users, _ := newTestService(t, 5)
+	s, _ := svc.Login(ctx, "alice", "pw")
+	_, _ = svc.Refresh(ctx, s.RefreshToken)
+
+	if ok, err := svc.LogoutAll(ctx, s.RefreshToken); ok || err != nil {
+		t.Fatalf("logout-all with a spent token: %v %v", ok, err)
+	}
+	if u, _ := users.FindByUsername(ctx, "alice"); len(u.RefreshTokens) != 1 {
+		t.Fatalf("sessions revoked by a spent token: %d left", len(u.RefreshTokens))
 	}
 }

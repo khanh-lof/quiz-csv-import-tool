@@ -67,8 +67,8 @@ Two things make the wiring non-obvious:
   origins is not supported: the browser would block the calls and never send the cookie, breaking
   the silent-refresh-on-boot flow in `app.config.ts`.
 - **Auth is split across two mechanisms.** The access token is a Bearer JWT the client attaches via
-  `AuthInterceptor`; only `csv/generate-from-image` requires it, and validates it by hand at the top
-  of the handler (`auth.JWT.Parse`) — there is no auth middleware.
+  `AuthInterceptor`; only `csv/generate-from-image` requires it, via the `authenticate` +
+  `requireRole` middleware wrapped around that route (`Server/internal/api/middleware.go`).
   The refresh token lives only in the cookie and is never in a JSON body.
 
 ## The two AI generation modes

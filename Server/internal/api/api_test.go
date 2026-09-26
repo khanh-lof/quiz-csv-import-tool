@@ -49,7 +49,7 @@ type testEnv struct {
 func newEnv(t *testing.T) *testEnv {
 	t.Helper()
 	users := store.NewMemory()
-	jwt := auth.NewJWT([]byte("0123456789abcdef0123456789abcdef"), "", "", 15*time.Minute)
+	jwt := auth.NewJWT([]byte("0123456789abcdef0123456789abcdef"), "quiztool", "quiztool-api", 15*time.Minute)
 	gen := &fakeGenerator{}
 	srv := &Server{
 		Users:           users,
@@ -405,5 +405,33 @@ func TestGenerateCSVTimeout(t *testing.T) {
 	rec := env.upload(t, upload{token: token, files: 1})
 	if rec.Code != http.StatusGatewayTimeout || rec.Body.String() != "AI generation timed out." {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRefreshTokenReuseRevokesSessions(t *testing.T) {
+	env := newEnv(t)
+	_, stolen := env.login(t, "alice", "pw")
+	_, laptop := env.login(t, "alice", "pw")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	req.AddCookie(stolen)
+	if rec := env.do(req); rec.Code != http.StatusOK {
+		t.Fatalf("first refresh: %d", rec.Code)
+	}
+	// Age the spent entry past the grace period instead of sleeping.
+	_ = env.users.UpdateSessions(context.Background(), "alice", func(s *store.Sessions) bool {
+		s.Spent[0].SpentAt = s.Spent[0].SpentAt.Add(-time.Hour)
+		return true
+	})
+
+	req = httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	req.AddCookie(stolen)
+	if rec := env.do(req); rec.Code != http.StatusUnauthorized || rec.Body.String() != "Invalid refresh token" {
+		t.Fatalf("replayed token: %d %q", rec.Code, rec.Body)
+	}
+	req = httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	req.AddCookie(laptop)
+	if rec := env.do(req); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("other session survived reuse detection: %d", rec.Code)
 	}
 }

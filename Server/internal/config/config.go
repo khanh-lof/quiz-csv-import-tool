@@ -21,8 +21,8 @@ type Config struct {
 	MongoCollection string
 
 	JWTSecret       []byte
-	JWTIssuer       string // optional; issuer validation is skipped when empty
-	JWTAudience     string // optional; audience validation is skipped when empty
+	JWTIssuer       string // defaults to "quiztool"; always validated
+	JWTAudience     string // defaults to "quiztool-api"; always validated
 	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
 	// MaxRefreshTokensPerUser caps concurrent sessions (devices) per user; the oldest is evicted.
@@ -66,6 +66,9 @@ func (c LLMConfig) Missing() []string {
 	return missing
 }
 
+// minJWTSecretBytes is 256 bits, the output size of HS256's hash.
+const minJWTSecretBytes = 32
+
 // FromEnv builds the configuration, failing on missing required values or malformed numbers.
 func FromEnv() (Config, error) {
 	var errs []error
@@ -90,8 +93,8 @@ func FromEnv() (Config, error) {
 		MongoCollection: envOr("MONGODB_COLLECTION", "Users"),
 
 		JWTSecret:               []byte(os.Getenv("JWT_SECRET")),
-		JWTIssuer:               os.Getenv("JWT_ISSUER"),
-		JWTAudience:             os.Getenv("JWT_AUDIENCE"),
+		JWTIssuer:               envOr("JWT_ISSUER", "quiztool"),
+		JWTAudience:             envOr("JWT_AUDIENCE", "quiztool-api"),
 		AccessTokenTTL:          time.Duration(intVar("JWT_ACCESS_TOKEN_EXPIRES_MINUTES", 15)) * time.Minute,
 		RefreshTokenTTL:         time.Duration(intVar("JWT_REFRESH_TOKEN_EXPIRES_DAYS", 30)) * 24 * time.Hour,
 		MaxRefreshTokensPerUser: intVar("MAX_REFRESH_TOKENS_PER_USER", 5),
@@ -115,6 +118,9 @@ func FromEnv() (Config, error) {
 	}
 	if len(cfg.JWTSecret) == 0 {
 		errs = append(errs, errors.New("JWT_SECRET is required"))
+	} else if len(cfg.JWTSecret) < minJWTSecretBytes {
+		// RFC 7518 §3.2: an HS256 key must be at least as long as the hash output.
+		errs = append(errs, fmt.Errorf("JWT_SECRET must be at least %d bytes for HS256, got %d", minJWTSecretBytes, len(cfg.JWTSecret)))
 	}
 	if cfg.LLM.Timeout <= 0 {
 		errs = append(errs, errors.New("LLM_TIMEOUT_SECONDS must be positive"))

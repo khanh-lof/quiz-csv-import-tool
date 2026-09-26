@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -9,13 +8,18 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Claims uses the same claim names the .NET JwtSecurityTokenHandler wrote for ClaimTypes.Name and
-// ClaimTypes.Role, so tokens look the same to anything that inspects them.
+// ErrTokenExpired is matched (errors.Is) by Parse errors for an expired token — routine traffic
+// the client answers with a silent refresh, unlike a forged or malformed token.
+var ErrTokenExpired = jwt.ErrTokenExpired
+
+// Claims identifies the user by the standard "sub" claim and lists their roles in "roles".
 type Claims struct {
-	Name  string `json:"unique_name"`
-	Roles Roles  `json:"role,omitempty"`
+	Roles []string `json:"roles,omitempty"`
 	jwt.RegisteredClaims
 }
+
+// Username is the subject of the token.
+func (c *Claims) Username() string { return c.Subject }
 
 // HasAnyRole reports whether the token carries one of roles (case-insensitive).
 func (c *Claims) HasAnyRole(roles ...string) bool {
@@ -27,24 +31,6 @@ func (c *Claims) HasAnyRole(roles ...string) bool {
 		}
 	}
 	return false
-}
-
-// Roles decodes the "role" claim from either a single string or an array, as .NET emitted a
-// bare string when the user had exactly one role.
-type Roles []string
-
-func (r *Roles) UnmarshalJSON(data []byte) error {
-	var one string
-	if err := json.Unmarshal(data, &one); err == nil {
-		*r = Roles{one}
-		return nil
-	}
-	var many []string
-	if err := json.Unmarshal(data, &many); err != nil {
-		return err
-	}
-	*r = many
-	return nil
 }
 
 // JWT issues and validates HS256 access tokens.
@@ -63,9 +49,9 @@ func NewJWT(secret []byte, issuer, audience string, ttl time.Duration) *JWT {
 func (j *JWT) Issue(username string, roles []string) (string, error) {
 	now := j.now()
 	claims := Claims{
-		Name:  username,
 		Roles: roles,
 		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   username,
 			Issuer:    j.issuer,
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
@@ -79,7 +65,7 @@ func (j *JWT) Issue(username string, roles []string) (string, error) {
 }
 
 // Parse validates signature, lifetime (with 2 minutes of clock skew) and, when configured,
-// issuer and audience.
+// issuer and audience. config.FromEnv always configures both.
 func (j *JWT) Parse(token string) (*Claims, error) {
 	opts := []jwt.ParserOption{
 		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
@@ -100,8 +86,8 @@ func (j *JWT) Parse(token string) (*Claims, error) {
 	}, opts...); err != nil {
 		return nil, err
 	}
-	if claims.Name == "" {
-		return nil, errors.New("token has no unique_name claim")
+	if claims.Subject == "" {
+		return nil, errors.New("token has no sub claim")
 	}
 	return &claims, nil
 }

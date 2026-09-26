@@ -61,9 +61,6 @@ func run(logger *slog.Logger) error {
 	}
 	users := store.NewMongo(client.Database(cfg.MongoDatabase).Collection(cfg.MongoCollection))
 
-	if len(cfg.JWTSecret) < 32 {
-		logger.Warn("JWT_SECRET is shorter than 32 bytes; use a longer secret for HS256")
-	}
 	if cfg.AdminAPIKey == "" {
 		logger.Warn("ADMIN_API_KEY is not set; POST /api/users rejects every request")
 	}

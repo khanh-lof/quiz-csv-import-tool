@@ -28,14 +28,13 @@ func (m *Memory) FindByUsername(_ context.Context, username string) (*User, erro
 	return clone(u), nil
 }
 
-func (m *Memory) FindByRefreshToken(_ context.Context, token string) (*User, error) {
+func (m *Memory) FindByRefreshTokenHash(_ context.Context, hash string) (*User, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, u := range m.users {
-		for _, t := range u.RefreshTokens {
-			if t.Token == token {
-				return clone(u), nil
-			}
+		if slices.ContainsFunc(u.RefreshTokens, func(t RefreshToken) bool { return t.Hash == hash }) ||
+			slices.ContainsFunc(u.SpentRefreshTokens, func(t SpentRefreshToken) bool { return t.Hash == hash }) {
+			return clone(u), nil
 		}
 	}
 	return nil, ErrNotFound
@@ -51,17 +50,16 @@ func (m *Memory) Create(_ context.Context, user *User) error {
 	return nil
 }
 
-func (m *Memory) UpdateRefreshTokens(_ context.Context, username string,
-	mutate func([]RefreshToken) ([]RefreshToken, bool)) error {
+func (m *Memory) UpdateSessions(_ context.Context, username string, mutate func(*Sessions) bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	u, ok := m.users[username]
 	if !ok {
 		return ErrNotFound
 	}
-	tokens, changed := mutate(slices.Clone(u.RefreshTokens))
-	if changed {
-		u.RefreshTokens = tokens
+	s := Sessions{Active: slices.Clone(u.RefreshTokens), Spent: slices.Clone(u.SpentRefreshTokens)}
+	if mutate(&s) {
+		u.RefreshTokens, u.SpentRefreshTokens = s.Active, s.Spent
 		u.Version++
 		m.users[username] = u
 	}
@@ -105,5 +103,6 @@ func (m *Memory) RefundAICall(_ context.Context, username string, roundStart tim
 func clone(u User) *User {
 	u.Roles = slices.Clone(u.Roles)
 	u.RefreshTokens = slices.Clone(u.RefreshTokens)
+	u.SpentRefreshTokens = slices.Clone(u.SpentRefreshTokens)
 	return &u
 }

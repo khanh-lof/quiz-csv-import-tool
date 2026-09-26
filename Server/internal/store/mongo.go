@@ -20,11 +20,17 @@ func NewMongo(users *mongo.Collection) *Mongo {
 	return &Mongo{users: users, now: time.Now}
 }
 
-// EnsureIndexes creates the index backing FindByRefreshToken. Safe to call on every start.
+// EnsureIndexes creates the indexes backing FindByRefreshTokenHash. Safe to call on every start.
 func (m *Mongo) EnsureIndexes(ctx context.Context) error {
-	_, err := m.users.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.D{{Key: "refreshTokens.token", Value: 1}},
-		Options: options.Index().SetName("refreshTokens_token"),
+	_, err := m.users.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "refreshTokens.tokenHash", Value: 1}},
+			Options: options.Index().SetName("refreshTokens_tokenHash"),
+		},
+		{
+			Keys:    bson.D{{Key: "spentRefreshTokens.tokenHash", Value: 1}},
+			Options: options.Index().SetName("spentRefreshTokens_tokenHash"),
+		},
 	})
 	return err
 }
@@ -33,8 +39,11 @@ func (m *Mongo) FindByUsername(ctx context.Context, username string) (*User, err
 	return m.findOne(ctx, bson.M{"_id": username})
 }
 
-func (m *Mongo) FindByRefreshToken(ctx context.Context, token string) (*User, error) {
-	return m.findOne(ctx, bson.M{"refreshTokens.token": token})
+func (m *Mongo) FindByRefreshTokenHash(ctx context.Context, hash string) (*User, error) {
+	return m.findOne(ctx, bson.M{"$or": bson.A{
+		bson.M{"refreshTokens.tokenHash": hash},
+		bson.M{"spentRefreshTokens.tokenHash": hash},
+	}})
 }
 
 func (m *Mongo) findOne(ctx context.Context, filter bson.M) (*User, error) {
@@ -57,6 +66,9 @@ func (m *Mongo) Create(ctx context.Context, user *User) error {
 	if doc.RefreshTokens == nil {
 		doc.RefreshTokens = []RefreshToken{}
 	}
+	if doc.SpentRefreshTokens == nil {
+		doc.SpentRefreshTokens = []SpentRefreshToken{}
+	}
 	_, err := m.users.InsertOne(ctx, doc)
 	if mongo.IsDuplicateKeyError(err) {
 		return ErrDuplicate
@@ -64,15 +76,14 @@ func (m *Mongo) Create(ctx context.Context, user *User) error {
 	return err
 }
 
-func (m *Mongo) UpdateRefreshTokens(ctx context.Context, username string,
-	mutate func([]RefreshToken) ([]RefreshToken, bool)) error {
+func (m *Mongo) UpdateSessions(ctx context.Context, username string, mutate func(*Sessions) bool) error {
 	for range maxUpdateAttempts {
 		var current struct {
-			Tokens  []RefreshToken `bson:"refreshTokens"`
-			Version int64          `bson:"version"`
+			Sessions `bson:",inline"`
+			Version  int64 `bson:"version"`
 		}
-		err := m.users.FindOne(ctx, bson.M{"_id": username},
-			options.FindOne().SetProjection(bson.M{"refreshTokens": 1, "version": 1})).Decode(&current)
+		err := m.users.FindOne(ctx, bson.M{"_id": username}, options.FindOne().SetProjection(
+			bson.M{"refreshTokens": 1, "spentRefreshTokens": 1, "version": 1})).Decode(&current)
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return ErrNotFound
 		}
@@ -80,16 +91,20 @@ func (m *Mongo) UpdateRefreshTokens(ctx context.Context, username string,
 			return err
 		}
 
-		tokens, changed := mutate(current.Tokens)
-		if !changed {
+		s := current.Sessions
+		if !mutate(&s) {
 			return nil
 		}
-		if tokens == nil {
-			tokens = []RefreshToken{}
+		// Store empty arrays, not null.
+		if s.Active == nil {
+			s.Active = []RefreshToken{}
+		}
+		if s.Spent == nil {
+			s.Spent = []SpentRefreshToken{}
 		}
 
 		res, err := m.users.UpdateOne(ctx, versionFilter(username, current.Version), bson.M{
-			"$set": bson.M{"refreshTokens": tokens},
+			"$set": bson.M{"refreshTokens": s.Active, "spentRefreshTokens": s.Spent},
 			"$inc": bson.M{"version": 1},
 		})
 		if err != nil {
@@ -100,7 +115,7 @@ func (m *Mongo) UpdateRefreshTokens(ctx context.Context, username string,
 		}
 		// A concurrent write bumped the version first: re-read and retry.
 	}
-	return fmt.Errorf("updating refresh tokens of %q: %w", username, ErrConflict)
+	return fmt.Errorf("updating sessions of %q: %w", username, ErrConflict)
 }
 
 // versionFilter matches the document only if nobody wrote it since it was read. Documents

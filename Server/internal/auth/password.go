@@ -19,6 +19,10 @@ const (
 	keySize        = 32
 )
 
+// dummyHash is a well-formed hash (zero salt, zero key) no password derives to; verifying against it
+// costs the same as a real check.
+const dummyHash = "100000.AAAAAAAAAAAAAAAAAAAAAA==.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+
 func HashPassword(password string) (string, error) {
 	salt := make([]byte, saltSize)
 	if _, err := rand.Read(salt); err != nil {
