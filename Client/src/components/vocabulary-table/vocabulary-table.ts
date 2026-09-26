@@ -385,6 +385,8 @@ export class VocabularyTable implements OnInit {
       nzContent: 'Toàn bộ câu hỏi và đáp án trong bảng sẽ bị xóa.',
       nzOkText: 'Xóa',
       nzOkDanger: true,
+      nzClassName: 'qt-confirm-danger',
+      nzIconType: 'delete',
       nzCancelText: 'Giữ lại',
       nzCentered: true,
       nzOnOk: () => this.deleteAllRows()

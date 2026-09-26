@@ -19,6 +19,10 @@
   --qt-gradient-header: linear-gradient(90deg, #ffb7d4, #b7cfff);
   --qt-gradient-soft: linear-gradient(90deg, #ffe6f2, #e6f0ff);
   --qt-gradient-page: linear-gradient(135deg, #ffe0f0 0%, #e0ecff 100%);
+  /* Destructive actions: the same left-to-right gradient as --qt-gradient, in a coral-to-rose red. */
+  --qt-gradient-danger: linear-gradient(90deg, #ff8a9e, #ff4d6d);
+  --qt-danger-shadow: 0 4px 12px rgba(255, 77, 109, 0.35);
+  --qt-danger-shadow-hover: 0 6px 18px rgba(255, 77, 109, 0.5);
 
   --qt-radius: 8px;
   --qt-radius-lg: 16px;
@@ -90,12 +94,20 @@ body {
   opacity: 0.6;
 }
 
-/* A destructive primary action (e.g. a confirm's "Xóa") stays red rather than taking the gradient. */
+/* A destructive primary action (e.g. a confirm's "Xóa") takes the red gradient instead. */
 .ant-btn-primary.ant-btn-dangerous,
 .ant-btn-primary.ant-btn-dangerous:hover,
 .ant-btn-primary.ant-btn-dangerous:focus,
 .ant-btn-primary.ant-btn-dangerous:active {
-  background: var(--qt-error);
+  background: var(--qt-gradient-danger);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: var(--qt-danger-shadow);
+}
+
+.ant-btn-primary.ant-btn-dangerous:not([disabled]):hover,
+.ant-btn-primary.ant-btn-dangerous:not([disabled]):focus {
+  box-shadow: var(--qt-danger-shadow-hover);
 }
 
 /* Secondary buttons: plain nz-button (e.g. a confirm's Cancel), nzType="default" and "dashed". */
@@ -264,6 +276,15 @@ body {
 
 .ant-modal-confirm-confirm .ant-modal-confirm-body > .anticon {
   color: var(--qt-pink);
+}
+
+/* A confirm for a destructive action (nzClassName: 'qt-confirm-danger') takes the danger colors. */
+.qt-confirm-danger .ant-modal-content::before {
+  background: var(--qt-gradient-danger);
+}
+
+.qt-confirm-danger.ant-modal-confirm .ant-modal-confirm-body > .anticon {
+  color: #ff4d6d;
 }
 
 .ant-modal-confirm .ant-modal-confirm-btns .ant-btn {
