@@ -35,7 +35,7 @@ app-usage-guide ::ng-deep .ant-collapse-body {
   overflow-y: auto;
 }
 
-/* Covers the whole page content (the drop zone) while the AI request runs. */
+/* Covers the whole page content (the form) while the AI request runs. */
 .generating-overlay {
   position: absolute;
   inset: 0;
@@ -70,8 +70,15 @@ app-usage-guide ::ng-deep .ant-collapse-body {
   font-variant-numeric: tabular-nums;
 }
 /* Never squeezed by the page fitting the screen (see :host); its min-height would let it shrink. */
-.drop-zone {
+.ai-form {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.drop-zone {
   padding: 16px;
   border: 3px dashed var(--qt-border);
   border-radius: 12px;
@@ -79,7 +86,7 @@ app-usage-guide ::ng-deep .ant-collapse-body {
   transition: all 0.3s ease;
   cursor: pointer;
   outline: none;
-  min-height: 220px;
+  min-height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -159,14 +166,6 @@ app-usage-guide ::ng-deep .ant-collapse-body {
   border-bottom-color: var(--qt-focus);
 }
 
-.images-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  align-items: center;
-}
-
 .images-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -197,10 +196,9 @@ app-usage-guide ::ng-deep .ant-collapse-body {
 }
 
 .image-preview {
-  width: 100px;
-  height: 100px;
+  width: 80px;
+  height: 80px;
   border-radius: 6px;
-  overflow: hidden;
   box-shadow: 0 2px 8px rgba(255, 150, 170, 0.2);
   display: flex;
   align-items: center;
@@ -213,6 +211,7 @@ app-usage-guide ::ng-deep .ant-collapse-body {
   max-width: 100%;
   max-height: 100%;
   object-fit: cover;
+  border-radius: 6px;
 }
 
 .image-info {
@@ -237,20 +236,16 @@ app-usage-guide ::ng-deep .ant-collapse-body {
   color: #999;
 }
 
+/* Close "x" hanging off the preview's top-right corner. */
 .remove-btn {
-  width: 24px;
-  height: 24px;
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
   padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.3s ease;
-}
-
-.remove-btn:hover {
-  background: rgba(255, 77, 79, 0.1);
-  color: var(--qt-error);
+  font-size: 10px;
 }
 
 .images-actions {
