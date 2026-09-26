@@ -16,20 +16,43 @@ export class FileExportService {
               private readonly waygroundCsvBuilder: WaygroundCsvBuilder) {
   }
 
-  public exportFile(filename: string, rows: QuestionDefinition[], exportType: ExportType = ExportType.GimKit) {
-    if (!rows || !rows.length) return;
+  // Both exports return the name the file was downloaded under (Wayground's becomes .xlsx), or null
+  // when there was nothing to export.
+  public exportFile(filename: string, rows: QuestionDefinition[], exportType: ExportType = ExportType.GimKit): string | null {
+    if (!rows || !rows.length) return null;
 
     const csvResult = this.buildCsvStringForExportTypeFromRows(exportType, rows);
-    this.download(filename, csvResult, exportType);
+    return this.download(filename, csvResult, exportType);
   }
 
-  public exportFileFromCsvContent(filename: string, csvContent: string, exportType: ExportType = ExportType.GimKit) {
-    if (!csvContent || !csvContent.length) return;
+  public exportFileFromCsvContent(filename: string, csvContent: string, exportType: ExportType = ExportType.GimKit): string | null {
+    if (!csvContent || !csvContent.length) return null;
 
     const csvResult = this.buildCsvStringForExportTypeFromCsvContent(exportType, csvContent);
-    this.download(filename, csvResult, exportType);
+    return this.download(filename, csvResult, exportType);
   }
-  private convertCsvToXlsx(csvData: string, originalName: string): void {
+
+  public static platformName(exportType: ExportType): string {
+    switch (exportType) {
+      case ExportType.GimKit:
+        return 'Gimkit';
+      case ExportType.Blooket:
+        return 'Blooket';
+      case ExportType.Wayground:
+        return 'Wayground';
+      default:
+        return 'Quiz';
+    }
+  }
+
+  // A download name that says what the file is, e.g. "HSK3-Bai5-Gimkit.csv". Characters a file system
+  // rejects are dropped and spaces become dashes.
+  public static buildFileName(label: string, exportType: ExportType): string {
+    const safeLabel = label.replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '-') || 'QuizTool';
+    return `${safeLabel}-${FileExportService.platformName(exportType)}.csv`;
+  }
+
+  private convertCsvToXlsx(csvData: string, originalName: string): string {
     // 1. Read the CSV text string into a temporary workbook object
     const workbook = XLSX.read(csvData, { type: 'string' });
 
@@ -38,6 +61,7 @@ export class FileExportService {
 
     // 3. Write the file out and automatically trigger a client-side download
     XLSX.writeFile(workbook, outputFileName);
+    return outputFileName;
   }
 
   private buildCsvStringForExportTypeFromRows(exportType: ExportType, rows: QuestionDefinition[]) {
@@ -77,15 +101,15 @@ export class FileExportService {
     URL.revokeObjectURL(url);
   }
 
-  private download(filename: string, csvResult: string, exportType: ExportType) {
+  private download(filename: string, csvResult: string, exportType: ExportType): string {
     switch (exportType) {
+      case ExportType.Wayground:
+        return this.convertCsvToXlsx(csvResult, filename);
       case ExportType.GimKit:
       case ExportType.Blooket:
+      default:
         this.downloadCsv(filename, csvResult);
-        break;
-      case ExportType.Wayground:
-        this.convertCsvToXlsx(csvResult, filename);
-        break;
+        return filename;
     }
   }
 }

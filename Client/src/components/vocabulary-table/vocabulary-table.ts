@@ -154,9 +154,7 @@ export class VocabularyTable implements OnInit {
         nzOkText: 'Đăng nhập',
         nzCancelText: 'Để sau',
         nzCentered: true,
-        nzOnOk: () => {
-          this.router.navigate(['/login'], {queryParams: {returnUrl: `/quiz?${OPEN_AI_POPUP_PARAM}=1`}});
-        }
+        nzOnOk: () => this.loginThenReopenAiPopup()
       });
       return;
     }
@@ -176,6 +174,13 @@ export class VocabularyTable implements OnInit {
     ).subscribe((rows: QuestionDefinition[]) => {
       this.applyImportedRows(rows);
     });
+    componentInstance.sessionExpired.pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(() => this.loginThenReopenAiPopup());
+  }
+
+  private loginThenReopenAiPopup(): void {
+    this.router.navigate(['/login'], {queryParams: {returnUrl: `/quiz?${OPEN_AI_POPUP_PARAM}=1`}});
   }
 
   private applyImportedRows(rows: QuestionDefinition[]) {

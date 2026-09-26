@@ -4,7 +4,6 @@
      (dragover)="onDropZoneDragOver($event)"
      (dragleave)="onDropZoneDragLeave($event)"
      (drop)="onDrop($event)"
-     (paste)="onPaste($event)"
      tabindex="0">
   <form [formGroup]="formGroup" (ngSubmit)="generate()">
     <input #imageInput type="file" accept="image/*" multiple style="display: none" (change)="importFromImage($event)"/>

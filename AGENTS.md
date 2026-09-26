@@ -109,8 +109,9 @@ Consequences to keep in mind when changing anything here:
 
 AI calls are capped per user (`CALL_COUNT_ACCEPTED_IN_A_ROUND` per `ROUND_MINUTES`), with the counter
 stored on the user's MongoDB document. The client has no matching UI state — it discovers the limit
-only as a `403` with a plain-text body from `csv/generate-from-image`, which surfaces as a generic
-error notification. A call whose generation fails (`502`/`504`) is given back (`RefundAICall`), so
+only as a `403` with a plain-text body from `csv/generate-from-image`, which
+`AiGenerationPopup.showGenerationError` turns into a "Hết lượt dùng AI" notification (a `403` with an
+empty body is the role check instead, shown as "Không có quyền"). A call whose generation fails (`502`/`504`) is given back (`RefundAICall`), so
 the client's automatic retries below never run into the limit.
 
 ## Upload size and LLM timeout (Vercel limits)

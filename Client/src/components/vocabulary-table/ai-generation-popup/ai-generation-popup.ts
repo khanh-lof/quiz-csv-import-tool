@@ -1,4 +1,4 @@
-import { Component, DestroyRef, EventEmitter, Output, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, DestroyRef, EventEmitter, HostListener, Output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
@@ -37,6 +37,10 @@ interface ImageItem {
   file: File;
   preview: string;
 }
+// The popup's choices, remembered between openings so a teacher going lesson by lesson does not
+// re-enter the course, level and platform every time.
+const SETTINGS_STORAGE_KEY = 'ai-generation-settings';
+
 interface AiGenerationForm {
   courseType: FormControl<CourseType | null>;
   courseName: FormControl<string | null>;
@@ -69,6 +73,8 @@ interface AiGenerationForm {
 })
 export class AiGenerationPopup {
   @Output() readonly importedRows = new EventEmitter<QuestionDefinition[]>();
+  // The access token expired and could not be refreshed; the host sends the user to log in again.
+  @Output() readonly sessionExpired = new EventEmitter<void>();
 
   // Signals, not plain fields: the ng-zorro modal host is OnPush, so a field changed from an async
   // callback (FileReader, HTTP) would not re-render until the next user event in the popup.
@@ -126,6 +132,33 @@ export class AiGenerationPopup {
     },{
       validators : [this.requiredIfAIAutoMode]
     })
+    this.restoreSettings();
+  }
+
+  private restoreSettings(): void {
+    try {
+      const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (saved) {
+        this.formGroup.patchValue(JSON.parse(saved));
+      }
+    } catch {
+      // Storage unavailable or corrupted: start from the defaults.
+    }
+  }
+
+  private saveSettings(): void {
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(this.formGroup.getRawValue()));
+    } catch {
+      // Remembering the settings is only a convenience.
+    }
+  }
+
+  // While a generation runs (it can take minutes) the popup cannot be dismissed, since closing it
+  // would silently cancel the request.
+  private setGenerating(isGenerating: boolean): void {
+    this.isGenerating.set(isGenerating);
+    this.modalRef.updateConfig({nzClosable: !isGenerating, nzMaskClosable: !isGenerating, nzKeyboard: !isGenerating});
   }
 
   closePopup(): void {
@@ -168,12 +201,12 @@ export class AiGenerationPopup {
     this.processImageFiles(Array.from(files));
   }
 
+  // Listens on the whole document so Ctrl+V works as soon as the popup is open, without clicking the
+  // drop zone first. Only a paste carrying images is taken over; pasting text into a field still works.
+  @HostListener('document:paste', ['$event'])
   onPaste(event: ClipboardEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-
     const items = event.clipboardData?.items;
-    if (!items) {
+    if (!items || this.isGenerating()) {
       return;
     }
 
@@ -189,6 +222,7 @@ export class AiGenerationPopup {
     }
 
     if (pastedFiles.length > 0) {
+      event.preventDefault();
       this.processImageFiles(pastedFiles);
     }
   }
@@ -260,20 +294,21 @@ export class AiGenerationPopup {
       return;
     }
 
-    this.isGenerating.set(true);
+    this.saveSettings();
+    this.setGenerating(true);
     this.retryNumber.set(0);
 
     let imageFiles: File[];
     try {
       imageFiles = await this.imageCompressionService.compressForUpload(this.selectedImages().map(img => img.file));
     } catch (err) {
-      this.isGenerating.set(false);
+      this.setGenerating(false);
       this.showGenerationError(err);
       return;
     }
     if (this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
       this.aiCsvService.generateCsvFromImages(imageFiles, this.onRetry).pipe(takeUntilDestroyed(this.destroyRef),
-        finalize(() => this.isGenerating.set(false))).subscribe({
+        finalize(() => this.setGenerating(false))).subscribe({
         next: csvContent => {
           const rows = this.csvImportService.parseCsv(csvContent);
 
@@ -299,9 +334,18 @@ export class AiGenerationPopup {
         exportType: this.formGroup.controls.exportType.value,
         intelligence: this.formGroup.controls.intelligence.value,
     } satisfies AiGenerationRequest, this.onRetry).pipe(takeUntilDestroyed(this.destroyRef),
-      finalize(() => this.isGenerating.set(false))).subscribe({
+      finalize(() => this.setGenerating(false))).subscribe({
       next: csvContent => {
-        this.fileExportService.exportFileFromCsvContent('NhapFileName.csv', csvContent, this.formGroup.controls.exportType.value!);
+        const exportType = this.formGroup.controls.exportType.value!;
+        const fileName = this.fileExportService.exportFileFromCsvContent(
+          FileExportService.buildFileName(this.lessonLabel(), exportType), csvContent, exportType);
+        if (!fileName) {
+          this.notificationService.warning('Không có dữ liệu', 'AI không trả về câu hỏi nào. Vui lòng thử lại.', {nzPlacement: 'top'});
+          return;
+        }
+        this.notificationService.success('Tạo xong rồi',
+          `Đã tải file ${fileName}, import vào ${FileExportService.platformName(exportType)} là dùng được nhaa.`,
+          {nzPlacement: 'top'});
 
         this.clearAllImages();
         this.closePopup();
@@ -314,8 +358,49 @@ export class AiGenerationPopup {
   // the platform stopping the function) are both fixed by sending fewer images, so say so; they stay
   // on screen until closed. Timeouts and gateway failures only get here once AiCsvService's automatic
   // retries have run out.
+  // Names the lesson for the download, e.g. "HSK3-Bai5", or "Boya-Bai2" for a course typed in by hand.
+  private lessonLabel(): string {
+    const {courseType, courseName, level, lessonNumber} = this.formGroup.getRawValue();
+    const course = courseType === CourseType.Hsk ? 'HSK'
+      : courseType === CourseType.Yct ? 'YCT'
+      : (courseName ?? '');
+    return `${course}${level ?? ''}-Bai${lessonNumber ?? ''}`;
+  }
+
   private showGenerationError(err: unknown): void {
     const status = err instanceof HttpErrorResponse ? err.status : null;
+    const serverMessage = err instanceof HttpErrorResponse && typeof err.error === 'string' ? err.error.trim() : '';
+    if (status === HttpStatusCode.Unauthorized) {
+      this.notificationService.warning('Hết phiên đăng nhập', 'Vui lòng đăng nhập lại để tiếp tục tạo câu hỏi.', {nzPlacement: 'top'});
+      this.sessionExpired.emit();
+      this.closePopup();
+      return;
+    }
+    if (status === HttpStatusCode.Forbidden) {
+      // The server answers 403 both for the per-user AI rate limit (with a message) and for a role
+      // that may not use AI (empty body).
+      if (serverMessage) {
+        this.notificationService.warning('Hết lượt dùng AI',
+          'Bạn đã dùng hết lượt tạo câu hỏi bằng AI cho lúc này. Vui lòng thử lại sau ít phút.',
+          {nzPlacement: 'top', nzDuration: 0});
+      } else {
+        this.notificationService.error('Không có quyền', 'Tài khoản của bạn chưa được cấp quyền dùng AI.', {nzPlacement: 'top'});
+      }
+      return;
+    }
+    if (status === 0) {
+      this.notificationService.error('Mất kết nối',
+        'Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng rồi thử lại.', {nzPlacement: 'top'});
+      return;
+    }
+    if (status === HttpStatusCode.BadGateway) {
+      this.notificationService.error('AI đang gặp sự cố', 'AI chưa trả lời được. Vui lòng thử lại sau ít phút.', {nzPlacement: 'top'});
+      return;
+    }
+    if (status === HttpStatusCode.BadRequest && serverMessage) {
+      this.notificationService.error('Yêu cầu không hợp lệ', serverMessage, {nzPlacement: 'top'});
+      return;
+    }
     if (err instanceof UploadTooLargeError || status === HttpStatusCode.PayloadTooLarge) {
       this.notificationService.error('Ảnh quá lớn',
         'Tổng dung lượng ảnh vượt quá giới hạn tải lên. Vui lòng giảm số lượng ảnh rồi thử lại.',
