@@ -54,11 +54,13 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
   `HttpInterceptorFn`) attaches `Authorization: Bearer <token>` to every request, and on a 401
   (except from `/api/auth/refresh` itself, to avoid a loop) transparently calls `refreshToken()`,
   queues any other in-flight requests behind a `BehaviorSubject` until the refresh resolves, then
-  retries with the new token. A failed refresh clears the token but does not redirect — routing to
-  `/login` happens separately via `authGuard`.
-- `authGuard` (a `CanActivateFn`, exported alongside an equivalent `AuthGuard` class that isn't
-  wired up in `app.routes.ts`) protects the `quiz` route and redirects to `/login` when
-  `AuthService.isLoggedIn()` is false.
+  retries with the new token. A failed refresh clears the token but does not redirect.
+- Every route is open to anonymous users (`authGuard` in `services/auth.guard.ts` is no longer
+  wired into `app.routes.ts`). Only AI generation needs a login: `VocabularyTable.openImagePopup`
+  shows a "Cần đăng nhập" confirm to an anonymous user, which sends them to
+  `/login?returnUrl=/quiz?openAi=1`. `LoginComponent` navigates to `returnUrl` after login (only
+  in-app paths are accepted, otherwise `/quiz`), and `VocabularyTable.ngOnInit` sees `openAi`,
+  strips it from the URL and opens the popup. Table rows are not preserved across that trip.
 
 ### Vocabulary table & CSV pipeline
 

@@ -1,7 +1,7 @@
 import {Component, DestroyRef, inject, OnInit, ChangeDetectionStrategy} from '@angular/core';
 
 import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
-import {Router} from '@angular/router';
+import {ActivatedRoute, Router} from '@angular/router';
 import {NzFormModule} from 'ng-zorro-antd/form';
 import {NzInputModule} from 'ng-zorro-antd/input';
 import {NzButtonModule} from 'ng-zorro-antd/button';
@@ -32,6 +32,7 @@ import {NzNotificationService} from 'ng-zorro-antd/notification';
 export class LoginComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
   private readonly notificationService = inject(NzNotificationService);
@@ -44,8 +45,15 @@ export class LoginComponent implements OnInit {
     this.initializeForm();
     this.loadRememberedUsername();
     if (this.authService.hasAccessToken()) {
-      this.router.navigate(['/']);
+      this.router.navigateByUrl(this.returnUrl);
     }
+  }
+
+  // Where to go after logging in, e.g. back to the table with the AI popup reopened. Only an in-app path
+  // is accepted ("/…" but not "//…"), so the query param cannot send the user to another site.
+  private get returnUrl(): string {
+    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+    return returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//') ? returnUrl : '/quiz';
   }
 
   private initializeForm() {
@@ -81,7 +89,7 @@ export class LoginComponent implements OnInit {
           localStorage.removeItem('remembered_username');
         }
         this.isLoading = false;
-        this.router.navigate(['/quiz']);
+        this.router.navigateByUrl(this.returnUrl);
       },
       error: (error) => {
         this.isLoading = false;

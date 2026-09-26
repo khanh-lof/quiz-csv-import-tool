@@ -1,4 +1,5 @@
-import { Component, DestroyRef, ElementRef, QueryList, ViewChildren, ChangeDetectionStrategy } from '@angular/core';
+import { Component, DestroyRef, ElementRef, OnInit, QueryList, ViewChildren, ChangeDetectionStrategy } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzTableModule } from 'ng-zorro-antd/table';
@@ -29,6 +30,10 @@ import { QuestionDefinition } from '../../models/question-definition';
 import { ExportType } from '../../models/export-type';
 import { QuestionType } from '../../models/question-type';
 import { CdkTextareaAutosize } from '@angular/cdk/text-field';
+import { AuthService } from '../../services/auth.service';
+
+// Query param telling the table to open the AI popup on arrival, set when the login screen sends the user back.
+const OPEN_AI_POPUP_PARAM = 'openAi';
 
 @Component({
   selector: 'app-vocabulary-table',
@@ -50,7 +55,7 @@ import { CdkTextareaAutosize } from '@angular/cdk/text-field';
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './vocabulary-table.css',
 })
-export class VocabularyTable {
+export class VocabularyTable implements OnInit {
   protected listOfData: FormGroup<QuestionDefinitionForm>[];
 
   protected get questionForms() {
@@ -72,6 +77,9 @@ export class VocabularyTable {
               private readonly notificationService: NzNotificationService,
               private readonly modalService: NzModalService,
               private readonly destroyRef: DestroyRef,
+              private readonly authService: AuthService,
+              private readonly router: Router,
+              private readonly route: ActivatedRoute,
               formBuilder: FormBuilder) {
     this.formGroup = formBuilder.group({
       listOfData: formBuilder.array<FormGroup<QuestionDefinitionForm>>(this.createDefaultQuestionFormGroups(), [Validators.minLength(this.minRows), this.duplicateValidator]),
@@ -84,6 +92,20 @@ export class VocabularyTable {
       document.addEventListener('dragover', (e) => e.preventDefault(), false);
       document.addEventListener('drop', (e) => e.preventDefault(), false);
     }
+  }
+
+  ngOnInit(): void {
+    if (!this.route.snapshot.queryParamMap.has(OPEN_AI_POPUP_PARAM)) {
+      return;
+    }
+    // Drop the param so a reload or a later visit does not open the popup again; open it only once that
+    // navigation is done, so it cannot close the popup.
+    this.router.navigate([], {relativeTo: this.route, queryParams: {[OPEN_AI_POPUP_PARAM]: null}, replaceUrl: true})
+      .then(() => {
+        if (this.authService.hasAccessToken()) {
+          this.openImagePopup();
+        }
+      });
   }
 
   addRow() {
@@ -122,7 +144,23 @@ export class VocabularyTable {
     input.value = '';
   }
 
+  // The rest of the table works anonymously; only AI generation needs an account (the server requires a
+  // token on that endpoint), so an anonymous user is asked to log in and brought back with the popup open.
   openImagePopup(): void {
+    if (!this.authService.hasAccessToken()) {
+      this.modalService.confirm({
+        nzTitle: 'Cần đăng nhập',
+        nzContent: 'Tính năng tạo câu hỏi bằng AI cần đăng nhập. Đăng nhập ngay nhé?',
+        nzOkText: 'Đăng nhập',
+        nzCancelText: 'Để sau',
+        nzCentered: true,
+        nzOnOk: () => {
+          this.router.navigate(['/login'], {queryParams: {returnUrl: `/quiz?${OPEN_AI_POPUP_PARAM}=1`}});
+        }
+      });
+      return;
+    }
+
     const modalRef = this.modalService.create({
       nzTitle: 'Tạo câu hỏi bằng AI',
       nzContent: ImageImportPopup,

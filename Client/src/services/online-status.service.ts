@@ -1,7 +1,6 @@
 import { inject, Injectable, NgZone, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { BehaviorSubject, fromEvent } from 'rxjs';
-import { AuthService } from './auth.service';
 
 @Injectable({
   providedIn: 'root'
@@ -9,7 +8,6 @@ import { AuthService } from './auth.service';
 export class OnlineStatusService {
   private router = inject(Router);
   private ngZone = inject(NgZone);
-  private authService = inject(AuthService);
 
   private readonly onlineSubject = new BehaviorSubject<boolean>(
     typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -73,9 +71,7 @@ export class OnlineStatusService {
     const targetUrl =
       this.previousUrl && this.previousUrl !== '/offline' && this.previousUrl !== '/'
         ? this.previousUrl
-        : this.authService.hasAccessToken()
-        ? '/quiz'
-        : '/login';
+        : '/quiz';
     this.router.navigateByUrl(targetUrl);
   }
 
