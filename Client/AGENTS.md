@@ -69,7 +69,8 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
 login/logout item) and the title. The menu navigates between its child routes
 `/quiz` (`VocabularyTable`) and `/ai` (`AiGeneration`, `src/components/ai-generation/`). While an AI
 request runs, `canLeaveAiGeneration` refuses to leave `/ai` (leaving would cancel it) and the
-menu keeps the current item highlighted. Each screen starts with a `UsageGuide` (`src/components/usage-guide/`), a
+menu keeps the current item highlighted. Each screen has a `UsageGuide` (`src/components/usage-guide/`) in an
+`nz-sider` left of the table or AI form (above it on screens under 768px), a
 collapsible how-to whose closed state is remembered per page in `localStorage`
 (`usage-guide-collapsed:<key>`); keep its text in step with the screen when the flow changes.
 

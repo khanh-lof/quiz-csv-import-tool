@@ -4,6 +4,46 @@
   min-height: 0;
 }
 
+/* Guide on the left, table on the right. Like the form below, it shrinks to the height the workspace
+   leaves for the page. */
+.quiz-layout {
+  flex: 0 1 auto;
+  min-height: 0;
+  gap: 24px;
+}
+
+/* Passes the height squeeze on to the form. */
+.quiz-layout > .ant-layout-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.guide-sider app-usage-guide {
+  margin-bottom: 0;
+}
+
+/* Too narrow for both side by side: the guide goes back above the table. The sider's width is an
+   inline style, hence !important; the content drops the width 0 ng-zorro gives it beside a sider. */
+@media (max-width: 767px) {
+  .quiz-layout.ant-layout-has-sider {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .quiz-layout .guide-sider {
+    flex: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+
+  .quiz-layout.ant-layout-has-sider > .ant-layout-content {
+    width: auto;
+    flex: 0 1 auto;
+  }
+}
+
 /* Shrinks to the height the workspace leaves for the page; the table content absorbs the squeeze. */
 form {
   display: flex;

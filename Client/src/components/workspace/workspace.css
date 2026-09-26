@@ -1,6 +1,6 @@
-/* Both pages are exactly one screen tall: the part of the page that can scroll on its own (the table,
-   or the AI page's usage guide) gives up height so the browser never adds a page scrollbar. The floor
-   keeps them usable on very short screens, where the page scrolls instead. */
+/* Both pages are exactly one screen tall: the table scrolls on its own and gives up height so the
+   browser never adds a page scrollbar. The floor keeps them usable on very short screens, where the
+   page scrolls instead. */
 :host {
   height: max(100dvh, 640px);
   display: flex;
@@ -8,10 +8,23 @@
   padding: 20px;
 }
 
+/* One width for both modes, so switching between them does not resize the page. */
 .center-container {
   display: flex;
   flex-direction: column;
+  width: min(1200px, 100%);
   padding: 4px 20px;
+}
+
+/* A phone cannot spare 40px a side: the padding shrinks so the menu and the title still fit. */
+@media (max-width: 767px) {
+  :host {
+    padding: 12px;
+  }
+
+  .center-container {
+    padding: 4px 0;
+  }
 }
 
 .workspace-nav {

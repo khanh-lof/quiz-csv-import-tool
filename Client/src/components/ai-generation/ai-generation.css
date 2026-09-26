@@ -3,36 +3,37 @@
   flex-direction: column;
   min-height: 0;
   position: relative;
-  width: min(720px, 100%);
-  margin: 0 auto;
 }
 
-/* On a short screen the open usage guide gives up height first and scrolls its text, so the form
-   stays in view without a page scrollbar. The grid rows pass the squeeze down to the text. A closed
-   guide keeps its automatic minimum (its header), so it never shrinks. */
-app-usage-guide {
-  display: grid;
+/* Guide on the left, form on the right. */
+.ai-layout {
+  flex: 0 0 auto;
+  gap: 24px;
 }
 
-/* An open guide keeps its header (~50px) and a few readable lines; below that the page scrolls
-   instead, until the guide is closed. */
-app-usage-guide:has(.ant-collapse-item-active) {
-  min-height: 150px;
+.guide-sider app-usage-guide {
+  margin-bottom: 0;
 }
 
-app-usage-guide ::ng-deep .ant-collapse,
-app-usage-guide ::ng-deep .ant-collapse-panel {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr);
-}
+/* Too narrow for both side by side: the guide goes back above the form. The sider's width is an
+   inline style, hence !important; the content drops the width 0 ng-zorro gives it beside a sider. */
+@media (max-width: 767px) {
+  .ai-layout.ant-layout-has-sider {
+    flex-direction: column;
+    gap: 16px;
+  }
 
-app-usage-guide ::ng-deep .ant-collapse-item {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-}
+  .ai-layout .guide-sider {
+    flex: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
 
-app-usage-guide ::ng-deep .ant-collapse-body {
-  overflow-y: auto;
+  .ai-layout.ant-layout-has-sider > .ant-layout-content {
+    width: auto;
+    flex: none;
+  }
 }
 
 /* Covers the whole page content (the form) while the AI request runs. */

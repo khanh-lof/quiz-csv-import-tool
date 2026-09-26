@@ -1,173 +1,179 @@
-<app-usage-guide storageKey="ai">
-  <ol>
-    <li>Thêm ảnh bài học: kéo thả vào khung, dán (Ctrl+V) hoặc bấm <b>Thêm ảnh</b>. Chụp rõ phần từ vựng.</li>
-    <li>Chọn chế độ:
-      <ul>
-        <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình, cấp, bài và nền tảng. Không có ảnh cũng được. File quiz được tải về ngay.</li>
-        <li><b>"Tiếng Việt + pinyin + chữ Hán là gì?"</b>: cần ít nhất 1 ảnh. Từ vựng được đưa vào bảng <b>Tạo thủ công</b> để bạn sửa rồi tải file.</li>
-      </ul>
-    </li>
-  </ol>
-</app-usage-guide>
-<!-- inert while generating: nothing behind the overlay can be clicked, focused or typed into. -->
-<form class="ai-form" [formGroup]="formGroup" (ngSubmit)="generate()"
-      [attr.inert]="isGenerating() ? '' : null">
-  <input #imageInput type="file" accept="image/*" multiple style="display: none" (change)="importFromImage($event)"/>
+<!-- The guide sits beside the form, not above it, so opening it never pushes the form down.
+     inert while generating: nothing behind the overlay can be clicked, focused or typed into. -->
+<nz-layout class="ai-layout" [attr.inert]="isGenerating() ? '' : null">
+  <nz-sider nzTheme="light" [nzWidth]="280" class="guide-sider">
+    <app-usage-guide storageKey="ai">
+      <ol>
+        <li>Thêm ảnh bài học: kéo thả vào khung, dán (Ctrl+V) hoặc bấm <b>Thêm ảnh</b>. Chụp rõ phần từ vựng.</li>
+        <li>Chọn chế độ:
+          <ul>
+            <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình, cấp, bài và nền tảng. Không có ảnh cũng được. File quiz được tải về ngay.</li>
+            <li><b>"Tiếng Việt + pinyin + chữ Hán là gì?"</b>: cần ít nhất 1 ảnh. Từ vựng được đưa vào bảng <b>Tạo thủ công</b> để bạn sửa rồi tải file.</li>
+          </ul>
+        </li>
+      </ol>
+    </app-usage-guide>
+  </nz-sider>
+  <nz-content>
+    <form class="ai-form" [formGroup]="formGroup" (ngSubmit)="generate()">
+      <input #imageInput type="file" accept="image/*" multiple style="display: none" (change)="importFromImage($event)"/>
 
-  <!-- Only the image area takes drops; the mode, inputs and buttons sit below it. -->
-  <div class="drop-zone"
-       [class.drag-over]="isDragOver"
-       (dragenter)="onDropZoneEnter($event)"
-       (dragover)="onDropZoneDragOver($event)"
-       (dragleave)="onDropZoneDragLeave($event)"
-       (drop)="onDrop($event)"
-       tabindex="0">
-    @if (selectedImages().length > 0) {
-      <div class="images-list">
-        @for (image of selectedImages(); let i = $index; track i) {
-          <div class="image-item">
-            @if (!isGenerating()) {
-              <button nz-button nzType="primary" nzDanger nzShape="circle" nzSize="small"
-                      class="remove-btn" type="button" aria-label="Xóa ảnh"
-                      (click)="removeImage(i)">
-                <nz-icon nzType="close" nzTheme="outline"/>
-              </button>
+      <!-- Only the image area takes drops; the mode, inputs and buttons sit below it. -->
+      <div class="drop-zone"
+           [class.drag-over]="isDragOver"
+           (dragenter)="onDropZoneEnter($event)"
+           (dragover)="onDropZoneDragOver($event)"
+           (dragleave)="onDropZoneDragLeave($event)"
+           (drop)="onDrop($event)"
+           tabindex="0">
+        @if (selectedImages().length > 0) {
+          <div class="images-list">
+            @for (image of selectedImages(); let i = $index; track i) {
+              <div class="image-item">
+                @if (!isGenerating()) {
+                  <button nz-button nzType="primary" nzDanger nzShape="circle" nzSize="small"
+                          class="remove-btn" type="button" aria-label="Xóa ảnh"
+                          (click)="removeImage(i)">
+                    <nz-icon nzType="close" nzTheme="outline"/>
+                  </button>
+                }
+                <div class="image-preview">
+                  <img [src]="image.preview" alt="Preview" class="preview-img"/>
+                </div>
+                <div class="image-info">
+                  <p class="image-name">{{ image.file.name }}</p>
+                  <p class="image-size">{{ (image.file.size || 0) / 1024 | number:'1.0-0' }} KB</p>
+                </div>
+              </div>
             }
-            <div class="image-preview">
-              <img [src]="image.preview" alt="Preview" class="preview-img"/>
-            </div>
-            <div class="image-info">
-              <p class="image-name">{{ image.file.name }}</p>
-              <p class="image-size">{{ (image.file.size || 0) / 1024 | number:'1.0-0' }} KB</p>
-            </div>
+          </div>
+        } @else {
+          <div class="drop-zone-content">
+            <nz-icon nzType="picture" nzTheme="outline" class="drop-zone-icon"/>
+            <p class="drop-zone-text">Kéo ảnh vào đây hoặc bấm Paste (Ctrl+V)</p>
+            <p class="drop-zone-subtext">hoặc chọn file <a href="javascript:void(0)" (click)="imageInput.click()"
+                                                           class="file-link"><strong>TẠI ĐÂY</strong></a></p>
+            @if (formGroup.controls.AIMode.value === AIGenerationMode.Auto) {
+              <p class="drop-zone-subtext">Không có ảnh cũng được, AI sẽ tự lấy từ vựng của bài nhaa</p>
+            }
           </div>
         }
       </div>
-    } @else {
-      <div class="drop-zone-content">
-        <nz-icon nzType="picture" nzTheme="outline" class="drop-zone-icon"/>
-        <p class="drop-zone-text">Kéo ảnh vào đây hoặc bấm Paste (Ctrl+V)</p>
-        <p class="drop-zone-subtext">hoặc chọn file <a href="javascript:void(0)" (click)="imageInput.click()"
-                                                       class="file-link"><strong>TẠI ĐÂY</strong></a></p>
-        @if (formGroup.controls.AIMode.value === AIGenerationMode.Auto) {
-          <p class="drop-zone-subtext">Không có ảnh cũng được, AI sẽ tự lấy từ vựng của bài nhaa</p>
-        }
-      </div>
-    }
-  </div>
 
-  <div class="ai-selection">
-    <label>Chọn chế độ: </label>
-    <nz-radio-group [formControl]="formGroup.controls.AIMode" nzButtonStyle="solid">
-      <label nz-radio-button [nzValue]="AIGenerationMode.Auto">AI tự nghĩ câu hỏi</label>
-      <label nz-radio-button [nzValue]="AIGenerationMode.Formatted">"Tiếng Việt + pinyin + chữ Hán là gì?"</label>
-    </nz-radio-group>
-  </div>
-
-  @if (formGroup.controls.AIMode.value === AIGenerationMode.Auto) {
-    <!-- Each .field stacks its control over its error message, so a message never shifts the row. -->
-    <div class="creative-selection">
-      <div class="field">
-        <nz-select nzId="courseType" [formControl]="formGroup.controls.courseType"
-                   nzPlaceHolder="Chọn giáo trình" class="course-type-select">
-          <nz-option [nzValue]="CourseType.Hsk" nzLabel="HSK"></nz-option>
-          <nz-option [nzValue]="CourseType.Yct" nzLabel="YCT"></nz-option>
-          <nz-option [nzValue]="CourseType.Other" nzLabel="Khác"></nz-option>
-        </nz-select>
-        <ng-container
-          *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.courseType}"/>
-      </div>
-      @if (formGroup.controls.courseType.value === CourseType.Other) {
-        <div class="field course-name-field">
-          <input nz-input nzId="courseName" [formControl]="formGroup.controls.courseName"
-                 placeholder="Tên giáo trình" class="course-name-input"/>
-          <ng-container
-            *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.courseName}"/>
-        </div>
-      }
-      <div class="field">
-        <div class="field-row">
-          <label class="field-label" for="level">Cấp</label>
-          <nz-input-number nzId="level" [formControl]="formGroup.controls.level" [nzMin]="1" [nzMax]="9"
-                           [nzStep]="1"
-                           [nzPlaceHolder]="formGroup.controls.courseType.value === CourseType.Other ? 'Không bắt buộc' : ''"
-                           [class.optional-level]="formGroup.controls.courseType.value === CourseType.Other"
-                           [nzPrecision]="0"></nz-input-number>
-        </div>
-        <ng-container
-          *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.level}"/>
-      </div>
-      <div class="field">
-        <div class="field-row">
-          <label class="field-label" for="lessonNumber">Bài</label>
-          <nz-input-number nzId="lessonNumber" [formControl]="formGroup.controls.lessonNumber" [nzMin]="1"
-                           [nzMax]="100" [nzStep]="1"
-                           [nzPrecision]="0"></nz-input-number>
-        </div>
-        <ng-container
-          *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.lessonNumber}"/>
-      </div>
-    </div>
-    <div class="output-selection">
-      <div class="field">
-        <nz-select [formControl]="formGroup.controls.exportType" nzPlaceHolder="Tạo quiz cho"
-                   class="export-type-select">
-          <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
-          <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
-          <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
-        </nz-select>
-        <ng-container
-          *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.exportType}"/>
-      </div>
-      <div class="intelligence-selection">
-        <label>Độ thông minh: </label>
-        <!-- Values are the server's intelligence levels: 1 = LLM_INTELLIGENCE_MODELS[0], 2 = [1]. -->
-        <nz-radio-group [formControl]="formGroup.controls.intelligence" nzButtonStyle="solid">
-          <label nz-radio-button [nzValue]="1">Thấp</label>
-          <label nz-radio-button [nzValue]="2">Cao</label>
+      <div class="ai-selection">
+        <label>Chọn chế độ: </label>
+        <nz-radio-group [formControl]="formGroup.controls.AIMode" nzButtonStyle="solid">
+          <label nz-radio-button [nzValue]="AIGenerationMode.Auto">AI tự nghĩ câu hỏi</label>
+          <label nz-radio-button [nzValue]="AIGenerationMode.Formatted">"Tiếng Việt + pinyin + chữ Hán là gì?"</label>
         </nz-radio-group>
-        @if (formGroup.controls.intelligence.value === 2) {
-          <small class="intelligence-warning">
-            <nz-icon nzType="warning" nzTheme="outline"/> Chậm hơn, tốn gấp ~3 lần
-          </small>
+      </div>
+
+      @if (formGroup.controls.AIMode.value === AIGenerationMode.Auto) {
+        <!-- Each .field stacks its control over its error message, so a message never shifts the row. -->
+        <div class="creative-selection">
+          <div class="field">
+            <nz-select nzId="courseType" [formControl]="formGroup.controls.courseType"
+                       nzPlaceHolder="Chọn giáo trình" class="course-type-select">
+              <nz-option [nzValue]="CourseType.Hsk" nzLabel="HSK"></nz-option>
+              <nz-option [nzValue]="CourseType.Yct" nzLabel="YCT"></nz-option>
+              <nz-option [nzValue]="CourseType.Other" nzLabel="Khác"></nz-option>
+            </nz-select>
+            <ng-container
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.courseType}"/>
+          </div>
+          @if (formGroup.controls.courseType.value === CourseType.Other) {
+            <div class="field course-name-field">
+              <input nz-input nzId="courseName" [formControl]="formGroup.controls.courseName"
+                     placeholder="Tên giáo trình" class="course-name-input"/>
+              <ng-container
+                *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.courseName}"/>
+            </div>
+          }
+          <div class="field">
+            <div class="field-row">
+              <label class="field-label" for="level">Cấp</label>
+              <nz-input-number nzId="level" [formControl]="formGroup.controls.level" [nzMin]="1" [nzMax]="9"
+                               [nzStep]="1"
+                               [nzPlaceHolder]="formGroup.controls.courseType.value === CourseType.Other ? 'Không bắt buộc' : ''"
+                               [class.optional-level]="formGroup.controls.courseType.value === CourseType.Other"
+                               [nzPrecision]="0"></nz-input-number>
+            </div>
+            <ng-container
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.level}"/>
+          </div>
+          <div class="field">
+            <div class="field-row">
+              <label class="field-label" for="lessonNumber">Bài</label>
+              <nz-input-number nzId="lessonNumber" [formControl]="formGroup.controls.lessonNumber" [nzMin]="1"
+                               [nzMax]="100" [nzStep]="1"
+                               [nzPrecision]="0"></nz-input-number>
+            </div>
+            <ng-container
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.lessonNumber}"/>
+          </div>
+        </div>
+        <div class="output-selection">
+          <div class="field">
+            <nz-select [formControl]="formGroup.controls.exportType" nzPlaceHolder="Tạo quiz cho"
+                       class="export-type-select">
+              <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
+              <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
+              <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
+            </nz-select>
+            <ng-container
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.exportType}"/>
+          </div>
+          <div class="intelligence-selection">
+            <label>Độ thông minh: </label>
+            <!-- Values are the server's intelligence levels: 1 = LLM_INTELLIGENCE_MODELS[0], 2 = [1]. -->
+            <nz-radio-group [formControl]="formGroup.controls.intelligence" nzButtonStyle="solid">
+              <label nz-radio-button [nzValue]="1">Thấp</label>
+              <label nz-radio-button [nzValue]="2">Cao</label>
+            </nz-radio-group>
+            @if (formGroup.controls.intelligence.value === 2) {
+              <small class="intelligence-warning">
+                <nz-icon nzType="warning" nzTheme="outline"/> Chậm hơn, tốn gấp ~3 lần
+              </small>
+            }
+          </div>
+        </div>
+      }
+
+      <div class="images-actions">
+        <button nz-button nzType="primary" nzSize="large" type="submit"
+                [disabled]="isGenerating()">
+          @if (isGenerating()) {
+            <nz-spin nzSimple />
+          } @else {
+            <nz-icon nzType="robot" nzTheme="outline"/>
+          }
+          {{ submitButtonLabel }}
+        </button>
+        @if (selectedImages().length > 0) {
+          <button nz-button nzType="default" nzSize="large" type="button"
+                  (click)="clearAllImages()"
+                  [disabled]="isGenerating()">
+            <nz-icon nzType="close" nzTheme="outline"/>
+            Xóa tất cả
+          </button>
+        }
+        @if (!isGenerating()) {
+          <button nz-button nzType="dashed" nzSize="large" type="button"
+                  (click)="imageInput.click()">
+            <nz-icon nzType="plus" nzTheme="outline"/>
+            Thêm ảnh
+          </button>
         }
       </div>
-    </div>
-  }
 
-  <div class="images-actions">
-    <button nz-button nzType="primary" nzSize="large" type="submit"
-            [disabled]="isGenerating()">
-      @if (isGenerating()) {
-        <nz-spin nzSimple />
-      } @else {
-        <nz-icon nzType="robot" nzTheme="outline"/>
-      }
-      {{ submitButtonLabel }}
-    </button>
-    @if (selectedImages().length > 0) {
-      <button nz-button nzType="default" nzSize="large" type="button"
-              (click)="clearAllImages()"
-              [disabled]="isGenerating()">
-        <nz-icon nzType="close" nzTheme="outline"/>
-        Xóa tất cả
-      </button>
-    }
-    @if (!isGenerating()) {
-      <button nz-button nzType="dashed" nzSize="large" type="button"
-              (click)="imageInput.click()">
-        <nz-icon nzType="plus" nzTheme="outline"/>
-        Thêm ảnh
-      </button>
-    }
-  </div>
-
-  <ng-template let-formControl let-message="message" let-errorKey="errorKey" #errorMessage>
-    @if (formControl.hasError(errorKey) && formControl.dirty) {
-      <small class="text-error">{{ message }}</small>
-    }
-  </ng-template>
-</form>
+      <ng-template let-formControl let-message="message" let-errorKey="errorKey" #errorMessage>
+        @if (formControl.hasError(errorKey) && formControl.dirty) {
+          <small class="text-error">{{ message }}</small>
+        }
+      </ng-template>
+    </form>
+  </nz-content>
+</nz-layout>
 @if (isGenerating()) {
   <div class="generating-overlay" role="status" aria-live="polite">
     <nz-spin nzSimple nzSize="large"/>

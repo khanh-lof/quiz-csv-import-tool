@@ -374,3 +374,20 @@ input.ant-input-sm,
   background: rgba(255, 255, 255, 0.85);
   color: var(--qt-text);
 }
+
+/* ===== Layout (the AI page's guide beside its form) ===== */
+
+/* The page's own background shows through instead of the library's grey panel and its dark sider
+   (dark until the light theme class arrives a tick after the sider is created). */
+.ant-layout,
+.ant-layout-sider,
+.ant-layout-sider-light {
+  background: transparent;
+}
+
+/* The guides' siders never collapse, so nothing on them should animate. The library's
+   `transition: all` would otherwise play the sider's first styles (theme, width) in slowly each time
+   a mode's page is created. */
+.ant-layout-sider {
+  transition: none;
+}

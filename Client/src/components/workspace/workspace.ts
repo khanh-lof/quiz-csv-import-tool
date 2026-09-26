@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, DestroyRef, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, filter, map, of } from 'rxjs';
@@ -33,6 +33,7 @@ export class Workspace {
   private readonly authService = inject(AuthService);
   private readonly notificationService = inject(NzNotificationService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   protected readonly mode = toSignal(
     this.router.events.pipe(
@@ -41,6 +42,14 @@ export class Workspace {
     ),
     {initialValue: this.currentMode()}
   );
+
+  // The router puts a mode's page on screen before its first change detection, which runs a task later.
+  // In between the browser can draw the page without its ng-zorro classes (button types, checked radios,
+  // input styles), and their `transition: all` then plays every control into its style slowly. Rendering
+  // the page right away gives it its full styles before it is ever drawn.
+  protected onPageActivate(): void {
+    this.cdr.detectChanges();
+  }
 
   private currentMode(): WorkspaceMode {
     return this.router.url.startsWith('/ai') ? '/ai' : '/quiz';
