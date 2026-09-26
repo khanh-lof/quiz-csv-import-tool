@@ -104,6 +104,16 @@ converted to `.xlsx` via the `xlsx` package first.
 
 ng-zorro-antd (Ant Design for Angular) components are imported individually per-component (e.g.
 `NzButtonComponent`, `NzTableModule`) rather than as one shared module, consistent with standalone
-component conventions. `provideNzI18n(en_US)` is set in `app.config.ts` despite most user-facing
+component conventions. Styling is centralized so every library component looks the same on every screen, including
+overlays (modals, confirms, dropdowns, notifications) that render outside any component:
+- `src/theme.less` sets ng-zorro's Less variables (primary pink, border color, radius, …).
+- `src/styles.css` holds the design tokens (`--qt-*` custom properties on `:root`), the page
+  background, the `.qt-centered-page` layout helper, `.text-error`, and global overrides of `.ant-*`
+  classes for what Less variables can't express (gradient buttons/headers, 2px borders, focus glow).
+- Component stylesheets hold only layout and sizing. Don't restyle library colors there or reach
+  for `::ng-deep` without `:host` (that leaks globally); add or change a global override instead,
+  and use `nzType`/`nzSize` (e.g. `nzType="primary"` for the main action) rather than CSS.
+
+`provideNzI18n(en_US)` is set in `app.config.ts` despite most user-facing
 notification strings in the codebase being written in Vietnamese directly at the call site (not via
 i18n).

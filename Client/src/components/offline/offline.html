@@ -1,4 +1,4 @@
-<div class="offline-container">
+<div class="qt-centered-page">
   <div class="offline-card-wrapper">
     <nz-card nzTitle="Quiz Tool - Mất kết nối" class="offline-card">
       <div class="offline-content">
@@ -71,7 +71,6 @@
             nzSize="large"
             [nzLoading]="isChecking"
             (click)="onRetry()"
-            class="btn-retry"
           >
             <nz-icon nzType="reload" nzTheme="outline" />
             Thử kết nối lại
@@ -82,7 +81,6 @@
             nzType="default"
             nzSize="large"
             (click)="onGoHome()"
-            class="btn-home"
           >
             <nz-icon nzType="home" nzTheme="outline" />
             Về trang chủ

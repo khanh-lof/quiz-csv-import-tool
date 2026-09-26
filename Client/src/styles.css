@@ -1,1 +1,298 @@
-/* You can add global styles to this file, and also import other style files */
+/*
+ * App-wide look: design tokens plus the overrides that restyle ng-zorro components to the app's pink/blue
+ * theme. theme.less sets the library's own Less variables (colors, radius); this file adds what those
+ * cannot express. Component stylesheets hold only layout and sizing, never colors or library overrides,
+ * so a library component looks the same on every screen, including overlays (modals, confirms,
+ * dropdowns, notifications) that render outside any component.
+ */
+
+:root {
+  --qt-pink: #ff8ecb;
+  --qt-blue: #8fb0ff;
+  --qt-border: #ff99cc;
+  --qt-focus: #88aaff;
+  --qt-text: #333;
+  --qt-text-muted: #666;
+  --qt-error: #ff4d4f;
+
+  --qt-gradient: linear-gradient(90deg, var(--qt-pink), var(--qt-blue));
+  --qt-gradient-header: linear-gradient(90deg, #ffb7d4, #b7cfff);
+  --qt-gradient-soft: linear-gradient(90deg, #ffe6f2, #e6f0ff);
+  --qt-gradient-page: linear-gradient(135deg, #ffe0f0 0%, #e0ecff 100%);
+
+  --qt-radius: 8px;
+  --qt-radius-lg: 16px;
+  --qt-border-width: 2px;
+  --qt-focus-shadow: 0 0 10px rgba(153, 183, 255, 0.7);
+  --qt-lift-shadow: 0 4px 12px rgba(255, 150, 170, 0.4);
+  --qt-card-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  --qt-transition: 0.25s ease;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--qt-gradient-page) fixed;
+  color: var(--qt-text);
+}
+
+/* ===== Layout helpers ===== */
+
+/* A full-height page with its content (usually one card) centered, as on the login and offline screens. */
+.qt-centered-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.text-error {
+  display: block;
+  color: var(--qt-error);
+  font-size: 0.7rem;
+}
+
+/* ===== Buttons ===== */
+
+.ant-btn:not(.ant-btn-circle):not(.ant-btn-round) {
+  border-radius: var(--qt-radius);
+}
+
+.ant-btn {
+  font-weight: 600;
+  transition: all var(--qt-transition);
+}
+
+.ant-btn:not([disabled]):not(.ant-btn-text):not(.ant-btn-link):hover {
+  transform: scale(1.03);
+}
+
+.ant-btn-primary,
+.ant-btn-primary:hover,
+.ant-btn-primary:focus,
+.ant-btn-primary:active,
+.ant-btn-primary[disabled],
+.ant-btn-primary[disabled]:hover,
+.ant-btn-primary[disabled]:focus,
+.ant-btn-primary[disabled]:active {
+  background: var(--qt-gradient);
+  border-color: transparent;
+  color: #fff;
+}
+
+.ant-btn-primary:not([disabled]):hover,
+.ant-btn-primary:not([disabled]):focus {
+  filter: brightness(1.1);
+  box-shadow: var(--qt-lift-shadow);
+}
+
+.ant-btn-primary[disabled] {
+  opacity: 0.6;
+}
+
+/* Secondary buttons: plain nz-button (e.g. a confirm's Cancel), nzType="default" and "dashed". */
+.ant-btn:not(.ant-btn-primary):not(.ant-btn-text):not(.ant-btn-link):not(.ant-btn-dangerous) {
+  background: var(--qt-gradient-soft);
+  border-color: var(--qt-border);
+  color: #444;
+}
+
+.ant-btn:not(.ant-btn-primary):not(.ant-btn-text):not(.ant-btn-link):not(.ant-btn-dangerous):not([disabled]):hover,
+.ant-btn:not(.ant-btn-primary):not(.ant-btn-text):not(.ant-btn-link):not(.ant-btn-dangerous):not([disabled]):focus {
+  border-color: var(--qt-focus);
+  color: var(--qt-text);
+  box-shadow: 0 4px 12px rgba(153, 183, 255, 0.35);
+}
+
+.ant-btn-dashed:not([disabled]) {
+  color: var(--qt-pink);
+}
+
+/* ===== Text inputs, number inputs, selects ===== */
+
+.ant-input,
+.ant-input-number,
+.ant-input-affix-wrapper,
+.ant-select:not(.ant-select-customize-input) .ant-select-selector {
+  border-width: var(--qt-border-width);
+  border-radius: var(--qt-radius);
+  transition: all var(--qt-transition);
+}
+
+.ant-input:hover,
+.ant-input-number:hover,
+.ant-input-affix-wrapper:hover,
+.ant-select:not(.ant-select-disabled):hover .ant-select-selector {
+  border-color: var(--qt-focus);
+}
+
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-number-focused,
+.ant-input-affix-wrapper-focused,
+.ant-select-focused:not(.ant-select-disabled).ant-select:not(.ant-select-customize-input) .ant-select-selector {
+  border-color: var(--qt-focus);
+  box-shadow: var(--qt-focus-shadow);
+}
+
+/* The input inside a password field is borderless; the wrapper above carries the border. */
+.ant-input-affix-wrapper > input.ant-input {
+  border: none;
+}
+
+.ant-select:not(.ant-select-customize-input) .ant-select-selector {
+  background: var(--qt-gradient-soft);
+}
+
+.ant-select-selection-placeholder {
+  color: var(--qt-text);
+}
+
+.ant-select-arrow {
+  color: #ff66aa;
+}
+
+.ant-select-dropdown {
+  border-radius: var(--qt-radius);
+}
+
+/* Validation: a control the user touched that is still invalid. */
+.ant-input.ng-invalid.ng-dirty,
+.ant-input-number.ng-invalid.ng-dirty,
+.ant-select.ng-invalid.ng-dirty:not(.ant-select-customize-input) .ant-select-selector {
+  border-color: var(--qt-error);
+}
+
+/* ===== Radio buttons ===== */
+
+.ant-radio-button-wrapper {
+  font-weight: 600;
+  color: var(--qt-pink);
+  transition: all var(--qt-transition);
+}
+
+.ant-radio-group-solid .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled),
+.ant-radio-group-solid .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled):hover {
+  background: var(--qt-gradient);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(143, 176, 255, 0.4);
+}
+
+.ant-radio-group-solid .ant-radio-button-wrapper:not(.ant-radio-button-wrapper-disabled):hover {
+  filter: brightness(1.05);
+  transform: scale(1.05);
+  box-shadow: var(--qt-lift-shadow);
+}
+
+/* ===== Cards ===== */
+
+.ant-card {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 180, 210, 0.4);
+  box-shadow: var(--qt-card-shadow);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+}
+
+.ant-card-head {
+  background: var(--qt-gradient-header);
+  border-bottom: none;
+}
+
+.ant-card-head-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--qt-text);
+}
+
+/* ===== Modals and confirms ===== */
+
+.ant-modal-content {
+  border-radius: var(--qt-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--qt-card-shadow);
+}
+
+.ant-modal-header {
+  background: var(--qt-gradient-header);
+  border-bottom: none;
+}
+
+.ant-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--qt-text);
+}
+
+.ant-modal-close {
+  color: var(--qt-text);
+}
+
+/* A confirm has no header, so a gradient strip along the top stands in for one. */
+.ant-modal-confirm .ant-modal-content::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background: var(--qt-gradient);
+}
+
+.ant-modal-confirm .ant-modal-body {
+  padding: 28px 24px 20px;
+}
+
+.ant-modal-confirm-body .ant-modal-confirm-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--qt-text);
+}
+
+.ant-modal-confirm-body .ant-modal-confirm-content {
+  font-size: 15px;
+  color: #555;
+}
+
+.ant-modal-confirm-confirm .ant-modal-confirm-body > .anticon {
+  color: var(--qt-pink);
+}
+
+.ant-modal-confirm .ant-modal-confirm-btns .ant-btn {
+  height: 38px;
+  padding: 0 18px;
+}
+
+/* ===== Notifications ===== */
+
+.ant-notification-notice {
+  border-radius: 12px;
+  box-shadow: var(--qt-card-shadow);
+}
+
+/* ===== Tables ===== */
+
+.ant-table {
+  border-radius: var(--qt-radius-lg);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+}
+
+.ant-table-thead > tr > th {
+  background: var(--qt-gradient-header);
+  color: var(--qt-text);
+  font-weight: 700;
+  text-align: center;
+  border-bottom: 3px solid #ff88b3;
+}
+
+.ant-table-tbody > tr > td {
+  background: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid rgba(255, 182, 193, 0.4);
+}
+
+.ant-table-tbody > tr:hover > td,
+.ant-table-tbody > tr.ant-table-row:hover > td {
+  background: linear-gradient(90deg, #ffe9f3 0%, #e9f3ff 100%);
+}

@@ -1,397 +1,82 @@
 :host {
   min-height: 100vh;
   display: flex;
-  justify-content: center; /* center horizontally */
-  background: linear-gradient(135deg, #ffe6f2 0%, #e6f0ff 100%); /* matches your theme */
+  justify-content: center;
   padding: 20px;
 }
 
 .center-container {
   display: block;
-
-  /* Larger background gradient */
-  background: linear-gradient(135deg, #ffe0f0 0%, #e0ecff 100%);
   padding: 4px 20px;
-  border-radius: 12px; /* bigger radius */
 }
 
-
-/* Table wrapper */
-::ng-deep .ant-table {
-  border-radius: 16px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(8px);
-  font-size: 18px; /* bigger text */
+/* The table screen uses larger type than the library default; colors come from styles.css. */
+:host ::ng-deep .ant-table {
+  font-size: 18px;
 }
 
-/* Header */
-::ng-deep thead.ant-table-thead > tr > th {
-  background: linear-gradient(90deg, #ffb7d4, #b7cfff);
-  color: #333;
-  font-weight: 700;
-  font-size: 20px; /* bigger header text */
-  text-align: center;
-  border-bottom: 3px solid #ff88b3;
+:host ::ng-deep .ant-table-thead > tr > th {
+  font-size: 20px;
 }
 
-/* Body cells */
-::ng-deep tbody > tr > td {
-  background: rgba(255, 255, 255, 0.8);
+:host ::ng-deep .ant-table-tbody > tr > td {
   font-size: 16px;
-  border-bottom: 1px solid rgba(255, 182, 193, 0.4);
 }
 
-/* Row hover */
-::ng-deep tbody > tr:hover > td {
-  background: linear-gradient(90deg, #ffe9f3 0%, #e9f3ff 100%);
+:host ::ng-deep .ant-table td.ant-table-cell,
+:host ::ng-deep .ant-table th.ant-table-cell {
+  padding: 8px;
 }
 
-/* Inputs inside table */
 textarea[nz-input] {
-  border-radius: 8px; /* larger rounding */
-  border: 2px solid #ff99cc;
-  font-size: 16px; /* larger input text */
-  padding: 4px 10px;
-  transition: 0.25s;
   min-height: 36px;
+  padding: 4px 10px;
+  font-size: 16px;
 }
+
 td nz-select {
+  width: 120px;
   height: 36px;
 }
 
-textarea[nz-input]:focus {
-  border-color: #88aaff;
-  box-shadow: 0 0 10px rgba(153, 183, 255, 0.7);
-}
-
-/* Add Row button */
-button[nz-button] {
-  background: linear-gradient(90deg, #ff8ecb, #8fb0ff);
-  border: none;
-  color: white;
-  font-size: 20px; /* larger button text */
-  font-weight: 700; /* larger button size */
-  transition: 0.25s;
-  /*height: 100%;*/
-}
-
-button[nz-button]:hover {
-  filter: brightness(1.12);
-  transform: scale(1.03);
-  cursor: pointer;
-}
+/* ===== Toolbar ===== */
 
 .header-toolbar {
   display: flex;
-  justify-content: space-between; /* left vs right */
+  justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
 
-.left-buttons {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.left-buttons button:not(.ant-btn-circle) {
-  font-size: 18px;
-  padding: 8px 20px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #ff8ecb, #8fb0ff); /* pink-blue gradient */
-  color: white;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: 0.25s;
-  height: 100%;
-}
-
-.left-buttons button {
-  font-size: 18px;
-}
-
-
-.right-buttons button {
-  font-size: 18px;
-  height: 100%;
-}
-
+.left-buttons,
 .right-buttons {
   display: flex;
   align-items: center;
-  gap: 12px; /* space between select and button */
-  justify-content: flex-end; /* align to right */
+  gap: 12px;
 }
 
-/* Style for select */
-.right-buttons nz-select {
-  font-size: 18px; /* bigger text */
-  border-radius: 8px;
-  height: 42px;
+.right-buttons {
+  justify-content: flex-end;
 }
 
-/* Style for export button */
-.right-buttons button {
-  font-size: 18px;
-  padding: 8px 20px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #ff8ecb, #8fb0ff); /* pink-blue gradient */
-  color: white;
+.header-toolbar button[nz-button] {
   display: flex;
   align-items: center;
   gap: 6px;
-  transition: 0.25s;
-}
-
-.right-buttons button:hover {
-  filter: brightness(1.1);
-  transform: scale(1.03);
-}
-
-::ng-deep .right-buttons nz-select {
-  width: 150px;
-  font-size: 18px;
-  border-radius: 10px;
-  height: 42px;
-}
-
-/* Input area of nz-select */
-::ng-deep nz-select .ant-select-selector {
-  background: linear-gradient(90deg, #ffe6f2, #e6f0ff); /* light pink → light blue */
-  border: 2px solid #ff99cc;
-  border-radius: 10px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  transition: 0.25s;
-}
-
-::ng-deep .ant-select-selection-placeholder {
-  color: #333;
-}
-
-/* Hover / focus effect */
-::ng-deep nz-select .ant-select-selector:hover,
-::ng-deep nz-select .ant-select-selector:focus {
-  border-color: #99b7ff;
-  box-shadow: 0 0 8px rgba(153, 183, 255, 0.5);
-}
-
-/* Dropdown options */
-::ng-deep .right-buttons nz-select .ant-select-item-option {
+  height: 40px;
   font-size: 18px;
 }
-::ng-deep nz-select .ant-select-item-option {
-  background: linear-gradient(90deg, #ffe6f2, #e6f0ff);
+
+.header-toolbar button[nz-button]:not(.ant-btn-circle) {
+  padding: 8px 20px;
 }
 
-/* Selected option highlight */
-::ng-deep .right-buttons nz-select .ant-select-item-option-selected {
-  background: #ffccd9;
+.header-toolbar button[nz-button].ant-btn-circle {
+  width: 40px;
+  justify-content: center;
 }
 
-/* Selected option highlight */
-::ng-deep .ant-select-selection-search .ant-select-selection-search-input {
+.header-toolbar nz-select {
+  width: 220px;
   font-size: 18px;
-  font-weight: 700;
 }
-
-/* Arrow icon */
-::ng-deep nz-select .ant-select-arrow {
-  color: #ff66aa;
-}::ng-deep td nz-select {
-  width: 120px
-}
-
-::ng-deep textarea[nz-input].ant-input.ng-invalid.ng-dirty {
-  border: 2px solid red;
-}
-
-::ng-deep cell-flex {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  align-content: center;
-  gap: 0;
-}
-::ng-deep .ant-table td.ant-table-cell,th.ant-table-cell {
-  padding: 8px;
-}
-
-::ng-deep .text-error {
-  color: red;
-  font-size: 0.7rem;
-}
-
-/* ===== Drop Zone Styles ===== */
-
-.drop-zone {
-  margin-bottom: 20px;
-  padding: 24px;
-  border: 3px dashed #ff99cc;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(255, 240, 245, 0.8), rgba(240, 245, 255, 0.8));
-  transition: all 0.3s ease;
-  cursor: pointer;
-  outline: none;
-  min-height: 150px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-/* Focus state for keyboard navigation */
-.drop-zone:focus {
-  border-color: #88aaff;
-  box-shadow: 0 0 15px rgba(136, 170, 255, 0.6), inset 0 0 10px rgba(136, 170, 255, 0.2);
-  background: linear-gradient(135deg, rgba(255, 230, 245, 1), rgba(230, 245, 255, 1));
-}
-
-/* Drag over state */
-.drop-zone.drag-over {
-  border-color: #88aaff;
-  background: linear-gradient(135deg, rgba(255, 200, 230, 0.95), rgba(200, 230, 255, 0.95));
-  box-shadow: 0 0 20px rgba(136, 170, 255, 0.7), inset 0 0 15px rgba(136, 170, 255, 0.3);
-  transform: scale(1.01);
-}
-
-.drop-zone-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  width: 100%;
-}
-
-.drop-zone-icon {
-  font-size: 48px;
-  color: #ff99cc;
-  opacity: 0.8;
-  transition: all 0.3s ease;
-}
-
-.drop-zone:hover .drop-zone-icon,
-.drop-zone:focus .drop-zone-icon,
-.drop-zone.drag-over .drop-zone-icon {
-  font-size: 56px;
-  color: #88aaff;
-  opacity: 1;
-}
-
-.drop-zone-text {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-  text-align: center;
-}
-
-.drop-zone-subtext {
-  margin: 0;
-  font-size: 14px;
-  color: #666;
-  text-align: center;
-}
-
-.file-link {
-  color: #ff8ecb;
-  text-decoration: none;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border-bottom: 2px solid transparent;
-}
-
-.file-link:hover {
-  color: #88aaff;
-  border-bottom-color: #88aaff;
-}
-
-.file-link:focus {
-  outline: 2px solid #88aaff;
-  outline-offset: 2px;
-  border-bottom-color: #88aaff;
-}
-
-
-/* ===== Image Preview Styles ===== */
-
-.image-preview-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-}
-
-.image-preview {
-  max-width: 300px;
-  max-height: 300px;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(255, 150, 170, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-}
-
-.preview-img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.image-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.image-actions button {
-  min-width: 150px;
-  height: 44px;
-  font-size: 16px;
-  font-weight: 600;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-}
-
-.image-actions button[nzType="primary"] {
-  background: linear-gradient(90deg, #ff8ecb, #8fb0ff);
-  border: none;
-  color: white;
-}
-
-.image-actions button[nzType="primary"]:hover:not(:disabled) {
-  filter: brightness(1.15);
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(255, 150, 170, 0.4);
-}
-
-.image-actions button[nzType="primary"]:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.image-info {
-  margin: 0;
-  font-size: 14px;
-  color: #666;
-  text-align: center;
-}
-
-
-
-

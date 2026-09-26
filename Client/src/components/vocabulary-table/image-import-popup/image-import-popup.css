@@ -4,7 +4,7 @@
 .drop-zone {
   margin-bottom: 20px;
   padding: 24px;
-  border: 3px dashed #ff99cc;
+  border: 3px dashed var(--qt-border);
   border-radius: 12px;
   background: linear-gradient(135deg, rgba(255, 240, 245, 0.8), rgba(240, 245, 255, 0.8));
   transition: all 0.3s ease;
@@ -18,13 +18,13 @@
 }
 
 .drop-zone:focus {
-  border-color: #88aaff;
+  border-color: var(--qt-focus);
   box-shadow: 0 0 15px rgba(136, 170, 255, 0.6), inset 0 0 10px rgba(136, 170, 255, 0.2);
   background: linear-gradient(135deg, rgba(255, 230, 245, 1), rgba(230, 245, 255, 1));
 }
 
 .drop-zone.drag-over {
-  border-color: #88aaff;
+  border-color: var(--qt-focus);
   background: linear-gradient(135deg, rgba(255, 200, 230, 0.95), rgba(200, 230, 255, 0.95));
   box-shadow: 0 0 20px rgba(136, 170, 255, 0.7), inset 0 0 15px rgba(136, 170, 255, 0.3);
   transform: scale(1.01);
@@ -41,7 +41,7 @@
 
 .drop-zone-icon {
   font-size: 48px;
-  color: #ff99cc;
+  color: var(--qt-border);
   opacity: 0.8;
   transition: all 0.3s ease;
 }
@@ -50,7 +50,7 @@
 .drop-zone:focus .drop-zone-icon,
 .drop-zone.drag-over .drop-zone-icon {
   font-size: 56px;
-  color: #88aaff;
+  color: var(--qt-focus);
   opacity: 1;
 }
 
@@ -58,19 +58,19 @@
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: var(--qt-text);
   text-align: center;
 }
 
 .drop-zone-subtext {
   margin: 0;
   font-size: 14px;
-  color: #666;
+  color: var(--qt-text-muted);
   text-align: center;
 }
 
 .file-link {
-  color: #ff8ecb;
+  color: var(--qt-pink);
   text-decoration: none;
   font-weight: 600;
   cursor: pointer;
@@ -79,14 +79,14 @@
 }
 
 .file-link:hover {
-  color: #88aaff;
-  border-bottom-color: #88aaff;
+  color: var(--qt-focus);
+  border-bottom-color: var(--qt-focus);
 }
 
 .file-link:focus {
-  outline: 2px solid #88aaff;
+  outline: 2px solid var(--qt-focus);
   outline-offset: 2px;
-  border-bottom-color: #88aaff;
+  border-bottom-color: var(--qt-focus);
 }
 
 .images-container {
@@ -167,15 +167,12 @@
 .image-name {
   margin: 0;
   font-size: 12px;
-  color: #333;
+  color: var(--qt-text);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   width: 100%;
-}
-.ng-invalid.ng-dirty:not(form) {
-  border: 2px solid red;
 }
 .image-size {
   margin: 2px 0 0 0;
@@ -196,7 +193,7 @@
 
 .remove-btn:hover {
   background: rgba(255, 77, 79, 0.1);
-  color: #ff4d4f;
+  color: var(--qt-error);
 }
 
 .images-actions {
@@ -207,33 +204,6 @@
   width: 100%;
 }
 
-nz-input-number {
-  border-radius: 8px;
-  border-color: #ff8ecb;
-}
-
-.ant-radio-button-wrapper.ant-radio-button-wrapper-checked {
-  background: linear-gradient(90deg, #ff8ecb, #8fb0ff);
-  border: none;
-  box-shadow: 0 4px 12px rgba(143, 176, 255, 0.4);
-}
-
-.ant-radio-button-wrapper {
-  font-weight: 600;
-  border-color: #ff8ecb;
-  color: #ff8ecb;
-}
-.ant-radio-group-solid .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled):hover {
-  filter: brightness(1.15);
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(255, 150, 170, 0.4);
-  background: linear-gradient(90deg, #ff8ecb, #8fb0ff);
-}
-.ant-radio-group-solid .ant-radio-button-wrapper:not(.ant-radio-button-wrapper-disabled):hover {
-  filter: brightness(1.05);
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(255, 150, 170, 0.4);
-}
 .creative-selection {
   display: flex;
   justify-content: start;
@@ -265,8 +235,6 @@ nz-input-number {
 }
 .creative-selection .course-name-input {
   width: 100%;
-  border-radius: 8px;
-  border-color: #ff8ecb;
 }
 .creative-selection nz-input-number {
   width: 80px;
@@ -274,9 +242,6 @@ nz-input-number {
 /* Wide enough for the "Không bắt buộc" placeholder. */
 .creative-selection nz-input-number.optional-level {
   width: 130px;
-}
-.text-error {
-  display: block;
 }
 .intelligence-selection {
   display: flex;
@@ -309,42 +274,8 @@ nz-input-number {
   min-width: 150px;
   height: 44px;
   font-size: 16px;
-  font-weight: 600;
-  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: all 0.3s ease;
-}
-
-.images-actions button[nzType='primary'] {
-  background: linear-gradient(90deg, #ff8ecb, #8fb0ff);
-  border: none;
-  color: white;
-}
-
-.images-actions button[nzType='primary']:hover:not(:disabled) {
-  filter: brightness(1.15);
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(255, 150, 170, 0.4);
-}
-
-.images-actions button[nzType='primary']:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.images-actions button[nzType='default'] {
-  border: 1px solid #d9d9d9;
-}
-
-.images-actions button[nzType='dashed'] {
-  border-color: #ff8ecb;
-  color: #ff8ecb;
-}
-
-.images-actions button[nzType='dashed']:hover {
-  transform: scale(1.05);
-  filter: brightness(1.05);
 }

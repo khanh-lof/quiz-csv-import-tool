@@ -6,8 +6,7 @@ import { OnlineStatusService } from '../services/online-status.service';
   selector: 'app-root',
   imports: [RouterOutlet],
   templateUrl: './app.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
-  styleUrl: './app.css'
+  changeDetection: ChangeDetectionStrategy.Eager
 })
 export class App {
   private readonly onlineStatusService = inject(OnlineStatusService);
