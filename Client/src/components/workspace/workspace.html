@@ -3,13 +3,13 @@
        (nzMatchRouter), so a refused navigation leaves the current page highlighted. -->
   <ul nz-menu nzMode="horizontal" [nzSelectable]="false" class="workspace-nav">
     <!-- A tooltip only on the item not shown: the page itself already explains the current one. -->
-    <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="bottom"
-        [nzTooltipTitle]="mode() === '/quiz' ? null : 'Tự nhập câu hỏi và đáp án vào bảng, rồi tải file quiz. Không cần đăng nhập.'">
+    <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="bottom" [nzTooltipVisible]="mode() !== '/quiz'"
+        [nzTooltipTitle]="'Tự nhập câu hỏi và đáp án vào bảng, rồi tải file quiz. Không cần đăng nhập.'">
       <nz-icon nzType="table" nzTheme="outline"/>
       <span><a routerLink="/quiz">Tạo thủ công</a></span>
     </li>
-    <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="bottom"
-        [nzTooltipTitle]="mode() === '/ai' ? null : 'Gửi ảnh bài học (hoặc chỉ chọn bài) để AI soạn câu hỏi giúp. Cần đăng nhập.'">
+    <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="bottom" [nzTooltipVisible]="mode() !== '/ai'"
+        [nzTooltipTitle]="'Gửi ảnh bài học (hoặc chỉ chọn bài) để AI soạn câu hỏi giúp. Cần đăng nhập.'">
       <nz-icon nzType="robot" nzTheme="outline"/>
       <span><a routerLink="/ai">Tạo bằng AI</a></span>
     </li>
