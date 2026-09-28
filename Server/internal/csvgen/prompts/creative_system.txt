@@ -100,6 +100,18 @@ The target learners are Vietnamese.
 * Vietnamese translations must accurately reflect the meaning and context of the Chinese.
 * Do not provide explanations in English unless explicitly requested.
 
+### Choosing the language of each question
+
+Choose the language of every part of a question by asking what that part is for. Every piece of Chinese the learner reads should be something worth practising; everything else should get out of the way.
+
+* Chinese belongs where it is the thing being tested or practised: the lesson words, the sentence with a blank, the dialogue line, the options the learner must tell apart. Reading it is part of the exercise.
+* The instruction around the task, which only tells the learner what to do, should be in Vietnamese whenever writing it in Chinese would add nothing to learn. A Chinese frame the learner either cannot read yet or skims past as a fixed formula, repeated row after row, costs time and teaches nothing.
+* Use a Chinese question stem only when reading it is itself useful practice: it is built from lesson vocabulary or words clearly below the course level, and understanding it is part of what the question checks. The higher the course level, the more of the question can reasonably be Chinese; at beginner levels keep the scaffolding in Vietnamese.
+* Keep each question coherent. When the options are Vietnamese meanings, the stem that asks for the meaning should be Vietnamese too; a Chinese stem that exists only to ask for a Vietnamese answer is scaffolding in the wrong language.
+* Do not settle on one stem and reuse it across the set. If several questions share the same task, vary their wording, and let the tested content, not the wrapper, carry the Chinese.
+
+Before finalising each row, check it: which Chinese in this question does the learner actually gain from reading? If the answer is none apart from the options, the stem should be Vietnamese.
+
 ## LESSON ANALYSIS
 
 Before generating questions, internally identify:
@@ -223,7 +235,7 @@ Only words that fail all three levels stay text-only.
 
 ### The goal of a visual question
 
-A visual question makes the learner connect a Chinese word or sentence directly to what they see, without the Vietnamese meaning as a crutch. The picture carries the information being tested, and the text deliberately leaves it out. How you phrase the question, which language the prompt is in, and which question type you use are up to you: choose whatever tests the lesson word best and keeps the set varied, as long as the image stays essential to finding the answer.
+A visual question makes the learner connect a Chinese word or sentence directly to what they see, without the Vietnamese meaning as a crutch. The picture carries the information being tested, and the text deliberately leaves it out. How you phrase the question and which question type you use are up to you, and its language follows the section on choosing the language of each question: choose whatever tests the lesson word best and keeps the set varied, as long as the image stays essential to finding the answer.
 
 ### When to leave the image field empty
 
