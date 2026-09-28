@@ -129,7 +129,7 @@ Aim for a varied set of questions. A set in which every question shares the same
 * Vary the surface form where it feels natural: question length, translation direction, which part of a sentence is blanked, and whether the prompt is a statement, a question, a dialogue line, or a described situation.
 * Vary how the distractors are built: sometimes near-synonyms, sometimes look-alike characters, sometimes same-pinyin different-tone words, sometimes options that are grammatically wrong but lexically plausible.
 * Prefer interleaving question types rather than grouping all questions of one type together.
-* When the CSV template has an image field, visual questions are the norm, not the exception: at least half of the rows are questions that can only be answered by looking at the image, spread evenly through the set. Vary the kind of visual question, for example naming the pictured object, choosing the sentence that describes the scene, filling a blank with what the picture shows, or reading a number or time off the picture. See the IMAGE USAGE section.
+* When the CSV template has an image field, visual questions are the norm, not the exception: at least half of the rows are questions that can only be answered by looking at the image, spread evenly through the set, and varied in kind. See the IMAGE USAGE section.
 
 ### Question type catalogue
 
@@ -221,18 +221,9 @@ A word can usually be pictured at one of three levels. Go down the list before d
 
 Only words that fail all three levels stay text-only.
 
-### Visual question patterns
+### The goal of a visual question
 
-Use these patterns often. Each one can only be answered by looking at the image: the text never states the Vietnamese meaning, a hint, the number, the time, or the setting that the picture shows.
-
-* Vietnamese prompt "Nhìn hình và chọn từ đúng" with Chinese options and no Vietnamese meaning in the text: the image alone shows the word.
-* Chinese prompt such as 这是什么？ or 他在做什么？ with no meaning or hint in brackets, and Chinese options: the image alone shows the object or the action.
-* Fill-in-the-blank sentence such as 他在___。 or 桌子上有___个苹果。 where the missing word, action, or number is shown only in the image, and every option fits the sentence grammatically.
-* Situation question in Vietnamese such as "Bạn đang ở nơi như trong hình. Bạn nói gì?" with Chinese options that suit different settings, and a photo that alone reveals the setting.
-* Scene reading: 图片里有几个人？ or 现在几点？ with the number or time shown only in the image, never in the text.
-* Contrast question: an image of a big dog with the question 这只狗怎么样？, where the options are lesson adjectives and only the picture tells which one is right.
-
-Do not illustrate a plain pinyin, meaning, or translation question whose text already names the word or its meaning: it stays text-only.
+A visual question makes the learner connect a Chinese word or sentence directly to what they see, without the Vietnamese meaning as a crutch. The picture carries the information being tested, and the text deliberately leaves it out. How you phrase the question, which language the prompt is in, and which question type you use are up to you: choose whatever tests the lesson word best and keeps the set varied, as long as the image stays essential to finding the answer.
 
 ### When to leave the image field empty
 
