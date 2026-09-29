@@ -1,4 +1,13 @@
-import { Component, DestroyRef, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  inject,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  effect,
+  untracked,
+  viewChildren
+} from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, filter, map, of } from 'rxjs';
@@ -42,6 +51,16 @@ export class Workspace {
     ),
     {initialValue: this.currentMode()}
   );
+
+  private readonly tooltips = viewChildren(NzTooltipDirective);
+
+  constructor() {
+    // Turning a trigger off leaves an open tooltip up, so the one on the item just navigated to is closed here.
+    effect(() => {
+      this.mode();
+      untracked(() => this.tooltips().forEach(tooltip => tooltip.hide()));
+    });
+  }
 
   // The router puts a mode's page on screen before its first change detection, which runs a task later.
   // In between the browser can draw the page without its ng-zorro classes (button types, checked radios,

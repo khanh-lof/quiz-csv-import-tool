@@ -2,14 +2,17 @@
   <!-- The items stay unselectable on click: the two modes are highlighted from the route alone
        (nzMatchRouter), so a refused navigation leaves the current page highlighted. -->
   <ul nz-menu nzMode="horizontal" [nzSelectable]="false" class="workspace-nav">
-    <!-- A tooltip only on the item not shown: the page itself already explains the current one. -->
+    <!-- A tooltip only on the item not shown: the page itself already explains the current one. It is
+         turned off through the trigger, not by clearing the title, so the open one fades out with its text. -->
     <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="bottom"
-        [nzTooltipTitle]="mode() === '/quiz' ? null : 'Tự nhập câu hỏi và đáp án vào bảng, rồi tải file quiz. Không cần đăng nhập.'">
+        [nzTooltipTrigger]="mode() === '/quiz' ? null : 'hover'"
+        nzTooltipTitle="Tự nhập câu hỏi và đáp án vào bảng, rồi tải file quiz. Không cần đăng nhập.">
       <nz-icon nzType="table" nzTheme="outline"/>
       <span><a routerLink="/quiz">Tạo thủ công</a></span>
     </li>
     <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="bottom"
-        [nzTooltipTitle]="mode() === '/ai' ? null : 'Gửi ảnh bài học (hoặc chỉ chọn bài) để AI soạn câu hỏi giúp. Cần đăng nhập.'">
+        [nzTooltipTrigger]="mode() === '/ai' ? null : 'hover'"
+        nzTooltipTitle="Gửi ảnh bài học (hoặc chỉ chọn bài) để AI soạn câu hỏi giúp. Cần đăng nhập.">
       <nz-icon nzType="robot" nzTheme="outline"/>
       <span><a routerLink="/ai">Tạo bằng AI</a></span>
     </li>
