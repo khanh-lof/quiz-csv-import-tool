@@ -32,6 +32,15 @@ describe('FileExportService Wayground export', () => {
     expect(exported?.xlsx?.length).toBeGreaterThan(0);
   });
 
+  it('builds the .xlsx without downloading it when asked', () => {
+    const rows = ['一', '二', '三', '四', '五'].map((question, i) =>
+      ({question, answer: `${i + 1}`, questionType: QuestionType.MultipleChoice}));
+    const exported = service.exportFile('Lesson-Wayground.csv', rows, ExportType.Wayground, false);
+
+    expect(exported?.xlsx?.length).toBeGreaterThan(0);
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+  });
+
   it('returns no bytes for a CSV platform', () => {
     const rows = ['一', '二', '三', '四', '五'].map((question, i) =>
       ({question, answer: `${i + 1}`, questionType: QuestionType.MultipleChoice}));

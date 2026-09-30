@@ -6,7 +6,7 @@ import { ExportType } from '../models/export-type';
 import { WaygroundCsvBuilder } from './wayground-csv-builder';
 import * as XLSX from 'xlsx';
 
-// What an export downloaded. For Wayground it also carries the .xlsx itself, so the same file (with the
+// What an export built. For Wayground it also carries the .xlsx itself, so the same file (with the
 // same randomly drawn wrong answers) can be handed to the QuizTool browser extension.
 export interface ExportedFile {
   fileName: string;
@@ -23,20 +23,28 @@ export class FileExportService {
               private readonly waygroundCsvBuilder: WaygroundCsvBuilder) {
   }
 
-  // Both exports return the file that was downloaded (Wayground's becomes .xlsx), or null when there
-  // was nothing to export.
-  public exportFile(filename: string, rows: QuestionDefinition[], exportType: ExportType = ExportType.GimKit): ExportedFile | null {
+  // Both exports return the file they built (Wayground's becomes .xlsx), or null when there was nothing
+  // to export. The file is downloaded unless `download` is false, as when the extension takes the
+  // Wayground file instead.
+  public exportFile(filename: string, rows: QuestionDefinition[], exportType: ExportType = ExportType.GimKit,
+                    download = true): ExportedFile | null {
     if (!rows || !rows.length) return null;
 
     const csvResult = this.buildCsvStringForExportTypeFromRows(exportType, rows);
-    return this.download(filename, csvResult, exportType);
+    return this.buildFile(filename, csvResult, exportType, download);
   }
 
-  public exportFileFromCsvContent(filename: string, csvContent: string, exportType: ExportType = ExportType.GimKit): ExportedFile | null {
+  public exportFileFromCsvContent(filename: string, csvContent: string, exportType: ExportType = ExportType.GimKit,
+                                  download = true): ExportedFile | null {
     if (!csvContent || !csvContent.length) return null;
 
     const csvResult = this.buildCsvStringForExportTypeFromCsvContent(exportType, csvContent);
-    return this.download(filename, csvResult, exportType);
+    return this.buildFile(filename, csvResult, exportType, download);
+  }
+
+  public downloadXlsx(fileName: string, xlsx: Uint8Array): void {
+    this.downloadBlob(fileName, new Blob([xlsx as BlobPart],
+      {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
   }
 
   public static platformName(exportType: ExportType): string {
@@ -99,19 +107,18 @@ export class FileExportService {
     URL.revokeObjectURL(url);
   }
 
-  private download(filename: string, csvResult: string, exportType: ExportType): ExportedFile {
+  private buildFile(filename: string, csvResult: string, exportType: ExportType, download: boolean): ExportedFile {
     switch (exportType) {
       case ExportType.Wayground: {
         const xlsx = FileExportService.buildXlsx(csvResult);
         const xlsxName = filename.replace(/\.csv$/i, '') + '.xlsx';
-        this.downloadBlob(xlsxName, new Blob([xlsx as BlobPart],
-          {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+        if (download) this.downloadXlsx(xlsxName, xlsx);
         return {fileName: xlsxName, xlsx};
       }
       case ExportType.GimKit:
       case ExportType.Blooket:
       default:
-        this.downloadBlob(filename, new Blob([csvResult], {type: 'text/csv;charset=utf-8'}));
+        if (download) this.downloadBlob(filename, new Blob([csvResult], {type: 'text/csv;charset=utf-8'}));
         return {fileName: filename};
     }
   }

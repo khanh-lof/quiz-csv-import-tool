@@ -34,6 +34,7 @@ import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { ImageCompressionService, UploadTooLargeError } from '../../services/image-compression.service';
 import { UsageGuide } from '../usage-guide/usage-guide';
 import { NzContentComponent, NzLayoutComponent, NzSiderComponent } from 'ng-zorro-antd/layout';
+import { WaygroundDelivery } from '../../models/wayground-delivery';
 
 interface ImageItem {
   file: File;
@@ -92,7 +93,11 @@ export class AiGeneration {
   protected dragEnterCounter = 0;
 
   protected readonly AIGenerationMode = AIGenerationMode;
+  protected readonly WaygroundDelivery = WaygroundDelivery;
   protected formGroup: FormGroup<AiGenerationForm>;
+  protected readonly extensionInstalled: boolean;
+  // Outside the form group: it is a preference shared with the table page, saved on its own.
+  protected readonly waygroundDelivery: FormControl<WaygroundDelivery>;
   private requiredIfAIAutoMode: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
     const aiGenerationForm = control as FormGroup<AiGenerationForm>;
     const isAutoMode = aiGenerationForm.controls.AIMode.value === AIGenerationMode.Auto;
@@ -141,6 +146,10 @@ export class AiGeneration {
     })
     this.restoreSettings();
     this.destroyRef.onDestroy(() => this.stopElapsedTimer());
+    this.extensionInstalled = waygroundExtensionService.isInstalled();
+    this.waygroundDelivery = new FormControl(waygroundExtensionService.preferredDelivery(), {nonNullable: true});
+    this.waygroundDelivery.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(delivery => waygroundExtensionService.savePreferredDelivery(delivery));
   }
 
   private restoreSettings(): void {
@@ -357,16 +366,18 @@ export class AiGeneration {
       next: csvContent => {
         const exportType = this.formGroup.controls.exportType.value!;
         const title = this.lessonLabel();
+        const publish = exportType === ExportType.Wayground
+          && this.waygroundExtensionService.shouldPublish(this.waygroundDelivery.value);
         const exported = this.fileExportService.exportFileFromCsvContent(
-          FileExportService.buildFileName(title, exportType), csvContent, exportType);
+          FileExportService.buildFileName(title, exportType), csvContent, exportType, !publish);
         if (!exported) {
           this.notificationService.warning('Không có dữ liệu', 'AI không trả về câu hỏi nào. Vui lòng thử lại.', {nzPlacement: 'top'});
           return;
         }
-        if (exported.xlsx && this.waygroundExtensionService.isInstalled()) {
+        if (publish && exported.xlsx) {
           this.waygroundExtensionService.sendImport(title, exported.fileName, exported.xlsx);
           this.notificationService.info('Đang tạo quiz trên Wayground…',
-            `Đã tải file ${exported.fileName}. Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.`,
+            'Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.',
             {nzPlacement: 'top'});
         } else {
           this.notificationService.success('Tạo xong rồi',

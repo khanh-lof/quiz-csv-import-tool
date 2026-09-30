@@ -12,7 +12,7 @@
           </ul>
         </li>
       </ol>
-      <p>Với Wayground, nếu đã cài tiện ích QuizTool cho Chrome, quiz được tạo và publish luôn trên Wayground, rồi link chia sẻ hiện ở đây. <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" target="_blank" rel="noopener">Xem cách cài tiện ích</a>.</p>
+      <p>Với Wayground, nếu đã cài tiện ích QuizTool cho Chrome, chọn <b>Tiện ích tự publish</b>: quiz được tạo và publish luôn trên Wayground, rồi link chia sẻ hiện ở đây. Chọn <b>Tải file</b> nếu muốn tự import. <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" target="_blank" rel="noopener">Xem cách cài tiện ích</a>.</p>
     </app-usage-guide>
   </nz-sider>
   <nz-content>
@@ -124,6 +124,14 @@
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.exportType}"/>
           </div>
+          @if (formGroup.controls.exportType.value === ExportType.Wayground) {
+            <!-- Without the extension only the download is possible; the disabled option says why. -->
+            <nz-radio-group [formControl]="waygroundDelivery" nzButtonStyle="solid">
+              <label nz-radio-button [nzValue]="WaygroundDelivery.Download">Tải file</label>
+              <label nz-radio-button [nzValue]="WaygroundDelivery.Extension" [nzDisabled]="!extensionInstalled"
+                     [title]="extensionInstalled ? '' : 'Chưa cài tiện ích QuizTool cho Chrome'">Tiện ích tự publish</label>
+            </nz-radio-group>
+          }
           <div class="intelligence-selection">
             <label>Độ thông minh: </label>
             <!-- Values are the server's intelligence levels: 1 = LLM_INTELLIGENCE_MODELS[0], 2 = [1]. -->

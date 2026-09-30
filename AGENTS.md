@@ -115,18 +115,22 @@ Consequences to keep in mind when changing anything here:
 Wayground has no public API for creating quizzes, so `Extension/` drives Wayground's own spreadsheet
 import and Publish in the user's logged-in tab, then hands the quiz's share link back. The SPA side
 is `WaygroundExtensionService`:
-- After a Wayground export (from the table or from `Auto` mode), `FileExportService` returns the
-  `.xlsx` bytes alongside the download.
-- If `<html data-quiztool-extension>` is present, the service `postMessage`s
+- Whenever Wayground is the chosen platform (on the table or in `Auto` mode), the page offers a
+  `WaygroundDelivery` choice: **Tải file** (download the `.xlsx` for a manual import) or **Tiện ích
+  tự publish** (hand it to the extension). The extension option is disabled unless
+  `<html data-quiztool-extension>` is present; the choice is shared by both pages and remembered in
+  `localStorage` (`wayground-delivery`), defaulting to the extension when it is installed.
+- With the extension chosen, `FileExportService` builds the `.xlsx` without downloading it and the
+  service `postMessage`s
   `{source: 'quiztool', type: 'wayground-import', requestId, title, fileName, base64}` to the
   extension's content script.
 - The extension answers, possibly minutes later, with
   `{source: 'quiztool-extension', type: 'wayground-import-result', requestId, title, ok, shareUrl, error}`.
   The service shows it as its own notification (the share link, also copied to the clipboard) and
-  ignores request ids it didn't send.
+  ignores request ids it didn't send. On a failed result it downloads the file it kept for that
+  request, so the user can finish the import by hand.
 
-The download always happens as well, so without the extension (or when its automation gets stuck)
-the user imports the file by hand, as before. The message shapes and the QuizTool origins the
+The message shapes and the QuizTool origins the
 extension listens on (`Extension/manifest.json`: production `https://kt-quiz-csv-import-tool.vercel.app`
 and `http://localhost:4200`; Vercel preview URLs are not included) are hand-kept in step on both
 sides. Quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in

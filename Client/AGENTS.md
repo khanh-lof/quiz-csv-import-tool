@@ -108,11 +108,13 @@ Export: `exportFile()` validates the form, then `FileExportService` dispatches t
 GimKit/Blooket builders synthesize incorrect-answer distractors by randomly sampling other rows'
 answers via `Utils.getRandomItem`/`shuffle`, so a builder run needs at least a few rows or the "pick
 a distinct wrong answer" loop can spin/repeat. `Utils.escapeCsvField` handles quoting for the
-generated CSV (not the same code path as the import parser). `FileExportService.download` then
+generated CSV (not the same code path as the import parser). `FileExportService.buildFile` then
 picks the output format per platform: GimKit/Blooket download as `.csv` directly; Wayground is
 converted to `.xlsx` via the `xlsx` package first (`FileExportService.buildXlsx`). Both export methods
-return an `ExportedFile` (`fileName`, plus the `xlsx` bytes for Wayground). When the optional
-`../Extension` is installed, `WaygroundExtensionService.sendImport` hands those bytes to it. The
+return an `ExportedFile` (`fileName`, plus the `xlsx` bytes for Wayground) and take a `download` flag.
+For Wayground both pages show a `WaygroundDelivery` radio (download vs. extension, shared preference
+held by `WaygroundExtensionService.preferredDelivery`). When the optional `../Extension` is installed
+and chosen, the file is not downloaded and `WaygroundExtensionService.sendImport` hands the bytes to it. The
 extension imports and publishes the quiz in the user's Wayground tab, and the service later shows the
 share link it sends back (see [../AGENTS.md](../AGENTS.md#the-wayground-browser-extension)).
 

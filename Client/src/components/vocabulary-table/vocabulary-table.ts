@@ -32,6 +32,8 @@ import { debounceTime } from 'rxjs';
 import { PendingImportService } from '../../services/pending-import.service';
 import { WaygroundExtensionService } from '../../services/wayground-extension.service';
 import { UsageGuide } from '../usage-guide/usage-guide';
+import { WaygroundDelivery } from '../../models/wayground-delivery';
+import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { NzContentComponent, NzLayoutComponent, NzSiderComponent } from 'ng-zorro-antd/layout';
 
 // The table's rows and chosen template, kept in the browser so a reload or a visit to another screen
@@ -58,6 +60,8 @@ interface TableDraft {
     NzIconDirective,
     NzSelectComponent,
     NzOptionComponent,
+    NzRadioGroupComponent,
+    NzRadioComponent,
     ReactiveFormsModule,
     NgTemplateOutlet,
     NzModalModule,
@@ -75,6 +79,11 @@ export class VocabularyTable implements OnInit {
   }
 
   protected readonly ExportType = ExportType;
+  protected readonly WaygroundDelivery = WaygroundDelivery;
+
+  protected readonly extensionInstalled: boolean;
+  // Outside the form group: it is a preference shared with the AI page, not part of the table's draft.
+  protected readonly waygroundDelivery: FormControl<WaygroundDelivery>;
 
   protected readonly minRows = 4;
 
@@ -100,6 +109,16 @@ export class VocabularyTable implements OnInit {
     this.listOfData = this.questionForms.controls;
     this.formGroup.valueChanges.pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.saveDraft());
+    this.extensionInstalled = waygroundExtensionService.isInstalled();
+    this.waygroundDelivery = new FormControl(waygroundExtensionService.preferredDelivery(), {nonNullable: true});
+    this.waygroundDelivery.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(delivery => waygroundExtensionService.savePreferredDelivery(delivery));
+  }
+
+  // Whether exporting hands the quiz to the extension to publish instead of downloading the file.
+  protected get publishesWithExtension(): boolean {
+    return this.formGroup.get('exportType')?.value === ExportType.Wayground
+      && this.waygroundExtensionService.shouldPublish(this.waygroundDelivery.value);
   }
 
   private restoreDraft(): void {
@@ -240,13 +259,14 @@ export class VocabularyTable implements OnInit {
     const exportType: ExportType = exportTypeControl.value;
     const today = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD in local time
     const title = `QuizTool-${today}`;
+    const publish = this.publishesWithExtension;
     const exported = this.fileExportService.exportFile(
-      FileExportService.buildFileName(title, exportType), this.currentRows(), exportType);
+      FileExportService.buildFileName(title, exportType), this.currentRows(), exportType, !publish);
     if (!exported) return;
-    if (exported.xlsx && this.waygroundExtensionService.isInstalled()) {
+    if (publish && exported.xlsx) {
       this.waygroundExtensionService.sendImport(title, exported.fileName, exported.xlsx);
       this.notificationService.info('Đang tạo quiz trên Wayground…',
-        `Đã tải ${exported.fileName}. Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.`, {nzPlacement: 'top'});
+        'Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.', {nzPlacement: 'top'});
       return;
     }
     this.notificationService.success('Tải file thành công',

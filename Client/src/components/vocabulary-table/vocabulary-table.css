@@ -149,3 +149,7 @@ td nz-select {
   width: 220px;
   font-size: 18px;
 }
+
+.header-toolbar label[nz-radio-button] {
+  font-size: 18px;
+}
