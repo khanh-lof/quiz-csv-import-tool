@@ -1,6 +1,6 @@
-// Runs on QuizTool's own pages. Tells the SPA the extension is installed and passes its import
-// requests on to the background worker. The message shape is hand-kept in step with
-// Client/src/services/wayground-extension.service.ts.
+// Runs on QuizTool's own pages. Tells the SPA the extension is installed, passes its import requests
+// on to the background worker, and hands the results back to the page. The message shapes are
+// hand-kept in step with Client/src/services/wayground-extension.service.ts.
 document.documentElement.dataset.quiztoolExtension = chrome.runtime.getManifest().version;
 
 window.addEventListener('message', event => {
@@ -12,8 +12,22 @@ window.addEventListener('message', event => {
 
   chrome.runtime.sendMessage({
     type: 'start-import',
+    requestId: String(data.requestId ?? ''),
     title: String(data.title ?? ''),
     fileName: data.fileName,
     base64: data.base64,
   });
+});
+
+chrome.runtime.onMessage.addListener(message => {
+  if (message?.type !== 'import-result') return;
+  window.postMessage({
+    source: 'quiztool-extension',
+    type: 'wayground-import-result',
+    requestId: message.requestId,
+    title: message.title,
+    ok: message.ok,
+    shareUrl: message.shareUrl,
+    error: message.error,
+  }, window.location.origin);
 });

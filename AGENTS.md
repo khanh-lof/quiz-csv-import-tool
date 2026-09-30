@@ -11,8 +11,8 @@ projects, plus an optional browser extension:
 - `Client/` — Angular 20 SPA (standalone components, ng-zorro-antd).
 - `Server/` — Go (`net/http`) API with MongoDB persistence. Runs as a standalone binary / Docker
   image (`Server/Dockerfile`).
-- `Extension/` — Chrome extension (plain JS, loaded unpacked, not deployed) that imports the
-  Wayground `.xlsx` into the user's own Wayground tab. See [Extension/AGENTS.md](Extension/AGENTS.md).
+- `Extension/` — Chrome extension (plain JS, loaded unpacked, not deployed) that imports and
+  publishes the Wayground `.xlsx` in the user's own Wayground tab. See [Extension/AGENTS.md](Extension/AGENTS.md).
 
 Both deploy together as one Vercel project via [Vercel Services](https://vercel.com/docs/services),
 configured in the root `vercel.json`: the `client` service (Angular preset, SPA fallback to
@@ -113,14 +113,24 @@ Consequences to keep in mind when changing anything here:
 ## The Wayground browser extension
 
 Wayground has no public API for creating quizzes, so `Extension/` drives Wayground's own spreadsheet
-import in the user's logged-in tab. The SPA side is `WaygroundExtensionService`: after a Wayground
-export (from the table or from `Auto` mode), `FileExportService` returns the `.xlsx` bytes alongside
-the download, and if `<html data-quiztool-extension>` is present the service `postMessage`s
-`{source: 'quiztool', type: 'wayground-import', title, fileName, base64}` to the extension's content
-script. The download always happens as well, so without the extension (or when its automation gets
-stuck) the user imports the file by hand, as before. The message shape and the QuizTool origins the
-extension listens on (`Extension/manifest.json`, currently only `http://localhost:4200`) are
-hand-kept in step on both sides. The extension never clicks Publish.
+import and Publish in the user's logged-in tab, then hands the quiz's share link back. The SPA side
+is `WaygroundExtensionService`:
+- After a Wayground export (from the table or from `Auto` mode), `FileExportService` returns the
+  `.xlsx` bytes alongside the download.
+- If `<html data-quiztool-extension>` is present, the service `postMessage`s
+  `{source: 'quiztool', type: 'wayground-import', requestId, title, fileName, base64}` to the
+  extension's content script.
+- The extension answers, possibly minutes later, with
+  `{source: 'quiztool-extension', type: 'wayground-import-result', requestId, title, ok, shareUrl, error}`.
+  The service shows it as its own notification (the share link, also copied to the clipboard) and
+  ignores request ids it didn't send.
+
+The download always happens as well, so without the extension (or when its automation gets stuck)
+the user imports the file by hand, as before. The message shapes and the QuizTool origins the
+extension listens on (`Extension/manifest.json`: production `https://kt-quiz-csv-import-tool.vercel.app`
+and `http://localhost:4200`; Vercel preview URLs are not included) are hand-kept in step on both
+sides. Quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in
+`Extension/selectors.js`).
 
 ## Rate limiting
 

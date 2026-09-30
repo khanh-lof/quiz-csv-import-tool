@@ -365,8 +365,8 @@ export class AiGeneration {
         }
         if (exported.xlsx && this.waygroundExtensionService.isInstalled()) {
           this.waygroundExtensionService.sendImport(title, exported.fileName, exported.xlsx);
-          this.notificationService.success('Đang mở Wayground để import…',
-            `Đã tải file ${exported.fileName}. Kiểm tra câu hỏi trong tab Wayground vừa mở rồi bấm Publish nhé.`,
+          this.notificationService.info('Đang tạo quiz trên Wayground…',
+            `Đã tải file ${exported.fileName}. Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.`,
             {nzPlacement: 'top'});
         } else {
           this.notificationService.success('Tạo xong rồi',

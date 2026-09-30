@@ -245,8 +245,8 @@ export class VocabularyTable implements OnInit {
     if (!exported) return;
     if (exported.xlsx && this.waygroundExtensionService.isInstalled()) {
       this.waygroundExtensionService.sendImport(title, exported.fileName, exported.xlsx);
-      this.notificationService.success('Đang mở Wayground để import…',
-        `Đã tải ${exported.fileName}. Kiểm tra câu hỏi trong tab Wayground vừa mở rồi bấm Publish nhé.`, {nzPlacement: 'top'});
+      this.notificationService.info('Đang tạo quiz trên Wayground…',
+        `Đã tải ${exported.fileName}. Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.`, {nzPlacement: 'top'});
       return;
     }
     this.notificationService.success('Tải file thành công',

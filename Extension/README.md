@@ -1,11 +1,14 @@
 # Cài tiện ích QuizTool → Wayground
 
-Tiện ích này giúp QuizTool tự import file quiz vào Wayground: bấm tải file Wayground trong QuizTool,
-một tab Wayground sẽ mở ra, tự tạo quiz, đặt tên và import câu hỏi. Bạn chỉ cần kiểm tra lại rồi
-bấm **Publish**.
+Tiện ích này giúp QuizTool tự tạo quiz trên Wayground: bấm tải file Wayground trong QuizTool, một tab
+Wayground sẽ mở ra, tự import câu hỏi, đặt tên và **publish** quiz, rồi tự đóng lại. Link chia sẻ của
+quiz hiện ngay trong QuizTool (và được copy sẵn).
+
+Quiz được publish với Subject **World Languages**, Grade **University**, Language **Tiếng Việt**, và ở
+chế độ **Publicly visible** (với tài khoản Wayground miễn phí, chỉ có chế độ này).
 
 Tiện ích chạy ngay trong tab Wayground mà bạn đã đăng nhập, nên không cần nhập mật khẩu Wayground vào
-QuizTool. Tiện ích không bao giờ tự bấm Publish.
+QuizTool.
 
 Dùng được trên **Google Chrome** và **Microsoft Edge** trên máy tính (không dùng được trên điện thoại).
 
@@ -37,11 +40,14 @@ Dùng được trên **Google Chrome** và **Microsoft Edge** trên máy tính (
 3. Tạo quiz như bình thường, chọn nền tảng **Wayground**:
    - **Tạo thủ công**: nhập bảng câu hỏi rồi bấm **Tải file**.
    - **Tạo bằng AI**: chọn chế độ AI tự nghĩ câu hỏi rồi bấm tạo.
-4. QuizTool vẫn tải file `.xlsx` về như trước, đồng thời mở một tab Wayground mới. Đợi vài giây, khung
-   thông báo ở cuối trang sẽ báo tiến trình:
-   - **Màu xanh lá**: import xong. Kiểm tra câu hỏi rồi bấm **Publish**.
-   - **Màu đỏ**: tiện ích bị kẹt ở một bước. Làm tiếp bằng tay: trong quiz đang mở, chọn
-     **Import existing files → Spreadsheet** rồi chọn file `.xlsx` vừa tải về.
+4. QuizTool vẫn tải file `.xlsx` về như trước, đồng thời mở một tab Wayground mới. Khung thông báo ở
+   cuối trang Wayground báo tiến trình. Đừng bấm gì trong tab đó khi tiện ích đang chạy.
+5. Khi publish xong, tab Wayground tự đóng và QuizTool hiện thông báo **Đã publish quiz trên Wayground**
+   kèm link chia sẻ (đã copy sẵn, dán được luôn).
+
+Nếu tiện ích bị kẹt ở một bước, tab Wayground vẫn mở với khung báo **màu đỏ** cho biết kẹt ở đâu, và
+QuizTool báo **Wayground chưa publish được**. Làm tiếp bằng tay trong tab đó. Nếu câu hỏi chưa được
+import, chọn **Import existing files → Spreadsheet** rồi chọn file `.xlsx` vừa tải về.
 
 Nếu chưa đăng nhập Wayground, tab mới sẽ mở trang đăng nhập. Đăng nhập xong là tiện ích tự làm tiếp.
 
@@ -54,10 +60,12 @@ Khi có bản mới, tải lại ZIP như ở bước 1 và chép đè thư mụ
 ## Gặp lỗi?
 
 - **Không thấy tab Wayground mở ra**: kiểm tra tiện ích đang bật trong `chrome://extensions`, rồi tải
-  lại trang QuizTool (F5). Tiện ích hiện chỉ chạy với QuizTool mở ở `http://localhost:4200`.
+  lại trang QuizTool (F5). Tiện ích chỉ chạy với QuizTool mở ở https://kt-quiz-csv-import-tool.vercel.app.
 - **Chrome báo "Disable developer mode extensions"** khi mở trình duyệt: bấm **Cancel** (Huỷ) để giữ
   tiện ích.
-- **Khung báo màu đỏ liên tục**: có thể Wayground vừa đổi giao diện. Vẫn import bằng tay được như
+- **Khung báo màu đỏ liên tục**: có thể Wayground vừa đổi giao diện. Vẫn làm bằng tay được như
   hướng dẫn ở mục 3, và báo lại để tiện ích được cập nhật.
+- **Lỡ đóng tab QuizTool trong lúc chờ**: tab Wayground sẽ không tự đóng, và link chia sẻ hiện trong
+  khung báo màu xanh ở cuối trang Wayground.
 - **Không muốn dùng nữa**: vào `chrome://extensions` và bấm **Remove** trên thẻ tiện ích. QuizTool vẫn
   tải file như bình thường.
