@@ -28,6 +28,7 @@ import { ExportType } from '../../models/export-type';
 import { CourseType } from '../../models/course-type';
 import { finalize } from 'rxjs';
 import { FileExportService } from '../../services/file-export.service';
+import { WaygroundExtensionService } from '../../services/wayground-extension.service';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { ImageCompressionService, UploadTooLargeError } from '../../services/image-compression.service';
@@ -121,6 +122,7 @@ export class AiGeneration {
     private readonly csvImportService: CsvImportService,
     private readonly pendingImportService: PendingImportService,
     private readonly fileExportService: FileExportService,
+    private readonly waygroundExtensionService: WaygroundExtensionService,
     private readonly imageCompressionService: ImageCompressionService,
     private readonly notificationService: NzNotificationService,
     private readonly destroyRef: DestroyRef,
@@ -354,15 +356,23 @@ export class AiGeneration {
       finalize(() => this.setGenerating(false))).subscribe({
       next: csvContent => {
         const exportType = this.formGroup.controls.exportType.value!;
-        const fileName = this.fileExportService.exportFileFromCsvContent(
-          FileExportService.buildFileName(this.lessonLabel(), exportType), csvContent, exportType);
-        if (!fileName) {
+        const title = this.lessonLabel();
+        const exported = this.fileExportService.exportFileFromCsvContent(
+          FileExportService.buildFileName(title, exportType), csvContent, exportType);
+        if (!exported) {
           this.notificationService.warning('Không có dữ liệu', 'AI không trả về câu hỏi nào. Vui lòng thử lại.', {nzPlacement: 'top'});
           return;
         }
-        this.notificationService.success('Tạo xong rồi',
-          `Đã tải file ${fileName}, import vào ${FileExportService.platformName(exportType)} là dùng được nhaa.`,
-          {nzPlacement: 'top'});
+        if (exported.xlsx && this.waygroundExtensionService.isInstalled()) {
+          this.waygroundExtensionService.sendImport(title, exported.fileName, exported.xlsx);
+          this.notificationService.success('Đang mở Wayground để import…',
+            `Đã tải file ${exported.fileName}. Kiểm tra câu hỏi trong tab Wayground vừa mở rồi bấm Publish nhé.`,
+            {nzPlacement: 'top'});
+        } else {
+          this.notificationService.success('Tạo xong rồi',
+            `Đã tải file ${exported.fileName}, import vào ${FileExportService.platformName(exportType)} là dùng được nhaa.`,
+            {nzPlacement: 'top'});
+        }
 
         this.clearAllImages();
       },

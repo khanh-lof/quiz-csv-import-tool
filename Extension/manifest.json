@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "QuizTool → Wayground",
+  "version": "0.1.0",
+  "description": "Imports the Wayground file QuizTool generates straight into your own Wayground account.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://wayground.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:4200/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://wayground.com/*"],
+      "js": ["selectors.js", "wayground.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

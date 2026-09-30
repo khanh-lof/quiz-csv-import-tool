@@ -30,6 +30,7 @@ import { QuestionType } from '../../models/question-type';
 import { CdkTextareaAutosize } from '@angular/cdk/text-field';
 import { debounceTime } from 'rxjs';
 import { PendingImportService } from '../../services/pending-import.service';
+import { WaygroundExtensionService } from '../../services/wayground-extension.service';
 import { UsageGuide } from '../usage-guide/usage-guide';
 import { NzContentComponent, NzLayoutComponent, NzSiderComponent } from 'ng-zorro-antd/layout';
 
@@ -89,6 +90,7 @@ export class VocabularyTable implements OnInit {
               private readonly modalService: NzModalService,
               private readonly destroyRef: DestroyRef,
               private readonly pendingImportService: PendingImportService,
+              private readonly waygroundExtensionService: WaygroundExtensionService,
               formBuilder: FormBuilder) {
     this.formGroup = formBuilder.group({
       listOfData: formBuilder.array<FormGroup<QuestionDefinitionForm>>(this.createDefaultQuestionFormGroups(), [Validators.minLength(this.minRows), this.duplicateValidator]),
@@ -237,12 +239,18 @@ export class VocabularyTable implements OnInit {
     }
     const exportType: ExportType = exportTypeControl.value;
     const today = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD in local time
-    const fileName = this.fileExportService.exportFile(
-      FileExportService.buildFileName(`QuizTool-${today}`, exportType), this.currentRows(), exportType);
-    if (fileName) {
-      this.notificationService.success('Tải file thành công',
-        `Đã tải ${fileName}, import vào ${FileExportService.platformName(exportType)} là dùng được nhaa.`, {nzPlacement: 'top'});
+    const title = `QuizTool-${today}`;
+    const exported = this.fileExportService.exportFile(
+      FileExportService.buildFileName(title, exportType), this.currentRows(), exportType);
+    if (!exported) return;
+    if (exported.xlsx && this.waygroundExtensionService.isInstalled()) {
+      this.waygroundExtensionService.sendImport(title, exported.fileName, exported.xlsx);
+      this.notificationService.success('Đang mở Wayground để import…',
+        `Đã tải ${exported.fileName}. Kiểm tra câu hỏi trong tab Wayground vừa mở rồi bấm Publish nhé.`, {nzPlacement: 'top'});
+      return;
     }
+    this.notificationService.success('Tải file thành công',
+      `Đã tải ${exported.fileName}, import vào ${FileExportService.platformName(exportType)} là dùng được nhaa.`, {nzPlacement: 'top'});
   }
 
   private isEmptyRow(row: FormGroup<QuestionDefinitionForm>): boolean {
