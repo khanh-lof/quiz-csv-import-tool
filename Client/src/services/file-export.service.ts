@@ -6,6 +6,13 @@ import { ExportType } from '../models/export-type';
 import { WaygroundCsvBuilder } from './wayground-csv-builder';
 import * as XLSX from 'xlsx';
 
+// What an export downloaded. For Wayground it also carries the .xlsx itself, so the same file (with the
+// same randomly drawn wrong answers) can be handed to the QuizTool browser extension.
+export interface ExportedFile {
+  fileName: string;
+  xlsx?: Uint8Array;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -16,16 +23,16 @@ export class FileExportService {
               private readonly waygroundCsvBuilder: WaygroundCsvBuilder) {
   }
 
-  // Both exports return the name the file was downloaded under (Wayground's becomes .xlsx), or null
-  // when there was nothing to export.
-  public exportFile(filename: string, rows: QuestionDefinition[], exportType: ExportType = ExportType.GimKit): string | null {
+  // Both exports return the file that was downloaded (Wayground's becomes .xlsx), or null when there
+  // was nothing to export.
+  public exportFile(filename: string, rows: QuestionDefinition[], exportType: ExportType = ExportType.GimKit): ExportedFile | null {
     if (!rows || !rows.length) return null;
 
     const csvResult = this.buildCsvStringForExportTypeFromRows(exportType, rows);
     return this.download(filename, csvResult, exportType);
   }
 
-  public exportFileFromCsvContent(filename: string, csvContent: string, exportType: ExportType = ExportType.GimKit): string | null {
+  public exportFileFromCsvContent(filename: string, csvContent: string, exportType: ExportType = ExportType.GimKit): ExportedFile | null {
     if (!csvContent || !csvContent.length) return null;
 
     const csvResult = this.buildCsvStringForExportTypeFromCsvContent(exportType, csvContent);
@@ -52,16 +59,10 @@ export class FileExportService {
     return `${safeLabel}-${FileExportService.platformName(exportType)}.csv`;
   }
 
-  private convertCsvToXlsx(csvData: string, originalName: string): string {
-    // 1. Read the CSV text string into a temporary workbook object
+  // Reads the CSV text into a workbook and writes it back out as .xlsx bytes.
+  public static buildXlsx(csvData: string): Uint8Array {
     const workbook = XLSX.read(csvData, { type: 'string' });
-
-    // 2. Derive a fresh output name by stripping out the .csv extension
-    const outputFileName = originalName.replace(/\.csv$/i, '') + '.xlsx';
-
-    // 3. Write the file out and automatically trigger a client-side download
-    XLSX.writeFile(workbook, outputFileName);
-    return outputFileName;
+    return new Uint8Array(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }));
   }
 
   private buildCsvStringForExportTypeFromRows(exportType: ExportType, rows: QuestionDefinition[]) {
@@ -89,10 +90,7 @@ export class FileExportService {
     }
   }
 
-  private downloadCsv(filename: string, csvResult: string) {
-
-    // Create blob using FileSaver
-    const blob = new Blob([csvResult], {type: 'text/csv;charset=utf-8'});
+  private downloadBlob(filename: string, blob: Blob) {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.href = url;
@@ -101,15 +99,20 @@ export class FileExportService {
     URL.revokeObjectURL(url);
   }
 
-  private download(filename: string, csvResult: string, exportType: ExportType): string {
+  private download(filename: string, csvResult: string, exportType: ExportType): ExportedFile {
     switch (exportType) {
-      case ExportType.Wayground:
-        return this.convertCsvToXlsx(csvResult, filename);
+      case ExportType.Wayground: {
+        const xlsx = FileExportService.buildXlsx(csvResult);
+        const xlsxName = filename.replace(/\.csv$/i, '') + '.xlsx';
+        this.downloadBlob(xlsxName, new Blob([xlsx as BlobPart],
+          {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+        return {fileName: xlsxName, xlsx};
+      }
       case ExportType.GimKit:
       case ExportType.Blooket:
       default:
-        this.downloadCsv(filename, csvResult);
-        return filename;
+        this.downloadBlob(filename, new Blob([csvResult], {type: 'text/csv;charset=utf-8'}));
+        return {fileName: filename};
     }
   }
 }

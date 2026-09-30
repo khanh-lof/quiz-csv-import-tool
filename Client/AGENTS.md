@@ -110,7 +110,10 @@ answers via `Utils.getRandomItem`/`shuffle`, so a builder run needs at least a f
 a distinct wrong answer" loop can spin/repeat. `Utils.escapeCsvField` handles quoting for the
 generated CSV (not the same code path as the import parser). `FileExportService.download` then
 picks the output format per platform: GimKit/Blooket download as `.csv` directly; Wayground is
-converted to `.xlsx` via the `xlsx` package first.
+converted to `.xlsx` via the `xlsx` package first (`FileExportService.buildXlsx`). Both export methods
+return an `ExportedFile` (`fileName`, plus the `xlsx` bytes for Wayground). When the optional
+`../Extension` is installed, `WaygroundExtensionService.sendImport` hands those bytes to it, and the
+extension imports them into the user's Wayground tab (see [../AGENTS.md](../AGENTS.md#the-wayground-browser-extension)).
 
 ### UI library
 

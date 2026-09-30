@@ -6,11 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 QuizTool turns photos of a Chinese (HSK) lesson into a quiz file that can be imported into GimKit,
 Blooket, or Wayground. It is one git repo holding two independently built and independently deployed
-projects:
+projects, plus an optional browser extension:
 
 - `Client/` — Angular 20 SPA (standalone components, ng-zorro-antd).
 - `Server/` — Go (`net/http`) API with MongoDB persistence. Runs as a standalone binary / Docker
   image (`Server/Dockerfile`).
+- `Extension/` — Chrome extension (plain JS, loaded unpacked, not deployed) that imports the
+  Wayground `.xlsx` into the user's own Wayground tab. See [Extension/AGENTS.md](Extension/AGENTS.md).
 
 Both deploy together as one Vercel project via [Vercel Services](https://vercel.com/docs/services),
 configured in the root `vercel.json`: the `client` service (Angular preset, SPA fallback to
@@ -20,9 +22,10 @@ the Go mux still sees `/api/...` — and everything else to `client`. The Vercel
 Directory must be the repo root, and the server's env vars (`MONGODB_URI`, `JWT_SECRET`, …) are set
 in the same project.
 
-Each half has its own `AGENTS.md` with the detail for that side — read
-[Client/AGENTS.md](Client/AGENTS.md) or [Server/AGENTS.md](Server/AGENTS.md) before working inside
-either directory. This file covers only what spans both.
+Each project has its own `AGENTS.md` with the detail for that side — read
+[Client/AGENTS.md](Client/AGENTS.md), [Server/AGENTS.md](Server/AGENTS.md) or
+[Extension/AGENTS.md](Extension/AGENTS.md) before working inside that directory. This file covers only
+what spans them.
 
 There is no root-level build, no workspace/solution tying the two halves together, and no shared code or
 generated client — the contract between them is hand-written on both sides and must be kept in sync
@@ -106,6 +109,18 @@ Consequences to keep in mind when changing anything here:
   on the server describing the same columns to the LLM, and the enum entry on both sides.
 - Export output format is per-platform: GimKit and Blooket download as `.csv`, Wayground is converted
   to `.xlsx` via `xlsx` before download (`FileExportService.download`).
+
+## The Wayground browser extension
+
+Wayground has no public API for creating quizzes, so `Extension/` drives Wayground's own spreadsheet
+import in the user's logged-in tab. The SPA side is `WaygroundExtensionService`: after a Wayground
+export (from the table or from `Auto` mode), `FileExportService` returns the `.xlsx` bytes alongside
+the download, and if `<html data-quiztool-extension>` is present the service `postMessage`s
+`{source: 'quiztool', type: 'wayground-import', title, fileName, base64}` to the extension's content
+script. The download always happens as well, so without the extension (or when its automation gets
+stuck) the user imports the file by hand, as before. The message shape and the QuizTool origins the
+extension listens on (`Extension/manifest.json`, currently only `http://localhost:4200`) are
+hand-kept in step on both sides. The extension never clicks Publish.
 
 ## Rate limiting
 
