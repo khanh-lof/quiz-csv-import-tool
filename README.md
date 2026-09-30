@@ -12,7 +12,7 @@ format.
 |---|---|
 | [`Client/`](Client/) | Angular 20 single-page app (ng-zorro-antd) |
 | [`Server/`](Server/) | Go API: auth, per-user AI rate limit, LLM-backed CSV generation, MongoDB persistence ([README](Server/README.md)) |
-| [`Extension/`](Extension/) | Optional Chrome/Edge extension that imports the Wayground `.xlsx` into your logged-in Wayground tab ([install guide, in Vietnamese](Extension/README.md)) |
+| [`Extension/`](Extension/) | Optional Chrome/Edge extension that imports and publishes the Wayground quiz in your logged-in Wayground tab and returns its share link ([install guide, in Vietnamese](Extension/README.md)) |
 
 The client and server are built independently; there is no shared code. The API contract between them
 is described in [AGENTS.md](AGENTS.md).
