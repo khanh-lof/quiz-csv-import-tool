@@ -62,13 +62,17 @@ async function importSpreadsheet(job) {
   const transfer = new DataTransfer();
   transfer.items.add(fileFromJob(job));
   fileInput.files = transfer.files;
+  // Fired in the order a real file picker fires them; Wayground reads the file on `input`.
+  fileInput.dispatchEvent(new Event('input', {bubbles: true}));
   fileInput.dispatchEvent(new Event('change', {bubbles: true}));
 
+  // Wayground parses the spreadsheet before it enables Import: about 5 s for its 6-row sample, longer
+  // for a full lesson.
   step = 'bấm Import';
   const importButton = await waitFor(() => {
     const button = document.querySelector(WAYGROUND.importButton);
     return button && !button.disabled ? button : null;
-  });
+  }, 60_000);
   importButton.click();
   await waitFor(() => !document.querySelector(WAYGROUND.importModal), 60_000);
 }
