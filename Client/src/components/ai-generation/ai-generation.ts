@@ -26,6 +26,7 @@ import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
 import { NzInputDirective } from 'ng-zorro-antd/input';
 import { ExportType } from '../../models/export-type';
 import { CourseType } from '../../models/course-type';
+import { HskStandard, hskMaxLevel } from '../../models/hsk-standard';
 import { finalize } from 'rxjs';
 import { FileExportService } from '../../services/file-export.service';
 import { WaygroundExtensionService } from '../../services/wayground-extension.service';
@@ -47,6 +48,7 @@ const SETTINGS_STORAGE_KEY = 'ai-generation-settings';
 interface AiGenerationForm {
   courseType: FormControl<CourseType | null>;
   courseName: FormControl<string | null>;
+  hskStandard: FormControl<HskStandard | null>;
   level: FormControl<number | null>;
   lessonNumber: FormControl<number | null>;
   AIMode: FormControl<AIGenerationMode | null>;
@@ -109,15 +111,23 @@ export class AiGeneration {
     // HSK and YCT always have a level; a course typed in by hand may not, so there the level is optional.
     this.setRequired(aiGenerationForm.controls.level, isAutoMode && courseType !== null && courseType !== CourseType.Other);
     this.setRequired(aiGenerationForm.controls.courseName, isAutoMode && courseType === CourseType.Other);
+    // The level box caps what is typed, but switching HSK 3.0 back to 2.0 can leave a level 7 to 9 behind.
+    const level = aiGenerationForm.controls.level.value;
+    this.setError(aiGenerationForm.controls.level, 'max', isAutoMode && courseType === CourseType.Hsk && level !== null
+      && level > hskMaxLevel(aiGenerationForm.controls.hskStandard.value));
     return null;
   };
 
   private setRequired(control: AbstractControl, isRequired: boolean): void {
-    if (isRequired && Validators.required(control)) {
-      Utils.addError(control, 'required');
+    this.setError(control, 'required', isRequired && Validators.required(control) !== null);
+  }
+
+  private setError(control: AbstractControl, errorKey: string, hasError: boolean): void {
+    if (hasError) {
+      Utils.addError(control, errorKey);
     }
     else {
-      Utils.removeError(control, 'required');
+      Utils.removeError(control, errorKey);
     }
   }
 
@@ -137,6 +147,7 @@ export class AiGeneration {
       AIMode: formBuilder.control<AIGenerationMode | null>(AIGenerationMode.Auto, Validators.required),
       courseType: formBuilder.control<CourseType | null>(null),
       courseName: formBuilder.control<string | null>(null),
+      hskStandard: formBuilder.control<HskStandard | null>(HskStandard.V2),
       level: formBuilder.control<number | null>(null),
       lessonNumber: formBuilder.control<number | null>(null),
       exportType: formBuilder.control<ExportType | null>(null),
@@ -356,6 +367,7 @@ export class AiGeneration {
     this.aiCsvService.generateCsvFromImagesCreative(imageFiles, {
       courseType: this.formGroup.controls.courseType.value,
         courseName: this.formGroup.controls.courseName.value,
+        hskStandard: this.formGroup.controls.hskStandard.value,
         level: this.formGroup.controls.level.value,
         AIMode: this.formGroup.controls.AIMode.value,
         lessonNumber: this.formGroup.controls.lessonNumber.value,
@@ -395,10 +407,11 @@ export class AiGeneration {
   // the platform stopping the function) are both fixed by sending fewer images, so say so; they stay
   // on screen until closed. Timeouts and gateway failures only get here once AiCsvService's automatic
   // retries have run out.
-  // Names the lesson for the download, e.g. "HSK3-Bai5", or "Boya-Bai2" for a course typed in by hand.
+  // Names the lesson for the download, e.g. "HSK3-Bai5" (HSK 2.0), "HSK3.0-3-Bai5", or "Boya-Bai2" for a
+  // course typed in by hand.
   private lessonLabel(): string {
-    const {courseType, courseName, level, lessonNumber} = this.formGroup.getRawValue();
-    const course = courseType === CourseType.Hsk ? 'HSK'
+    const {courseType, courseName, hskStandard, level, lessonNumber} = this.formGroup.getRawValue();
+    const course = courseType === CourseType.Hsk ? (hskStandard === HskStandard.V3 ? 'HSK3.0-' : 'HSK')
       : courseType === CourseType.Yct ? 'YCT'
       : (courseName ?? '');
     return `${course}${level ?? ''}-Bai${lessonNumber ?? ''}`;
@@ -473,6 +486,13 @@ export class AiGeneration {
 
   protected readonly ExportType = ExportType;
   protected readonly CourseType = CourseType;
+  protected readonly HskStandard = HskStandard;
+
+  protected get maxLevel(): number {
+    return this.formGroup.controls.courseType.value === CourseType.Hsk
+      ? hskMaxLevel(this.formGroup.controls.hskStandard.value)
+      : 9;
+  }
 }
 
 export const canLeaveAiGeneration: CanDeactivateFn<AiGeneration> = component => component.canLeave();

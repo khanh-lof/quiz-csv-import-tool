@@ -1,10 +1,13 @@
 import { AIGenerationMode } from './aigeneration-mode';
 import { ExportType } from './export-type';
 import { CourseType } from './course-type';
+import { HskStandard } from './hsk-standard';
 
 export interface AiGenerationRequest {
   courseType: CourseType | null;
   courseName: string | null;
+  // Only sent for HSK.
+  hskStandard: HskStandard | null;
   level: number | null;
   lessonNumber: number | null;
   AIMode: AIGenerationMode | null;

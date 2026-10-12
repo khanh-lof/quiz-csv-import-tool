@@ -96,7 +96,9 @@ completely different paths through the system:
   mode**: with none attached the prompt tells the model to work from the standard word list of the
   identified lesson instead. The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`, another
   by-ordinal enum duplicated on both sides), a `level` that is required for HSK and YCT but optional
-  for `Other`, a `courseName` required only for `Other`, and a `lessonNumber`. Everything the prompt
+  for `Other`, a `courseName` required only for `Other`, and a `lessonNumber`. For HSK the user
+  also picks the standard, `HskStandard` 2.0 (levels 1–6, the default) or 3.0 (levels 1–9), sent as
+  `hskStandard=2|3` by value, not ordinal; the server rejects a level outside the standard's range. Everything the prompt
   needs travels in `csvgen.Options` (`Server/internal/csvgen/options.go`).
 
 Consequences to keep in mind when changing anything here:

@@ -3,6 +3,7 @@ package csvgen
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -32,6 +33,26 @@ const (
 
 var courseTypeNames = []string{"Hsk", "Yct", "Other"}
 
+// HskStandard is the version of the HSK standard an HSK lesson follows. Sent by value (2 or 3), not
+// by ordinal; keep in step with Client/src/models/hsk-standard.ts.
+type HskStandard int
+
+const (
+	// Hsk2 is the 2009 six-level HSK, taught from the original 《HSK标准教程》. The default, since
+	// it is what Vietnamese classrooms mostly still use.
+	Hsk2 HskStandard = 2
+	// Hsk3 is the nine-level HSK 3.0 (GF 0025-2021).
+	Hsk3 HskStandard = 3
+)
+
+// MaxLevel is the highest level of the standard: HSK 2.0 stops at 6, HSK 3.0 goes to 9.
+func (s HskStandard) MaxLevel() int {
+	if s == Hsk3 {
+		return 9
+	}
+	return 6
+}
+
 // IntelligenceLevels is how many "Độ thông minh" levels the GUI offers (1 = Thấp, 2 = Cao); each
 // picks one model from LLM_INTELLIGENCE_MODELS, cheapest first.
 const IntelligenceLevels = 2
@@ -46,7 +67,9 @@ type Options struct {
 	ExportType ExportType
 	CourseType CourseType
 	// CourseName is free text, only used when CourseType is Other.
-	CourseName   string
+	CourseName string
+	// HskStandard is only used when CourseType is Hsk.
+	HskStandard  HskStandard
 	Level        *int
 	LessonNumber *int
 	// Intelligence is 1..IntelligenceLevels and selects the model, see Client.modelFor.
@@ -58,7 +81,10 @@ type Options struct {
 func (o Options) CourseDisplayName() string {
 	switch o.CourseType {
 	case Hsk:
-		return "HSK, taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"
+		if o.HskStandard == Hsk3 {
+			return "HSK 3.0 (the nine-level standard GF 0025-2021), taught from the HSK 3.0 edition of 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK 3.0)"
+		}
+		return "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"
 	case Yct:
 		return "YCT (Youth Chinese Test), taught from 《YCT标准教程》 YCT Standard Course (Giáo trình chuẩn YCT)"
 	}
@@ -81,6 +107,17 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 	}
 	opts := Options{ExportType: ExportType(exportType), CourseType: CourseType(courseType)}
 
+	if opts.CourseType == Hsk {
+		opts.HskStandard = Hsk2
+		if raw := strings.TrimSpace(q.Get("hskStandard")); raw != "" {
+			standard, err := strconv.Atoi(raw)
+			if err != nil || (HskStandard(standard) != Hsk2 && HskStandard(standard) != Hsk3) {
+				return Options{}, errors.New("Invalid hskStandard parameter.")
+			}
+			opts.HskStandard = HskStandard(standard)
+		}
+	}
+
 	if opts.CourseType == Other {
 		opts.CourseName = strings.TrimSpace(q.Get("courseName"))
 		if opts.CourseName == "" {
@@ -92,6 +129,9 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 		level, err := strconv.Atoi(raw)
 		if err != nil {
 			return Options{}, errors.New("Invalid level parameter.")
+		}
+		if opts.CourseType == Hsk && (level < 1 || level > opts.HskStandard.MaxLevel()) {
+			return Options{}, fmt.Errorf("HSK %d.0 has levels 1 to %d.", opts.HskStandard, opts.HskStandard.MaxLevel())
 		}
 		opts.Level = &level
 	} else if opts.CourseType != Other {

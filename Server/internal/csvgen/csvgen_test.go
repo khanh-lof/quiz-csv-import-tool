@@ -20,7 +20,14 @@ func TestParseCreativeOptions(t *testing.T) {
 	}{
 		{query: "exportType=2&courseType=0&level=3&lessonNumber=7", check: func(o Options) bool {
 			return o.ExportType == Wayground && o.CourseType == Hsk && *o.Level == 3 && *o.LessonNumber == 7 &&
-				o.CourseDisplayName() == "HSK, taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)" && o.Intelligence == 1
+				o.HskStandard == Hsk2 && // HSK 2.0 when no standard is sent
+				o.CourseDisplayName() == "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)" && o.Intelligence == 1
+		}},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=9&lessonNumber=1", check: func(o Options) bool {
+			return o.HskStandard == Hsk3 && *o.Level == 9 && strings.HasPrefix(o.CourseDisplayName(), "HSK 3.0 ")
+		}},
+		{query: "exportType=0&courseType=1&hskStandard=x&level=1&lessonNumber=1", check: func(o Options) bool {
+			return o.HskStandard == 0 // hskStandard only applies to HSK
 		}},
 		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=1", check: func(o Options) bool {
 			return o.Intelligence == 1
@@ -43,6 +50,10 @@ func TestParseCreativeOptions(t *testing.T) {
 		{query: "exportType=0&courseType=2&lessonNumber=1", wantErr: "Invalid or missing courseName parameter."},
 		{query: "exportType=0&courseType=0&level=x&lessonNumber=1", wantErr: "Invalid level parameter."},
 		{query: "exportType=0&courseType=1&lessonNumber=1", wantErr: "Invalid or missing level parameter."},
+		{query: "exportType=0&courseType=0&hskStandard=4&level=1&lessonNumber=1", wantErr: "Invalid hskStandard parameter."},
+		{query: "exportType=0&courseType=0&level=7&lessonNumber=1", wantErr: "HSK 2.0 has levels 1 to 6."},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=10&lessonNumber=1", wantErr: "HSK 3.0 has levels 1 to 9."},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=0&lessonNumber=1", wantErr: "HSK 3.0 has levels 1 to 9."},
 		{query: "exportType=0&courseType=0&level=1", wantErr: "Invalid or missing lessonNumber parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=0", wantErr: "Invalid intelligence parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=3", wantErr: "Invalid intelligence parameter."},

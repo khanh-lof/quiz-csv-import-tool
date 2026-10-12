@@ -97,7 +97,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      navigates to `/quiz`, where `VocabularyTable.ngOnInit` takes them and adds them like any other
      import.
    - **`Auto`** (requires `courseType`/`lessonNumber`/`exportType` in the page's form, plus `level`
-     for HSK/YCT or `courseName` for `Other`; images are optional here) → response is CSV
+     for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — or `courseName` for `Other`; images are optional here) → response is CSV
      rows with no header → passed straight to `FileExportService.exportFileFromCsvContent`, which
      calls the matching `CsvBuilder.buildFromCsvContent` to prepend the platform's `CsvHeader` and
      downloads immediately. The vocabulary table is never touched in this path.

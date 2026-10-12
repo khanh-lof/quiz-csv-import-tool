@@ -53,6 +53,9 @@ export class AiCsvService {
     if (aiGenerationRequest.intelligence !== null) {
       params = params.set('intelligence', aiGenerationRequest.intelligence);
     }
+    if (aiGenerationRequest.courseType === CourseType.Hsk && aiGenerationRequest.hskStandard !== null) {
+      params = params.set('hskStandard', aiGenerationRequest.hskStandard);
+    }
     if (aiGenerationRequest.courseType === CourseType.Other && aiGenerationRequest.courseName) {
       params = params.set('courseName', aiGenerationRequest.courseName);
     }
