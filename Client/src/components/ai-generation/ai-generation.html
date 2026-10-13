@@ -1,7 +1,7 @@
 <!-- The guide sits beside the form, not above it, so opening it never pushes the form down.
      inert while generating: nothing behind the overlay can be clicked, focused or typed into. -->
 <nz-layout class="ai-layout" [attr.inert]="isGenerating() ? '' : null">
-  <nz-sider nzTheme="light" [nzWidth]="280" class="guide-sider">
+  <nz-sider nzTheme="light" [nzWidth]="400" class="guide-sider">
     <app-usage-guide storageKey="ai">
       <ol>
         <li>Thêm ảnh bài học: kéo thả vào khung, dán (Ctrl+V) hoặc bấm <b>Thêm ảnh</b>. Chụp rõ phần từ vựng.</li>
