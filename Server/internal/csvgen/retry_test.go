@@ -46,7 +46,11 @@ func TestGenerateRetriesTransientStatuses(t *testing.T) {
 }
 
 func TestGenerateGivesUpAfterMaxAttempts(t *testing.T) {
-	c, calls := flakyLLM(t, []int{503, 503, 503, 503}, nil)
+	statuses := make([]int, maxAttempts)
+	for i := range statuses {
+		statuses[i] = http.StatusServiceUnavailable
+	}
+	c, calls := flakyLLM(t, statuses, nil)
 	_, err := c.Generate(context.Background(), nil, true, Options{})
 	var statusErr *StatusError
 	if !errors.As(err, &statusErr) || statusErr.Status != 503 || statusErr.Code != "upstream_capacity_unavailable" {

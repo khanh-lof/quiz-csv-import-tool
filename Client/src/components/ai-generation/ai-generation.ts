@@ -2,11 +2,10 @@ import { Component, DestroyRef, HostListener, signal, ChangeDetectionStrategy } 
 import { CommonModule } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
-import { CanDeactivateFn, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiCsvService } from '../../services/ai-csv.service';
-import { CsvImportService } from '../../services/csv-import.service';
-import { PendingImportService } from '../../services/pending-import.service';
+import { AiJobService } from '../../services/ai-job.service';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
 import {
   AbstractControl,
@@ -28,12 +27,12 @@ import { ExportType } from '../../models/export-type';
 import { CourseType } from '../../models/course-type';
 import { HskStandard, hskMaxLevel } from '../../models/hsk-standard';
 import { finalize } from 'rxjs';
-import { FileExportService } from '../../services/file-export.service';
 import { WaygroundExtensionService } from '../../services/wayground-extension.service';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { ImageCompressionService, UploadTooLargeError } from '../../services/image-compression.service';
 import { UsageGuide } from '../usage-guide/usage-guide';
+import { AiJobs } from '../ai-jobs/ai-jobs';
 import { NzContentComponent, NzLayoutComponent, NzSiderComponent } from 'ng-zorro-antd/layout';
 import { WaygroundDelivery } from '../../models/wayground-delivery';
 
@@ -44,6 +43,8 @@ interface ImageItem {
 // The page's choices, remembered between visits so a teacher going lesson by lesson does not
 // re-enter the course, level and platform every time.
 const SETTINGS_STORAGE_KEY = 'ai-generation-settings';
+// Polls without a running job to wait out after submitting, since the new job may not show up in the first one.
+const NEW_JOB_IDLE_POLLS = 3;
 
 interface AiGenerationForm {
   courseType: FormControl<CourseType | null>;
@@ -61,6 +62,7 @@ interface AiGenerationForm {
   imports: [
     CommonModule,
     UsageGuide,
+    AiJobs,
     NzLayoutComponent,
     NzSiderComponent,
     NzContentComponent,
@@ -86,12 +88,6 @@ export class AiGeneration {
   protected readonly selectedImages = signal<ImageItem[]>([]);
   protected isDragOver = false;
   protected readonly isGenerating = signal(false);
-  // Which automatic retry of the AI request is running; 0 while on the first attempt.
-  protected readonly retryNumber = signal(0);
-  // Seconds since the generation started, shown on the overlay so a minutes-long wait visibly progresses.
-  protected readonly elapsedSeconds = signal(0);
-  private elapsedTimer: ReturnType<typeof setInterval> | null = null;
-  private readonly onRetry = (retryNumber: number) => this.retryNumber.set(retryNumber);
   protected dragEnterCounter = 0;
 
   protected readonly AIGenerationMode = AIGenerationMode;
@@ -134,9 +130,7 @@ export class AiGeneration {
   constructor(
     private readonly router: Router,
     private readonly aiCsvService: AiCsvService,
-    private readonly csvImportService: CsvImportService,
-    private readonly pendingImportService: PendingImportService,
-    private readonly fileExportService: FileExportService,
+    private readonly aiJobService: AiJobService,
     private readonly waygroundExtensionService: WaygroundExtensionService,
     private readonly imageCompressionService: ImageCompressionService,
     private readonly notificationService: NzNotificationService,
@@ -156,7 +150,6 @@ export class AiGeneration {
       validators : [this.requiredIfAIAutoMode]
     })
     this.restoreSettings();
-    this.destroyRef.onDestroy(() => this.stopElapsedTimer());
     this.extensionInstalled = waygroundExtensionService.isInstalled();
     this.waygroundDelivery = new FormControl(waygroundExtensionService.preferredDelivery(), {nonNullable: true});
     this.waygroundDelivery.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
@@ -182,30 +175,9 @@ export class AiGeneration {
     }
   }
 
-  // While a generation runs (it can take minutes) the page cannot be left, since leaving it would
-  // silently cancel the request (see canLeaveAiGeneration).
-  canLeave(): boolean {
-    if (this.isGenerating()) {
-      this.notificationService.warning('AI đang tạo câu hỏi', 'Chờ tạo xong rồi hãy chuyển trang nhé.', {nzPlacement: 'top'});
-      return false;
-    }
-    return true;
-  }
-
+  // True while the request is being prepared and uploaded; the server's work on it is not waited for.
   private setGenerating(isGenerating: boolean): void {
     this.isGenerating.set(isGenerating);
-    this.stopElapsedTimer();
-    if (isGenerating) {
-      this.elapsedSeconds.set(0);
-      this.elapsedTimer = setInterval(() => this.elapsedSeconds.update(seconds => seconds + 1), 1000);
-    }
-  }
-
-  private stopElapsedTimer(): void {
-    if (this.elapsedTimer !== null) {
-      clearInterval(this.elapsedTimer);
-      this.elapsedTimer = null;
-    }
   }
 
   onDropZoneEnter(event: DragEvent): void {
@@ -333,7 +305,6 @@ export class AiGeneration {
 
     this.saveSettings();
     this.setGenerating(true);
-    this.retryNumber.set(0);
 
     let imageFiles: File[];
     try {
@@ -343,29 +314,11 @@ export class AiGeneration {
       this.showGenerationError(err);
       return;
     }
-    if (this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
-      this.aiCsvService.generateCsvFromImages(imageFiles, this.onRetry).pipe(takeUntilDestroyed(this.destroyRef),
-        finalize(() => this.setGenerating(false))).subscribe({
-        next: csvContent => {
-          const rows = this.csvImportService.parseCsv(csvContent);
-
-          if (rows.length === 0) {
-            this.notificationService.warning('Không có dữ liệu', 'AI không trả về dữ liệu CSV hợp lệ từ các ảnh.', {nzPlacement: 'top'});
-            return;
-          }
-
-          // Hand the rows to the table for review; stop generating first so the page may be left.
-          this.setGenerating(false);
-          this.clearAllImages();
-          this.pendingImportService.set(rows);
-          this.router.navigateByUrl('/quiz');
-        },
-        error: err => this.showGenerationError(err),
-      });
-      return;
-    }
-    this.aiCsvService.generateCsvFromImagesCreative(imageFiles, {
-      courseType: this.formGroup.controls.courseType.value,
+    const isFormatted = this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted;
+    const submit$ = isFormatted
+      ? this.aiCsvService.submitFormatted(imageFiles, `Từ ảnh (${imageFiles.length} ảnh)`)
+      : this.aiCsvService.submitCreative(imageFiles, {
+        courseType: this.formGroup.controls.courseType.value,
         courseName: this.formGroup.controls.courseName.value,
         hskStandard: this.formGroup.controls.hskStandard.value,
         level: this.formGroup.controls.level.value,
@@ -373,40 +326,22 @@ export class AiGeneration {
         lessonNumber: this.formGroup.controls.lessonNumber.value,
         exportType: this.formGroup.controls.exportType.value,
         intelligence: this.formGroup.controls.intelligence.value,
-    } satisfies AiGenerationRequest, this.onRetry).pipe(takeUntilDestroyed(this.destroyRef),
-      finalize(() => this.setGenerating(false))).subscribe({
-      next: csvContent => {
-        const exportType = this.formGroup.controls.exportType.value!;
-        const title = this.lessonLabel();
-        const publish = exportType === ExportType.Wayground
-          && this.waygroundExtensionService.shouldPublish(this.waygroundDelivery.value);
-        const exported = this.fileExportService.exportFileFromCsvContent(
-          FileExportService.buildFileName(title, exportType), csvContent, exportType, !publish);
-        if (!exported) {
-          this.notificationService.warning('Không có dữ liệu', 'AI không trả về câu hỏi nào. Vui lòng thử lại.', {nzPlacement: 'top'});
-          return;
-        }
-        if (publish && exported.xlsx) {
-          this.waygroundExtensionService.sendImport(title, exported.fileName, exported.xlsx);
-          this.notificationService.info('Đang tạo quiz trên Wayground…',
-            'Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.',
-            {nzPlacement: 'top'});
-        } else {
-          this.notificationService.success('Tạo xong rồi',
-            `Đã tải file ${exported.fileName}, import vào ${FileExportService.platformName(exportType)} là dùng được nhaa.`,
-            {nzPlacement: 'top'});
-        }
-
+      } satisfies AiGenerationRequest, this.lessonLabel());
+    submit$.pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.setGenerating(false))).subscribe({
+      next: () => {
+        // From here the server works on its own: the page may be left or closed, and the history table
+        // below follows the job.
         this.clearAllImages();
+        this.notificationService.info('Đã gửi yêu cầu',
+          'AI đang tạo trên máy chủ, bạn có thể làm việc khác hoặc đóng trang. Kết quả sẽ hiện ở bảng lịch sử bên dưới.',
+          {nzPlacement: 'top'});
+        // The first polls can come before the job is visible, so keep polling a little longer than usual.
+        this.aiJobService.watch(NEW_JOB_IDLE_POLLS);
       },
       error: err => this.showGenerationError(err),
     });
   }
 
-  // A too-large upload (our own check, or the platform's 413) and an AI timeout (the server's 504, or
-  // the platform stopping the function) are both fixed by sending fewer images, so say so; they stay
-  // on screen until closed. Timeouts and gateway failures only get here once AiCsvService's automatic
-  // retries have run out.
   // Names the lesson for the download, e.g. "HSK3-Bai5" (HSK 2.0), "HSK3.0-3-Bai5", or "Boya-Bai2" for a
   // course typed in by hand.
   private lessonLabel(): string {
@@ -417,6 +352,8 @@ export class AiGeneration {
     return `${course}${level ?? ''}-Bai${lessonNumber ?? ''}`;
   }
 
+  // Only what can go wrong before the server accepts the job. A job that fails later (AI error, timeout)
+  // is reported by AiJobService when the history table sees it fail.
   private showGenerationError(err: unknown): void {
     const status = err instanceof HttpErrorResponse ? err.status : null;
     const serverMessage = err instanceof HttpErrorResponse && typeof err.error === 'string' ? err.error.trim() : '';
@@ -443,10 +380,6 @@ export class AiGeneration {
         'Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng rồi thử lại.', {nzPlacement: 'top'});
       return;
     }
-    if (status === HttpStatusCode.BadGateway) {
-      this.notificationService.error('AI đang gặp sự cố', 'AI chưa trả lời được. Vui lòng thử lại sau ít phút.', {nzPlacement: 'top'});
-      return;
-    }
     if (status === HttpStatusCode.BadRequest && serverMessage) {
       this.notificationService.error('Yêu cầu không hợp lệ', serverMessage, {nzPlacement: 'top'});
       return;
@@ -457,27 +390,12 @@ export class AiGeneration {
         {nzPlacement: 'top', nzDuration: 0});
       return;
     }
-    if (status === HttpStatusCode.GatewayTimeout) {
-      this.notificationService.error('Quá thời gian xử lý',
-        'AI xử lý quá lâu. Vui lòng thử lại hoặc giảm số lượng ảnh.',
-        {nzPlacement: 'top', nzDuration: 0});
-      return;
-    }
     this.notificationService.error('Lỗi tạo câu hỏi', err instanceof Error ? err.message : 'Không thể tạo câu hỏi.', {nzPlacement: 'top'});
-  }
-
-  protected get generatingStatus(): string {
-    return this.retryNumber() > 0 ? `AI đang thử lại (lần ${this.retryNumber()})...` : 'AI đang tạo câu hỏi...';
-  }
-
-  protected get elapsedLabel(): string {
-    const seconds = this.elapsedSeconds();
-    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   }
 
   protected get submitButtonLabel(): string {
     if (this.isGenerating()) {
-      return this.retryNumber() > 0 ? `Đang thử lại (lần ${this.retryNumber()})...` : 'Đang xử lý...';
+      return 'Đang gửi...';
     }
     return this.selectedImages().length > 0
       ? `Tạo câu hỏi (${this.selectedImages().length} ảnh)`
@@ -494,5 +412,3 @@ export class AiGeneration {
       : 9;
   }
 }
-
-export const canLeaveAiGeneration: CanDeactivateFn<AiGeneration> = component => component.canLeave();

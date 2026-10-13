@@ -19,8 +19,10 @@ type Generator interface {
 
 type Server struct {
 	Users store.Users
-	Auth  *auth.Service
-	JWT   *auth.JWT
+	// Jobs holds the AI generations, which outlive the request that started them.
+	Jobs store.Jobs
+	Auth *auth.Service
+	JWT  *auth.JWT
 	// Generator is nil when the LLM settings are incomplete; CSV generation then fails with 500.
 	Generator Generator
 
@@ -28,7 +30,7 @@ type Server struct {
 	RefreshTokenTTL time.Duration
 	AICallsPerRound int
 	RoundDuration   time.Duration
-	// LLMTimeout bounds each Generator call; zero means no limit beyond the request context.
+	// LLMTimeout bounds each Generator call; zero means no limit.
 	LLMTimeout time.Duration
 
 	Logger *slog.Logger
@@ -41,8 +43,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/auth/logout", s.logout)
 	mux.HandleFunc("POST /api/auth/logout-all", s.logoutAll)
 	mux.Handle("POST /api/users", s.requireAdminKey(http.HandlerFunc(s.createUser)))
-	mux.Handle("POST /api/csv/generate-from-image",
-		s.authenticate(requireRole(auth.RoleUser, auth.RoleAdmin)(http.HandlerFunc(s.generateCSV))))
+	csvRoute := func(h http.HandlerFunc) http.Handler {
+		return s.authenticate(requireRole(auth.RoleUser, auth.RoleAdmin)(h))
+	}
+	mux.Handle("POST /api/csv/jobs", csvRoute(s.createJob))
+	mux.Handle("GET /api/csv/jobs", csvRoute(s.listJobs))
+	mux.Handle("DELETE /api/csv/jobs/{id}", csvRoute(s.deleteJob))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeText(w, http.StatusOK, "ok")
 	})

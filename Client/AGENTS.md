@@ -67,9 +67,8 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
 `Workspace` (`src/components/workspace/`) is the shell of the two main screens: a horizontal `nz-menu`
 (the "Tạo thủ công"/"Tạo bằng AI" `routerLink` items, highlighted via `nzMatchRouter`, plus the
 login/logout item) and the title. The menu navigates between its child routes
-`/quiz` (`VocabularyTable`) and `/ai` (`AiGeneration`, `src/components/ai-generation/`). While an AI
-request runs, `canLeaveAiGeneration` refuses to leave `/ai` (leaving would cancel it) and the
-menu keeps the current item highlighted. Each screen has a `UsageGuide` (`src/components/usage-guide/`) in an
+`/quiz` (`VocabularyTable`) and `/ai` (`AiGeneration`, `src/components/ai-generation/`). The AI
+request runs on the server (see below), so `/ai` can be left freely once it has been sent. Each screen has a `UsageGuide` (`src/components/usage-guide/`) in an
 `nz-sider` left of the table or AI form (above it on screens under 768px), a
 collapsible how-to whose closed state is remembered per page in `localStorage`
 (`usage-guide-collapsed:<key>`); keep its text in step with the screen when the flow changes.
@@ -88,19 +87,27 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
    removed), falling back to columns 0/1 if headers don't match.
 3. The `/ai` page, `AiGeneration` (drag-drop / paste / file-picker for one or more images,
    `AIGenerationMode.Formatted` or `.Auto` chosen in the page's form) →
-   `AiCsvService.generateCsvFromImages`/`generateCsvFromImagesCreative` posts to the Server's
-   `/api/csv/generate-from-image` endpoint. The two modes diverge from here (see
+   `AiCsvService.submitFormatted`/`submitCreative` posts it to the Server's `/api/csv/jobs`, which answers
+   `202 {id}` at once and goes on working. The page then shows a "Đã gửi yêu cầu" notice; the result is
+   not awaited. `AiJobService` (root service) keeps the user's jobs in a signal (`GET /api/csv/jobs`),
+   polling every 3 s while any job runs (`watch(idlePolls)`; stops after N answers without a running job
+   or 10 failed ones, and is reset by `AuthService.cleared$` on logout) and announcing each job that
+   finishes. `AiJobs` (`src/components/ai-jobs/`, below the form) is the history table: client-side search
+   (`filterJobs` in `models/ai-job.ts`: accent- and case-insensitive over title, error and the generated
+   CSV) and status/mode/platform filters, an expandable row showing the CSV, delete, and the delivery
+   action per job. The two modes diverge there (see
    [../CLAUDE.md](../CLAUDE.md#the-two-ai-generation-modes) for the full picture):
-   - **`Formatted`** → response text is cleaned by `AiCsvService.extractCsvContent` (strips markdown
+   - **`Formatted`** → on "Mở trong bảng", the job's text is cleaned by `AiCsvService.extractCsvContent` (strips markdown
      code fences, or extracts from the first Vietnamese CSV header it finds) → re-parsed by the same
-     `CsvImportService.parseCsv` → rows left in `PendingImportService` (in memory) and the page
+     `CsvImportService.parseCsv` → rows left in `PendingImportService` (in memory) and the app
      navigates to `/quiz`, where `VocabularyTable.ngOnInit` takes them and adds them like any other
      import.
    - **`Auto`** (requires `courseType`/`lessonNumber`/`exportType` in the page's form, plus `level`
-     for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — or `courseName` for `Other`; images are optional here) → response is CSV
-     rows with no header → passed straight to `FileExportService.exportFileFromCsvContent`, which
+     for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — or `courseName` for `Other`; images are optional here) → the job's CSV
+     has no header rows → on "Tải file" (or "Publish Wayground") `AiJobs.exportJob` passes it to
+     `FileExportService.exportFileFromCsvContent`, which
      calls the matching `CsvBuilder.buildFromCsvContent` to prepend the platform's `CsvHeader` and
-     downloads immediately. The vocabulary table is never touched in this path.
+     downloads (or the extension takes it, per the Wayground delivery choice). The vocabulary table is never touched in this path.
 
 Export: `exportFile()` validates the form, then `FileExportService` dispatches to `GimkitCsvBuilder`,
 `BlooketCsvBuilder`, or `WaygroundCsvBuilder` (all extend `CsvBuilderBase`, selected by the

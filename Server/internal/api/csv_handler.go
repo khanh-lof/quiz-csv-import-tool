@@ -2,25 +2,42 @@ package api
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"quiz-csv-import-tool/server/internal/auth"
 	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/store"
 )
 
-const maxUploadBytes = 50 << 20
+const (
+	maxUploadBytes = 50 << 20
+	// maxJobsPerUser is how many finished jobs a user keeps; older ones are pruned when a new one starts.
+	maxJobsPerUser = 30
+	maxTitleRunes  = 100
+	// abandonedGrace is how long past the LLM deadline a job may still be running before it counts as
+	// abandoned (its process died), which leaves room for the final database write.
+	abandonedGrace = time.Minute
+	// abandonedWithoutTimeout applies when no LLM timeout is configured.
+	abandonedWithoutTimeout = 15 * time.Minute
+)
 
-// generateCSV handles POST /api/csv/generate-from-image: a multipart upload of zero or more images,
-// rate-limited per user, answered with the CSV the model produced. The route wraps it in
+// createJob handles POST /api/csv/jobs: a multipart upload of zero or more images, rate-limited per
+// user. It validates the request, stores a running job, answers 202 with the job's id right away and
+// keeps working in this same handler until the model has answered, then stores the result. The
+// client follows the job through listJobs, so it need not stay connected. The route wraps it in
 // authenticate and requireRole, so the caller's claims are always in the context.
-func (s *Server) generateCSV(w http.ResponseWriter, r *http.Request) {
+func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 	claims, _ := auth.FromContext(r.Context())
 	// The token outlives a deleted user by up to its lifetime; the rate limit needs the document.
 	user, err := s.Users.FindByUsername(r.Context(), claims.Username())
@@ -54,7 +71,7 @@ func (s *Server) generateCSV(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if s.Generator == nil {
+	if s.Generator == nil || s.Jobs == nil {
 		s.internalError(w, r, "CSV generation is not configured", errors.New("OPENAI_API_KEY, OPENAI_BASE_URL and LLM_MODEL must be set"))
 		return
 	}
@@ -69,32 +86,182 @@ func (s *Server) generateCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
+	job := &store.Job{
+		ID:         newJobID(),
+		Username:   user.Username,
+		Status:     store.JobRunning,
+		Title:      jobTitle(r.URL.Query().Get("title"), creative),
+		Creative:   creative,
+		ImageCount: len(images),
+		RoundStart: roundStart,
+		CreatedAt:  time.Now().UTC().Truncate(time.Millisecond),
+	}
+	if creative {
+		exportType := int(opts.ExportType)
+		job.ExportType, job.Intelligence = &exportType, opts.Intelligence
+	}
+	if err := s.Jobs.Create(r.Context(), job); err != nil {
+		s.refundAICall(r, user.Username, roundStart)
+		s.internalError(w, r, "creating job failed", err)
+		return
+	}
+	// Housekeeping must not fail the request: the job exists and will run.
+	if err := s.Jobs.Prune(r.Context(), user.Username, maxJobsPerUser); err != nil {
+		s.Logger.Warn("pruning old jobs failed", "user", user.Username, "error", err)
+	}
+
+	ack, _ := json.Marshal(map[string]string{"id": job.ID})
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", strconv.Itoa(len(ack)))
+	// The handler goes on running after this answer, and a client that reused this connection for its
+	// next request would wait behind it, so the connection is not offered for reuse.
+	w.Header().Set("Connection", "close")
+	w.WriteHeader(http.StatusAccepted)
+	_, _ = w.Write(ack)
+	// Best effort: where the answer cannot be flushed early the client simply waits for the result.
+	_ = http.NewResponseController(w).Flush()
+
+	s.runJob(r, job, images, opts)
+}
+
+// runJob generates the CSV and records the outcome on the job. It runs detached from the request: the
+// client has usually gone away by now (that is the point), and its disconnecting must not cancel the
+// model call.
+func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, opts csvgen.Options) {
+	ctx := context.WithoutCancel(r.Context())
 	if s.LLMTimeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, s.LLMTimeout)
 		defer cancel()
 	}
-	csv, err := s.Generator.Generate(ctx, images, creative, opts)
-	if err != nil {
-		// A failed generation produced nothing (and the gateway does not bill it), so it gives the call
-		// back: the client retries 502/504 and must not run into the rate limit doing so.
-		s.refundAICall(r, user.Username, roundStart)
+	csv, err := s.Generator.Generate(ctx, images, job.Creative, opts)
+
+	switch {
+	case err == nil:
+		s.recordJob(r, func(ctx context.Context) error { return s.Jobs.Complete(ctx, job.Username, job.ID, csv) }, job)
+		return
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		s.Logger.Warn("CSV generation timed out", "user", job.Username, "images", len(images), "timeout", s.LLMTimeout)
+		s.recordJob(r, func(ctx context.Context) error {
+			return s.Jobs.Fail(ctx, job.Username, job.ID, http.StatusGatewayTimeout, "AI generation timed out.")
+		}, job)
+	default:
+		s.Logger.Error("CSV generation failed", "user", job.Username, "error", err)
+		s.recordJob(r, func(ctx context.Context) error {
+			return s.Jobs.Fail(ctx, job.Username, job.ID, http.StatusBadGateway, "AI generation failed.")
+		}, job)
 	}
-	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		// The client tells the user to send fewer images or retry on this status.
-		s.Logger.Warn("CSV generation timed out", "user", user.Username, "images", len(images), "timeout", s.LLMTimeout)
-		writeText(w, http.StatusGatewayTimeout, "AI generation timed out.")
+	// A failed generation produced nothing (and the gateway does not bill it), so it gives the call
+	// back: the user resubmits and must not run into the rate limit doing so.
+	s.refundAICall(r, job.Username, job.RoundStart)
+}
+
+// recordJob writes a job's outcome with its own deadline, since the generation's may be used up.
+func (s *Server) recordJob(r *http.Request, write func(context.Context) error, job *store.Job) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 10*time.Second)
+	defer cancel()
+	if err := write(ctx); err != nil {
+		// The job stays running until listJobs expires it as abandoned.
+		s.Logger.Error("recording job outcome failed", "user", job.Username, "job", job.ID, "error", err)
+	}
+}
+
+// jobView is a job as the client sees it. The CSV is empty until the job is done.
+type jobView struct {
+	ID           string     `json:"id"`
+	Status       string     `json:"status"`
+	Title        string     `json:"title"`
+	Creative     bool       `json:"creative"`
+	ExportType   *int       `json:"exportType"`
+	Intelligence int        `json:"intelligence"`
+	ImageCount   int        `json:"imageCount"`
+	CSV          string     `json:"csv"`
+	ErrorStatus  int        `json:"errorStatus"`
+	ErrorMessage string     `json:"errorMessage"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	FinishedAt   *time.Time `json:"finishedAt"`
+}
+
+// listJobs handles GET /api/csv/jobs: the caller's newest jobs, which the client polls while any is running.
+func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
+	claims, _ := auth.FromContext(r.Context())
+	username := claims.Username()
+	if s.Jobs == nil {
+		s.internalError(w, r, "jobs are not configured", errors.New("no job store"))
+		return
+	}
+
+	// A job still running long after its deadline lost the process that was working on it; fail it
+	// and give the call back, or the client would poll it forever.
+	patience := abandonedWithoutTimeout
+	if s.LLMTimeout > 0 {
+		patience = s.LLMTimeout + abandonedGrace
+	}
+	expired, err := s.Jobs.ExpireRunning(r.Context(), username, time.Now().Add(-patience), "AI generation was interrupted.")
+	if err != nil {
+		s.Logger.Warn("expiring abandoned jobs failed", "user", username, "error", err)
+	}
+	for _, job := range expired {
+		s.Logger.Warn("job abandoned", "user", username, "job", job.ID)
+		s.refundAICall(r, username, job.RoundStart)
+	}
+
+	jobs, err := s.Jobs.List(r.Context(), username, maxJobsPerUser)
+	if err != nil {
+		s.internalError(w, r, "listing jobs failed", err)
+		return
+	}
+	views := make([]jobView, len(jobs))
+	for i, j := range jobs {
+		views[i] = jobView{
+			ID: j.ID, Status: string(j.Status), Title: j.Title, Creative: j.Creative, ExportType: j.ExportType,
+			Intelligence: j.Intelligence, ImageCount: j.ImageCount, CSV: j.CSV, ErrorStatus: j.ErrorStatus,
+			ErrorMessage: j.ErrorMessage, CreatedAt: j.CreatedAt, FinishedAt: j.FinishedAt,
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(map[string]any{"jobs": views})
+}
+
+// deleteJob handles DELETE /api/csv/jobs/{id}.
+func (s *Server) deleteJob(w http.ResponseWriter, r *http.Request) {
+	claims, _ := auth.FromContext(r.Context())
+	if s.Jobs == nil {
+		s.internalError(w, r, "jobs are not configured", errors.New("no job store"))
+		return
+	}
+	err := s.Jobs.Delete(r.Context(), claims.Username(), r.PathValue("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		writeText(w, http.StatusNotFound, "Job not found")
 		return
 	}
 	if err != nil {
-		s.Logger.Error("CSV generation failed", "user", user.Username, "error", err)
-		writeText(w, http.StatusBadGateway, "AI generation failed.")
+		s.internalError(w, r, "deleting job failed", err)
 		return
 	}
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	_, _ = io.WriteString(w, csv)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func newJobID() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// jobTitle is the client's name for the job, trimmed and capped; a default stands in for none.
+func jobTitle(raw string, creative bool) string {
+	title := strings.TrimSpace(raw)
+	if title == "" {
+		if creative {
+			return "AI tự nghĩ câu hỏi"
+		}
+		return "Từ ảnh bài học"
+	}
+	if utf8.RuneCountInString(title) > maxTitleRunes {
+		title = string([]rune(title)[:maxTitleRunes])
+	}
+	return title
 }
 
 func (s *Server) refundAICall(r *http.Request, username string, roundStart time.Time) {

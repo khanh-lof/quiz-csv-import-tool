@@ -1,10 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { finalize, tap } from 'rxjs';
+import { finalize, Subject, tap } from 'rxjs';
 
 @Injectable({providedIn: 'root'})
 export class AuthService {
   private accessToken: string | null = null;
+  // Fires when the session ends here, so per-user state held elsewhere (the AI job list) is dropped.
+  readonly cleared$ = new Subject<void>();
 
   constructor(private http: HttpClient) {
   }
@@ -18,6 +20,7 @@ export class AuthService {
 
   clear() {
     this.accessToken = null;
+    this.cleared$.next();
   }
 
   hasAccessToken(): boolean {
