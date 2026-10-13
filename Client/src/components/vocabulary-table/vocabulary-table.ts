@@ -34,7 +34,7 @@ import { WaygroundExtensionService } from '../../services/wayground-extension.se
 import { UsageGuide } from '../usage-guide/usage-guide';
 import { WaygroundDelivery } from '../../models/wayground-delivery';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
-import { NzContentComponent, NzLayoutComponent, NzSiderComponent } from 'ng-zorro-antd/layout';
+import { NzContentComponent, NzLayoutComponent } from 'ng-zorro-antd/layout';
 
 // The table's rows and chosen template, kept in the browser so a reload or a visit to another screen
 // (the AI page, the login) does not lose what the user typed.
@@ -51,7 +51,6 @@ interface TableDraft {
     CommonModule,
     UsageGuide,
     NzLayoutComponent,
-    NzSiderComponent,
     NzContentComponent,
     NzButtonComponent,
     NzTableModule,

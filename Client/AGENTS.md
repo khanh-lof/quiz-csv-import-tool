@@ -68,10 +68,8 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
 (the "Tạo thủ công"/"Tạo bằng AI" `routerLink` items, highlighted via `nzMatchRouter`, plus the
 login/logout item) and the title. The menu navigates between its child routes
 `/quiz` (`VocabularyTable`) and `/ai` (`AiGeneration`, `src/components/ai-generation/`). The AI
-request runs on the server (see below), so `/ai` can be left freely once it has been sent. Each screen has a `UsageGuide` (`src/components/usage-guide/`) in an
-`nz-sider` left of the table or AI form (above it on screens under 768px), a
-collapsible how-to whose closed state is remembered per page in `localStorage`
-(`usage-guide-collapsed:<key>`); keep its text in step with the screen when the flow changes.
+request runs on the server (see below), so `/ai` can be left freely once it has been sent. Each screen has a `UsageGuide` (`src/components/usage-guide/`), a "Hướng dẫn sử dụng" button above the table or AI form
+that opens the how-to in a popup (`nz-modal`), so the page keeps its full width; keep its text in step with the screen when the flow changes.
 
 `VocabularyTable` (`src/components/vocabulary-table/`) is the manual screen: a reactive `FormArray`
 of `question`/`answer` `FormGroup`s (`QuestionDefinitionForm`), with a form-level

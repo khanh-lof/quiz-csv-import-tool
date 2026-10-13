@@ -1,37 +1,17 @@
-import { Component, input, ChangeDetectionStrategy } from '@angular/core';
-import { NzCollapseComponent, NzCollapsePanelComponent } from 'ng-zorro-antd/collapse';
+import { Component, ChangeDetectionStrategy, signal } from '@angular/core';
+import { NzButtonComponent } from 'ng-zorro-antd/button';
+import { NzIconDirective } from 'ng-zorro-antd/icon';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 
-const STORAGE_KEY_PREFIX = 'usage-guide-collapsed:';
-
-// A collapsible "how to use this page" box, open on a first visit. Once the user closes it, it stays
-// closed on this browser (per page, by `storageKey`), so returning users are not in its way.
+// A "how to use this page" button that opens the guide in a popup, so the page itself keeps its full
+// width and height. The projected content is the guide's text.
 @Component({
   selector: 'app-usage-guide',
-  imports: [NzCollapseComponent, NzCollapsePanelComponent],
+  imports: [NzButtonComponent, NzIconDirective, NzModalModule],
   templateUrl: './usage-guide.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './usage-guide.css'
 })
 export class UsageGuide {
-  readonly storageKey = input.required<string>();
-
-  protected get isOpen(): boolean {
-    try {
-      return localStorage.getItem(STORAGE_KEY_PREFIX + this.storageKey()) === null;
-    } catch {
-      return true;
-    }
-  }
-
-  protected onOpenChange(open: boolean): void {
-    try {
-      if (open) {
-        localStorage.removeItem(STORAGE_KEY_PREFIX + this.storageKey());
-      } else {
-        localStorage.setItem(STORAGE_KEY_PREFIX + this.storageKey(), '1');
-      }
-    } catch {
-      // Storage unavailable (e.g. private mode): the guide just opens again next time.
-    }
-  }
+  protected readonly isOpen = signal(false);
 }

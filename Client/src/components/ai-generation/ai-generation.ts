@@ -32,7 +32,7 @@ import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { ImageCompressionService, UploadTooLargeError } from '../../services/image-compression.service';
 import { UsageGuide } from '../usage-guide/usage-guide';
 import { AiJobs } from '../ai-jobs/ai-jobs';
-import { NzContentComponent, NzLayoutComponent, NzSiderComponent } from 'ng-zorro-antd/layout';
+import { NzContentComponent, NzLayoutComponent } from 'ng-zorro-antd/layout';
 
 interface ImageItem {
   file: File;
@@ -62,7 +62,6 @@ interface AiGenerationForm {
     UsageGuide,
     AiJobs,
     NzLayoutComponent,
-    NzSiderComponent,
     NzContentComponent,
     NzButtonComponent,
     NzIconDirective,

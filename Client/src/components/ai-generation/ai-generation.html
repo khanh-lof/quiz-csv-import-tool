@@ -1,21 +1,19 @@
-<!-- The guide sits beside the form, not above it, so opening it never pushes the form down.
+<!-- The guide is a popup opened from a button, so the form keeps the full width.
      inert while generating: nothing behind the overlay can be clicked, focused or typed into. -->
 <nz-layout class="ai-layout" [attr.inert]="isGenerating() ? '' : null">
-  <nz-sider nzTheme="light" [nzWidth]="400" class="guide-sider">
-    <app-usage-guide storageKey="ai">
-      <ol>
-        <li>Thêm ảnh bài học: kéo thả vào khung, dán (Ctrl+V) hoặc bấm <b>Thêm ảnh</b>. Chụp rõ phần từ vựng.</li>
-        <li>Chọn chế độ:
-          <ul>
-            <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình (HSK thì chọn thêm chuẩn 2.0 hay 3.0), cấp, bài và nền tảng. Không có ảnh cũng được. AI chạy trên máy chủ nên bạn có thể đóng trang; xong thì chọn <b>Tải file</b> (với Wayground còn có <b>Tiện ích tự publish</b>) ở bảng lịch sử bên dưới.</li>
-            <li><b>"Tiếng Việt + pinyin + chữ Hán là gì?"</b>: cần ít nhất 1 ảnh. Khi AI xong, bấm <b>Mở trong bảng</b> ở bảng lịch sử để đưa từ vựng vào <b>Tạo thủ công</b>, sửa rồi tải file.</li>
-          </ul>
-        </li>
-      </ol>
-      <p>Bảng lịch sử bên dưới lưu các lần tạo gần đây của bạn: tìm theo từ khóa (cả trong câu hỏi, đáp án), lọc theo trạng thái, chế độ, nền tảng, giáo trình, chuẩn HSK, cấp, bài.</p>
-      <p>Với Wayground, nếu đã cài tiện ích QuizTool cho Chrome, khi AI xong, bấm <b>Tiện ích tự publish</b> ở bảng lịch sử: quiz được tạo và publish luôn trên Wayground, rồi link chia sẻ hiện ở đây. Bấm <b>Tải file</b> nếu muốn tự import. <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" target="_blank" rel="noopener">Xem cách cài tiện ích</a>.</p>
-    </app-usage-guide>
-  </nz-sider>
+  <app-usage-guide>
+    <ol>
+      <li>Thêm ảnh bài học: kéo thả vào khung, dán (Ctrl+V) hoặc bấm <b>Thêm ảnh</b>. Chụp rõ phần từ vựng.</li>
+      <li>Chọn chế độ:
+        <ul>
+          <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình (HSK thì chọn thêm chuẩn 2.0 hay 3.0), cấp, bài và nền tảng. Không có ảnh cũng được. AI chạy trên máy chủ nên bạn có thể đóng trang; xong thì chọn <b>Tải file</b> (với Wayground còn có <b>Tiện ích tự publish</b>) ở bảng lịch sử bên dưới.</li>
+          <li><b>"Tiếng Việt + pinyin + chữ Hán là gì?"</b>: cần ít nhất 1 ảnh. Khi AI xong, bấm <b>Mở trong bảng</b> ở bảng lịch sử để đưa từ vựng vào <b>Tạo thủ công</b>, sửa rồi tải file.</li>
+        </ul>
+      </li>
+    </ol>
+    <p>Bảng lịch sử bên dưới lưu các lần tạo gần đây của bạn: tìm theo từ khóa (cả trong câu hỏi, đáp án), lọc theo trạng thái, chế độ, nền tảng, giáo trình, chuẩn HSK, cấp, bài.</p>
+    <p>Với Wayground, nếu đã cài tiện ích QuizTool cho Chrome, khi AI xong, bấm <b>Tiện ích tự publish</b> ở bảng lịch sử: quiz được tạo và publish luôn trên Wayground, rồi link chia sẻ hiện ở đây. Bấm <b>Tải file</b> nếu muốn tự import. <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" target="_blank" rel="noopener">Xem cách cài tiện ích</a>.</p>
+  </app-usage-guide>
   <nz-content>
     <form class="ai-form" [formGroup]="formGroup" (ngSubmit)="generate()">
       <input #imageInput type="file" accept="image/*" multiple style="display: none" (change)="importFromImage($event)"/>

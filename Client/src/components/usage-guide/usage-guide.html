@@ -1,5 +1,12 @@
-<nz-collapse class="usage-guide">
-  <nz-collapse-panel nzHeader="Hướng dẫn sử dụng" [nzActive]="isOpen" (nzActiveChange)="onOpenChange($event)">
-    <ng-content/>
-  </nz-collapse-panel>
-</nz-collapse>
+<button nz-button type="button" class="guide-button" (click)="isOpen.set(true)">
+  <nz-icon nzType="question-circle" nzTheme="outline"/>
+  Hướng dẫn sử dụng
+</button>
+<nz-modal [nzVisible]="isOpen()" (nzVisibleChange)="isOpen.set($event)" nzTitle="Hướng dẫn sử dụng"
+          [nzFooter]="null" [nzWidth]="640" (nzOnCancel)="isOpen.set(false)">
+  <ng-container *nzModalContent>
+    <div class="usage-guide">
+      <ng-content/>
+    </div>
+  </ng-container>
+</nz-modal>
