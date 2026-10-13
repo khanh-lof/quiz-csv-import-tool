@@ -108,6 +108,14 @@ export class AiJobs implements OnInit {
     this.lessonNumber.set(null);
   }
 
+  // The HSK standard only means something for HSK, so its filter is hidden (and dropped) for other courses.
+  protected setCourseType(courseType: CourseType | null): void {
+    this.courseType.set(courseType);
+    if (courseType !== CourseType.Hsk) {
+      this.hskStandard.set(null);
+    }
+  }
+
   protected isExpanded(id: string): boolean {
     return this.expanded().has(id);
   }

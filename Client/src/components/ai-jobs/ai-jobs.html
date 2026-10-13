@@ -22,16 +22,18 @@
       <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
     </nz-select>
     <nz-select class="filter-select" nzAllowClear nzPlaceHolder="Giáo trình" [ngModel]="courseType()"
-               (ngModelChange)="courseType.set($event ?? null)">
+               (ngModelChange)="setCourseType($event ?? null)">
       <nz-option [nzValue]="CourseType.Hsk" nzLabel="HSK"></nz-option>
       <nz-option [nzValue]="CourseType.Yct" nzLabel="YCT"></nz-option>
       <nz-option [nzValue]="CourseType.Other" nzLabel="Khác"></nz-option>
     </nz-select>
-    <nz-select class="filter-select" nzAllowClear nzPlaceHolder="Chuẩn HSK" [ngModel]="hskStandard()"
-               (ngModelChange)="hskStandard.set($event ?? null)">
-      <nz-option [nzValue]="HskStandard.V2" nzLabel="HSK 2.0"></nz-option>
-      <nz-option [nzValue]="HskStandard.V3" nzLabel="HSK 3.0"></nz-option>
-    </nz-select>
+    @if (courseType() === CourseType.Hsk) {
+      <nz-select class="filter-select" nzAllowClear nzPlaceHolder="Chuẩn HSK" [ngModel]="hskStandard()"
+                 (ngModelChange)="hskStandard.set($event ?? null)">
+        <nz-option [nzValue]="HskStandard.V2" nzLabel="HSK 2.0"></nz-option>
+        <nz-option [nzValue]="HskStandard.V3" nzLabel="HSK 3.0"></nz-option>
+      </nz-select>
+    }
     <nz-input-number class="filter-number" nzPlaceHolder="Cấp" aria-label="Lọc theo cấp" [nzMin]="1" [nzMax]="maxLevel"
                      [nzStep]="1" [nzPrecision]="0" [ngModel]="level()" (ngModelChange)="level.set($event ?? null)"/>
     <nz-input-number class="filter-number" nzPlaceHolder="Bài" aria-label="Lọc theo bài" [nzMin]="1" [nzMax]="100"
