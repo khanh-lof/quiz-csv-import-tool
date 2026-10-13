@@ -30,7 +30,8 @@ export class CsvImportService {
       .filter((row) => row.question || row.answer);
   }
 
-  private parseCsvRows(content: string): string[][] {
+  // The raw cells of every row, with no header handling: for showing a CSV the way it is laid out.
+  parseCsvRows(content: string): string[][] {
     const rows: string[][] = [];
     let currentRow: string[] = [];
     let currentValue = '';

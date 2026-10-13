@@ -7,6 +7,7 @@ import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzInputDirective } from 'ng-zorro-antd/input';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
 import { NzPopconfirmDirective } from 'ng-zorro-antd/popconfirm';
@@ -24,6 +25,19 @@ import { WaygroundExtensionService } from '../../services/wayground-extension.se
 
 const PAGE_SIZE = 10;
 
+// The columns of an Auto job's CSV, which has no header row: the platform's own import layout.
+const CREATIVE_COLUMNS: Record<ExportType, string[]> = {
+  [ExportType.GimKit]: ['Question', 'Correct Answer', 'Incorrect Answer 1', 'Incorrect Answer 2', 'Incorrect Answer 3'],
+  [ExportType.Blooket]: ['Question #', 'Question Text', 'Answer 1', 'Answer 2', 'Answer 3', 'Answer 4', 'Time Limit (sec)', 'Correct Answer(s)'],
+  [ExportType.Wayground]: ['Question Text', 'Question Type', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'Option 5',
+    'Correct Answer', 'Time in seconds', 'Image Link', 'Answer explanation'],
+};
+
+interface ResultTable {
+  headers: string[];
+  rows: string[][];
+}
+
 // The history of the user's AI generations, kept on the server: the table shows each job's state
 // (the page polls while one runs), lets the user search and filter what the AI produced, and hands a
 // finished job to the table page or exports it, the way the result used to be handled on completion.
@@ -33,6 +47,7 @@ const PAGE_SIZE = 10;
     CommonModule,
     FormsModule,
     NzTableModule,
+    NzModalModule,
     NzButtonComponent,
     NzIconDirective,
     NzInputDirective,
@@ -66,7 +81,13 @@ export class AiJobs implements OnInit {
   protected readonly hskStandard = signal<HskStandard | null>(null);
   protected readonly level = signal<number | null>(null);
   protected readonly lessonNumber = signal<number | null>(null);
-  private readonly expanded = signal<ReadonlySet<string>>(new Set());
+  // The job whose result is shown in the popup. Kept apart from `viewOpen` so the content stays while the popup fades out.
+  protected readonly viewing = signal<AiJob | null>(null);
+  protected readonly viewOpen = signal(false);
+  protected readonly viewTable = computed<ResultTable | null>(() => {
+    const job = this.viewing();
+    return job && job.status === 'done' ? this.resultTable(job) : null;
+  });
 
   // inject() rather than a constructor parameter: the fields below read the service while being initialized.
   private readonly jobService = inject(AiJobService);
@@ -116,25 +137,27 @@ export class AiJobs implements OnInit {
     }
   }
 
-  protected isExpanded(id: string): boolean {
-    return this.expanded().has(id);
-  }
-
-  protected setExpanded(id: string, expanded: boolean): void {
-    this.expanded.update(ids => {
-      const next = new Set(ids);
-      if (expanded) {
-        next.add(id);
-      } else {
-        next.delete(id);
-      }
-      return next;
-    });
+  protected view(job: AiJob): void {
+    this.viewing.set(job);
+    this.viewOpen.set(true);
   }
 
   // The model's answer as the user would import it, without code fences or chatter around it.
   protected resultText(job: AiJob): string {
     return this.aiCsvService.extractCsvContent(job.csv);
+  }
+
+  // The result as rows and columns. A Formatted job's CSV carries its own header row; an Auto job's has
+  // none, so the columns are named after the platform it was made for.
+  private resultTable(job: AiJob): ResultTable {
+    const rows = this.csvImportService.parseCsvRows(this.resultText(job)).filter(row => row.some(cell => cell !== ''));
+    if (job.creative && job.exportType !== null) {
+      const labels = CREATIVE_COLUMNS[job.exportType];
+      const width = Math.max(labels.length, ...rows.map(row => row.length));
+      return {headers: Array.from({length: width}, (_, i) => labels[i] ?? ''), rows};
+    }
+    const [headers = [], ...body] = rows;
+    return {headers, rows: body};
   }
 
   protected rowCount(job: AiJob): number {

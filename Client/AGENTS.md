@@ -93,7 +93,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
    finishes. `AiJobs` (`src/components/ai-jobs/`, below the form) is the history table: client-side search
    (`filterJobs` in `models/ai-job.ts`: accent- and case-insensitive over title, error and the generated
    CSV) and status/mode/platform/course type/HSK standard/level/lesson filters (the last four match the
-   lesson fields the server keeps on creative jobs), an expandable row showing the CSV, delete, and the
+   lesson fields the server keeps on creative jobs), an eye button that opens the result as a table in a popup (Auto jobs' headerless CSV gets the platform's column names), delete, and the
    delivery actions per job. The two modes diverge there (see
    [../CLAUDE.md](../CLAUDE.md#the-two-ai-generation-modes) for the full picture):
    - **`Formatted`** → on "Mở trong bảng", the job's text is cleaned by `AiCsvService.extractCsvContent` (strips markdown

@@ -51,7 +51,6 @@
             [nzNoResult]="isFiltering() ? 'Không có kết quả nào khớp.' : 'Chưa có lần tạo nào. Gửi yêu cầu ở trên, kết quả sẽ hiện ở đây.'">
     <thead>
       <tr>
-        <th nzWidth="40px"></th>
         <th>Tiêu đề</th>
         <th>Chế độ</th>
         <th>Bài học</th>
@@ -64,8 +63,6 @@
     <tbody>
       @for (job of jobsTable.data; track job.id) {
         <tr>
-          <td [nzExpand]="isExpanded(job.id)" (nzExpandChange)="setExpanded(job.id, $event)"
-              [nzShowExpand]="job.status !== 'running'"></td>
           <td class="job-title">{{ job.title }}</td>
           <td>{{ job.creative ? 'AI tự nghĩ' : 'Từ ảnh (' + job.imageCount + ')' }}</td>
           <td>{{ lessonLabel(job) }}</td>
@@ -85,6 +82,12 @@
             }
           </td>
           <td class="job-actions">
+            @if (job.status !== 'running') {
+              <button nz-button nzType="default" nzSize="small" type="button" aria-label="Xem kết quả" title="Xem kết quả"
+                      (click)="view(job)">
+                <nz-icon nzType="eye" nzTheme="outline"/>
+              </button>
+            }
             @if (job.status === 'done') {
               @if (job.creative) {
                 <button nz-button nzType="primary" nzSize="small" type="button" (click)="exportJob(job, false)">
@@ -117,14 +120,46 @@
             }
           </td>
         </tr>
-        <tr [nzExpand]="isExpanded(job.id)">
-          @if (job.status === 'failed') {
-            <p class="job-error">{{ job.errorMessage || 'Không rõ lỗi.' }} Lượt dùng AI đã được hoàn lại.</p>
-          } @else {
-            <pre class="job-result">{{ resultText(job) || '(AI không trả về gì)' }}</pre>
-          }
-        </tr>
       }
     </tbody>
   </nz-table>
+
+  <nz-modal [nzVisible]="viewOpen()" (nzVisibleChange)="viewOpen.set($event)" (nzOnCancel)="viewOpen.set(false)"
+            [nzFooter]="null" nzWidth="min(1400px, 95vw)">
+    <!-- A template, not nzTitle: the popup is reused for different jobs, and a string title is read once. -->
+    <ng-container *nzModalTitle>{{ viewing()?.title }}</ng-container>
+    <ng-container *nzModalContent>
+      @if (viewing(); as job) {
+        @if (job.status === 'failed') {
+          <p class="job-error">{{ job.errorMessage || 'Không rõ lỗi.' }} Lượt dùng AI đã được hoàn lại.</p>
+        } @else if (viewTable(); as result) {
+          @if (result.rows.length === 0) {
+            <p>(AI không trả về gì)</p>
+          } @else {
+            <nz-table #resultTable nzSize="small" class="result-table" [nzData]="result.rows" [nzFrontPagination]="false"
+                      [nzShowPagination]="false" [nzScroll]="{ x: 'max-content', y: '60vh' }">
+              <thead>
+                <tr>
+                  <th nzWidth="50px">#</th>
+                  @for (header of result.headers; track $index) {
+                    <th>{{ header }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of resultTable.data; track $index; let i = $index) {
+                  <tr>
+                    <td>{{ i + 1 }}</td>
+                    @for (header of result.headers; track $index; let c = $index) {
+                      <td class="result-cell">{{ row[c] }}</td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </nz-table>
+          }
+        }
+      }
+    </ng-container>
+  </nz-modal>
 </section>
