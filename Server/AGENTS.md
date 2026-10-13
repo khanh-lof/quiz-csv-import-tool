@@ -122,7 +122,8 @@ cookie.
 Jobs (`internal/store/jobs*.go`): `store.Jobs` is implemented by `MongoJobs` (collection
 `MONGODB_JOBS_COLLECTION`) and `MemoryJobs` (tests), and every method is scoped to a username. A `Job`
 holds the request's metadata (title, mode, export type ordinal, intelligence, image count — never the
-images), `status` (`running`/`done`/`failed`), the raw model `csv`, `errorStatus`/`errorMessage`, the
+images — and, for a creative job, the lesson: course type ordinal, course name, HSK standard, level and
+lesson number, which `listJobs` returns so the client can filter by them), `status` (`running`/`done`/`failed`), the raw model `csv`, `errorStatus`/`errorMessage`, the
 rate-limit `roundStart` (for refunds) and timestamps. `Complete`/`Fail` only touch a job that is still
 `running`, so an expired job is never revived by a late answer; `Prune` never deletes a running job.
 `MongoJobs.EnsureIndexes` (username + createdAt) is, like the users' one, not called on start.

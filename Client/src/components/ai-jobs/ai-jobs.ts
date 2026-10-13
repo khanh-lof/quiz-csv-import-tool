@@ -5,13 +5,16 @@ import { Router } from '@angular/router';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzInputDirective } from 'ng-zorro-antd/input';
+import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
 import { NzPopconfirmDirective } from 'ng-zorro-antd/popconfirm';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { AiJob, AiJobStatus, filterJobs } from '../../models/ai-job';
+import { AiJob, AiJobStatus, filterJobs, lessonLabel } from '../../models/ai-job';
 import { ExportType } from '../../models/export-type';
+import { CourseType } from '../../models/course-type';
+import { HskStandard, hskMaxLevel } from '../../models/hsk-standard';
 import { AiJobService } from '../../services/ai-job.service';
 import { AiCsvService } from '../../services/ai-csv.service';
 import { CsvImportService } from '../../services/csv-import.service';
@@ -33,6 +36,7 @@ const PAGE_SIZE = 10;
     NzButtonComponent,
     NzIconDirective,
     NzInputDirective,
+    NzInputNumberComponent,
     NzSelectComponent,
     NzOptionComponent,
     NzTagComponent,
@@ -45,12 +49,23 @@ const PAGE_SIZE = 10;
 export class AiJobs implements OnInit {
   protected readonly pageSize = PAGE_SIZE;
   protected readonly ExportType = ExportType;
+  protected readonly CourseType = CourseType;
+  protected readonly HskStandard = HskStandard;
+  protected readonly lessonLabel = lessonLabel;
+  // Lets the filter accept any level a job could have (HSK 3.0 goes to 9).
+  protected readonly maxLevel = hskMaxLevel(HskStandard.V3);
+  // Publishing needs the extension; without it only the download works.
+  protected readonly extensionInstalled: boolean;
   protected readonly platformName = FileExportService.platformName;
 
   protected readonly search = signal('');
   protected readonly status = signal<AiJobStatus | null>(null);
   protected readonly creative = signal<boolean | null>(null);
   protected readonly exportType = signal<ExportType | null>(null);
+  protected readonly courseType = signal<CourseType | null>(null);
+  protected readonly hskStandard = signal<HskStandard | null>(null);
+  protected readonly level = signal<number | null>(null);
+  protected readonly lessonNumber = signal<number | null>(null);
   private readonly expanded = signal<ReadonlySet<string>>(new Set());
 
   // inject() rather than a constructor parameter: the fields below read the service while being initialized.
@@ -59,9 +74,11 @@ export class AiJobs implements OnInit {
   protected readonly loaded = this.jobService.loaded;
   protected readonly filtered = computed(() => filterJobs(this.jobs(), {
     search: this.search(), status: this.status(), creative: this.creative(), exportType: this.exportType(),
+    courseType: this.courseType(), hskStandard: this.hskStandard(), level: this.level(), lessonNumber: this.lessonNumber(),
   }));
   protected readonly isFiltering = computed(() =>
-    this.search().trim() !== '' || this.status() !== null || this.creative() !== null || this.exportType() !== null);
+    this.search().trim() !== '' || this.status() !== null || this.creative() !== null || this.exportType() !== null
+    || this.courseType() !== null || this.hskStandard() !== null || this.level() !== null || this.lessonNumber() !== null);
 
   constructor(
     private readonly aiCsvService: AiCsvService,
@@ -72,6 +89,7 @@ export class AiJobs implements OnInit {
     private readonly notificationService: NzNotificationService,
     private readonly router: Router,
   ) {
+    this.extensionInstalled = waygroundExtensionService.isInstalled();
   }
 
   ngOnInit(): void {
@@ -84,6 +102,10 @@ export class AiJobs implements OnInit {
     this.status.set(null);
     this.creative.set(null);
     this.exportType.set(null);
+    this.courseType.set(null);
+    this.hskStandard.set(null);
+    this.level.set(null);
+    this.lessonNumber.set(null);
   }
 
   protected isExpanded(id: string): boolean {
@@ -112,17 +134,6 @@ export class AiJobs implements OnInit {
     return text ? text.split(/\r?\n/).filter(line => line.trim() !== '').length : 0;
   }
 
-  // "Tải file", or "Publish" when the extension will take a Wayground file; follows the delivery choice
-  // on the form above, which is remembered in localStorage.
-  protected exportLabel(job: AiJob): string {
-    return this.willPublish(job) ? 'Publish Wayground' : 'Tải file';
-  }
-
-  private willPublish(job: AiJob): boolean {
-    return job.exportType === ExportType.Wayground
-      && this.waygroundExtensionService.shouldPublish(this.waygroundExtensionService.preferredDelivery());
-  }
-
   // A formatted job's rows go to the table page for review, like an import.
   protected openInTable(job: AiJob): void {
     const rows = this.csvImportService.parseCsv(this.resultText(job));
@@ -134,10 +145,10 @@ export class AiJobs implements OnInit {
     this.router.navigateByUrl('/quiz');
   }
 
-  // A creative job is already a whole quiz: build the platform's file, then download it or let the extension publish it.
-  protected exportJob(job: AiJob): void {
+  // A creative job is already a whole quiz: build the platform's file, then download it, or (Wayground
+  // only, the user's choice per job) let the extension publish it.
+  protected exportJob(job: AiJob, publish: boolean): void {
     const exportType = job.exportType!;
-    const publish = this.willPublish(job);
     const exported = this.fileExportService.exportFileFromCsvContent(
       FileExportService.buildFileName(job.title, exportType), this.resultText(job), exportType, !publish);
     if (!exported) {

@@ -11,7 +11,8 @@ const POLL_MS = 3000;
 
 function job(id: string, status: AiJob['status'], overrides: Partial<AiJob> = {}): AiJob {
   return {
-    id, status, title: `Job ${id}`, creative: true, exportType: 0, intelligence: 1, imageCount: 0, csv: '',
+    id, status, title: `Job ${id}`, creative: true, exportType: 0, intelligence: 1, imageCount: 0, courseType: null, courseName: '', hskStandard: null,
+    level: null, lessonNumber: null, csv: '',
     errorStatus: 0, errorMessage: '', createdAt: '2026-10-13T00:00:00Z', finishedAt: null, ...overrides,
   };
 }

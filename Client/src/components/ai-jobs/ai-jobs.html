@@ -21,6 +21,21 @@
       <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
       <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
     </nz-select>
+    <nz-select class="filter-select" nzAllowClear nzPlaceHolder="Giáo trình" [ngModel]="courseType()"
+               (ngModelChange)="courseType.set($event ?? null)">
+      <nz-option [nzValue]="CourseType.Hsk" nzLabel="HSK"></nz-option>
+      <nz-option [nzValue]="CourseType.Yct" nzLabel="YCT"></nz-option>
+      <nz-option [nzValue]="CourseType.Other" nzLabel="Khác"></nz-option>
+    </nz-select>
+    <nz-select class="filter-select" nzAllowClear nzPlaceHolder="Chuẩn HSK" [ngModel]="hskStandard()"
+               (ngModelChange)="hskStandard.set($event ?? null)">
+      <nz-option [nzValue]="HskStandard.V2" nzLabel="HSK 2.0"></nz-option>
+      <nz-option [nzValue]="HskStandard.V3" nzLabel="HSK 3.0"></nz-option>
+    </nz-select>
+    <nz-input-number class="filter-number" nzPlaceHolder="Cấp" aria-label="Lọc theo cấp" [nzMin]="1" [nzMax]="maxLevel"
+                     [nzStep]="1" [nzPrecision]="0" [ngModel]="level()" (ngModelChange)="level.set($event ?? null)"/>
+    <nz-input-number class="filter-number" nzPlaceHolder="Bài" aria-label="Lọc theo bài" [nzMin]="1" [nzMax]="100"
+                     [nzStep]="1" [nzPrecision]="0" [ngModel]="lessonNumber()" (ngModelChange)="lessonNumber.set($event ?? null)"/>
     @if (isFiltering()) {
       <button nz-button nzType="default" type="button" (click)="clearFilters()">
         <nz-icon nzType="close" nzTheme="outline"/>
@@ -37,6 +52,7 @@
         <th nzWidth="40px"></th>
         <th>Tiêu đề</th>
         <th>Chế độ</th>
+        <th>Bài học</th>
         <th>Nền tảng</th>
         <th>Lúc gửi</th>
         <th>Trạng thái</th>
@@ -50,6 +66,7 @@
               [nzShowExpand]="job.status !== 'running'"></td>
           <td class="job-title">{{ job.title }}</td>
           <td>{{ job.creative ? 'AI tự nghĩ' : 'Từ ảnh (' + job.imageCount + ')' }}</td>
+          <td>{{ lessonLabel(job) }}</td>
           <td>{{ job.exportType === null ? '–' : platformName(job.exportType) }}</td>
           <td>{{ job.createdAt | date:'dd/MM HH:mm' }}</td>
           <td>
@@ -68,10 +85,20 @@
           <td class="job-actions">
             @if (job.status === 'done') {
               @if (job.creative) {
-                <button nz-button nzType="primary" nzSize="small" type="button" (click)="exportJob(job)">
+                <button nz-button nzType="primary" nzSize="small" type="button" (click)="exportJob(job, false)">
                   <nz-icon nzType="download" nzTheme="outline"/>
-                  {{ exportLabel(job) }}
+                  Tải file
                 </button>
+                @if (job.exportType === ExportType.Wayground) {
+                  <!-- The extension imports and publishes the quiz in the user's Wayground tab; without it the
+                       download above is the only way, and the title says why. -->
+                  <button nz-button nzType="default" nzSize="small" type="button" [disabled]="!extensionInstalled"
+                          [title]="extensionInstalled ? '' : 'Chưa cài tiện ích QuizTool cho Chrome'"
+                          (click)="exportJob(job, true)">
+                    <nz-icon nzType="cloud-upload" nzTheme="outline"/>
+                    Tiện ích tự publish
+                  </button>
+                }
               } @else {
                 <button nz-button nzType="primary" nzSize="small" type="button" (click)="openInTable(job)">
                   <nz-icon nzType="table" nzTheme="outline"/>

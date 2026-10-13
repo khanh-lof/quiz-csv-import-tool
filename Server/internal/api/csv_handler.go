@@ -98,7 +98,16 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 	}
 	if creative {
 		exportType := int(opts.ExportType)
-		job.ExportType, job.Intelligence = &exportType, opts.Intelligence
+		courseType := int(opts.CourseType)
+		job.ExportType, job.Intelligence, job.CourseType = &exportType, opts.Intelligence, &courseType
+		job.Level, job.LessonNumber = opts.Level, opts.LessonNumber
+		if opts.CourseType == csvgen.Hsk {
+			hskStandard := int(opts.HskStandard)
+			job.HskStandard = &hskStandard
+		}
+		if opts.CourseType == csvgen.Other {
+			job.CourseName = opts.CourseName
+		}
 	}
 	if err := s.Jobs.Create(r.Context(), job); err != nil {
 		s.refundAICall(r, user.Username, roundStart)
@@ -175,6 +184,11 @@ type jobView struct {
 	ExportType   *int       `json:"exportType"`
 	Intelligence int        `json:"intelligence"`
 	ImageCount   int        `json:"imageCount"`
+	CourseType   *int       `json:"courseType"`
+	CourseName   string     `json:"courseName"`
+	HskStandard  *int       `json:"hskStandard"`
+	Level        *int       `json:"level"`
+	LessonNumber *int       `json:"lessonNumber"`
 	CSV          string     `json:"csv"`
 	ErrorStatus  int        `json:"errorStatus"`
 	ErrorMessage string     `json:"errorMessage"`
@@ -215,8 +229,9 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 	for i, j := range jobs {
 		views[i] = jobView{
 			ID: j.ID, Status: string(j.Status), Title: j.Title, Creative: j.Creative, ExportType: j.ExportType,
-			Intelligence: j.Intelligence, ImageCount: j.ImageCount, CSV: j.CSV, ErrorStatus: j.ErrorStatus,
-			ErrorMessage: j.ErrorMessage, CreatedAt: j.CreatedAt, FinishedAt: j.FinishedAt,
+			Intelligence: j.Intelligence, ImageCount: j.ImageCount, CourseType: j.CourseType, CourseName: j.CourseName,
+			HskStandard: j.HskStandard, Level: j.Level, LessonNumber: j.LessonNumber, CSV: j.CSV,
+			ErrorStatus: j.ErrorStatus, ErrorMessage: j.ErrorMessage, CreatedAt: j.CreatedAt, FinishedAt: j.FinishedAt,
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")

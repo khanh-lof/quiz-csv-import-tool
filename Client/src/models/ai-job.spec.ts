@@ -1,15 +1,20 @@
-import { AiJob, AiJobFilter, filterJobs } from './ai-job';
+import { AiJob, AiJobFilter, filterJobs, lessonLabel } from './ai-job';
 import { ExportType } from './export-type';
+import { CourseType } from './course-type';
+import { HskStandard } from './hsk-standard';
 
 function job(overrides: Partial<AiJob>): AiJob {
   return {
     id: 'id', status: 'done', title: 'HSK3-Bai5', creative: true, exportType: ExportType.GimKit, intelligence: 1,
-    imageCount: 0, csv: '', errorStatus: 0, errorMessage: '', createdAt: '2026-10-13T00:00:00Z', finishedAt: null,
+    imageCount: 0, courseType: null, courseName: '', hskStandard: null, level: null, lessonNumber: null, csv: '', errorStatus: 0, errorMessage: '', createdAt: '2026-10-13T00:00:00Z', finishedAt: null,
     ...overrides,
   };
 }
 
-const NO_FILTER: AiJobFilter = {search: '', status: null, creative: null, exportType: null};
+const NO_FILTER: AiJobFilter = {
+  search: '', status: null, creative: null, exportType: null,
+  courseType: null, hskStandard: null, level: null, lessonNumber: null,
+};
 
 describe('filterJobs', () => {
   const jobs = [
@@ -56,5 +61,54 @@ describe('filterJobs', () => {
   it('combines every filter that is set', () => {
     expect(ids({creative: true, status: 'done', search: 'hsk'})).toEqual(['a']);
     expect(ids({creative: false, status: 'failed'})).toEqual([]);
+  });
+});
+
+describe('filterJobs by lesson', () => {
+  const jobs = [
+    job({id: 'a', courseType: CourseType.Hsk, hskStandard: HskStandard.V2, level: 3, lessonNumber: 5}),
+    job({id: 'b', courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 3, lessonNumber: 5}),
+    job({id: 'c', courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 7, lessonNumber: 1}),
+    job({id: 'd', courseType: CourseType.Yct, level: 1, lessonNumber: 5}),
+    job({id: 'e', courseType: CourseType.Other, courseName: 'Boya', lessonNumber: 2}),
+    job({id: 'f', creative: false, exportType: null}),
+  ];
+  const ids = (filter: Partial<AiJobFilter>) => filterJobs(jobs, {...NO_FILTER, ...filter}).map(j => j.id);
+
+  it('filters by course type, which leaves out jobs that have none', () => {
+    expect(ids({courseType: CourseType.Hsk})).toEqual(['a', 'b', 'c']);
+    expect(ids({courseType: CourseType.Yct})).toEqual(['d']);
+    expect(ids({courseType: CourseType.Other})).toEqual(['e']);
+  });
+
+  it('filters by HSK standard', () => {
+    expect(ids({hskStandard: HskStandard.V3})).toEqual(['b', 'c']);
+    expect(ids({hskStandard: HskStandard.V2})).toEqual(['a']);
+  });
+
+  it('filters by level and lesson number', () => {
+    expect(ids({level: 3})).toEqual(['a', 'b']);
+    expect(ids({lessonNumber: 5})).toEqual(['a', 'b', 'd']);
+  });
+
+  it('combines the lesson filters', () => {
+    expect(ids({courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 3, lessonNumber: 5})).toEqual(['b']);
+    expect(ids({courseType: CourseType.Yct, hskStandard: HskStandard.V3})).toEqual([]);
+  });
+});
+
+describe('lessonLabel', () => {
+  it('names the course, level and lesson', () => {
+    expect(lessonLabel(job({courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 4, lessonNumber: 5}))).toBe('HSK 3.0 · cấp 4 · bài 5');
+    expect(lessonLabel(job({courseType: CourseType.Hsk, hskStandard: null, level: 1, lessonNumber: 2}))).toBe('HSK 2.0 · cấp 1 · bài 2');
+    expect(lessonLabel(job({courseType: CourseType.Yct, level: 2, lessonNumber: 7}))).toBe('YCT · cấp 2 · bài 7');
+  });
+
+  it('uses the typed course name and skips a missing level', () => {
+    expect(lessonLabel(job({courseType: CourseType.Other, courseName: 'Boya', lessonNumber: 3}))).toBe('Boya · bài 3');
+  });
+
+  it('has a dash for a job without a lesson', () => {
+    expect(lessonLabel(job({creative: false, exportType: null}))).toBe('–');
   });
 });

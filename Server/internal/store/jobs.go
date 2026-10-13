@@ -28,6 +28,15 @@ type Job struct {
 	Intelligence int  `bson:"intelligence"`
 	ImageCount   int  `bson:"imageCount"`
 
+	// The lesson a creative job was asked for, kept so the client can filter by it. CourseType is the
+	// csvgen.CourseType ordinal and HskStandard the standard itself (2 or 3, HSK only); Level and
+	// LessonNumber are absent when not given. Jobs from before these were stored have none of them.
+	CourseType   *int   `bson:"courseType,omitempty"`
+	CourseName   string `bson:"courseName,omitempty"`
+	HskStandard  *int   `bson:"hskStandard,omitempty"`
+	Level        *int   `bson:"level,omitempty"`
+	LessonNumber *int   `bson:"lessonNumber,omitempty"`
+
 	CSV string `bson:"csv"`
 	// ErrorStatus is the HTTP status the failure used to be answered with (502, 504), zero otherwise.
 	ErrorStatus  int    `bson:"errorStatus"`

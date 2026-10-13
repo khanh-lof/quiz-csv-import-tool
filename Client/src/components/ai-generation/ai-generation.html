@@ -7,13 +7,13 @@
         <li>Thêm ảnh bài học: kéo thả vào khung, dán (Ctrl+V) hoặc bấm <b>Thêm ảnh</b>. Chụp rõ phần từ vựng.</li>
         <li>Chọn chế độ:
           <ul>
-            <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình (HSK thì chọn thêm chuẩn 2.0 hay 3.0), cấp, bài và nền tảng. Không có ảnh cũng được. AI chạy trên máy chủ nên bạn có thể đóng trang; xong thì bấm <b>Tải file</b> ở bảng lịch sử bên dưới.</li>
+            <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình (HSK thì chọn thêm chuẩn 2.0 hay 3.0), cấp, bài và nền tảng. Không có ảnh cũng được. AI chạy trên máy chủ nên bạn có thể đóng trang; xong thì chọn <b>Tải file</b> (với Wayground còn có <b>Tiện ích tự publish</b>) ở bảng lịch sử bên dưới.</li>
             <li><b>"Tiếng Việt + pinyin + chữ Hán là gì?"</b>: cần ít nhất 1 ảnh. Khi AI xong, bấm <b>Mở trong bảng</b> ở bảng lịch sử để đưa từ vựng vào <b>Tạo thủ công</b>, sửa rồi tải file.</li>
           </ul>
         </li>
       </ol>
-      <p>Bảng lịch sử bên dưới lưu các lần tạo gần đây của bạn: tìm theo từ khóa (cả trong câu hỏi, đáp án), lọc theo trạng thái, chế độ, nền tảng.</p>
-      <p>Với Wayground, nếu đã cài tiện ích QuizTool cho Chrome, chọn <b>Tiện ích tự publish</b>: quiz được tạo và publish luôn trên Wayground, rồi link chia sẻ hiện ở đây. Chọn <b>Tải file</b> nếu muốn tự import. <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" target="_blank" rel="noopener">Xem cách cài tiện ích</a>.</p>
+      <p>Bảng lịch sử bên dưới lưu các lần tạo gần đây của bạn: tìm theo từ khóa (cả trong câu hỏi, đáp án), lọc theo trạng thái, chế độ, nền tảng, giáo trình, chuẩn HSK, cấp, bài.</p>
+      <p>Với Wayground, nếu đã cài tiện ích QuizTool cho Chrome, khi AI xong, bấm <b>Tiện ích tự publish</b> ở bảng lịch sử: quiz được tạo và publish luôn trên Wayground, rồi link chia sẻ hiện ở đây. Bấm <b>Tải file</b> nếu muốn tự import. <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" target="_blank" rel="noopener">Xem cách cài tiện ích</a>.</p>
     </app-usage-guide>
   </nz-sider>
   <nz-content>
@@ -134,14 +134,6 @@
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.exportType}"/>
           </div>
-          @if (formGroup.controls.exportType.value === ExportType.Wayground) {
-            <!-- Without the extension only the download is possible; the disabled option says why. -->
-            <nz-radio-group [formControl]="waygroundDelivery" nzButtonStyle="solid">
-              <label nz-radio-button [nzValue]="WaygroundDelivery.Download">Tải file</label>
-              <label nz-radio-button [nzValue]="WaygroundDelivery.Extension" [nzDisabled]="!extensionInstalled"
-                     [title]="extensionInstalled ? '' : 'Chưa cài tiện ích QuizTool cho Chrome'">Tiện ích tự publish</label>
-            </nz-radio-group>
-          }
           <div class="intelligence-selection">
             <label>Độ thông minh: </label>
             <!-- Values are the server's intelligence levels: 1 = LLM_INTELLIGENCE_MODELS[0], 2 = [1]. -->

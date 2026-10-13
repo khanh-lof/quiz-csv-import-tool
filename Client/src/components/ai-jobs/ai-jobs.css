@@ -54,6 +54,10 @@
   color: #cf1322;
 }
 
+.filter-number {
+  width: 90px;
+}
+
 @media (max-width: 767px) {
   .filter-select {
     flex: 1 1 140px;

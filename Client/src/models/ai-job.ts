@@ -1,4 +1,6 @@
 import { ExportType } from './export-type';
+import { CourseType } from './course-type';
+import { HskStandard } from './hsk-standard';
 
 export type AiJobStatus = 'running' | 'done' | 'failed';
 
@@ -13,6 +15,13 @@ export interface AiJob {
   exportType: ExportType | null;
   intelligence: number;
   imageCount: number;
+  // The lesson a creative job was asked for. Null on formatted jobs, and on creative jobs made before
+  // the server kept these. `hskStandard` is HSK only; `courseName` is for CourseType.Other.
+  courseType: CourseType | null;
+  courseName: string;
+  hskStandard: HskStandard | null;
+  level: number | null;
+  lessonNumber: number | null;
   csv: string;
   errorStatus: number;
   errorMessage: string;
@@ -25,6 +34,10 @@ export interface AiJobFilter {
   status: AiJobStatus | null;
   creative: boolean | null;
   exportType: ExportType | null;
+  courseType: CourseType | null;
+  hskStandard: HskStandard | null;
+  level: number | null;
+  lessonNumber: number | null;
 }
 
 // Lower case with accents dropped, so "ni hao" finds "nǐ hǎo" and "cau hoi" finds "Câu hỏi".
@@ -40,5 +53,21 @@ export function filterJobs(jobs: AiJob[], filter: AiJobFilter): AiJob[] {
     (filter.status === null || job.status === filter.status)
     && (filter.creative === null || job.creative === filter.creative)
     && (filter.exportType === null || job.exportType === filter.exportType)
+    && (filter.courseType === null || job.courseType === filter.courseType)
+    && (filter.hskStandard === null || job.hskStandard === filter.hskStandard)
+    && (filter.level === null || job.level === filter.level)
+    && (filter.lessonNumber === null || job.lessonNumber === filter.lessonNumber)
     && (needle === '' || normalizeForSearch(`${job.title}\n${job.errorMessage}\n${job.csv}`).includes(needle)));
+}
+
+// The lesson of a creative job in words, e.g. "HSK 3.0 · cấp 4 · bài 5"; "–" when the job has none.
+export function lessonLabel(job: AiJob): string {
+  if (job.courseType === null) {
+    return '–';
+  }
+  const course = job.courseType === CourseType.Hsk ? `HSK ${job.hskStandard === HskStandard.V3 ? '3.0' : '2.0'}`
+    : job.courseType === CourseType.Yct ? 'YCT'
+    : (job.courseName || 'Khác');
+  return [course, job.level === null ? null : `cấp ${job.level}`, job.lessonNumber === null ? null : `bài ${job.lessonNumber}`]
+    .filter(part => part !== null).join(' · ');
 }

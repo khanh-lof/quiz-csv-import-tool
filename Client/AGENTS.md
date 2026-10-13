@@ -94,8 +94,9 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
    or 10 failed ones, and is reset by `AuthService.cleared$` on logout) and announcing each job that
    finishes. `AiJobs` (`src/components/ai-jobs/`, below the form) is the history table: client-side search
    (`filterJobs` in `models/ai-job.ts`: accent- and case-insensitive over title, error and the generated
-   CSV) and status/mode/platform filters, an expandable row showing the CSV, delete, and the delivery
-   action per job. The two modes diverge there (see
+   CSV) and status/mode/platform/course type/HSK standard/level/lesson filters (the last four match the
+   lesson fields the server keeps on creative jobs), an expandable row showing the CSV, delete, and the
+   delivery actions per job. The two modes diverge there (see
    [../CLAUDE.md](../CLAUDE.md#the-two-ai-generation-modes) for the full picture):
    - **`Formatted`** → on "Mở trong bảng", the job's text is cleaned by `AiCsvService.extractCsvContent` (strips markdown
      code fences, or extracts from the first Vietnamese CSV header it finds) → re-parsed by the same
@@ -104,10 +105,10 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      import.
    - **`Auto`** (requires `courseType`/`lessonNumber`/`exportType` in the page's form, plus `level`
      for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — or `courseName` for `Other`; images are optional here) → the job's CSV
-     has no header rows → on "Tải file" (or "Publish Wayground") `AiJobs.exportJob` passes it to
+     has no header rows → on "Tải file" (or, for Wayground, "Tiện ích tự publish") `AiJobs.exportJob(job, publish)` passes it to
      `FileExportService.exportFileFromCsvContent`, which
      calls the matching `CsvBuilder.buildFromCsvContent` to prepend the platform's `CsvHeader` and
-     downloads (or the extension takes it, per the Wayground delivery choice). The vocabulary table is never touched in this path.
+     downloads (or the extension takes it, when the user clicked the publish button). The vocabulary table is never touched in this path.
 
 Export: `exportFile()` validates the form, then `FileExportService` dispatches to `GimkitCsvBuilder`,
 `BlooketCsvBuilder`, or `WaygroundCsvBuilder` (all extend `CsvBuilderBase`, selected by the
@@ -119,9 +120,10 @@ generated CSV (not the same code path as the import parser). `FileExportService.
 picks the output format per platform: GimKit/Blooket download as `.csv` directly; Wayground is
 converted to `.xlsx` via the `xlsx` package first (`FileExportService.buildXlsx`). Both export methods
 return an `ExportedFile` (`fileName`, plus the `xlsx` bytes for Wayground) and take a `download` flag.
-For Wayground both pages show a `WaygroundDelivery` radio (download vs. extension, shared preference
-held by `WaygroundExtensionService.preferredDelivery`). When the optional `../Extension` is installed
-and chosen, the file is not downloaded and `WaygroundExtensionService.sendImport` hands the bytes to it. The
+For Wayground the table page shows a `WaygroundDelivery` radio (download vs. extension, preference held
+by `WaygroundExtensionService.preferredDelivery`); the AI jobs table has no such setting and offers both
+buttons on each finished Wayground job, the extension one disabled without `../Extension`. When the
+extension is used, the file is not downloaded and `WaygroundExtensionService.sendImport` hands the bytes to it. The
 extension imports and publishes the quiz in the user's Wayground tab, and the service later shows the
 share link it sends back (see [../AGENTS.md](../AGENTS.md#the-wayground-browser-extension)).
 

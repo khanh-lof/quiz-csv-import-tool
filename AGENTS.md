@@ -88,8 +88,10 @@ the model has answered and the result is saved on the job. The client does not w
 the user's jobs from `GET csv/jobs`, which `AiJobService` polls every 3 s while any job runs. A job
 finishing is announced wherever the user is in the app. The result is delivered from the table, not on
 completion: **Formatted** jobs get a "Mở trong bảng" action, **Auto** jobs a "Tải file" action
-(or "Publish Wayground"). The table's search covers titles, errors and the generated CSV; its filters are
-status, mode and platform.
+and, for a Wayground job, also "Tiện ích tự publish" (the extension; disabled when it is not installed): the
+user picks the delivery per job once the AI is done. The table's search covers titles, errors and the generated
+CSV; its filters are status, mode, platform, course type, HSK standard, level and lesson number (the server
+keeps those on each creative job; jobs from before it did have none and drop out when one is set).
 
 - **`Formatted`** → `POST csv/jobs` (only a `title` query param) → server's simple prompt
   (`Server/internal/csvgen/prompts/simple_system.txt`, two columns, `Câu hỏi`/`Đáp án`) → client parses the CSV
@@ -133,11 +135,11 @@ Consequences to keep in mind when changing anything here:
 Wayground has no public API for creating quizzes, so `Extension/` drives Wayground's own spreadsheet
 import and Publish in the user's logged-in tab, then hands the quiz's share link back. The SPA side
 is `WaygroundExtensionService`:
-- Whenever Wayground is the chosen platform (on the table or in `Auto` mode), the page offers a
-  `WaygroundDelivery` choice: **Tải file** (download the `.xlsx` for a manual import) or **Tiện ích
-  tự publish** (hand it to the extension). The extension option is disabled unless
-  `<html data-quiztool-extension>` is present; the choice is shared by both pages and remembered in
-  `localStorage` (`wayground-delivery`), defaulting to the extension when it is installed.
+- On the vocabulary table, when Wayground is the chosen platform, the page offers a `WaygroundDelivery`
+  choice: **Tải file** (download the `.xlsx` for a manual import) or **Tiện ích tự publish** (hand it to
+  the extension), remembered in `localStorage` (`wayground-delivery`) and defaulting to the extension when
+  it is installed. In `Auto` mode there is no such setting: the AI jobs table shows both buttons on a
+  finished Wayground job. The extension is unavailable unless `<html data-quiztool-extension>` is present.
 - With the extension chosen, `FileExportService` builds the `.xlsx` without downloading it and the
   service `postMessage`s
   `{source: 'quiztool', type: 'wayground-import', requestId, title, fileName, base64}` to the

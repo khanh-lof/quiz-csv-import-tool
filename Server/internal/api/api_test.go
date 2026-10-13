@@ -328,6 +328,25 @@ func TestCreateJobCreativeModeWithoutImages(t *testing.T) {
 		job.Intelligence != csvgen.DefaultIntelligence {
 		t.Fatalf("job %+v", job)
 	}
+	if job.CourseType == nil || *job.CourseType != int(csvgen.Other) || job.CourseName != "Boya" ||
+		job.HskStandard != nil || job.Level != nil || job.LessonNumber == nil || *job.LessonNumber != 3 {
+		t.Fatalf("job lesson %+v", job)
+	}
+}
+
+func TestCreateJobStoresHskLesson(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+
+	rec := env.upload(t, upload{token: token, query: "?isCreative=true&exportType=2&courseType=0&hskStandard=3&level=7&lessonNumber=4"})
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("create: %d %q", rec.Code, rec.Body)
+	}
+	job := env.onlyJob(t, "alice")
+	if job.CourseType == nil || *job.CourseType != int(csvgen.Hsk) || job.HskStandard == nil || *job.HskStandard != 3 ||
+		job.Level == nil || *job.Level != 7 || job.LessonNumber == nil || *job.LessonNumber != 4 || job.CourseName != "" {
+		t.Fatalf("job %+v", job)
+	}
 }
 
 func TestCreateJobTitleIsCapped(t *testing.T) {
