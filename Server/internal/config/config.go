@@ -19,6 +19,8 @@ type Config struct {
 	MongoURI        string
 	MongoDatabase   string
 	MongoCollection string
+	// MongoJobsCollection holds the AI generation jobs.
+	MongoJobsCollection string
 
 	JWTSecret       []byte
 	JWTIssuer       string // defaults to "quiztool"; always validated
@@ -88,9 +90,10 @@ func FromEnv() (Config, error) {
 	cfg := Config{
 		Port: envOr("PORT", "7071"),
 
-		MongoURI:        os.Getenv("MONGODB_URI"),
-		MongoDatabase:   envOr("MONGODB_DATABASE", "QuizDb"),
-		MongoCollection: envOr("MONGODB_COLLECTION", "Users"),
+		MongoURI:            os.Getenv("MONGODB_URI"),
+		MongoDatabase:       envOr("MONGODB_DATABASE", "QuizDb"),
+		MongoCollection:     envOr("MONGODB_COLLECTION", "Users"),
+		MongoJobsCollection: envOr("MONGODB_JOBS_COLLECTION", "Jobs"),
 
 		JWTSecret:               []byte(os.Getenv("JWT_SECRET")),
 		JWTIssuer:               envOr("JWT_ISSUER", "quiztool"),

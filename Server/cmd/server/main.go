@@ -60,6 +60,7 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("pinging MongoDB: %w", err)
 	}
 	users := store.NewMongo(client.Database(cfg.MongoDatabase).Collection(cfg.MongoCollection))
+	jobs := store.NewMongoJobs(client.Database(cfg.MongoDatabase).Collection(cfg.MongoJobsCollection))
 
 	if cfg.AdminAPIKey == "" {
 		logger.Warn("ADMIN_API_KEY is not set; POST /api/users rejects every request")
@@ -74,6 +75,7 @@ func run(logger *slog.Logger) error {
 	jwt := auth.NewJWT(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, cfg.AccessTokenTTL)
 	srv := &api.Server{
 		Users:           users,
+		Jobs:            jobs,
 		Auth:            auth.NewService(users, jwt, cfg.RefreshTokenTTL, cfg.MaxRefreshTokensPerUser),
 		JWT:             jwt,
 		Generator:       generator,

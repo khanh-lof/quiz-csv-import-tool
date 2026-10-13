@@ -23,7 +23,11 @@ is described in [AGENTS.md](AGENTS.md).
   - *Formatted* — the LLM reads the vocabulary off the images into a two-column table that you edit
     before exporting; distractors are generated client-side.
   - *Auto* — the LLM writes a full quiz for the chosen lesson (HSK, YCT or another course) directly in
-    the target platform's column layout, and the file downloads immediately. Images are optional.
+    the target platform's column layout. Images are optional.
+  - Generation runs as a **background job** on the server, so you can leave or close the page while the AI
+    works. A history table on the AI page follows each job (it updates by itself), lets you search the
+    generated questions and filter by status, mode and platform, and delivers the result: download the file,
+    publish it through the extension, or open it in the table to edit.
 - **Manual editing** — build or edit the question table by hand, or import an existing CSV.
 - **Export** to GimKit (`.csv`), Blooket (`.csv`) or Wayground (`.xlsx`).
 - **Accounts** with JWT access tokens and an `HttpOnly` refresh cookie; AI calls are rate-limited per

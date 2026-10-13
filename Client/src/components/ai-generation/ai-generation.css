@@ -60,16 +60,16 @@
   color: var(--qt-text);
 }
 
-.generating-hint,
-.generating-elapsed {
+.generating-hint {
   margin: 0;
   font-size: 14px;
   color: var(--qt-text-muted);
 }
 
-.generating-elapsed {
-  font-variant-numeric: tabular-nums;
+app-ai-jobs {
+  margin-top: 32px;
 }
+
 /* Never squeezed by the page fitting the screen (see :host); its min-height would let it shrink. */
 .ai-form {
   flex-shrink: 0;

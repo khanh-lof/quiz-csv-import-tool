@@ -18,10 +18,10 @@ import (
 //
 // All attempts share the caller's deadline (LLM_TIMEOUT_SECONDS, under Vercel's function limit), so
 // retrying never keeps the function alive longer; a retry is skipped when too little time is left
-// for it to finish. A call that used up the whole deadline is retried by the client instead, as a
-// new request with a fresh function budget.
+// for it to finish. A call that used up the whole deadline is not retried: the client does not
+// re-send either, so the user is told and submits again.
 const (
-	maxAttempts        = 3
+	maxAttempts        = 5
 	defaultBaseBackoff = 500 * time.Millisecond
 	maxBackoff         = 8 * time.Second
 	// maxRetryAfter is the longest Retry-After worth waiting for inside one request; a longer one

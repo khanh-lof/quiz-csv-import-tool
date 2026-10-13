@@ -38,7 +38,9 @@ curl -X POST http://localhost:7071/api/users \
 | `POST /api/auth/logout` | refresh cookie | Revoke this device's session |
 | `POST /api/auth/logout-all` | refresh cookie | Revoke all sessions of the user |
 | `POST /api/users` | `X-Admin-Key` | Create a user |
-| `POST /api/csv/generate-from-image` | `Bearer` token, role `User`/`Admin` | Multipart images → `text/csv` |
+| `POST /api/csv/jobs` | `Bearer` token, role `User`/`Admin` | Multipart images → starts an AI generation job, `202 {id}` |
+| `GET /api/csv/jobs` | `Bearer` token, role `User`/`Admin` | The caller's jobs, newest first, with their CSV results |
+| `DELETE /api/csv/jobs/{id}` | `Bearer` token, role `User`/`Admin` | Delete one of the caller's jobs |
 | `GET /healthz` | — | Liveness check |
 
 ## Configuration

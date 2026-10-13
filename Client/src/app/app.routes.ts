@@ -3,7 +3,7 @@ import { LoginComponent } from '../components/login/login';
 import { VocabularyTable } from '../components/vocabulary-table/vocabulary-table';
 import { OfflineComponent } from '../components/offline/offline';
 import { Workspace } from '../components/workspace/workspace';
-import { AiGeneration, canLeaveAiGeneration } from '../components/ai-generation/ai-generation';
+import { AiGeneration } from '../components/ai-generation/ai-generation';
 import { authGuard } from '../services/auth.guard';
 
 export const routes: Routes = [
@@ -16,7 +16,7 @@ export const routes: Routes = [
       // Open to anonymous users.
       {path: 'quiz', component: VocabularyTable},
       // The server requires a token for AI generation.
-      {path: 'ai', component: AiGeneration, canActivate: [authGuard], canDeactivate: [canLeaveAiGeneration]}
+      {path: 'ai', component: AiGeneration, canActivate: [authGuard]}
     ]
   },
   {path: '**', redirectTo: 'quiz'}

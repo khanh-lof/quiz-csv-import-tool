@@ -60,7 +60,8 @@ no configurable backend URL:
 | `AuthService.logout` | `auth/logout` (`auth_handlers.go`) |
 | — (no client caller) | `auth/logout-all` (`auth_handlers.go`) |
 | — (admin only, `X-Admin-Key` header) | `users` (`auth_handlers.go`) |
-| `AiCsvService.generateCsvFromImages*` | `csv/generate-from-image` (`internal/api/csv_handler.go`) |
+| `AiCsvService.submitFormatted` / `.submitCreative` | `POST csv/jobs` (`internal/api/csv_handler.go`) |
+| `AiJobService.refresh` / `.remove` | `GET csv/jobs`, `DELETE csv/jobs/{id}` (`csv_handler.go`) |
 
 Two things make the wiring non-obvious:
 
@@ -71,7 +72,7 @@ Two things make the wiring non-obvious:
   origins is not supported: the browser would block the calls and never send the cookie, breaking
   the silent-refresh-on-boot flow in `app.config.ts`.
 - **Auth is split across two mechanisms.** The access token is a Bearer JWT the client attaches via
-  `AuthInterceptor`; only `csv/generate-from-image` requires it, via the `authenticate` +
+  `AuthInterceptor`; only the `csv/jobs` routes require it, via the `authenticate` +
   `requireRole` middleware wrapped around that route (`Server/internal/api/middleware.go`).
   The refresh token lives only in the cookie and is never in a JSON body.
 
@@ -79,20 +80,29 @@ Two things make the wiring non-obvious:
 
 This is the one feature that only makes sense by reading both sides. The AI generation page
 (`AiGeneration`, route `/ai`) offers `AIGenerationMode.Formatted` and `AIGenerationMode.Auto`, and they take
-completely different paths through the system:
+completely different paths through the system. First, what they share — **AI generation is a job**: `POST csv/jobs`
+validates the request, stores a job in MongoDB (`store.Job`, collection `Jobs`, newest 30 kept per user),
+answers `202 {"id"}` and keeps working in the same handler, detached from the client's connection, until
+the model has answered and the result is saved on the job. The client does not wait for the result: the
+`AiGeneration` page shows a "Đã gửi yêu cầu" notice, and the history table below the form (`AiJobs`) shows
+the user's jobs from `GET csv/jobs`, which `AiJobService` polls every 3 s while any job runs. A job
+finishing is announced wherever the user is in the app. The result is delivered from the table, not on
+completion: **Formatted** jobs get a "Mở trong bảng" action, **Auto** jobs a "Tải file" action
+(or "Publish Wayground"). The table's search covers titles, errors and the generated CSV; its filters are
+status, mode and platform.
 
-- **`Formatted`** → `POST csv/generate-from-image` with no query params → server's simple prompt
+- **`Formatted`** → `POST csv/jobs` (only a `title` query param) → server's simple prompt
   (`Server/internal/csvgen/prompts/simple_system.txt`, two columns, `Câu hỏi`/`Đáp án`) → client parses the CSV
   with `CsvImportService.parseCsv` and **hands the rows to the vocabulary table** (`PendingImportService`,
-  then navigates to `/quiz`), where the user edits
+  then navigates to `/quiz`) when the user clicks "Mở trong bảng" on the job, where the user edits
   them and later exports via `FileExportService.exportFile` (client-side builders synthesize the
   distractors).
 - **`Auto`** (sent as `isCreative=true`, alongside `exportType`, `courseType`, `lessonNumber`, and
   `level`/`courseName` depending on the course) → server's creative prompt
   (`csvgen.buildCreativeRequest`, `prompts/creative_system.txt`), a long Chinese-teacher prompt that is told the exact
   column layout of the *target platform* via `exportTypeMessages` and asked to
-  return **rows without a header** → client never touches the table: it prepends the header through
-  `CsvBuilderBase.buildFromCsvContent` and downloads immediately. **Images are optional in this
+  return **rows without a header** → client never touches the table: on "Tải file" it prepends the header through
+  `CsvBuilderBase.buildFromCsvContent` and downloads. **Images are optional in this
   mode**: with none attached the prompt tells the model to work from the standard word list of the
   identified lesson instead. The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`, another
   by-ordinal enum duplicated on both sides), a `level` that is required for HSK and YCT but optional
@@ -109,6 +119,12 @@ Consequences to keep in mind when changing anything here:
 - Adding a new export platform means three coordinated changes: a client `CsvBuilder` (with a
   `CsvHeader` matching what the platform expects on import), an `exportTypeMessages` case
   on the server describing the same columns to the LLM, and the enum entry on both sides.
+- A job outlives the connection that started it only if the host keeps the process alive after the
+  client leaves. The handler flushes its `202` early with `Connection: close` and goes on working;
+  where the platform buffers the response until the handler ends (Vercel's behaviour for a Go
+  service is unverified), the client just gets the `202` late and polling still shows the job. A job
+  still `running` well past the LLM deadline (its process died) is failed as "interrupted" and its
+  call refunded the next time its owner lists jobs.
 - Export output format is per-platform: GimKit and Blooket download as `.csv`, Wayground is converted
   to `.xlsx` via `xlsx` before download (`FileExportService.download`).
 
@@ -142,10 +158,10 @@ sides. Quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in
 
 AI calls are capped per user (`CALL_COUNT_ACCEPTED_IN_A_ROUND` per `ROUND_MINUTES`), with the counter
 stored on the user's MongoDB document. The client has no matching UI state — it discovers the limit
-only as a `403` with a plain-text body from `csv/generate-from-image`, which
+only as a `403` with a plain-text body from `POST csv/jobs`, which
 `AiGeneration.showGenerationError` turns into a "Hết lượt dùng AI" notification (a `403` with an
-empty body is the role check instead, shown as "Không có quyền"). A call whose generation fails (`502`/`504`) is given back (`RefundAICall`), so
-the client's automatic retries below never run into the limit.
+empty body is the role check instead, shown as "Không có quyền"). A job whose generation fails (recorded as
+`502`/`504`) is given back (`RefundAICall`), so resubmitting after a failure does not use up the user's quota.
 
 ## Upload size and LLM timeout (Vercel limits)
 
@@ -155,22 +171,22 @@ two sides guard against both:
 - The client shrinks images before upload (`ImageCompressionService.compressForUpload`): JPEG,
   longest side 2048 px, stepping down in size/quality until the batch fits a 4 MB budget, else it
   refuses the upload itself.
-- The server bounds each LLM call with `LLM_TIMEOUT_SECONDS` (default 280, under Vercel's limit) and
-  answers `504 AI generation timed out.` The failed call is refunded to the rate limit.
-- `AiGeneration.showGenerationError` maps 413 (or the client's own refusal) and 504 (the
-  server's, or Vercel's own) to messages asking the user to send fewer images or retry.
+- The server bounds each LLM call with `LLM_TIMEOUT_SECONDS` (default 280, under Vercel's limit); hitting
+  it fails the job with `504 AI generation timed out.` and refunds the call. The upload itself is a
+  separate, short request, so only the generation can hit the time limit.
+- `AiGeneration.showGenerationError` maps 413 (or the client's own refusal) to a message asking the user to
+  send fewer images; a 504 job is announced by `AiJobService` with the same advice.
 
 ## Retrying AI requests
 
-Retries are split by who can afford the time, since one Vercel invocation cannot outlive 300 s:
+All retrying is on the server, inside the one request (`csvgen/retry.go`): transient failures from
+the LLM gateway — 429 and 502/503/504, and transport errors — are retried up to 5 attempts with
+exponential backoff + jitter, honouring `Retry-After` (following the gateway's policy,
+https://shineshop.dev/docs/errors/). All attempts share the `LLM_TIMEOUT_SECONDS` deadline, and a
+retry is skipped when less than 30 s would be left, so this never pushes past Vercel's limit (one
+invocation cannot outlive 300 s). Other statuses (400/401/402/403/404/413) are never retried.
 
-- **Server, inside one invocation** (`csvgen/retry.go`): quick transient failures from the LLM
-  gateway — 429 and 502/503/504, and transport errors — are retried up to 3 attempts with
-  exponential backoff + jitter, honouring `Retry-After` (following the gateway's policy,
-  https://shineshop.dev/docs/errors/). All attempts share the `LLM_TIMEOUT_SECONDS` deadline, and a
-  retry is skipped when less than 30 s would be left, so this never pushes past Vercel's limit.
-  Other statuses (400/401/402/403/404/413) are never retried.
-- **Client, as a new request** (`AiCsvService.retryTransientFailures`): a `502`, `503`, `504` or
-  network failure (status 0) from our API is re-sent up to 2 times (a `504` only once, since it
-  already took ~280 s), with 2 s/4 s backoff + jitter. Each retry is a fresh Vercel invocation with a
-  fresh time budget. The page's button shows `Đang thử lại (lần N)...` while it runs.
+The client submits each generation once (`AiCsvService` has no retry): a job that used the whole deadline
+fails as `504`, and the user submits again from the page. Only a failed *upload* (status 0, before the job
+exists) needs the user's retry for a connection reason; once the server answers `202`, a dropped connection
+no longer matters.

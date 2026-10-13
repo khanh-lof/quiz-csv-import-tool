@@ -43,16 +43,19 @@ type testEnv struct {
 	srv   *Server
 	h     http.Handler
 	users *store.Memory
+	jobs  *store.MemoryJobs
 	gen   *fakeGenerator
 }
 
 func newEnv(t *testing.T) *testEnv {
 	t.Helper()
 	users := store.NewMemory()
+	jobs := store.NewMemoryJobs()
 	jwt := auth.NewJWT([]byte("0123456789abcdef0123456789abcdef"), "quiztool", "quiztool-api", 15*time.Minute)
 	gen := &fakeGenerator{}
 	srv := &Server{
 		Users:           users,
+		Jobs:            jobs,
 		Auth:            auth.NewService(users, jwt, 30*24*time.Hour, 5),
 		JWT:             jwt,
 		Generator:       gen,
@@ -62,7 +65,7 @@ func newEnv(t *testing.T) *testEnv {
 		RoundDuration:   time.Minute,
 		Logger:          slog.New(slog.DiscardHandler),
 	}
-	env := &testEnv{srv: srv, h: srv.Handler(), users: users, gen: gen}
+	env := &testEnv{srv: srv, h: srv.Handler(), users: users, jobs: jobs, gen: gen}
 	env.createUser(t, "alice", "pw", []string{"User"})
 	return env
 }
@@ -263,7 +266,7 @@ func (e *testEnv) upload(t *testing.T, u upload) *httptest.ResponseRecorder {
 	if u.rawBody != nil {
 		reader = strings.NewReader(*u.rawBody)
 	}
-	req := httptest.NewRequest(http.MethodPost, "/api/csv/generate-from-image"+u.query, reader)
+	req := httptest.NewRequest(http.MethodPost, "/api/csv/jobs"+u.query, reader)
 	if u.token != "" {
 		req.Header.Set("Authorization", "Bearer "+u.token)
 	}
@@ -277,13 +280,30 @@ func (e *testEnv) upload(t *testing.T, u upload) *httptest.ResponseRecorder {
 
 func ptr[T any](v T) *T { return &v }
 
-func TestGenerateCSVFormattedMode(t *testing.T) {
+// onlyJob is the single job a user has; the handler has finished its work by the time a test sees
+// the response, so the job is already done or failed.
+func (e *testEnv) onlyJob(t *testing.T, username string) store.Job {
+	t.Helper()
+	jobs, err := e.jobs.List(context.Background(), username, 100)
+	if err != nil || len(jobs) != 1 {
+		t.Fatalf("jobs of %s: %v, %v", username, jobs, err)
+	}
+	return jobs[0]
+}
+
+func TestCreateJobFormattedMode(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 
-	rec := env.upload(t, upload{token: token, files: 2})
-	if rec.Code != http.StatusOK || rec.Body.String() != "a,b" || rec.Header().Get("Content-Type") != "text/csv; charset=utf-8" {
-		t.Fatalf("generate: %d %q %v", rec.Code, rec.Body, rec.Header())
+	rec := env.upload(t, upload{token: token, files: 2, query: "?title=Anh%20bai%201"})
+	job := env.onlyJob(t, "alice")
+	if rec.Code != http.StatusAccepted || rec.Header().Get("Content-Type") != "application/json" ||
+		rec.Header().Get("Connection") != "close" || strings.TrimSpace(rec.Body.String()) != `{"id":"`+job.ID+`"}` {
+		t.Fatalf("create: %d %q %v", rec.Code, rec.Body, rec.Header())
+	}
+	if job.Status != store.JobDone || job.CSV != "a,b" || job.Title != "Anh bai 1" || job.Creative || job.ImageCount != 2 ||
+		job.ExportType != nil {
+		t.Fatalf("job %+v", job)
 	}
 	if len(env.gen.images) != 2 || env.gen.creative || env.gen.images[0].ContentType != "application/octet-stream" ||
 		string(env.gen.images[0].Data) != "png-bytes" {
@@ -291,21 +311,32 @@ func TestGenerateCSVFormattedMode(t *testing.T) {
 	}
 }
 
-func TestGenerateCSVCreativeModeWithoutImages(t *testing.T) {
+func TestCreateJobCreativeModeWithoutImages(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 
 	rec := env.upload(t, upload{token: token, query: "?isCreative=True&exportType=1&courseType=2&courseName=Boya&lessonNumber=3"})
-	if rec.Code != http.StatusOK {
-		t.Fatalf("generate: %d %q", rec.Code, rec.Body)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("create: %d %q", rec.Code, rec.Body)
 	}
 	if !env.gen.creative || len(env.gen.images) != 0 || env.gen.opts.ExportType != csvgen.Blooket ||
 		env.gen.opts.CourseName != "Boya" || *env.gen.opts.LessonNumber != 3 {
 		t.Fatalf("generator got %+v", env.gen)
 	}
+	job := env.onlyJob(t, "alice")
+	if !job.Creative || job.ExportType == nil || *job.ExportType != int(csvgen.Blooket) || job.Title != "AI tự nghĩ câu hỏi" ||
+		job.Intelligence != csvgen.DefaultIntelligence {
+		t.Fatalf("job %+v", job)
+	}
 }
 
-func TestGenerateCSVRequestErrors(t *testing.T) {
+func TestCreateJobTitleIsCapped(t *testing.T) {
+	if got := jobTitle(strings.Repeat("好", 300), true); len([]rune(got)) != maxTitleRunes {
+		t.Fatalf("title has %d runes", len([]rune(got)))
+	}
+}
+
+func TestCreateJobRequestErrors(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 	env.createUser(t, "guest", "pw", []string{"Guest"})
@@ -341,14 +372,14 @@ func TestGenerateCSVRequestErrors(t *testing.T) {
 	}
 }
 
-func TestGenerateCSVRateLimit(t *testing.T) {
+func TestCreateJobRateLimit(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 	now := time.Now()
 	env.users.Now = func() time.Time { return now }
 
 	for i := range 2 {
-		if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusOK {
+		if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusAccepted {
 			t.Fatalf("call %d: %d", i+1, rec.Code)
 		}
 	}
@@ -358,17 +389,22 @@ func TestGenerateCSVRateLimit(t *testing.T) {
 	}
 
 	now = now.Add(61 * time.Second)
-	if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusOK {
+	if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusAccepted {
 		t.Fatalf("call in the next round: %d", rec.Code)
 	}
 }
 
-func TestGenerateCSVUpstreamFailure(t *testing.T) {
+func TestCreateJobUpstreamFailure(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 	env.gen.err = errors.New("boom")
-	if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusBadGateway {
+	// The failure is not the request's: it is recorded on the job.
+	if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusAccepted {
 		t.Fatalf("got %d", rec.Code)
+	}
+	job := env.onlyJob(t, "alice")
+	if job.Status != store.JobFailed || job.ErrorStatus != http.StatusBadGateway || job.ErrorMessage != "AI generation failed." || job.CSV != "" {
+		t.Fatalf("job %+v", job)
 	}
 
 	env.srv.Generator = nil
@@ -377,7 +413,7 @@ func TestGenerateCSVUpstreamFailure(t *testing.T) {
 	}
 }
 
-func TestGenerateCSVFailureDoesNotUseQuota(t *testing.T) {
+func TestCreateJobFailureDoesNotUseQuota(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 	now := time.Now()
@@ -385,26 +421,175 @@ func TestGenerateCSVFailureDoesNotUseQuota(t *testing.T) {
 
 	env.gen.err = errors.New("boom")
 	for i := range 3 {
-		if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusBadGateway {
+		if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusAccepted {
 			t.Fatalf("failing call %d: %d", i+1, rec.Code)
 		}
 	}
 	env.gen.err = nil
 	for i := range 2 {
-		if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusOK {
+		if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusAccepted {
 			t.Fatalf("retry %d after failures: %d %q", i+1, rec.Code, rec.Body)
 		}
 	}
 }
 
-func TestGenerateCSVTimeout(t *testing.T) {
+func TestCreateJobTimeout(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 	env.gen.block = true
 	env.srv.LLMTimeout = 10 * time.Millisecond
-	rec := env.upload(t, upload{token: token, files: 1})
-	if rec.Code != http.StatusGatewayTimeout || rec.Body.String() != "AI generation timed out." {
+	if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusAccepted {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
+	}
+	job := env.onlyJob(t, "alice")
+	if job.Status != store.JobFailed || job.ErrorStatus != http.StatusGatewayTimeout || job.ErrorMessage != "AI generation timed out." {
+		t.Fatalf("job %+v", job)
+	}
+}
+
+// The point of jobs: the model call must finish and be recorded although the client is gone.
+func TestCreateJobSurvivesClientDisconnect(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // the client left before the handler even started
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, _ := mw.CreateFormFile("images", "lesson.png")
+	_, _ = fw.Write([]byte("png-bytes"))
+	_ = mw.Close()
+	req := httptest.NewRequest(http.MethodPost, "/api/csv/jobs", &body).WithContext(ctx)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	env.do(req)
+
+	if job := env.onlyJob(t, "alice"); job.Status != store.JobDone || job.CSV != "a,b" {
+		t.Fatalf("job %+v", job)
+	}
+}
+
+func (e *testEnv) listJobs(t *testing.T, token string) []map[string]any {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/api/csv/jobs", nil)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	rec := e.do(req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list: %d %q", rec.Code, rec.Body)
+	}
+	var body struct{ Jobs []map[string]any }
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	return body.Jobs
+}
+
+func TestListJobsReturnsOnlyOwnJobsNewestFirst(t *testing.T) {
+	env := newEnv(t)
+	env.createUser(t, "bob", "pw", []string{"User"})
+	alice, _ := env.login(t, "alice", "pw")
+	bob, _ := env.login(t, "bob", "pw")
+
+	env.upload(t, upload{token: alice, files: 1, query: "?title=first"})
+	time.Sleep(2 * time.Millisecond) // createdAt has millisecond resolution
+	env.upload(t, upload{token: alice, files: 1, query: "?title=second"})
+	env.upload(t, upload{token: bob, files: 1, query: "?title=bobs"})
+
+	jobs := env.listJobs(t, alice)
+	if len(jobs) != 2 || jobs[0]["title"] != "second" || jobs[1]["title"] != "first" {
+		t.Fatalf("alice's jobs: %v", jobs)
+	}
+	if jobs[0]["status"] != "done" || jobs[0]["csv"] != "a,b" || jobs[0]["creative"] != false || jobs[0]["imageCount"] != float64(1) {
+		t.Fatalf("job view: %v", jobs[0])
+	}
+	if jobs = env.listJobs(t, bob); len(jobs) != 1 || jobs[0]["title"] != "bobs" {
+		t.Fatalf("bob's jobs: %v", jobs)
+	}
+
+	if rec := env.do(httptest.NewRequest(http.MethodGet, "/api/csv/jobs", nil)); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous list: %d", rec.Code)
+	}
+}
+
+func TestCreateJobKeepsOnlyNewestJobs(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	env.srv.AICallsPerRound = maxJobsPerUser + 5
+	for range maxJobsPerUser + 3 {
+		env.upload(t, upload{token: token, files: 1})
+		time.Sleep(time.Millisecond)
+	}
+	if jobs := env.listJobs(t, token); len(jobs) != maxJobsPerUser {
+		t.Fatalf("kept %d jobs, want %d", len(jobs), maxJobsPerUser)
+	}
+}
+
+func TestListJobsExpiresAbandonedJobs(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	now := time.Now()
+	env.users.Now = func() time.Time { return now }
+	env.srv.LLMTimeout = time.Minute
+	env.upload(t, upload{token: token, files: 1}) // consumes one of the two calls in the round
+	roundStart := now.UTC()
+
+	// A job whose process died: still running well past the LLM deadline.
+	err := env.jobs.Create(context.Background(), &store.Job{
+		ID: "stuck", Username: "alice", Status: store.JobRunning, Title: "stuck",
+		RoundStart: roundStart, CreatedAt: time.Now().Add(-10 * time.Minute),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A recent one is left alone.
+	err = env.jobs.Create(context.Background(), &store.Job{
+		ID: "fresh", Username: "alice", Status: store.JobRunning, Title: "fresh", CreatedAt: time.Now(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	byTitle := map[string]map[string]any{}
+	for _, j := range env.listJobs(t, token) {
+		byTitle[j["title"].(string)] = j
+	}
+	if byTitle["stuck"]["status"] != "failed" || byTitle["stuck"]["errorMessage"] != "AI generation was interrupted." ||
+		byTitle["fresh"]["status"] != "running" {
+		t.Fatalf("jobs: %v", byTitle)
+	}
+	// Its call was given back: the round counted the upload above once, and the refund takes it to zero.
+	u, _ := env.users.FindByUsername(context.Background(), "alice")
+	if u.AICallCountInRound != 0 {
+		t.Fatalf("calls counted in the round: %d", u.AICallCountInRound)
+	}
+}
+
+func TestDeleteJob(t *testing.T) {
+	env := newEnv(t)
+	env.createUser(t, "bob", "pw", []string{"User"})
+	alice, _ := env.login(t, "alice", "pw")
+	bob, _ := env.login(t, "bob", "pw")
+	env.upload(t, upload{token: alice, files: 1})
+	id := env.onlyJob(t, "alice").ID
+
+	del := func(token, id string) int {
+		req := httptest.NewRequest(http.MethodDelete, "/api/csv/jobs/"+id, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		return env.do(req).Code
+	}
+	if got := del(bob, id); got != http.StatusNotFound {
+		t.Fatalf("another user's job: %d", got)
+	}
+	if got := del(alice, id); got != http.StatusNoContent {
+		t.Fatalf("own job: %d", got)
+	}
+	if got := del(alice, id); got != http.StatusNotFound {
+		t.Fatalf("deleted job: %d", got)
+	}
+	if jobs := env.listJobs(t, alice); len(jobs) != 0 {
+		t.Fatalf("jobs after delete: %v", jobs)
 	}
 }
 
