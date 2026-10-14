@@ -58,7 +58,7 @@
         <th>Nền tảng</th>
         <th>Lúc gửi</th>
         <th>Trạng thái</th>
-        <th></th>
+        <th class="actions-col"></th>
       </tr>
     </thead>
     <tbody>
@@ -87,7 +87,7 @@
             @if (job.status !== 'running') {
               <button nz-button nzType="default" nzSize="small" type="button" aria-label="Thao tác" title="Thao tác"
                       nz-dropdown [nzDropdownMenu]="jobMenu" nzTrigger="click" nzPlacement="bottomRight">
-                <nz-icon nzType="more" nzTheme="outline"/>
+                <nz-icon nzType="control" nzTheme="outline"/>
               </button>
               <nz-dropdown-menu #jobMenu="nzDropdownMenu">
                 <ul nz-menu class="action-menu">

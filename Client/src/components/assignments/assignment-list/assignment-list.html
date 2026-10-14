@@ -12,7 +12,7 @@
         <th>Trạng thái</th>
         <th>Học sinh</th>
         <th>Lúc giao</th>
-        <th></th>
+        <th class="actions-col"></th>
       </tr>
     </thead>
     <tbody>
@@ -32,7 +32,7 @@
           <td class="assignment-actions">
             <button nz-button nzType="default" nzSize="small" type="button" aria-label="Thao tác" title="Thao tác"
                     nz-dropdown [nzDropdownMenu]="assignmentMenu" nzTrigger="click" nzPlacement="bottomRight">
-              <nz-icon nzType="more" nzTheme="outline"/>
+              <nz-icon nzType="control" nzTheme="outline"/>
             </button>
             <nz-dropdown-menu #assignmentMenu="nzDropdownMenu">
               <ul nz-menu class="action-menu">
