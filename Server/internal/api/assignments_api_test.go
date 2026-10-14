@@ -112,7 +112,7 @@ func rankOf(p rankedPlayer) int {
 
 func inTime(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
-// seedJob stores a finished Quiz cử chỉ job; edit may turn it into something else.
+// seedJob stores a finished Game job; edit may turn it into something else.
 func (e *testEnv) seedJob(t *testing.T, username, id string, edit func(*store.Job)) {
 	t.Helper()
 	job := &store.Job{

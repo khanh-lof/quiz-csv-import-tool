@@ -20,7 +20,7 @@
       <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
       <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
       <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
-      <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Quiz cử chỉ"></nz-option>
+      <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Game"></nz-option>
     </nz-select>
     <nz-select class="filter-select" nzAllowClear nzPlaceHolder="Giáo trình" [ngModel]="courseType()"
                (ngModelChange)="setCourseType($event ?? null)">

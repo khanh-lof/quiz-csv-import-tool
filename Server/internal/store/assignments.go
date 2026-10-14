@@ -14,7 +14,7 @@ const ResultGrace = 5 * time.Minute
 // maxRunIDs is how many of a player's latest run ids are remembered to recognise a resent result.
 const maxRunIDs = 50
 
-// Assignment is a Quiz cử chỉ job handed to students: a snapshot of the job's title and CSV, so
+// Assignment is a Game job handed to students: a snapshot of the job's title and CSV, so
 // deleting or pruning the job never breaks a live link, plus how it is played and when it closes.
 type Assignment struct {
 	ID string `bson:"_id"`

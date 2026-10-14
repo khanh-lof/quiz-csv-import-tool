@@ -275,7 +275,7 @@ describe('GesturePlay', () => {
         [[], 'Không tìm thấy'],
         [[gestureJob({ status: 'running' })], 'đang tạo'],
         [[gestureJob({ status: 'failed' })], 'không thành công'],
-        [[gestureJob({ exportType: ExportType.Wayground })], 'không phải quiz cử chỉ'],
+        [[gestureJob({ exportType: ExportType.Wayground })], 'không phải game'],
         [[gestureJob({ csv: 'không phải quiz' })], 'Không tìm thấy câu hỏi'],
       ];
       for (const [list, message] of cases) {

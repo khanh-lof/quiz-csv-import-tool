@@ -1,6 +1,6 @@
 import { STAGES } from '../game/stages';
 
-// How many questions each stage of an AI-written Quiz cử chỉ gets. The same three numbers as the
+// How many questions each stage of an AI-written Game gets. The same three numbers as the
 // server's csvgen constants, kept in step by hand (nothing generates one side from the other). Four is
 // the least because the pass mark is 70%: with fewer questions a stage would be all or nothing.
 export const QUESTIONS_PER_STAGE_MIN = 4;

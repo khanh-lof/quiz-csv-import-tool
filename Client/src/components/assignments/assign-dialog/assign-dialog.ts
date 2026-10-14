@@ -38,7 +38,7 @@ import { ShareLink } from '../share-link/share-link';
 const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
 const MAX_LABEL_LENGTH = 60;
 
-// The dialog that gives a finished Quiz cử chỉ job to students: label, closing time and time mode, then
+// The dialog that gives a finished Game job to students: label, closing time and time mode, then
 // the link, QR code and code of the new assignment. The AI jobs table opens it with `job`; `created` says
 // that an assignment now exists.
 @Component({

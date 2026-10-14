@@ -61,7 +61,7 @@ describe('AiCsvService', () => {
       AIMode: AIGenerationMode.Auto, exportType, intelligence: 1, gestureStages, questionsPerStage,
     });
 
-    it('sends the chosen games in ascending order and the question count for a Quiz cử chỉ', () => {
+    it('sends the chosen games in ascending order and the question count for a Game', () => {
       service.submitCreative([], request(ExportType.GestureQuiz, [6, 1, 4], 8), 'HSK2-Bai3').subscribe();
 
       const params = http.expectOne(r => r.url === URL).request.params;

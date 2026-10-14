@@ -179,7 +179,7 @@ const TEACHER_ERRORS: Record<string, string> = {
   'Job not found': 'Không tìm thấy quiz này, có thể nó đã bị xóa khỏi bảng lịch sử.',
   'Player not found': 'Học sinh này đã được xóa rồi.',
   'Too many assignments.': 'Bạn đã có 100 bài giao. Hãy xóa bớt bài cũ ở trang Bài đã giao.',
-  'Job is not a finished gesture quiz.': 'Chỉ giao được Quiz cử chỉ đã tạo xong.',
+  'Job is not a finished gesture quiz.': 'Chỉ giao được Game đã tạo xong.',
   'Invalid closing time.': 'Giờ đóng phải ở tương lai (tối đa 180 ngày).',
   'Label is too long.': 'Tên lớp/nhóm dài tối đa 60 ký tự.',
   'Invalid stage counts.': 'Quiz này không có câu hỏi hợp lệ để giao.',

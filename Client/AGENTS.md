@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The Angular (v22, standalone components) frontend for QuizTool. It lets a user build a table of
 question/answer vocabulary pairs (manually, via CSV import, or via AI generation), then export
 them as a CSV formatted for GimKit or Blooket import, or as an `.xlsx` for Wayground. The AI can also
-write a "Quiz cử chỉ" quiz, which is not exported anywhere: the app plays it itself, on a full-screen
+write a "Game" quiz, which is not exported anywhere: the app plays it itself, on a full-screen
 page that reads the player's gestures from the webcam (see [Gesture quiz](#gesture-quiz-play)), and a teacher
 can give that quiz to students as a link and watch their ranking (see [Giao bài](#giao-bài-assignments)). Auth (JWT access token + HttpOnly
 refresh cookie) and the AI image-to-CSV endpoint are served by the sibling `../Server` Go API
@@ -71,10 +71,10 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
 
 `Workspace` (`src/components/workspace/`) is the shell of the main screens: a collapsible side menu (an
 inline `nz-menu` built from `NAV`: "Quiz thủ công", then the groups "AI" with "Tạo quiz" and "Lịch sử", and
-"Game" with "Chơi quiz cử chỉ" and "Bài đã giao", plus the login/logout item and the collapse switch at its
+"Game" with "Chơi game" and "Bài đã giao", plus the login/logout item and the collapse switch at its
 foot), a breadcrumb (`breadcrumbFor`, with its spec: group › page, and "Bảng xếp hạng" under "Bài đã giao" on an
 assignment's ranking, which is why that page has no back link) and the title. The pages are highlighted via
-`nzMatchRouter`, "Chơi quiz cử chỉ" never is because it leaves the frame for the full-screen `/play` page (see
+`nzMatchRouter`, "Chơi game" never is because it leaves the frame for the full-screen `/play` page (see
 [Gesture quiz](#gesture-quiz-play)). The groups are open whenever the menu is; collapsed, the menu shows only
 icons and the groups become fly-outs. The wide layout remembers the collapse in `localStorage`
 (`workspace-nav-collapsed`); under 768px the menu always starts collapsed and, opened, lies over the page
@@ -116,7 +116,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      navigates to `/quiz`, where `VocabularyTable.ngOnInit` takes them and adds them like any other
      import.
    - **`Auto`** (requires `courseType`/`lessonNumber`/`exportType` in the page's form, plus `level`
-     for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — or `courseName` for `Other`, and for Quiz cử chỉ
+     for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — or `courseName` for `Other`, and for Game
      `gestureStages`, a checkbox per game with at least one ticked, and `questionsPerStage`, 4–10; images are
      optional here. The two quiz controls are validated only for that platform, their limits and the sanitizers
      that read them back from the saved settings are `models/gesture-quiz-options.ts`, and `AiCsvService` sends
@@ -124,7 +124,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      has no header rows → on "Tải file" (or, for Wayground, "Tiện ích tự publish") `AiJobs.exportJob(job, publish)` passes it to
      `FileExportService.exportFileFromCsvContent`, which
      calls the matching `CsvBuilder.buildFromCsvContent` to prepend the platform's `CsvHeader` and
-     downloads (or the extension takes it, when the user clicked the publish button). A Quiz cử chỉ
+     downloads (or the extension takes it, when the user clicked the publish button). A Game
      job also has "Chơi ngay" (`AiJobs.play(job)`, navigates to `/play/<job id>`), the primary action
      there, with "Tải file" only keeping the quiz, and "Giao bài" (`AiJobs.assign(job)`, which opens
      `AssignDialog`, see [Giao bài](#giao-bài-assignments)). The vocabulary table is never touched in this path.
@@ -141,18 +141,18 @@ means editing both lists together; the server also checks the lesson number (400
 Export: `exportFile()` validates the form, then `FileExportService` dispatches to `GimkitCsvBuilder`,
 `BlooketCsvBuilder`, or `WaygroundCsvBuilder` (all extend `CsvBuilderBase`, selected by the
 `exportType` form control, `ExportType` enum) based on the target platform's required CSV shape. A fourth,
-`GestureQuizCsvBuilder` (`services/gesture-quiz-csv-builder.ts`), serves only the AI's Quiz cử chỉ output: it
+`GestureQuizCsvBuilder` (`services/gesture-quiz-csv-builder.ts`), serves only the AI's Game output: it
 carries the header (`GESTURE_QUIZ_COLUMNS`) for `buildFromCsvContent`, while its `buildFromRows` throws, because
 the table's rows have no stages, so the vocabulary table's platform select does not list the platform.
 GimKit/Blooket builders synthesize incorrect-answer distractors by randomly sampling other rows'
 answers via `Utils.getRandomItem`/`shuffle`, so a builder run needs at least a few rows or the "pick
 a distinct wrong answer" loop can spin/repeat. `Utils.escapeCsvField` handles quoting for the
 generated CSV (not the same code path as the import parser). `FileExportService.buildFile` then
-picks the output format per platform: GimKit/Blooket/Quiz cử chỉ download as `.csv` directly; Wayground is
+picks the output format per platform: GimKit/Blooket/Game download as `.csv` directly; Wayground is
 converted to `.xlsx` via the `xlsx` package first (`FileExportService.buildXlsx`). Both export methods
 return an `ExportedFile` (`fileName`, plus the `xlsx` bytes for Wayground) and take a `download` flag.
 `buildFileName` makes `<label>-<platform>.csv` with spaces turned into dashes in the platform's name too
-(`platformName` of Quiz cử chỉ is "Quiz cử chỉ", so `HSK3-Bai5-Quiz-cử-chỉ.csv`).
+(`platformName` of Game is "Game", so `HSK3-Bai5-Game.csv`).
 For Wayground the table page shows a `WaygroundDelivery` radio (download vs. extension, preference held
 by `WaygroundExtensionService.preferredDelivery`); the AI jobs table has no such setting and offers both
 buttons on each finished Wayground job, the extension one disabled without `../Extension`. When the
@@ -162,9 +162,9 @@ share link it sends back (see [../AGENTS.md](../AGENTS.md#the-wayground-browser-
 
 ### Gesture quiz (`/play`)
 
-The AI's Quiz cử chỉ output (`ExportType.GestureQuiz`, ordinal 3) is played in the app, not imported
+The AI's Game output (`ExportType.GestureQuiz`, ordinal 3) is played in the app, not imported
 anywhere; the CSV contract, the stage ladder (1 to 6 of the six games, chosen on the AI form) and the pass rule are in
-[../AGENTS.md](../AGENTS.md#the-gesture-quiz-quiz-cử-chỉ). This section is the client's half.
+[../AGENTS.md](../AGENTS.md#the-gesture-quiz-game). This section is the client's half.
 
 **Routes.** `app.routes.ts` declares four `loadComponent` routes for `GesturePlay`, placed *outside* the
 `Workspace` route so the game fills the screen with no menu: `play` (a file or the sample), `play/s/:code` (a
@@ -275,7 +275,7 @@ cử chỉ export is covered in `file-export.service.spec.ts`. None of them runs
 
 ### Giao bài (assignments)
 
-A teacher gives a finished Quiz cử chỉ job to students, who play it by link with no account; the rules
+A teacher gives a finished Game job to students, who play it by link with no account; the rules
 (snapshot, code, player token, result and ranking contract, closing) are in
 [../AGENTS.md](../AGENTS.md#giao-bài-assignments). This section is the client's half. The shapes of the API
 are `src/models/assignment.ts` (`Assignment`, `AssignmentDetail`, `RankedPlayer`, `SharedQuiz`, `NewAssignment`,

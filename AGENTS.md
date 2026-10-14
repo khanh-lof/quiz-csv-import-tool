@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 QuizTool turns photos of a Chinese (HSK) lesson into a quiz file that can be imported into GimKit,
 Blooket, or Wayground, or into a quiz that QuizTool plays itself as a webcam gesture game
-("Quiz cử chỉ"). A teacher can also hand a Quiz cử chỉ to students as a link ("Giao bài"): they play it
+("Game"). A teacher can also hand a Game to students as a link ("Giao bài"): they play it
 with no account and the teacher watches their ranking. It is one git repo holding two independently built
 and independently deployed projects, plus an optional browser extension:
 
@@ -104,8 +104,8 @@ the user's jobs from `GET csv/jobs`, which `AiJobService` polls every 3 s while 
 finishing is announced wherever the user is in the app. The result is delivered from the table, not on
 completion: **Formatted** jobs get a "Mở trong bảng" action, **Auto** jobs a "Tải file" action
 and, for a Wayground job, also "Tiện ích tự publish" (the extension; disabled when it is not installed)
-or, for a Quiz cử chỉ job, "Chơi ngay" (played in the app, see
-[the gesture quiz](#the-gesture-quiz-quiz-cử-chỉ)): the user picks the delivery per job once the AI is done. The table's search covers titles, errors and the generated
+or, for a Game job, "Chơi ngay" (played in the app, see
+[the gesture quiz](#the-gesture-quiz-game)): the user picks the delivery per job once the AI is done. The table's search covers titles, errors and the generated
 CSV; its filters are status, mode, platform, course type, HSK standard, level and lesson number (the server
 keeps those on each creative job; jobs from before it did have none and drop out when one is set).
 
@@ -116,12 +116,12 @@ keeps those on each creative job; jobs from before it did have none and drop out
   them and later exports via `FileExportService.exportFile` (client-side builders synthesize the
   distractors).
 - **`Auto`** (sent as `isCreative=true`, alongside `exportType`, `courseType`, `lessonNumber`, and
-  `level`/`courseName` depending on the course, and for Quiz cử chỉ `gestureStages`/`questionsPerStage`, see
-  [the gesture quiz](#the-gesture-quiz-quiz-cử-chỉ)) → server's creative prompt
+  `level`/`courseName` depending on the course, and for Game `gestureStages`/`questionsPerStage`, see
+  [the gesture quiz](#the-gesture-quiz-game)) → server's creative prompt
   (`csvgen.buildCreativeRequest`, `prompts/creative_system.txt`), a long Chinese-teacher prompt that is told the exact
   column layout of the *target platform* via `exportTypeMessages` and asked to
   return **rows without a header** → client never touches the table: on "Tải file" it prepends the header through
-  `CsvBuilderBase.buildFromCsvContent` and downloads (for the Quiz cử chỉ platform the job can instead be
+  `CsvBuilderBase.buildFromCsvContent` and downloads (for the Game platform the job can instead be
   played in the app, its third delivery). **Images are optional in this
   mode.** The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`, another
   by-ordinal enum duplicated on both sides), a `level` that is required for HSK and YCT but optional
@@ -152,7 +152,7 @@ Consequences to keep in mind when changing anything here:
   service is unverified), the client just gets the `202` late and polling still shows the job. A job
   still `running` well past the LLM deadline (its process died) is failed as "interrupted" and its
   call refunded the next time its owner lists jobs.
-- Export output format is per-platform: GimKit, Blooket and Quiz cử chỉ download as `.csv`, Wayground is
+- Export output format is per-platform: GimKit, Blooket and Game download as `.csv`, Wayground is
   converted to `.xlsx` via `xlsx` before download (`FileExportService.download`).
 
 ## Textbook lessons
@@ -210,7 +210,7 @@ and `http://localhost:4200`; Vercel preview URLs are not included) are hand-kept
 sides. Quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in
 `Extension/selectors.js`).
 
-## The gesture quiz (Quiz cử chỉ)
+## The gesture quiz (Game)
 
 `ExportType.GestureQuiz` (ordinal 3 on both sides) is the one platform that is not an import target:
 QuizTool plays the quiz itself, as a game in which the learner answers with body gestures in front of a
@@ -263,7 +263,7 @@ shows "Màn 1" and "Màn 2" on the map, in the game, on its result and in an ass
 
 **Entry points.** On a finished GestureQuiz job the AI jobs table shows "Chơi ngay", which navigates to
 `/play/<job id>` (login required; the page takes the job from `AiJobService`), and "Tải file", which
-downloads `<title>-Quiz-cử-chỉ.csv` with the header prepended. A downloaded file, or the built-in sample
+downloads `<title>-Game.csv` with the header prepended. A downloaded file, or the built-in sample
 (`Client/src/game/demo-quiz.ts`), is opened on `/play`, which needs no login. The vocabulary table does not
 offer this platform: its rows have no stages. Progress (stages passed, best result per stage) is kept in
 `localStorage` per quiz, keyed by a hash of the questions rather than the title, so a job and the file
@@ -283,7 +283,7 @@ prompt's in [Server/AGENTS.md](Server/AGENTS.md).
 
 ## Giao bài (assignments)
 
-A teacher (any logged-in user) gives a finished Quiz cử chỉ job to students: the AI jobs table's "Giao bài"
+A teacher (any logged-in user) gives a finished Game job to students: the AI jobs table's "Giao bài"
 makes an *assignment*, a link `<origin>/play/s/<code>` that anyone can open. A student types a name, plays the
 six-stage game above, and the browser reports each finished stage run; the teacher sees a ranking on
 `/assignments/<id>`, can close and reopen the assignment, set a closing time, preview it, remove a student and

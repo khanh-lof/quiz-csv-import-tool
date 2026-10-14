@@ -62,12 +62,12 @@ export const NAV: NavEntry[] = [
   {
     label: 'Game', icon: 'camera', pages: [
       {
-        route: '/play', label: 'Chơi quiz cử chỉ', icon: 'play-circle',
+        route: '/play', label: 'Chơi game', icon: 'play-circle',
         hint: 'Chơi quiz do AI tạo bằng cử chỉ trước camera, hoặc thử quiz mẫu.'
       },
       {
         route: '/assignments', label: 'Bài đã giao', icon: 'trophy',
-        hint: 'Các quiz cử chỉ đã giao cho học sinh: link, mã QR và bảng xếp hạng. Cần đăng nhập.'
+        hint: 'Các game đã giao cho học sinh: link, mã QR và bảng xếp hạng. Cần đăng nhập.'
       }
     ]
   }

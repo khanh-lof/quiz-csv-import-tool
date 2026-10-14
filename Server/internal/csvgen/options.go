@@ -63,7 +63,7 @@ const IntelligenceLevels = 2
 // DefaultIntelligence is used when the client sends none; it matches the GUI default (Thấp).
 const DefaultIntelligence = 1
 
-// GestureStageCount is how many games (stages) a Quiz cử chỉ can have. A stage's number, 1 to
+// GestureStageCount is how many games (stages) a Game can have. A stage's number, 1 to
 // GestureStageCount, is the identity of its game in the CSV, so it never changes when a quiz leaves
 // other stages out. Keep in step with STAGES in Client/src/game/stages.ts.
 const GestureStageCount = 6

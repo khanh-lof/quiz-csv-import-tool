@@ -13,6 +13,6 @@ export class GestureQuizCsvBuilder extends CsvBuilderBase {
     // Every row of a gesture quiz belongs to one of six stages with its own rules (true/false, word order, ...),
     // and only the AI assigns them. The question/answer table has no stages, so it cannot build this quiz
     // and does not offer the platform; reaching this is a bug, not something the user can fix.
-    throw new Error('Quiz cử chỉ chỉ do AI tạo, bảng thủ công không xuất được.');
+    throw new Error('Game chỉ do AI tạo, bảng thủ công không xuất được.');
   }
 }

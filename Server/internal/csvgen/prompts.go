@@ -16,7 +16,7 @@ var (
 	creativeSystemPrompt string
 	//go:embed prompts/wayground_template.txt
 	waygroundTemplate string
-	// The Quiz cử chỉ message is built from two files: the framing, a text/template that fills in the
+	// The Game message is built from two files: the framing, a text/template that fills in the
 	// chosen stages, and the six stage rules, of which only the chosen ones are sent.
 	//go:embed prompts/gesture_quiz_template.txt
 	gestureQuizTemplate string

@@ -186,7 +186,7 @@ export class GesturePlay implements OnInit, OnDestroy {
   });
   // What the topbar names: the quiz and, for a shared one, its class label after it.
   protected readonly heading = computed(() => {
-    const title = this.quiz()?.title ?? 'Quiz cử chỉ';
+    const title = this.quiz()?.title ?? 'Game';
     const label = this.shared()?.label;
     return label ? `${title} · ${label}` : title;
   });
@@ -442,7 +442,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     } else if (job.status !== 'done') {
       this.fail('Lần tạo này không thành công nên chưa có quiz để chơi.');
     } else if (job.exportType !== ExportType.GestureQuiz) {
-      this.fail('Đây không phải quiz cử chỉ. Hãy chọn nền tảng "Quiz cử chỉ" khi nhờ AI tạo.');
+      this.fail('Đây không phải game. Hãy chọn nền tảng "Game" khi nhờ AI tạo.');
     } else {
       this.openCsv(this.aiCsvService.extractCsvContent(job.csv), job.title);
     }
@@ -484,7 +484,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     const quiz = parseGestureQuiz(rows, title);
     if (questionCount(quiz) === 0) {
       const none = {
-        local: 'Không tìm thấy câu hỏi hợp lệ trong quiz này. Hãy dùng file Quiz cử chỉ do AI tạo (mục "AI › Tạo quiz").',
+        local: 'Không tìm thấy câu hỏi hợp lệ trong quiz này. Hãy dùng file Game do AI tạo (mục "AI › Tạo quiz").',
         shared: 'Bài này chưa có câu hỏi nào chơi được. Hãy báo thầy cô.',
         preview: 'Không tìm thấy câu hỏi hợp lệ trong bài này.',
       };

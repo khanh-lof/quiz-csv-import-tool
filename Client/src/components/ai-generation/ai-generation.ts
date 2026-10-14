@@ -75,7 +75,7 @@ interface AiGenerationForm {
   AIMode: FormControl<AIGenerationMode | null>;
   exportType: FormControl<ExportType | null>;
   intelligence: FormControl<number | null>;
-  // Only for a Quiz cử chỉ: the stage numbers of the games the quiz has, and the questions each gets.
+  // Only for a Game: the stage numbers of the games the quiz has, and the questions each gets.
   gestureStages: FormControl<number[] | null>;
   questionsPerStage: FormControl<number | null>;
 }
@@ -136,7 +136,7 @@ export class AiGeneration {
     const book = this.textbookOf(aiGenerationForm);
     this.setError(aiGenerationForm.controls.lessonNumber, 'max', isAutoMode && book !== undefined && lesson !== null
       && lesson > book.lessons);
-    // The game and question-count controls are only on the page for a Quiz cử chỉ; for any other platform
+    // The game and question-count controls are only on the page for a Game; for any other platform
     // they are hidden, so they must not block the form.
     const isGestureQuiz = isAutoMode && aiGenerationForm.controls.exportType.value === ExportType.GestureQuiz;
     this.setRequired(aiGenerationForm.controls.gestureStages, isGestureQuiz);

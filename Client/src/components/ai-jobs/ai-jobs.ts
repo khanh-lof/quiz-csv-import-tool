@@ -212,9 +212,9 @@ export class AiJobs implements OnInit {
       this.notificationService.info('Đang tạo quiz trên Wayground…',
         'Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.', {nzPlacement: 'top'});
     } else if (exportType === ExportType.GestureQuiz) {
-      // There is nothing to import: the file is played from the Quiz cử chỉ page.
+      // There is nothing to import: the file is played from the Game page.
       this.notificationService.success('Tải xong rồi',
-        `Đã tải file ${exported.fileName}, mở nó ở trang Quiz cử chỉ là chơi được nhaa.`,
+        `Đã tải file ${exported.fileName}, mở nó ở trang Game là chơi được nhaa.`,
         {nzPlacement: 'top'});
     } else {
       this.notificationService.success('Tải xong rồi',

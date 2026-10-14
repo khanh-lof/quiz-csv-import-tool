@@ -8,7 +8,7 @@ import { AiJobs } from '../components/ai-jobs/ai-jobs';
 import { authGuard } from '../services/auth.guard';
 
 export const routes: Routes = [
-  {path: '', redirectTo: 'quiz', pathMatch: 'full'},
+  {path: '', redirectTo: 'ai', pathMatch: 'full'},
   {path: 'login', component: LoginComponent},
   {path: 'offline', component: OfflineComponent},
   // The gesture quiz is played full screen, outside the Workspace frame. It is loaded lazily so that
@@ -60,5 +60,5 @@ export const routes: Routes = [
       }
     ]
   },
-  {path: '**', redirectTo: 'quiz'}
+  {path: '**', redirectTo: 'ai'}
 ];
