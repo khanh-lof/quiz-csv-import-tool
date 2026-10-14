@@ -1,4 +1,4 @@
-import { Component, DestroyRef, HostListener, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, DestroyRef, Directive, HostListener, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
@@ -7,8 +7,10 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiCsvService } from '../../services/ai-csv.service';
 import { AiJobService } from '../../services/ai-job.service';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
+import { NzCheckboxGroupComponent, NzCheckboxOption } from 'ng-zorro-antd/checkbox';
 import {
   AbstractControl,
+  ControlContainer,
   FormBuilder, FormControl,
   FormGroup,
   FormsModule, ReactiveFormsModule,
@@ -26,6 +28,15 @@ import { NzInputDirective } from 'ng-zorro-antd/input';
 import { ExportType } from '../../models/export-type';
 import { CourseType } from '../../models/course-type';
 import { HskStandard, hskMaxLevel } from '../../models/hsk-standard';
+import {
+  ALL_GESTURE_STAGES,
+  gestureStagesOf,
+  QUESTIONS_PER_STAGE_DEFAULT,
+  QUESTIONS_PER_STAGE_MAX,
+  QUESTIONS_PER_STAGE_MIN,
+  questionsPerStageOf
+} from '../../models/gesture-quiz-options';
+import { STAGES } from '../../game/stages';
 import { finalize } from 'rxjs';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
@@ -44,6 +55,17 @@ const SETTINGS_STORAGE_KEY = 'ai-generation-settings';
 // Polls without a running job to wait out after submitting, since the new job may not show up in the first one.
 const NEW_JOB_IDLE_POLLS = 3;
 
+// ng-zorro's checkbox keeps an ngModel on its own inner <input>, and Angular warns (NG01354) about every one of
+// them when the checkbox sits inside a [formGroup], as the games' group does. That input is not meant to join
+// the form: this hides the form from it, so it stays quiet. The group itself is bound with [formControl],
+// which needs no container.
+@Directive({
+  selector: '[appOutsideFormContainer]',
+  providers: [{provide: ControlContainer, useValue: null}]
+})
+class OutsideFormContainer {
+}
+
 interface AiGenerationForm {
   courseType: FormControl<CourseType | null>;
   courseName: FormControl<string | null>;
@@ -53,6 +75,9 @@ interface AiGenerationForm {
   AIMode: FormControl<AIGenerationMode | null>;
   exportType: FormControl<ExportType | null>;
   intelligence: FormControl<number | null>;
+  // Only for a Quiz cử chỉ: the stage numbers of the games the quiz has, and the questions each gets.
+  gestureStages: FormControl<number[] | null>;
+  questionsPerStage: FormControl<number | null>;
 }
 
 @Component({
@@ -69,6 +94,8 @@ interface AiGenerationForm {
     NzRadioGroupComponent,
     NzRadioComponent,
     NzInputNumberComponent,
+    NzCheckboxGroupComponent,
+    OutsideFormContainer,
     ReactiveFormsModule,
     NzOptionComponent,
     NzSelectComponent,
@@ -104,6 +131,11 @@ export class AiGeneration {
     const level = aiGenerationForm.controls.level.value;
     this.setError(aiGenerationForm.controls.level, 'max', isAutoMode && courseType === CourseType.Hsk && level !== null
       && level > hskMaxLevel(aiGenerationForm.controls.hskStandard.value));
+    // The game and question-count controls are only on the page for a Quiz cử chỉ; for any other platform
+    // they are hidden, so they must not block the form.
+    const isGestureQuiz = isAutoMode && aiGenerationForm.controls.exportType.value === ExportType.GestureQuiz;
+    this.setRequired(aiGenerationForm.controls.gestureStages, isGestureQuiz);
+    this.setRequired(aiGenerationForm.controls.questionsPerStage, isGestureQuiz);
     return null;
   };
 
@@ -138,6 +170,8 @@ export class AiGeneration {
       lessonNumber: formBuilder.control<number | null>(null),
       exportType: formBuilder.control<ExportType | null>(null),
       intelligence: formBuilder.control<number | null>(1),
+      gestureStages: formBuilder.control<number[] | null>([...ALL_GESTURE_STAGES]),
+      questionsPerStage: formBuilder.control<number | null>(QUESTIONS_PER_STAGE_DEFAULT),
     },{
       validators : [this.requiredIfAIAutoMode]
     })
@@ -148,7 +182,14 @@ export class AiGeneration {
     try {
       const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
       if (saved) {
-        this.formGroup.patchValue(JSON.parse(saved));
+        const settings = JSON.parse(saved);
+        // The two quiz options go through their sanitizers: a save from before they existed, or one
+        // that was edited or corrupted, still gives a form the server will accept.
+        this.formGroup.patchValue({
+          ...settings,
+          gestureStages: gestureStagesOf(settings?.gestureStages),
+          questionsPerStage: questionsPerStageOf(settings?.questionsPerStage),
+        });
       }
     } catch {
       // Storage unavailable or corrupted: start from the defaults.
@@ -314,6 +355,8 @@ export class AiGeneration {
         lessonNumber: this.formGroup.controls.lessonNumber.value,
         exportType: this.formGroup.controls.exportType.value,
         intelligence: this.formGroup.controls.intelligence.value,
+        gestureStages: this.formGroup.controls.gestureStages.value,
+        questionsPerStage: this.formGroup.controls.questionsPerStage.value,
       } satisfies AiGenerationRequest, this.lessonLabel());
     submit$.pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.setGenerating(false))).subscribe({
       next: () => {
@@ -393,6 +436,28 @@ export class AiGeneration {
   protected readonly ExportType = ExportType;
   protected readonly CourseType = CourseType;
   protected readonly HskStandard = HskStandard;
+  protected readonly questionsPerStageMin = QUESTIONS_PER_STAGE_MIN;
+  protected readonly questionsPerStageMax = QUESTIONS_PER_STAGE_MAX;
+
+  // One checkbox per game, easiest first; the value is the stage number the game is known by everywhere.
+  protected readonly gestureStageOptions: NzCheckboxOption[] = STAGES.map(def => ({
+    label: `${def.icon} ${def.name}`,
+    value: def.stage,
+  }));
+
+  // Tells the teacher what the choice makes: the games are played easiest first, each as one màn.
+  protected get gestureQuizHint(): string {
+    const intro = 'Quiz chơi ngay trên QuizTool bằng camera';
+    const stageCount = this.formGroup.controls.gestureStages.value?.length ?? 0;
+    const perStage = this.formGroup.controls.questionsPerStage.value;
+    if (stageCount === 0 || perStage === null) {
+      // The messages above say what is missing; there is no count to announce yet.
+      return `${intro}.`;
+    }
+    return stageCount === 1
+      ? `${intro}: 1 màn, ${perStage} câu.`
+      : `${intro}: ${stageCount} màn từ dễ đến khó, ${perStage} câu mỗi màn (${stageCount * perStage} câu).`;
+  }
 
   protected get maxLevel(): number {
     return this.formGroup.controls.courseType.value === CourseType.Hsk

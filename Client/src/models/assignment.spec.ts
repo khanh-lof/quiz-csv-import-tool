@@ -158,9 +158,19 @@ describe('rankingCsv', () => {
     expect(csv).not.toMatch(/[^\r]\n/);
   });
 
-  it('has a column per stage of the assignment, in order', () => {
+  it('has a column per stage of the assignment, in order, headed with its position and its game', () => {
     const csv = rankingCsv(detail([], {stageCounts: {'4': 5, '1': 5, '6': 10}}));
-    expect(lines(csv)[0]).toBe('Hạng,Tên,Màn đã qua,Câu đúng,Màn 1,Màn 4,Màn 6,Lần chơi,Cập nhật');
+    expect(lines(csv)[0]).toBe(
+      'Hạng,Tên,Màn đã qua,Câu đúng,Màn 1 (Đúng hay sai),Màn 2 (Chém hoa quả),Màn 3 (Xếp câu),Lần chơi,Cập nhật');
+  });
+
+  it('numbers the stage columns by position, not by stage number', () => {
+    const csv = rankingCsv(detail([player({stages: {'6': {correct: 4, total: 5, passed: true, attempts: 1}}})],
+      {stageCounts: {'4': 5, '6': 5}}));
+    const [header, row] = lines(csv);
+    expect(header).toBe('Hạng,Tên,Màn đã qua,Câu đúng,Màn 1 (Chém hoa quả),Màn 2 (Xếp câu),Lần chơi,Cập nhật');
+    // Stage 4 has no result, stage 6 is the second column.
+    expectStart(row, '1,Lan,1/2,9/10,,4/5 ✓,');
   });
 
   it('writes one row per student, in the order given', () => {
@@ -169,7 +179,7 @@ describe('rankingCsv', () => {
       player({id: 'b', name: 'Minh', rank: 2, stagesPassed: 0, correct: 3, attempts: 1}),
     ]));
     const rows = lines(csv);
-    expect(rows[0]).toBe('Hạng,Tên,Màn đã qua,Câu đúng,Màn 1,Màn 2,Lần chơi,Cập nhật');
+    expect(rows[0]).toBe('Hạng,Tên,Màn đã qua,Câu đúng,Màn 1 (Đúng hay sai),Màn 2 (Nghiêng đầu),Lần chơi,Cập nhật');
     expect(rows[1]).toBe('1,Lan,1/2,9/10,5/5 ✓,4/5,2,14/10/2026 08:05');
     expectStart(rows[2], '2,Minh,0/2,3/10,');
     expect(rows[3]).toBe('');

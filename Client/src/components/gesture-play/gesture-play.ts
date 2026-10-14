@@ -25,7 +25,7 @@ import { Observable, Observer, Subscription, timeout } from 'rxjs';
 import { DEMO_QUIZ_CSV, DEMO_QUIZ_TITLE } from '../../game/demo-quiz';
 import { GameAudio } from '../../game/game-audio';
 import { Choice, Reveal, StageGameBase, VisionFrame, VisionKind } from '../../game/stage-game';
-import { passMark, STAGES, stageDef } from '../../game/stages';
+import { passMark, STAGES, stageDef, stagePosition } from '../../game/stages';
 import { VisionService } from '../../game/vision.service';
 import { AiJob } from '../../models/ai-job';
 import { formatClose, PlayerIdentity } from '../../models/assignment';
@@ -117,7 +117,7 @@ const STAND_TIP: Record<VisionKind, string> = {
 
 // The gesture quiz page, played full screen outside the workspace frame. It loads a quiz (from an AI job
 // or a CSV file, or the built-in sample; or a teacher's assignment, for a student and as the teacher's
-// preview), shows the six stages as a map, and runs one stage at a time:
+// preview), shows the stages it has (1 to 6 of the six) as a map, and runs one stage at a time:
 // the page owns the questions, the timer, the camera and the scoring, and the stage's game component
 // only turns the player's gestures (or mouse and keyboard) into a choice. MediaPipe is loaded through
 // VisionService only when the camera is turned on, so this whole page is a lazy chunk.
@@ -218,8 +218,14 @@ export class GesturePlay implements OnInit, OnDestroy {
   protected readonly settings = this.settingsService.settings;
   protected readonly effectiveTimeMode = computed(() => this.assignmentTimeMode() ?? this.settings().timeMode);
 
+  // The stage being played, by its number (1-6): the identity of its game, as in the CSV and the progress.
   protected readonly stage = signal(1);
   protected readonly def = computed(() => stageDef(this.stage()));
+  // What the player reads as the stage's number ("Màn 2"): its position among the stages the quiz has.
+  protected readonly position = computed(() => {
+    const quiz = this.quiz();
+    return quiz ? stagePosition(quiz.stages.keys(), this.stage()) : this.stage();
+  });
   protected readonly stageQuestionCount = computed(() => this.quiz()?.stages.get(this.stage())?.length ?? 0);
   protected readonly stageTimeLimit = computed(() =>
     timeLimitFor(this.def().seconds, this.effectiveTimeMode()));
@@ -857,6 +863,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       : this.progress.record(quiz.key, stage, this.correctCount, total);
     this.result.set({
       stage,
+      position: stagePosition(quiz.stages.keys(), stage),
       correct: this.correctCount,
       total,
       points: this.score(),

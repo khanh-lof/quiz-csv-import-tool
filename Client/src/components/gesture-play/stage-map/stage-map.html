@@ -10,18 +10,23 @@
   }
 
   <p class="summary">
-    Quiz có <b>{{ total() }}</b> câu hỏi, chơi từ dễ đến khó. Mỗi màn cần đúng từ 70% số câu để mở màn sau.
+    @if (cards().length === 1) {
+      Quiz có 1 màn, <b>{{ total() }}</b> câu hỏi. Đúng từ 70% số câu là qua màn.
+    } @else {
+      Quiz có <b>{{ cards().length }}</b> màn, <b>{{ total() }}</b> câu hỏi, chơi từ dễ đến khó.
+      Mỗi màn cần đúng từ 70% số câu để mở màn sau.
+    }
   </p>
 
   <div class="stages">
     @for (card of cards(); track card.def.stage) {
       <button type="button" class="stage-card" [class]="'stage-card status-' + card.status"
-              [disabled]="card.status === 'locked' || card.status === 'empty'"
+              [disabled]="card.status === 'locked'"
               (click)="start.emit(card.def.stage)">
         <span class="card-top">
           <span class="stage-icon" aria-hidden="true">{{ card.def.icon }}</span>
           <span class="stage-title">
-            <span class="stage-no">Màn {{ card.def.stage }}</span>
+            <span class="stage-no">Màn {{ card.position }}</span>
             <span class="stage-name">{{ card.def.name }}</span>
           </span>
           @switch (card.status) {
@@ -34,9 +39,6 @@
             @case ('locked') {
               <nz-tag>Khóa 🔒</nz-tag>
             }
-            @default {
-              <nz-tag>Không có câu – bỏ qua</nz-tag>
-            }
           }
         </span>
         <span class="stage-hint">{{ card.def.hint }}</span>
@@ -45,7 +47,7 @@
           <span class="best">
             @if (card.best; as best) {
               Tốt nhất: <b>{{ best.correct }}/{{ best.total }}</b> · {{ best.correct * pointsPerCorrect }} điểm
-            } @else if (card.status !== 'empty') {
+            } @else {
               Chưa chơi
             }
           </span>

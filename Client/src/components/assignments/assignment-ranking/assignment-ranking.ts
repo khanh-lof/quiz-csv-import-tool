@@ -35,7 +35,7 @@ import {
   tap,
   timer,
 } from 'rxjs';
-import { STAGES } from '../../../game/stages';
+import { STAGES, stagePosition } from '../../../game/stages';
 import {
   Assignment,
   assignmentErrorMessage,
@@ -59,10 +59,11 @@ const POLL_INTERVAL_MS = 5000;
 // "Now" moves on by itself at this pace, so a closing time that passes is noticed between two answers.
 const CLOCK_INTERVAL_MS = 30000;
 
-// One stage column of the ranking: its number, and the name and icon of the game played in it.
+// One stage column of the ranking: the stage's number (the key of the results, which identifies its game),
+// the position shown in its header (among the assignment's stages), and the name and icon of the game.
 interface StageColumn {
   key: string;
-  number: number;
+  position: number;
   icon: string;
   name: string;
 }
@@ -131,13 +132,16 @@ export class AssignmentRanking {
     return detail !== null && shouldPoll(detail, this.now());
   });
   protected readonly stages = computed<StageColumn[]>(() => {
-    const counts = this.detail()?.stageCounts ?? {};
-    return Object.keys(counts)
-      .sort((a, b) => Number(a) - Number(b))
-      .map(key => {
-        const def = STAGES.find(stage => stage.stage === Number(key));
-        return {key, number: Number(key), icon: def?.icon ?? '', name: def?.name ?? ''};
-      });
+    const keys = Object.keys(this.detail()?.stageCounts ?? {}).sort((a, b) => Number(a) - Number(b));
+    return keys.map(key => {
+      const def = STAGES.find(stage => stage.stage === Number(key));
+      return {
+        key,
+        position: stagePosition(keys.map(Number), Number(key)),
+        icon: def?.icon ?? '',
+        name: def?.name ?? '',
+      };
+    });
   });
   // A closing time in the past would close the assignment at once, and the server refuses it.
   protected readonly deadlineInPast = computed(() => {

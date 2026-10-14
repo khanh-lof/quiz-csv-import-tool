@@ -100,3 +100,18 @@ export function stageDef(stage: number): StageDef {
   }
   return def;
 }
+
+// The number a person reads for a stage: its 1-based position among the stage numbers the quiz (or the
+// assignment) has, easiest first, so a quiz of stages 4 and 6 shows them as "Màn 1" and "Màn 2". The
+// stage number itself (1-6) is what identifies the game everywhere it is stored or sent (the CSV, the
+// progress, the results), so it never changes; only what is shown is renumbered. A stage the quiz does
+// not have gets the position it would take, and repeated numbers count once.
+export function stagePosition(stages: Iterable<number>, stage: number): number {
+  let position = 1;
+  for (const other of new Set(stages)) {
+    if (other < stage) {
+      position += 1;
+    }
+  }
+  return position;
+}

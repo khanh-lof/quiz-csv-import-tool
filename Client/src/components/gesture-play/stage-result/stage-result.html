@@ -1,7 +1,7 @@
 <section class="result" [class.passed]="result().passed">
   <div class="badge" aria-hidden="true">{{ result().passed ? '🎉' : '💪' }}</div>
   <h2 class="verdict">
-    {{ result().passed ? 'Qua màn ' + result().stage + '!' : 'Chưa qua màn ' + result().stage }}
+    {{ result().passed ? 'Qua màn ' + result().position + '!' : 'Chưa qua màn ' + result().position }}
   </h2>
   <p class="stage-name">{{ def().icon }} {{ def().name }}</p>
 

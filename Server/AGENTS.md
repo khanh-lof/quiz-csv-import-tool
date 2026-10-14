@@ -83,7 +83,8 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   100 runes) names the job. `listJobs` returns the user's jobs newest first (JSON `{"jobs": [...]}`,
   the CSV included) after failing any job running past `LLM_TIMEOUT_SECONDS` + 1 min as abandoned (and
   refunding its call). `isCreative=true` switches to the creative prompt and requires `exportType`,
-  `courseType`, `lessonNumber`, plus `level` (HSK/YCT) or `courseName` (`Other`) — parsed by
+  `courseType`, `lessonNumber`, plus `level` (HSK/YCT) or `courseName` (`Other`), and for GestureQuiz the
+  optional `gestureStages` and `questionsPerStage` (see [Choosing the games](../AGENTS.md#the-gesture-quiz-quiz-cử-chỉ)) — parsed by
   `csvgen.ParseCreativeOptions` (400 with the message on failure). Images are optional only in
   creative mode. The LLM call runs under `LLM_TIMEOUT_SECONDS`; hitting it fails the job with
   `errorStatus` 504 ("AI generation timed out."), other LLM failures with 502. Either failure refunds the
@@ -172,11 +173,16 @@ cookie.
   (`parseGestureQuiz`, `Client/src/models/gesture-quiz.ts`) reads, and the two are kept in step by hand.
 - Prompts live in `prompts/*.txt` (`go:embed`); CRLF from a Windows checkout is normalized at use.
   `creative_system.txt` is the long Chinese-teacher prompt shared by every platform, and a platform's
-  `exportTypeMessages` case sends its column line and, for Wayground and GestureQuiz, a template file
-  (`wayground_template.txt`, `gesture_quiz_template.txt`), each as its own message. The Quiz cử chỉ template
-  holds the whole format: the six stages, which row shape each one takes, how to classify a question by its
-  real difficulty into a stage, 4–5 rows per stage grouped by stage, and a Vietnamese Explanation on every
-  row; it replaces the usual "mixture of difficulty" (two sentences in `creative_system.txt` step aside when
+  `exportTypeMessages` case sends its column line and, as a message of its own, `wayground_template.txt` for
+  Wayground or what `buildGestureQuizMessage` builds for GestureQuiz. The Quiz cử chỉ message holds the whole format: the stages the teacher chose, which row shape each
+  one takes, how to classify a question by its real difficulty into a stage, exactly `QuestionsPerStage` rows
+  per stage grouped by stage, and a Vietnamese Explanation on every row. It is built from two files:
+  `gesture_quiz_template.txt`, a `text/template` (`missingkey=error`) with the framing and its variants (one
+  stage or several, some stages left out, any stage with options), and `gesture_quiz_stages.txt`, the six
+  tuned stage rules, one paragraph each starting `Stage N – `, of which only the chosen ones are sent word for
+  word (the file is checked when the package loads and a malformed one panics). With the defaults (all six,
+  5 each) it reads like the original one-file prompt apart from the counts. The message
+  replaces the usual "mixture of difficulty" (two sentences in `creative_system.txt` step aside when
   a template defines stages or its own ordering format). The client plays those rows, so see the stage table in
   [../AGENTS.md](../AGENTS.md#the-gesture-quiz-quiz-cử-chỉ) before changing the template.
 - `post` retries transient gateway failures (429, 502/503/504, transport errors), up to 5 attempts
@@ -187,8 +193,10 @@ cookie.
 - The creative mode uses the Responses API because Wayground requests carry the `web_search` tool:
   the model searches Pexels for the Image Link column and builds `images.pexels.com` URLs from the
   photo IDs it finds (Wikimedia is banned; Wayground cannot load it). Other platforms have no image
-  column and get no tool and the lower output cap (10000 tokens, Wayground's is 16000), `GestureQuiz`
-  included (its quiz is 24–30 text-only rows; `TestBuildCreativeRequest` pins this). An `incomplete`
+  column and get no tool and the lower output cap (10000 tokens; Wayground's, `maxOutputTokensLarge`, is
+  16000), except a GestureQuiz of more than 30 rows (`gestureRowsInBaseBudget`, the default six stages of
+  five), which gets 16000 too, since up to 60 rows plus the model's reasoning may not fit in 10000
+  (`TestGestureQuizTokenBudget` pins this). An `incomplete`
   response (output token cap hit) fails the call rather than
   returning cut-off rows. The `OPENAI_BASE_URL` gateway must support `/responses` with `web_search`,
   and requires `max_output_tokens` to be set.

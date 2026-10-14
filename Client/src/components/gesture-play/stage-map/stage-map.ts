@@ -6,7 +6,7 @@ import { NzPopconfirmDirective } from 'ng-zorro-antd/popconfirm';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { NzSwitchComponent } from 'ng-zorro-antd/switch';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
-import { STAGES, StageDef } from '../../../game/stages';
+import { STAGES, StageDef, stagePosition } from '../../../game/stages';
 import { TIME_MODE_LABELS } from '../../../models/assignment';
 import { GestureQuiz, questionCount } from '../../../models/gesture-quiz';
 import {
@@ -16,21 +16,24 @@ import {
 } from '../../../services/gesture-progress.service';
 import { GestureSettingsService, TimeMode } from '../gesture-settings.service';
 
-// 'empty' is a stage this quiz has no questions for: nothing to play, and it does not hold up the next one.
-type StageStatus = 'passed' | 'open' | 'locked' | 'empty';
+type StageStatus = 'passed' | 'open' | 'locked';
 
 interface StageCard {
   def: StageDef;
+  // The number the card shows ("Màn 2"): the stage's position among the stages the quiz has. `def.stage`
+  // is still the stage's identity, which is what `start` emits.
+  position: number;
   count: number;
   best: StageBest | null;
   status: StageStatus;
 }
 
-// The six stages as cards with their questions, best result and lock, plus the play settings and the
-// reset. The page opens a stage when a card is chosen; everything else here is read from the progress
-// and settings services, so the map updates itself. A quiz given as an assignment narrows the settings
-// (`lockedTimeMode`, `allowReset`) and a teacher's preview opens every stage (`allOpen`); the page sets
-// those, the map only shows them. Whatever the page puts inside the tag is shown above the summary.
+// A card for each stage the quiz has (a quiz holds 1 to 6 of the six), numbered by position and with its
+// questions, best result and lock, plus the play settings and the reset. The page opens a stage when a
+// card is chosen; everything else here is read from the progress and settings services, so the map
+// updates itself. A quiz given as an assignment narrows the settings (`lockedTimeMode`, `allowReset`) and
+// a teacher's preview opens every stage (`allOpen`); the page sets those, the map only shows them.
+// Whatever the page puts inside the tag is shown above the summary.
 @Component({
   selector: 'app-gesture-stage-map',
   imports: [
@@ -66,21 +69,25 @@ export class GestureStageMap {
 
   protected readonly cards = computed<StageCard[]>(() => {
     const quiz = this.quiz();
-    return STAGES.map(def => {
-      const count = quiz.stages.get(def.stage)?.length ?? 0;
+    return STAGES.filter(def => quiz.stages.has(def.stage)).map(def => {
       const status: StageStatus =
-        count === 0 ? 'empty'
-          : this.progress.isPassed(quiz.key, def.stage) ? 'passed'
-            : this.allOpen() || this.progress.isUnlocked(quiz, def.stage) ? 'open'
-              : 'locked';
-      return { def, count, best: this.progress.best(quiz.key, def.stage), status };
+        this.progress.isPassed(quiz.key, def.stage) ? 'passed'
+          : this.allOpen() || this.progress.isUnlocked(quiz, def.stage) ? 'open'
+            : 'locked';
+      return {
+        def,
+        position: stagePosition(quiz.stages.keys(), def.stage),
+        count: quiz.stages.get(def.stage)?.length ?? 0,
+        best: this.progress.best(quiz.key, def.stage),
+        status,
+      };
     });
   });
 
-  // Every stage that has questions is passed: the quiz is finished.
+  // Every stage of the quiz is passed: the quiz is finished.
   protected readonly allPassed = computed(() => {
-    const playable = this.cards().filter(card => card.status !== 'empty');
-    return playable.length > 0 && playable.every(card => card.status === 'passed');
+    const cards = this.cards();
+    return cards.length > 0 && cards.every(card => card.status === 'passed');
   });
 
   protected readonly totalScore = computed(() =>

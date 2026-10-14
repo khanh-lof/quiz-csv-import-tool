@@ -47,6 +47,12 @@ class FakeVision {
   }
 }
 
+// The sample's rows of only some stages, the way a quiz made with a choice of games looks: the CSV keeps
+// the stages' own numbers (4 and 6), so only what is shown is renumbered.
+function sampleStages(...stages: number[]): string {
+  return DEMO_QUIZ_CSV.split('\n').filter(line => stages.some(stage => line.startsWith(`${stage},`))).join('\n');
+}
+
 function gestureJob(overrides: Partial<AiJob> = {}): AiJob {
   return {
     id: 'job-1', status: 'done', title: 'HSK1 bài 1', creative: true, exportType: ExportType.GestureQuiz,
@@ -183,9 +189,16 @@ describe('GesturePlay', () => {
     return 1 - (rightChoice() as number);
   }
 
-  // Plays stage 1 through the page: `choose` is what the stage's game emits.
-  function playStageOne(answer: () => number | string[]): void {
-    click('.stage-card', 'Màn 1');
+  // An answer that is wrong for the question on screen, whichever game it is (stage 6 wants the chunks in
+  // order, the others an option).
+  function anyWrongChoice(): number | string[] {
+    const right = rightChoice();
+    return Array.isArray(right) ? [...right].reverse() : (right + 1) % game().question().options.length;
+  }
+
+  // Plays the stage whose card says `label` through the page: `choose` is what the stage's game emits.
+  function playStage(label: string, answer: () => number | string[]): void {
+    click('.stage-card', label);
     click('button', 'Bắt đầu');
     for (let question = 0; question < 5; question += 1) {
       game().choose.emit(answer());
@@ -193,6 +206,22 @@ describe('GesturePlay', () => {
       click('button', 'Tiếp');
     }
   }
+
+  function playStageOne(answer: () => number | string[]): void {
+    playStage('Màn 1', answer);
+  }
+
+  // Opens the page on an AI job whose quiz has only the given stages of the sample.
+  function openStages(...stages: number[]): void {
+    jobs.jobs.set([gestureJob({ csv: sampleStages(...stages) })]);
+    params.next(convertToParamMap({ jobId: 'job-1' }));
+    open();
+  }
+
+  const cardList = (): HTMLButtonElement[] =>
+    Array.from(element().querySelectorAll<HTMLButtonElement>('.stage-card'));
+  const normalized = (selector: string): string =>
+    (element().querySelector(selector)?.textContent ?? '').replace(/\s+/g, ' ').trim();
 
   describe('loading a quiz', () => {
     it('starts on the load screen with the file picker, the sample and the guide', () => {
@@ -213,6 +242,10 @@ describe('GesturePlay', () => {
       expect(text()).toContain('Quiz mẫu HSK 1');
       expect(text()).toContain('Đang mở');
       expect(text()).toContain('Khóa');
+      expect(cards.map(card => card.querySelector('.stage-no')?.textContent))
+        .toEqual(['Màn 1', 'Màn 2', 'Màn 3', 'Màn 4', 'Màn 5', 'Màn 6']);
+      expect(normalized('.summary')).toBe(
+        'Quiz có 6 màn, 30 câu hỏi, chơi từ dễ đến khó. Mỗi màn cần đúng từ 70% số câu để mở màn sau.');
     });
 
     it('plays an AI job from its id', () => {
@@ -433,6 +466,186 @@ describe('GesturePlay', () => {
 
       expect(text()).toContain('Chúc mừng');
       expect(text()).toContain('Tổng điểm tốt nhất: 300');
+    });
+  });
+
+  // A quiz holds any 1 to 6 of the six stages; the CSV and the progress keep the stages' own numbers, and the
+  // player reads them as "Màn 1", "Màn 2"… in the order they are played.
+  describe('a quiz with only some of the stages', () => {
+    const only46 = parseGestureQuiz(new CsvImportService().parseCsvRows(sampleStages(4, 6)), 'Demo');
+
+    it('shows a card for each stage it has, numbered by position, and no card for the others', () => {
+      openStages(4, 6);
+
+      expect(cardList().length).toBe(2);
+      expect(cardList().map(card => card.querySelector('.stage-no')?.textContent)).toEqual(['Màn 1', 'Màn 2']);
+      expect(cardList().map(card => card.querySelector('.stage-name')?.textContent)).toEqual(['Chém hoa quả', 'Xếp câu']);
+      expect(text()).not.toContain('Không có câu');
+      expect(text()).not.toContain('Đúng hay sai');
+      expect(text()).not.toContain('Màn 3');
+    });
+
+    it('says how many stages and questions it has', () => {
+      openStages(4, 6);
+
+      expect(normalized('.summary')).toBe(
+        'Quiz có 2 màn, 10 câu hỏi, chơi từ dễ đến khó. Mỗi màn cần đúng từ 70% số câu để mở màn sau.');
+    });
+
+    it('opens the first stage it has and keeps the second locked until the first is passed', () => {
+      openStages(4, 6);
+
+      expect(cardList().map(card => card.disabled)).toEqual([false, true]);
+
+      playStage('Màn 1', rightChoice);
+      click('button', 'Về bản đồ');
+
+      expect(cardList().map(card => card.disabled)).toEqual([false, false]);
+      // Progress is kept under the stage's own number (4), not its position.
+      expect(JSON.parse(localStorage.getItem(PROGRESS_KEY)!)[only46.key].passed).toEqual([4]);
+    });
+
+    it('does not let a failed first stage open the second', () => {
+      openStages(4, 6);
+
+      playStage('Màn 1', anyWrongChoice);
+      click('button', 'Về bản đồ');
+
+      expect(cardList().map(card => card.disabled)).toEqual([false, true]);
+    });
+
+    it('shows the first stage as Màn 1 in the intro and the HUD', () => {
+      openStages(4, 6);
+
+      click('.stage-card', 'Màn 1');
+      expect(normalized('.eyebrow')).toBe('Màn 1');
+      expect(text()).toContain('Chém hoa quả');
+
+      click('button', 'Bắt đầu');
+      expect(normalized('.stage-pill')).toBe('🍉 Màn 1');
+      expect(game().question().stage).toBe(4);
+    });
+
+    it('shows the position in the intro and the HUD of the second stage, and plays that stage\'s game', () => {
+      openStages(4, 6);
+      playStage('Màn 1', rightChoice);
+
+      click('button', 'Màn tiếp theo');
+
+      expect(normalized('.eyebrow')).toBe('Màn 2');
+      expect(text()).toContain('Xếp câu');
+      expect(text()).not.toContain('Màn 6');
+
+      click('button', 'Bắt đầu');
+
+      expect(normalized('.stage-pill')).toBe('🧩 Màn 2');
+      expect(element().querySelector('app-word-order-game')).not.toBeNull();
+      expect(game().question().stage).toBe(6);
+    });
+
+    it('names the stage by its position on the result of a pass', () => {
+      openStages(4, 6);
+      playStage('Màn 1', rightChoice);
+      click('button', 'Màn tiếp theo');
+
+      click('button', 'Bắt đầu');
+      for (let question = 0; question < 5; question += 1) {
+        game().choose.emit(rightChoice());
+        fixture.detectChanges();
+        click('button', 'Tiếp');
+      }
+
+      expect(normalized('.verdict')).toBe('Qua màn 2!');
+      expect(text()).toContain('Xếp câu');
+      expect(text()).toContain('Bạn đã qua hết các màn của quiz này.');
+      expect(text()).not.toContain('Màn tiếp theo');
+      expect(JSON.parse(localStorage.getItem(PROGRESS_KEY)!)[only46.key].passed).toEqual([4, 6]);
+    });
+
+    it('names the stage by its position on the result of a failed run', () => {
+      openStages(4, 6);
+      playStage('Màn 1', rightChoice);
+      click('button', 'Về bản đồ');
+
+      playStage('Màn 2', anyWrongChoice);
+
+      expect(normalized('.verdict')).toBe('Chưa qua màn 2');
+      expect(text()).toContain('Xếp câu');
+      expect(text()).not.toContain('Màn 6');
+    });
+
+    it('celebrates when the stages it has are passed, though the others never were', () => {
+      localStorage.setItem(
+        PROGRESS_KEY,
+        JSON.stringify({
+          [only46.key]: {
+            passed: [4, 6],
+            best: { 4: { correct: 5, total: 5 }, 6: { correct: 4, total: 5 } },
+          },
+        }),
+      );
+      openStages(4, 6);
+
+      expect(text()).toContain('Chúc mừng');
+      expect(text()).toContain('Tổng điểm tốt nhất: 90');
+    });
+
+    it('puts the stages in the order of their numbers, whatever the order of the rows', () => {
+      const reversed = sampleStages(4, 6).split('\n').reverse().join('\n');
+      jobs.jobs.set([gestureJob({ csv: reversed })]);
+      params.next(convertToParamMap({ jobId: 'job-1' }));
+      open();
+
+      expect(cardList().map(card => card.querySelector('.stage-name')?.textContent)).toEqual(['Chém hoa quả', 'Xếp câu']);
+      expect(cardList().map(card => card.disabled)).toEqual([false, true]);
+    });
+
+    it('describes a quiz of one stage as one stage, with the pass rule in its own words', () => {
+      openStages(5);
+
+      expect(cardList().length).toBe(1);
+      expect(normalized('.stage-no')).toBe('Màn 1');
+      expect(normalized('.stage-name')).toBe('Giơ ngón tay');
+      expect(cardList()[0].disabled).toBeFalse();
+      expect(normalized('.summary')).toBe('Quiz có 1 màn, 5 câu hỏi. Đúng từ 70% số câu là qua màn.');
+      expect(text()).not.toContain('chơi từ dễ đến khó');
+      expect(text()).not.toContain('Khóa');
+    });
+
+    it('plays a quiz of one stage and calls it Màn 1 all the way', () => {
+      openStages(5);
+
+      playStage('Màn 1', rightChoice);
+
+      expect(normalized('.verdict')).toBe('Qua màn 1!');
+      expect(text()).not.toContain('Màn tiếp theo');
+      expect(text()).toContain('Bạn đã qua hết các màn của quiz này.');
+    });
+
+    it('lets the teacher preview every stage of an assignment that has only some', () => {
+      assignments.get.and.returnValue(of(assignmentDetail({
+        csv: sampleStages(4, 6), stageCounts: { 4: 5, 6: 5 },
+      })));
+      params.next(convertToParamMap({ assignmentId: 'a1' }));
+      open();
+
+      expect(cardList().map(card => card.querySelector('.stage-no')?.textContent)).toEqual(['Màn 1', 'Màn 2']);
+      expect(cardList().map(card => card.disabled)).toEqual([false, false]);
+
+      click('.stage-card', 'Màn 2');
+      expect(normalized('.eyebrow')).toBe('Màn 2');
+      click('button', 'Bắt đầu');
+      expect(game().question().stage).toBe(6);
+    });
+
+    it('explains in the guide that a quiz has one to six stages', () => {
+      open();
+      // The guide's text is in a popup, which exists only once it is opened.
+      click('.guide-button');
+
+      const guide = document.querySelector('.usage-guide')?.textContent ?? '';
+      expect(guide).toContain('từ 1 đến 6 màn');
+      expect(guide).not.toContain('Quiz có 6 màn');
     });
   });
 

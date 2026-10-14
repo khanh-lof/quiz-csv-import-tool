@@ -116,7 +116,8 @@ keeps those on each creative job; jobs from before it did have none and drop out
   them and later exports via `FileExportService.exportFile` (client-side builders synthesize the
   distractors).
 - **`Auto`** (sent as `isCreative=true`, alongside `exportType`, `courseType`, `lessonNumber`, and
-  `level`/`courseName` depending on the course) → server's creative prompt
+  `level`/`courseName` depending on the course, and for Quiz cử chỉ `gestureStages`/`questionsPerStage`, see
+  [the gesture quiz](#the-gesture-quiz-quiz-cử-chỉ)) → server's creative prompt
   (`csvgen.buildCreativeRequest`, `prompts/creative_system.txt`), a long Chinese-teacher prompt that is told the exact
   column layout of the *target platform* via `exportTypeMessages` and asked to
   return **rows without a header** → client never touches the table: on "Tải file" it prepends the header through
@@ -185,11 +186,12 @@ are processed locally in the browser (MediaPipe), nothing is recorded or sent an
 
 **The CSV contract.** The model returns headerless rows of exactly 7 fields, `Stage,Question,Correct
 Answer,Wrong Answer 1,Wrong Answer 2,Wrong Answer 3,Explanation` (an unused column is an empty field),
-grouped by stage, 4–5 rows per stage (24–30 rows). The stage, 1 to 6, fixes the row shape and, because the
+grouped by stage. The stage, 1 to 6, fixes the row shape and, because the
 prompt tells the model to classify each question by its real difficulty (the creative prompt's stage
 rules replace its usual difficulty mixture), the difficulty too. The Explanation is one Vietnamese
 sentence shown after the answer. The stages are played easiest to hardest, one game each, and a stage is
-passed with at least 70% right (`PASS_RATIO` / `passMark`: 4 of 5, 7 of 10), which opens the next one:
+passed with at least 70% right (`PASS_RATIO` / `passMark`: 4 of 5, 7 of 10), which opens the next stage the
+quiz has (a quiz may have only some of the six, see *Choosing the games* below):
 
 | Stage | Game (`GameKind`) | The learner… | Row shape |
 |---|---|---|---|
@@ -207,8 +209,23 @@ chunks itself) and the client's `parseGestureQuiz` (`Client/src/models/gesture-q
 table `STAGES` (`Client/src/game/stages.ts`) describe this one format from both ends, and, like the
 other contracts, are kept in step by hand. The parser is forgiving: a header row is optional and rows that
 break their stage's rules are dropped and counted (`skipped`, announced to the player), so a drifting
-prompt shows up as missing questions, not as an error. A stage without any questions shows as empty on the
-map and does not block the ones after it.
+prompt shows up as missing questions, not as an error. The map shows only the stages that have questions, so a
+stage left out of the quiz, or one whose rows were all dropped, is simply not there and blocks nothing.
+
+**Choosing the games.** A quiz need not have all six stages. On the AI form the teacher ticks which games it has (any 1 to 6, all by
+default) and how many questions each gets (4 to 10, 5 by default; four is the least for which the 70% pass
+mark is not all-or-nothing). They travel as `gestureStages=4,6` and `questionsPerStage=7` on `POST csv/jobs`
+and are read only for GestureQuiz (`csvgen.Options.GestureStages` / `.QuestionsPerStage`): absent means all
+six and 5, a value out of range is 400 `Invalid gestureStages parameter.` or `Invalid questionsPerStage
+parameter.`. The server's template then describes only those stages and asks for exactly that many rows of
+each. The limits are constants on both sides (`csvgen`'s `Min`/`Max`/`DefaultQuestionsPerStage`, the client's
+`models/gesture-quiz-options.ts`), kept in step by hand. Nothing about the choice is stored on the job: the
+stages a quiz has are read from its CSV.
+
+**The stage number stays the game's identity** everywhere it is stored or sent (the CSV's Stage column, the
+progress, an assignment's `stageCounts`, results), so a quiz of Chém hoa quả and Xếp câu has rows with Stage 4
+and 6. Only what a person reads is renumbered by position (`stagePosition` in `game/stages.ts`): that quiz
+shows "Màn 1" and "Màn 2" on the map, in the game, on its result and in an assignment's ranking.
 
 **Entry points.** On a finished GestureQuiz job the AI jobs table shows "Chơi ngay", which navigates to
 `/play/<job id>` (login required; the page takes the job from `AiJobService`), and "Tải file", which

@@ -143,6 +143,25 @@ describe('AssignmentRanking', () => {
     leave();
   }));
 
+  it('heads the stage columns by their position among the stages the assignment has, with the game as title', fakeAsync(() => {
+    open(detail({
+      stageCounts: {'4': 5, '6': 5},
+      players: [player({
+        stagesPassed: 1, correct: 9, possible: 10,
+        stages: {'4': {correct: 5, total: 5, passed: true, attempts: 1}, '6': {correct: 4, total: 5, passed: false, attempts: 1}},
+      })],
+    }));
+
+    const stageHeaders = Array.from(root().querySelectorAll<HTMLElement>('thead th')).slice(4, 6);
+    expect(stageHeaders.map(th => th.textContent?.trim())).toEqual(['🍉 Màn 1', '🧩 Màn 2']);
+    expect(stageHeaders.map(th => th.title)).toEqual(['Chém hoa quả', 'Xếp câu']);
+    // The cells follow the columns: the results of stage 4 first, then those of stage 6.
+    expect(rows()[0].textContent).toContain('5/5 ✓');
+    expect(rows()[0].textContent).toContain('4/5');
+    expect(rows()[0].textContent).toContain('1/2');
+    leave();
+  }));
+
   it('invites the teacher to share the link when nobody has joined, and shows it while the assignment is open', fakeAsync(() => {
     open(detail({players: []}));
 

@@ -14,7 +14,10 @@ export interface MissedQuestion {
 
 // How one run of a stage ended; the page builds it when the last question is judged.
 export interface StageRunResult {
+  // The stage's identity (which game it was), and the number the screen says for it: its position among
+  // the stages the quiz has.
   stage: number;
+  position: number;
   correct: number;
   total: number;
   points: number;

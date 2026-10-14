@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { AiGenerationRequest } from '../models/ai-generation-request';
 import { AIGenerationMode } from '../models/aigeneration-mode';
 import { CourseType } from '../models/course-type';
+import { ExportType } from '../models/export-type';
 
 // What the server answers when it accepts a generation. The result is not in it: the server keeps
 // working on the job after answering, and `AiJobService` follows it.
@@ -42,6 +43,16 @@ export class AiCsvService {
     }
     if (aiGenerationRequest.courseType === CourseType.Other && aiGenerationRequest.courseName) {
       params = params.set('courseName', aiGenerationRequest.courseName);
+    }
+    // The server ignores these for the other platforms, so they are not sent for them. Sorted here
+    // although the server sorts too, so what is sent never depends on the order the boxes were ticked in.
+    if (aiGenerationRequest.exportType === ExportType.GestureQuiz) {
+      if (aiGenerationRequest.gestureStages !== null) {
+        params = params.set('gestureStages', [...aiGenerationRequest.gestureStages].sort((a, b) => a - b).join(','));
+      }
+      if (aiGenerationRequest.questionsPerStage !== null) {
+        params = params.set('questionsPerStage', aiGenerationRequest.questionsPerStage);
+      }
     }
 
     return this.httpClient.post<SubmittedJob>(this.endpointUrl, this.buildBody(imageFiles), {params});

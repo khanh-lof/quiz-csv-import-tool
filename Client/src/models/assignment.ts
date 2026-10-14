@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TimeMode } from '../components/gesture-play/gesture-settings.service';
+import { STAGES, stagePosition } from '../game/stages';
 import { Utils } from '../utils';
 import { GestureQuiz } from './gesture-quiz';
 
@@ -156,6 +157,14 @@ function stageKeys(stageCounts: Record<string, number>): string[] {
   return Object.keys(stageCounts).sort((a, b) => Number(a) - Number(b));
 }
 
+// The header of a stage's column in the ranking: the stage's position among the assignment's stages and
+// the game played there, "Màn 2 (Xếp câu)". The stage number (the key) is only the game's identity.
+function stageHeader(keys: string[], key: string): string {
+  const position = stagePosition(keys.map(Number), Number(key));
+  const def = STAGES.find(stage => stage.stage === Number(key));
+  return def ? `Màn ${position} (${def.name})` : `Màn ${position}`;
+}
+
 const BOM = String.fromCharCode(0xfeff);
 
 // A student's name is typed by the student and opened by the teacher in a spreadsheet, where a cell
@@ -195,7 +204,7 @@ export function assignmentErrorMessage(err: unknown): string {
 // Excel reads the UTF-8 (the Vietnamese headers and names) correctly, and uses CRLF line ends.
 export function rankingCsv(detail: AssignmentDetail): string {
   const stages = stageKeys(detail.stageCounts);
-  const header = ['Hạng', 'Tên', 'Màn đã qua', 'Câu đúng', ...stages.map(stage => `Màn ${stage}`), 'Lần chơi', 'Cập nhật'];
+  const header = ['Hạng', 'Tên', 'Màn đã qua', 'Câu đúng', ...stages.map(stage => stageHeader(stages, stage)), 'Lần chơi', 'Cập nhật'];
   const rows = detail.players.map((player): (string | number)[] => [
     player.rank ?? '',
     spreadsheetSafe(player.name),

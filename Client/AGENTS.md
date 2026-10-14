@@ -110,7 +110,11 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      navigates to `/quiz`, where `VocabularyTable.ngOnInit` takes them and adds them like any other
      import.
    - **`Auto`** (requires `courseType`/`lessonNumber`/`exportType` in the page's form, plus `level`
-     for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — or `courseName` for `Other`; images are optional here) → the job's CSV
+     for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — or `courseName` for `Other`, and for Quiz cử chỉ
+     `gestureStages`, a checkbox per game with at least one ticked, and `questionsPerStage`, 4–10; images are
+     optional here. The two quiz controls are validated only for that platform, their limits and the sanitizers
+     that read them back from the saved settings are `models/gesture-quiz-options.ts`, and `AiCsvService` sends
+     them only for GestureQuiz) → the job's CSV
      has no header rows → on "Tải file" (or, for Wayground, "Tiện ích tự publish") `AiJobs.exportJob(job, publish)` passes it to
      `FileExportService.exportFileFromCsvContent`, which
      calls the matching `CsvBuilder.buildFromCsvContent` to prepend the platform's `CsvHeader` and
@@ -144,7 +148,7 @@ share link it sends back (see [../AGENTS.md](../AGENTS.md#the-wayground-browser-
 ### Gesture quiz (`/play`)
 
 The AI's Quiz cử chỉ output (`ExportType.GestureQuiz`, ordinal 3) is played in the app, not imported
-anywhere; the CSV contract, the six-stage ladder and the pass rule are in
+anywhere; the CSV contract, the stage ladder (1 to 6 of the six games, chosen on the AI form) and the pass rule are in
 [../AGENTS.md](../AGENTS.md#the-gesture-quiz-quiz-cử-chỉ). This section is the client's half.
 
 **Routes.** `app.routes.ts` declares four `loadComponent` routes for `GesturePlay`, placed *outside* the
@@ -164,8 +168,8 @@ when the list is empty, fetched once with `refresh()`, and a job that is missing
 not a GestureQuiz shows its own message; the other two fetch their quiz from the server), `join` (a student's
 first screen on `/play/s/:code`, `ShareJoin`), `load` (`/play`: "Mở file quiz" reads a `.csv` with `FileReader`, "Chơi thử quiz
 mẫu" uses `game/demo-quiz.ts`; both go through `CsvImportService.parseCsvRows` and `parseGestureQuiz`, with
-a warning when rows were `skipped`), `map` (`GestureStageMap`, `stage-map/`: the six stages with questions,
-best result, passed/locked/empty status, the time-mode and sound settings and a progress reset), `intro`
+a warning when rows were `skipped`), `map` (`GestureStageMap`, `stage-map/`: a card for each stage the quiz has, numbered by its
+position (`stagePosition`), with its questions, best result and passed/locked status, the time-mode and sound settings and a progress reset), `intro`
 (the stage's hint, camera switch and preview, status chips), `playing` and `result` (`GestureStageResult`,
 `stage-result/`: the verdict against the pass mark, the missed questions with their explanations, next
 stage / retry / map). `gesture-engine.ts` holds the pure part, with its spec: `prepareQuestion` turns a
@@ -202,7 +206,9 @@ a teacher's preview does not record, and a student's run is also reported to the
   `HoldSelector` (a `HoldGate` plus its sounds), `StableReading` (a pose must be reported several frames in a
   row before it counts) and the key/ring helpers. `game-audio.ts` (`GameAudio`) synthesizes every sound with
   Web Audio (no files) and must be `resume()`d from a user gesture. `stages.ts` is the `STAGES` table (game,
-  icon, hint, vision kind, option count, seconds per question), `PASS_RATIO` and `passMark`.
+  icon, hint, vision kind, option count, seconds per question), `PASS_RATIO`, `passMark` and `stagePosition`
+  (the number a stage is shown with: its position among the stages a quiz has, while the stage number stays
+  the game's identity in data). The intro, the HUD and the result (`StageRunResult.position`) show it too.
 
 **The loop.** `GesturePlay` runs one `requestAnimationFrame` loop outside the Angular zone (one frame every
 16 ms must not trigger change detection): while a stage is playing and not paused it calls
@@ -367,14 +373,14 @@ routes added for this (see above for their guards).
   the actions: copy link, QR (a big code for a projector), "Xem thử" (`/play/preview/<id>`), "Đóng bài" and
   "Hẹn giờ đóng" while it is open, "Mở lại" when closed, "Tải bảng điểm" and "Toàn màn hình" (full-screens the
   ranking card, not the page). The table shows the server's order: rank (🥇🥈🥉 for the top three, "–" for a
-  student with no result), name, stages passed, correct over possible, one column per stage of the quiz (best
+  student with no result), name, stages passed, correct over possible, one column per stage of the quiz (headed "Màn <position>", best
   `correct/total`, ✓ when passed), attempts, last played, and a confirmed "remove student". It polls
   `GET assignments/{id}` every 5 s while `shouldPoll` (open, or less than 5 minutes after the effective close,
   which mirrors the server's `ResultGrace`) and the tab is visible; otherwise there is only the "Làm mới"
   button, and a tab that comes back to the front catches up at once. Requests are numbered and an answer older
   than the one on screen is dropped, so a poll sent before a close or a removal cannot undo it; a change's
   answer is merged into the page keeping the students; a failed poll keeps the last data and says "Chưa cập
-  nhật được"; a 404 shows a not-found state. "Tải bảng điểm" is `rankingCsv` (a BOM so Excel reads UTF-8, CRLF
+  nhật được"; a 404 shows a not-found state. "Tải bảng điểm" is `rankingCsv` (stage columns headed `Màn 1 (Chém hoa quả)`, a BOM so Excel reads UTF-8, CRLF
   line ends, a leading apostrophe on a name that starts with `=`, `+`, `-`, `@`, tab or CR so a spreadsheet does
   not run it as a formula), named `<title>[-<label>]-bang-xep-hang.csv` by `fileNameFor`.
 

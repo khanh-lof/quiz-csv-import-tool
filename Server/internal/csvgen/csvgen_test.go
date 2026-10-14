@@ -3,16 +3,29 @@ package csvgen
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 )
 
 func TestParseCreativeOptions(t *testing.T) {
+	// gesture builds the query of a GestureQuiz request with the given extra parameters.
+	gesture := func(extra string) string {
+		return "exportType=3&courseType=0&level=1&lessonNumber=1&" + extra
+	}
+	// gestureIs checks the stages and the number of questions a gesture request parsed into.
+	gestureIs := func(stages []int, questions int) func(Options) bool {
+		return func(o Options) bool {
+			return slices.Equal(o.GestureStages, stages) && o.QuestionsPerStage == questions
+		}
+	}
+	all := []int{1, 2, 3, 4, 5, 6}
 	tests := []struct {
 		query   string
 		wantErr string
@@ -46,6 +59,37 @@ func TestParseCreativeOptions(t *testing.T) {
 		}},
 		{query: "exportType=GestureQuiz&courseType=0&level=1&lessonNumber=1", check: func(o Options) bool {
 			return o.ExportType == GestureQuiz
+		}},
+		// A gesture quiz with nothing chosen has every stage and the default number of questions.
+		{query: gesture(""), check: gestureIs(all, 5)},
+		{query: gesture("gestureStages=&questionsPerStage="), check: gestureIs(all, 5)},
+		{query: gesture("gestureStages=+&questionsPerStage=+"), check: gestureIs(all, 5)},
+		{query: gesture("gestureStages=3"), check: gestureIs([]int{3}, 5)},
+		{query: gesture("gestureStages=1,2,3,4,5,6&questionsPerStage=7"), check: gestureIs(all, 7)},
+		{query: gesture("gestureStages=%203,%201%20"), check: gestureIs([]int{1, 3}, 5)}, // trimmed and sorted
+		{query: gesture("gestureStages=6,4"), check: gestureIs([]int{4, 6}, 5)},
+		{query: gesture("questionsPerStage=4"), check: gestureIs(all, 4)},
+		{query: gesture("questionsPerStage=10"), check: gestureIs(all, 10)},
+		{query: gesture("questionsPerStage=%207%20"), check: gestureIs(all, 7)},
+		{query: gesture("gestureStages=0"), wantErr: "Invalid gestureStages parameter."},
+		{query: gesture("gestureStages=7"), wantErr: "Invalid gestureStages parameter."},
+		{query: gesture("gestureStages=1,1"), wantErr: "Invalid gestureStages parameter."},
+		{query: gesture("gestureStages=1,,3"), wantErr: "Invalid gestureStages parameter."},
+		{query: gesture("gestureStages=a"), wantErr: "Invalid gestureStages parameter."},
+		{query: gesture("gestureStages=,"), wantErr: "Invalid gestureStages parameter."},
+		{query: gesture("gestureStages=1,"), wantErr: "Invalid gestureStages parameter."},
+		{query: gesture("gestureStages=01"), wantErr: "Invalid gestureStages parameter."},
+		{query: gesture("gestureStages=%2B3"), wantErr: "Invalid gestureStages parameter."},
+		{query: gesture("questionsPerStage=3"), wantErr: "Invalid questionsPerStage parameter."},
+		{query: gesture("questionsPerStage=11"), wantErr: "Invalid questionsPerStage parameter."},
+		{query: gesture("questionsPerStage=x"), wantErr: "Invalid questionsPerStage parameter."},
+		{query: gesture("questionsPerStage=5.5"), wantErr: "Invalid questionsPerStage parameter."},
+		// The other platforms ignore both parameters, even invalid ones, and keep them unset.
+		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&gestureStages=9&questionsPerStage=99", check: func(o Options) bool {
+			return o.ExportType == GimKit && o.GestureStages == nil && o.QuestionsPerStage == 0
+		}},
+		{query: "exportType=2&courseType=0&level=1&lessonNumber=1&gestureStages=1,3&questionsPerStage=7", check: func(o Options) bool {
+			return o.ExportType == Wayground && o.GestureStages == nil && o.QuestionsPerStage == 0
 		}},
 		{query: "exportType=0&courseType=2&courseName=+Boya+&lessonNumber=4", check: func(o Options) bool {
 			return o.CourseType == Other && o.Level == nil && o.CourseDisplayName() == "Boya"
@@ -168,6 +212,214 @@ func TestBuildCreativeRequest(t *testing.T) {
 	if !strings.HasPrefix(texts[1], "CSV columns: Stage,") || !strings.Contains(texts[2], "GESTURE QUIZ STAGES") ||
 		strings.Contains(texts[2], "\r") || texts[5] != "Lesson number: 5" {
 		t.Fatalf("unexpected text parts %q", texts)
+	}
+}
+
+// stageRuleStarts is how each stage's rule paragraph begins, and a sentence that only that paragraph
+// holds, so a message can be checked for the rules of the stages it has and of those it must not have.
+var stageRuleStarts = [GestureStageCount]struct{ start, sentence string }{
+	{"Stage 1 – True or false", "Make about half of the statements false"},
+	{"Stage 2 – Two choices", "Chinese word to Vietnamese meaning, Vietnamese meaning to Chinese word"},
+	{"Stage 3 – Three choices (the learner moves the head", "Recognition with closer distractors"},
+	{"Stage 4 – Three choices (the learner slices", "fill in the blank in a short sentence"},
+	{"Stage 5 – Four choices", "Never use the bare numbers 1 to 4 as options"},
+	{"Stage 6 – Sentence ordering", "The game shuffles the chunks itself"},
+}
+
+func gestureMessage(t *testing.T, stages []int, questions int) string {
+	t.Helper()
+	level, lesson := 1, 1
+	req := buildCreativeRequest("m", nil, Options{
+		ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumber: &lesson,
+		GestureStages: stages, QuestionsPerStage: questions,
+	})
+	texts := textsOf(t, req)
+	if len(texts) != 6 || !strings.HasPrefix(texts[1], "CSV columns: Stage,") {
+		t.Fatalf("unexpected text parts %q", texts)
+	}
+	return texts[2]
+}
+
+func TestGestureQuizMessage(t *testing.T) {
+	tests := []struct {
+		name      string
+		stages    []int
+		questions int
+		contain   []string
+		absent    []string
+	}{
+		{
+			name: "defaults", // all six stages and five questions, also for a hand-built Options
+			contain: []string{
+				"GESTURE QUIZ STAGES",
+				"This quiz has 6 stages: stage 1 (true or false), stage 2 (two choices answered by tilting the head), stage 3 (three choices answered by biting with the mouth), stage 4 (three choices answered by slicing fruit), stage 5 (four choices answered by showing fingers) and stage 6 (sentence ordering).",
+				"They are played in order from the easiest to the hardest, and a stage must be passed before the next one opens.",
+				"Classify every question by how difficult it really is",
+				"at most 8 Chinese characters or about 6 Vietnamese words in stages 2 to 5.",
+				"Stage: the number of the row's stage, which must be 1, 2, 3, 4, 5 or 6, in the first column.",
+				"Write exactly 5 questions for every stage, 30 rows in total, and output the rows grouped by stage in ascending order of the stage number, stage 1 first.",
+				"Every stage must have all 5 rows",
+			},
+			absent: []string{"renumbered", "single stage"},
+		},
+		{
+			name: "two stages, seven questions", stages: []int{4, 6}, questions: 7,
+			contain: []string{
+				"This quiz has 2 stages: stage 4 (three choices answered by slicing fruit) and stage 6 (sentence ordering).",
+				"a stage must be passed before the next one opens",
+				"it is not renumbered when the other stages are left out of this quiz. The Stage column of every row must be 4 or 6, exactly as numbered above, and no row may use any other stage number.",
+				"put it in the stage of this quiz that matches that difficulty",
+				"about 6 Vietnamese words in stage 4. The options of a row must all be different",
+				"Stage: the number of the row's stage, which must be 4 or 6, in the first column. No other stage number is allowed.",
+				"Write exactly 7 questions for every stage, 14 rows in total, and output the rows grouped by stage in ascending order of the stage number, stage 4 first.",
+				"Every stage must have all 7 rows",
+			},
+			absent: []string{"stages 2 to 5", "in total, and output the rows grouped by stage in ascending order of the stage number, stage 1"},
+		},
+		{
+			name: "no stage with options", stages: []int{1, 6}, questions: 4,
+			contain: []string{
+				"This quiz has 2 stages: stage 1 (true or false) and stage 6 (sentence ordering).",
+				"must be 1 or 6",
+				"Write exactly 4 questions for every stage, 8 rows in total",
+				"Explanation: one short Vietnamese sentence",
+			},
+			absent: []string{"Options are shown in big type", "must all be different", "Cả A và B", "refers to other options"},
+		},
+		{
+			name: "a single stage", stages: []int{6}, questions: 5,
+			contain: []string{
+				"This quiz has a single stage, stage 6 (sentence ordering), so the learner plays only that gesture game",
+				"The Stage column of every row must be 6, exactly as numbered above",
+				"Every row belongs to that stage, so write each question to fit its difficulty and its format.",
+				"Stage: the number of the row's stage, which must be 6, in the first column.",
+				"Write exactly 5 questions, all of stage 6, so 5 rows in total.",
+			},
+			absent: []string{"Options are shown in big type", "the next one opens", "Classify every question", "stages:", "every stage", "grouped by stage"},
+		},
+		{
+			name: "a single stage with options", stages: []int{3}, questions: 10,
+			contain: []string{
+				"This quiz has a single stage, stage 3 (three choices answered by biting with the mouth)",
+				"in stage 3. The options of a row must all be different",
+				"Write exactly 10 questions, all of stage 3, so 10 rows in total.",
+			},
+			absent: []string{"the next one opens", "stages 2"},
+		},
+		{
+			name: "stages with a gap", stages: []int{2, 3, 5}, questions: 6,
+			contain: []string{"in stages 2, 3 and 5. The options", "must be 2, 3 or 5,", "18 rows in total"},
+		},
+		{
+			name: "two stages with options", stages: []int{3, 5}, questions: 6,
+			contain: []string{"in stages 3 and 5. The options", "must be 3 or 5,", "12 rows in total"},
+		},
+		{
+			name: "a run of stages with options", stages: []int{1, 2, 3, 4}, questions: 5,
+			contain: []string{"in stages 2 to 4. The options", "must be 1, 2, 3 or 4,", "20 rows in total"},
+			absent:  []string{"stage 5", "Stage 5 – ", "Stage 6 – "},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := gestureMessage(t, tt.stages, tt.questions)
+			for _, want := range tt.contain {
+				if !strings.Contains(msg, want) {
+					t.Errorf("message lacks %q:\n%s", want, msg)
+				}
+			}
+			for _, bad := range tt.absent {
+				if strings.Contains(msg, bad) {
+					t.Errorf("message has %q:\n%s", bad, msg)
+				}
+			}
+			// Exactly the rules of the chosen stages are there, whatever else is checked above.
+			want := tt.stages
+			if len(want) == 0 {
+				want = AllGestureStages()
+			}
+			for i, rule := range stageRuleStarts {
+				chosen := slices.Contains(want, i+1)
+				for _, text := range []string{rule.start, rule.sentence} {
+					if has := strings.Contains(msg, text); has != chosen {
+						t.Errorf("stage %d: %q present = %v, want %v", i+1, text, has, chosen)
+					}
+				}
+			}
+		})
+	}
+}
+
+// Every combination of stages gives a clean message: no template leftovers or gaps, the rules of the
+// chosen stages in ascending order, one for each, and nothing about the stages that were left out.
+func TestGestureQuizMessageForEveryStageSet(t *testing.T) {
+	for mask := 1; mask < 1<<GestureStageCount; mask++ {
+		var stages []int
+		for stage := 1; stage <= GestureStageCount; stage++ {
+			if mask&(1<<(stage-1)) != 0 {
+				stages = append(stages, stage)
+			}
+		}
+		questions := MinQuestionsPerStage + mask%(MaxQuestionsPerStage-MinQuestionsPerStage+1)
+		msg := gestureMessage(t, stages, questions)
+
+		for _, bad := range []string{"{{", "}}", "<no value>", "\r", "\n\n\n", "%!"} {
+			if strings.Contains(msg, bad) {
+				t.Errorf("stages %v: message has %q:\n%s", stages, bad, msg)
+			}
+		}
+		if msg != strings.TrimSpace(msg) || !strings.HasPrefix(msg, "GESTURE QUIZ STAGES\n\n") || !strings.HasSuffix(msg, "passed the stage.") {
+			t.Errorf("stages %v: message is not trimmed or is cut off:\n%s", stages, msg)
+		}
+		last := -1
+		for i, rule := range stageRuleStarts {
+			at := strings.Index(msg, rule.start)
+			if chosen := slices.Contains(stages, i+1); chosen != (at >= 0) {
+				t.Fatalf("stages %v: rule of stage %d present = %v, want %v", stages, i+1, at >= 0, chosen)
+			}
+			if at >= 0 {
+				if at < last {
+					t.Errorf("stages %v: rule of stage %d is out of order", stages, i+1)
+				}
+				last = at
+			}
+		}
+		if want := fmt.Sprintf("%d rows in total", len(stages)*questions); !strings.Contains(msg, want) {
+			t.Errorf("stages %v: message lacks %q", stages, want)
+		}
+	}
+}
+
+func TestGestureQuizTokenBudget(t *testing.T) {
+	tests := []struct {
+		stages    []int
+		questions int
+		want      int
+	}{
+		{nil, 0, 10000}, // the defaults, 30 rows
+		{AllGestureStages(), 5, 10000},
+		{AllGestureStages(), 4, 10000},
+		{[]int{1, 2, 3}, 10, 10000},    // 30 rows is still the base budget
+		{AllGestureStages(), 6, 16000}, // 36 rows
+		{[]int{1, 2, 3, 4}, 8, 16000},  // 32 rows
+		{AllGestureStages(), 10, 16000},
+		{[]int{6}, 10, 10000},
+	}
+	level, lesson := 1, 1
+	for _, tt := range tests {
+		req := buildCreativeRequest("m", nil, Options{
+			ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumber: &lesson,
+			GestureStages: tt.stages, QuestionsPerStage: tt.questions,
+		})
+		if req.MaxOutputTokens != tt.want || req.Tools != nil {
+			t.Errorf("stages %v x %d: max_output_tokens %d with tools %v, want %d and none", tt.stages, tt.questions, req.MaxOutputTokens, req.Tools, tt.want)
+		}
+	}
+	// The other platforms are untouched by the gesture settings.
+	other := buildCreativeRequest("m", nil, Options{ExportType: GimKit, CourseType: Hsk, Level: &level, LessonNumber: &lesson,
+		GestureStages: AllGestureStages(), QuestionsPerStage: 10})
+	if other.MaxOutputTokens != 10000 {
+		t.Errorf("GimKit got %d output tokens", other.MaxOutputTokens)
 	}
 }
 

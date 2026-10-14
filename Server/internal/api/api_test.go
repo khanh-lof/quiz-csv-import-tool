@@ -394,6 +394,8 @@ func TestCreateJobRequestErrors(t *testing.T) {
 		{"truncated", upload{token: token, ctype: ptr("multipart/form-data; boundary=xyz"), rawBody: ptr("--xyz\r\nContent-Disposition: form-data; name=\"images\"; filename=\"a.png\"\r\n\r\nabc")}, http.StatusBadRequest, "Malformed multipart body."},
 		{"no image", upload{token: token}, http.StatusBadRequest, "Image is required."},
 		{"bad creative options", upload{token: token, query: "?isCreative=true&exportType=9"}, http.StatusBadRequest, "Invalid or missing exportType parameter."},
+		{"bad gesture stages", upload{token: token, query: "?isCreative=true&exportType=3&courseType=0&level=1&lessonNumber=1&gestureStages=7"}, http.StatusBadRequest, "Invalid gestureStages parameter."},
+		{"bad questions per stage", upload{token: token, query: "?isCreative=true&exportType=3&courseType=0&level=1&lessonNumber=1&questionsPerStage=11"}, http.StatusBadRequest, "Invalid questionsPerStage parameter."},
 	}
 	for _, tt := range tests {
 		rec := env.upload(t, tt.upload)
