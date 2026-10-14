@@ -12,7 +12,7 @@
         <th>Trạng thái</th>
         <th>Học sinh</th>
         <th>Lúc giao</th>
-        <th class="actions-col"></th>
+        <th nzWidth="40px"></th>
       </tr>
     </thead>
     <tbody>
@@ -30,9 +30,9 @@
           <td>{{ assignment.playerCount }}</td>
           <td>{{ assignment.createdAt | date:'dd/MM HH:mm' }}</td>
           <td class="assignment-actions">
-            <button nz-button nzType="default" nzSize="small" type="button" aria-label="Thao tác" title="Thao tác"
+            <button nz-button nzType="text" nzSize="small" type="button" aria-label="Thao tác" title="Thao tác"
                     nz-dropdown [nzDropdownMenu]="assignmentMenu" nzTrigger="click" nzPlacement="bottomRight">
-              <nz-icon nzType="control" nzTheme="outline"/>
+              <nz-icon nzType="control" nzTheme="twotone" nzTwotoneColor="#ff8ecb"/>
             </button>
             <nz-dropdown-menu #assignmentMenu="nzDropdownMenu">
               <ul nz-menu class="action-menu">

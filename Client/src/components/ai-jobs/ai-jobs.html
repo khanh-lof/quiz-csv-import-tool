@@ -85,9 +85,9 @@
           <td class="job-actions">
             <!-- A running job has nothing to do yet, so it gets no menu. -->
             @if (job.status !== 'running') {
-              <button nz-button nzType="default" nzSize="small" type="button" aria-label="Thao tác" title="Thao tác"
+              <button nz-button nzType="text" nzSize="small" type="button" aria-label="Thao tác" title="Thao tác"
                       nz-dropdown [nzDropdownMenu]="jobMenu" nzTrigger="click" nzPlacement="bottomRight">
-                <nz-icon nzType="control" nzTheme="outline"/>
+                <nz-icon nzType="control" nzTheme="twotone" nzTwotoneColor="#ff8ecb"/>
               </button>
               <nz-dropdown-menu #jobMenu="nzDropdownMenu">
                 <ul nz-menu class="action-menu">
