@@ -66,12 +66,12 @@ function gestureJob(overrides: Partial<AiJob> = {}): AiJob {
 const CODE = 'ABC123DEF4';
 
 function sharedQuiz(overrides: Partial<SharedQuiz> = {}): SharedQuiz {
-  return { title: 'HSK1 bài 1', label: 'Lớp 6A', csv: DEMO_QUIZ_CSV, timeMode: 'standard', closesAt: null, ...overrides };
+  return { title: 'HSK1 bài 1', label: 'Lớp 6A', csv: DEMO_QUIZ_CSV, timeMode: 'standard', stageLock: 'sequential', closesAt: null, ...overrides };
 }
 
 function assignmentDetail(overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
   return {
-    id: 'a1', code: CODE, jobId: 'job-1', title: 'HSK1 bài 1', label: 'Lớp 6A', timeMode: 'standard',
+    id: 'a1', code: CODE, jobId: 'job-1', title: 'HSK1 bài 1', label: 'Lớp 6A', timeMode: 'standard', stageLock: 'sequential',
     stageCounts: { 1: 5, 2: 5, 3: 5, 4: 5, 5: 5, 6: 5 }, createdAt: '2026-10-14T00:00:00Z', closesAt: null,
     closedAt: null, open: true, playerCount: 0, csv: DEMO_QUIZ_CSV, players: [], ...overrides,
   };
@@ -950,6 +950,28 @@ describe('GesturePlay', () => {
         click('.stage-card', 'Màn 1');
 
         expect(text()).toContain('18 giây mỗi câu');
+      });
+    });
+
+    describe('the stage lock', () => {
+      it('keeps the later stages locked until the earlier one is passed by default', () => {
+        openShared(lan);
+
+        const cards = Array.from(element().querySelectorAll<HTMLButtonElement>('.stage-card'));
+        expect(cards[0].disabled).toBeFalse();
+        expect(cards.slice(1).every(card => card.disabled)).toBeTrue();
+      });
+
+      it('opens every stage from the start when the teacher chose the open lock', () => {
+        shared.load.and.returnValue(of(sharedQuiz({ stageLock: 'open' })));
+        openShared(lan);
+
+        const cards = Array.from(element().querySelectorAll<HTMLButtonElement>('.stage-card'));
+        expect(cards.length).toBe(6);
+        expect(cards.every(card => !card.disabled)).toBeTrue();
+
+        click('.stage-card', 'Màn 3');
+        expect(text()).toContain('Ếch đớp chữ');
       });
     });
 

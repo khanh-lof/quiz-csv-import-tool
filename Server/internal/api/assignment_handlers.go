@@ -45,6 +45,7 @@ type assignmentView struct {
 	Title       string         `json:"title"`
 	Label       string         `json:"label"`
 	TimeMode    string         `json:"timeMode"`
+	StageLock   string         `json:"stageLock"`
 	StageCounts map[string]int `json:"stageCounts"`
 	CreatedAt   time.Time      `json:"createdAt"`
 	ClosesAt    *time.Time     `json:"closesAt"`
@@ -60,6 +61,7 @@ func newAssignmentView(a *store.Assignment, now time.Time, playerCount int) assi
 	}
 	return assignmentView{
 		ID: a.ID, Code: a.Code, JobID: a.JobID, Title: a.Title, Label: a.Label, TimeMode: a.TimeMode,
+		StageLock: stageLockOf(a),
 		StageCounts: counts, CreatedAt: a.CreatedAt.UTC(), ClosesAt: utcPtr(a.ClosesAt), ClosedAt: utcPtr(a.ClosedAt),
 		Open: a.OpenAt(now), PlayerCount: playerCount,
 	}
@@ -93,6 +95,7 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		Label       string         `json:"label"`
 		ClosesAt    *string        `json:"closesAt"`
 		TimeMode    string         `json:"timeMode"`
+		StageLock   string         `json:"stageLock"`
 		StageCounts map[string]int `json:"stageCounts"`
 	}
 	if !s.readJSON(w, r, &req) {
@@ -107,6 +110,13 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 	}
 	if !validTimeMode(req.TimeMode) {
 		writeText(w, http.StatusBadRequest, "Invalid time mode.")
+		return
+	}
+	if req.StageLock == "" {
+		req.StageLock = stageLockSequential
+	}
+	if !validStageLock(req.StageLock) {
+		writeText(w, http.StatusBadRequest, "Invalid stage lock.")
 		return
 	}
 	var closesAt *time.Time
@@ -154,6 +164,7 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		Label:       label,
 		CSV:         job.CSV,
 		TimeMode:    req.TimeMode,
+		StageLock:   req.StageLock,
 		StageCounts: req.StageCounts,
 		CreatedAt:   now.UTC().Truncate(time.Millisecond),
 		ClosesAt:    closesAt,
@@ -375,6 +386,24 @@ func validTimeMode(mode string) bool {
 		return true
 	}
 	return false
+}
+
+const (
+	stageLockSequential = "sequential"
+	stageLockOpen       = "open"
+)
+
+func validStageLock(lock string) bool {
+	return lock == stageLockSequential || lock == stageLockOpen
+}
+
+// stageLockOf is the assignment's stage lock, with the empty value of an assignment made before the
+// setting existed read as the rule that applied then.
+func stageLockOf(a *store.Assignment) string {
+	if a.StageLock == stageLockOpen {
+		return stageLockOpen
+	}
+	return stageLockSequential
 }
 
 // parseClosesAt reads a closing time, which must be an RFC 3339 instant after now and no further

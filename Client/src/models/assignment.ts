@@ -10,6 +10,8 @@ import { GestureQuiz } from './gesture-quiz';
 // One quiz a teacher handed to students. `stageCounts` maps a stage ("1" to "6") to its number of
 // questions and holds only the stages the quiz has. `open` is what the server computed when it answered,
 // so a page left open goes stale: use `isOpenAt` to know whether it is still open now.
+export type StageLock = 'sequential' | 'open';
+
 export interface Assignment {
   id: string;
   code: string;
@@ -17,6 +19,7 @@ export interface Assignment {
   title: string;
   label: string;
   timeMode: TimeMode;
+  stageLock: StageLock;
   stageCounts: Record<string, number>;
   createdAt: string;
   closesAt: string | null;
@@ -61,6 +64,7 @@ export interface SharedQuiz {
   label: string;
   csv: string;
   timeMode: TimeMode;
+  stageLock: StageLock;
   closesAt: string | null;
 }
 
@@ -70,6 +74,7 @@ export interface NewAssignment {
   label: string;
   closesAt: string | null;
   timeMode: TimeMode;
+  stageLock: StageLock;
   stageCounts: Record<string, number>;
 }
 
@@ -103,6 +108,11 @@ export const TIME_MODE_LABELS: Record<TimeMode, string> = {
   standard: 'Bình thường',
   extra: 'Thêm thời gian (×1.5)',
   unlimited: 'Không giới hạn',
+};
+
+export const STAGE_LOCK_LABELS: Record<StageLock, string> = {
+  sequential: 'Phải qua màn trước mới mở màn sau',
+  open: 'Mở tất cả các màn',
 };
 
 // The link a student opens. The origin is a parameter so a spec does not depend on where it runs.

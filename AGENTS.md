@@ -361,6 +361,12 @@ open, the result grace) only to show the right screen without a round trip.
   (`TEACHER_ERRORS` in the model, `GesturePlay`'s join messages for `Name taken` and `Assignment is full`);
   the time mode (`standard`, `extra`, `unlimited`) travels by name and is the same `TimeMode` the game's
   settings use. The teacher picks one time mode per assignment, which replaces the student's own setting.
+  The teacher also picks a **stage lock**, `stageLock`: `sequential` (the default, and what an assignment from
+  before the setting reads as) opens each stage once the one before it is passed, `open` lets the student play
+  every stage from the start. It is sent on `POST assignments` (absent means `sequential`, any other value is
+  400 `Invalid stage lock.`, checked right after the time mode), fixed for the assignment's life, and returned
+  by `assignmentView` and `GET share/{code}`. Like every lock it is enforced by the client alone; the server
+  does not check the order of results.
   Adding or renaming a field, status or message means changing both sides and their specs together.
 
 The Client's half is in [Client/AGENTS.md](Client/AGENTS.md#giao-bài-assignments), the Server's (the store, its

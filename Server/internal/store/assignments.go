@@ -30,6 +30,10 @@ type Assignment struct {
 	CSV string `bson:"csv"`
 	// TimeMode is how long a student gets per question: "standard", "extra" or "unlimited".
 	TimeMode string `bson:"timeMode"`
+	// StageLock is how a student moves through the stages: "sequential" (each stage opens once the one
+	// before it is passed) or "open" (every stage can be played from the start). Assignments made before
+	// the setting existed have it empty, which means "sequential"; use the API's stageLockOf to read it.
+	StageLock string `bson:"stageLock,omitempty"`
 	// StageCounts is the number of questions in each stage ("1" to "6"), which is what a result is
 	// checked against; stages without questions are absent.
 	StageCounts map[string]int `bson:"stageCounts"`

@@ -119,7 +119,7 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   for results, the `X-Player-Token` header. The order of checks, which decides the status when several
   things are wrong: the code is trimmed and upper-cased and looked up (404 `Assignment not found`) in all
   three. `getShared` then answers 410 `Assignment closed` unless `OpenAt(now)`, else `{title, label, csv,
-  timeMode, closesAt}`, with `no-store` on every answer, errors included, since a close must show at once.
+  timeMode, stageLock, closesAt}`, with `no-store` on every answer, errors included, since a close must show at once.
   `joinShared` refuses a closed assignment (410) before it reads the body, then `cleanPlayerName` (400
   `Invalid name.`: trimmed, whitespace runs folded, 1–40 runes, no control characters), then the 300-player cap
   (409 `Assignment is full`), then `CreatePlayer` (409 `Name taken` on `ErrDuplicate`); it mints a token of 32
@@ -257,7 +257,7 @@ rate-limit `roundStart` (for refunds) and timestamps. `Complete`/`Fail` only tou
 Assignments (`internal/store/assignments*.go`): `store.Assignments` is implemented by `MongoAssignments` and
 `MemoryAssignments` (tests), and holds two kinds of document. An `Assignment` (collection
 `MONGODB_ASSIGNMENTS_COLLECTION`, `_id` a random hex id) is the snapshot of a job: owner `username`, `jobId`,
-`title`, the raw `csv`, `label`, `timeMode` (`standard`/`extra`/`unlimited`), `stageCounts` (stage → number of
+`title`, the raw `csv`, `label`, `timeMode` (`standard`/`extra`/`unlimited`), `stageLock` (`sequential`/`open`; empty on old documents, read as `sequential` by `stageLockOf`), `stageCounts` (stage → number of
 questions), `createdAt`, the public `code`, and two optional times, `closesAt` (scheduled) and `closedAt` (by
 hand), left out of the document when unset. It is copied rather than referenced so deleting a job, or the
 newest-30 prune, cannot break a live link. `OpenAt(now)` is "`closedAt` unset and `closesAt` unset or ahead";

@@ -47,6 +47,7 @@ import {
   RankedPlayer,
   rankingCsv,
   shareUrl,
+  STAGE_LOCK_LABELS,
   TIME_MODE_LABELS,
 } from '../../../models/assignment';
 import { AssignmentService } from '../../../services/assignment.service';
@@ -96,6 +97,7 @@ export class AssignmentRanking {
   protected readonly stageCell = stageCell;
   protected readonly formatStamp = formatStamp;
   protected readonly timeModeLabels = TIME_MODE_LABELS;
+  protected readonly stageLockLabels = STAGE_LOCK_LABELS;
 
   protected readonly detail = signal<AssignmentDetail | null>(null);
   protected readonly notFound = signal(false);

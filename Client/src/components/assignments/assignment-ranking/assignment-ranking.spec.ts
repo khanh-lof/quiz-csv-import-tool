@@ -37,7 +37,7 @@ const HOA = player({
 
 function detail(overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
   return {
-    id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: 'Lớp 6A', timeMode: 'standard',
+    id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: 'Lớp 6A', timeMode: 'standard', stageLock: 'sequential',
     stageCounts: {'1': 5, '2': 5}, createdAt: iso(-60 * MINUTE), closesAt: null, closedAt: null, open: true,
     playerCount: 3, csv: '', players: [LAN, MINH, HOA], ...overrides,
   };

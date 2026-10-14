@@ -58,6 +58,17 @@
         <p class="muted hint">Mọi học sinh trong bài này dùng chung một chế độ.</p>
       </div>
 
+      <div class="field">
+        <span class="field-label" id="assign-stage-lock">Mở khóa các màn</span>
+        <nz-radio-group class="radios" aria-labelledby="assign-stage-lock" [ngModel]="stageLock()"
+                        (ngModelChange)="stageLock.set($event)">
+          @for (lock of stageLocks; track lock.value) {
+            <label nz-radio [nzValue]="lock.value">{{ lock.label }}</label>
+          }
+        </nz-radio-group>
+        <p class="muted hint">Mở tất cả: học sinh chơi màn nào cũng được. Nếu không, mỗi màn chỉ mở sau khi đạt từ 70% ở màn trước.</p>
+      </div>
+
       @if (error(); as message) {
         <p class="error" role="alert">{{ message }}</p>
       }

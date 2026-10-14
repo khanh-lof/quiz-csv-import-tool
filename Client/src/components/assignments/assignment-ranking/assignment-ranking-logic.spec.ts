@@ -11,7 +11,7 @@ const MINUTE = 60 * 1000;
 
 function assignment(overrides: Partial<Assignment> = {}): Assignment {
   return {
-    id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: '', timeMode: 'standard',
+    id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: '', timeMode: 'standard', stageLock: 'sequential',
     stageCounts: {'1': 5, '2': 5}, createdAt: at(-60 * MINUTE), closesAt: null, closedAt: null,
     open: true, playerCount: 0, ...overrides,
   };

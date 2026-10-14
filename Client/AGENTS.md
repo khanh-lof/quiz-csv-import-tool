@@ -336,7 +336,7 @@ routes added for this (see above for their guards).
 | Topbar link | Về bảng quiz, Mở quiz khác | Về lịch sử AI | none | Về bảng xếp hạng |
 | Progress key | the quiz's hash | the quiz's hash | `asg:<CODE>:<playerId>` | the quiz's hash, never written |
 | Time mode | the player's setting | the player's setting | the teacher's, fixed | the teacher's, fixed |
-| Map | locks, reset | locks, reset | locks, no reset | every stage open, no reset |
+| Map | locks, reset | locks, reset | locks (or all open, by the teacher's `stageLock`), no reset | every stage open, no reset |
 | Before a stage | | | the closed check | |
 | Finished run | recorded locally | recorded locally | recorded locally, reported | nothing recorded or sent |
 
@@ -374,6 +374,11 @@ routes added for this (see above for their guards).
   text instead of the radios), `allowReset` (false hides "Chơi lại từ đầu": a student's results are the
   teacher's), `allOpen`, and a content projection above its summary. `GestureStageResult`: `saveState` and
   `preview`.
+
+- **The stage lock.** An assignment's `stageLock` (`sequential` | `open`, `StageLock` in `models/assignment.ts`) reaches
+  the page with the time mode (`assignmentStageLock`). `allStagesOpen` is true in a preview or when it is `open`,
+  and then the map's `allOpen`, `openIntro`, `guardSharedStage` and `hasNext` skip `GestureProgressService.isUnlocked`.
+  Passing is still recorded and reported either way. `AssignDialog` offers it as a radio under the time mode.
 
 **Teacher components** (`src/components/assignments/`, all with their own spec):
 - `AssignDialog` (`assign-dialog/`, `app-assign-dialog`: input `job`, `[(open)]`, output `created`) is mounted by
