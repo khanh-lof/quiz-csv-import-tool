@@ -7,10 +7,11 @@ import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzInputDirective } from 'ng-zorro-antd/input';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
-import { NzModalModule } from 'ng-zorro-antd/modal';
+import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
-import { NzPopconfirmDirective } from 'ng-zorro-antd/popconfirm';
+import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
+import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiJob, AiJobStatus, filterJobs, lessonLabel } from '../../models/ai-job';
 import { ExportType } from '../../models/export-type';
@@ -58,7 +59,8 @@ interface ResultTable {
     NzSelectComponent,
     NzOptionComponent,
     NzTagComponent,
-    NzPopconfirmDirective,
+    NzDropdownModule,
+    NzMenuModule,
     AssignDialog,
   ],
   templateUrl: './ai-jobs.html',
@@ -115,6 +117,7 @@ export class AiJobs implements OnInit {
     private readonly fileExportService: FileExportService,
     private readonly waygroundExtensionService: WaygroundExtensionService,
     private readonly notificationService: NzNotificationService,
+    private readonly modalService: NzModalService,
     private readonly router: Router,
   ) {
     this.extensionInstalled = waygroundExtensionService.isInstalled();
@@ -220,7 +223,22 @@ export class AiJobs implements OnInit {
     }
   }
 
-  protected remove(job: AiJob): void {
+  // A menu item cannot hold a popconfirm (the menu closes under it), so deleting asks in a modal.
+  protected confirmRemove(job: AiJob): void {
+    this.modalService.confirm({
+      nzTitle: 'Xóa mục này?',
+      nzContent: job.title,
+      nzOkText: 'Xóa',
+      nzOkDanger: true,
+      nzClassName: 'qt-confirm-danger',
+      nzIconType: 'delete',
+      nzCancelText: 'Giữ lại',
+      nzCentered: true,
+      nzOnOk: () => this.remove(job),
+    });
+  }
+
+  private remove(job: AiJob): void {
     this.jobService.remove(job.id).subscribe({
       error: () => this.notificationService.error('Không xóa được', 'Vui lòng thử lại.', {nzPlacement: 'top'}),
     });

@@ -101,8 +101,8 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
    finishes. `AiJobs` (`src/components/ai-jobs/`, the page of the "Lịch sử AI" tab, `/ai-history`) is the history table: client-side search
    (`filterJobs` in `models/ai-job.ts`: accent- and case-insensitive over title, error and the generated
    CSV) and status/mode/platform/course type/HSK standard/level/lesson filters (the last four match the
-   lesson fields the server keeps on creative jobs), an eye button that opens the result as a table in a popup (Auto jobs' headerless CSV gets the platform's column names, `CREATIVE_COLUMNS` in `ai-jobs.ts`), delete, and the
-   delivery actions per job. The two modes diverge there (see
+   lesson fields the server keeps on creative jobs), a "Thao tác" dropdown (`⋯`) on each finished row, which holds every action of the job: "Xem kết quả" (the result as a table in a popup; Auto jobs' headerless CSV gets the platform's column names, `CREATIVE_COLUMNS` in `ai-jobs.ts`), the delivery actions below, and "Xóa" (confirmed in a modal, because a popconfirm cannot live inside a menu item). A running job has no menu.
+   The delivery actions per job: The two modes diverge there (see
    [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the full picture):
    - **`Formatted`** → on "Mở trong bảng", the job's text is cleaned by `AiCsvService.extractCsvContent` (strips markdown
      code fences, or extracts from the first Vietnamese CSV header it finds) → re-parsed by the same
@@ -364,9 +364,9 @@ routes added for this (see above for their guards).
   for Ctrl+C when the clipboard is not available), an `nz-qrcode` of it and the code.
 - `AssignmentList` (`assignment-list/`, `/assignments`): a table of the assignments, newest first, with the
   title and label, the status tag (`assignmentStatusText`), the student count and when it was assigned. Row
-  actions: "Xếp hạng", copy link, QR (a popup with `ShareLink`), "Đóng bài" (confirmed) or "Mở lại" (a popup
+  actions, all in one "Thao tác" dropdown: "Xếp hạng", copy link, QR (a popup with `ShareLink`), "Đóng bài" (confirmed in a modal) or "Mở lại" (a popup
   with `DeadlinePicker`: a reopen always sends a closing time or `null`, because the server refuses one that
-  would close at once), and delete (confirmed, it also deletes the students' results). A 30 s tick makes an
+  would close at once), and "Xóa" (confirmed in a modal, it also deletes the students' results). A 30 s tick makes an
   assignment whose closing time passes show as closed without a reload.
 - `AssignmentRanking` (`assignment-ranking/`, `/assignments/:id`, with `assignment-ranking-logic.ts` for the
   pure parts: `shouldPoll`, `medal`, `stageCell`, `fileNameFor`). The header has the status and time mode and

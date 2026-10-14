@@ -6,9 +6,10 @@ import { finalize, interval } from 'rxjs';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzCardComponent } from 'ng-zorro-antd/card';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
-import { NzModalModule } from 'ng-zorro-antd/modal';
+import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
+import { NzMenuModule } from 'ng-zorro-antd/menu';
+import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { NzPopconfirmDirective } from 'ng-zorro-antd/popconfirm';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
 import {
@@ -39,7 +40,8 @@ const CLOCK_TICK_MS = 30_000;
     NzButtonComponent,
     NzIconDirective,
     NzTagComponent,
-    NzPopconfirmDirective,
+    NzDropdownModule,
+    NzMenuModule,
     DeadlinePicker,
     ShareLink,
   ],
@@ -70,6 +72,7 @@ export class AssignmentList implements OnInit {
 
   private readonly assignmentService = inject(AssignmentService);
   private readonly notificationService = inject(NzNotificationService);
+  private readonly modalService = inject(NzModalService);
   private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
@@ -124,7 +127,19 @@ export class AssignmentList implements OnInit {
     this.qrOpen.set(true);
   }
 
-  protected closeAssignment(assignment: Assignment): void {
+  // Menu items cannot hold a popconfirm (the menu closes under it), so closing and deleting ask in a modal.
+  protected confirmClose(assignment: Assignment): void {
+    this.modalService.confirm({
+      nzTitle: 'Đóng bài?',
+      nzContent: 'Học sinh sẽ không vào chơi được nữa.',
+      nzOkText: 'Đóng bài',
+      nzCancelText: 'Hủy',
+      nzCentered: true,
+      nzOnOk: () => this.closeAssignment(assignment),
+    });
+  }
+
+  private closeAssignment(assignment: Assignment): void {
     this.assignmentService.update(assignment.id, {closed: true}).pipe(
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({
@@ -167,7 +182,21 @@ export class AssignmentList implements OnInit {
     });
   }
 
-  protected remove(assignment: Assignment): void {
+  protected confirmRemove(assignment: Assignment): void {
+    this.modalService.confirm({
+      nzTitle: 'Xóa bài này?',
+      nzContent: 'Bài và toàn bộ kết quả của học sinh sẽ bị xóa.',
+      nzOkText: 'Xóa',
+      nzOkDanger: true,
+      nzClassName: 'qt-confirm-danger',
+      nzIconType: 'delete',
+      nzCancelText: 'Giữ lại',
+      nzCentered: true,
+      nzOnOk: () => this.remove(assignment),
+    });
+  }
+
+  private remove(assignment: Assignment): void {
     this.assignmentService.remove(assignment.id).pipe(
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({

@@ -23,15 +23,10 @@
   margin-left: 6px;
 }
 
-/* One line of buttons: on a phone the table scrolls inside its box instead of squeezing them. */
+/* The row's one button opens the menu of its actions; it sits at the right edge of the column. */
 .assignment-actions {
+  text-align: right;
   white-space: nowrap;
-}
-
-.action-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
 }
 
 .reopen-help {

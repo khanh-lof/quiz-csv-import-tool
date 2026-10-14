@@ -30,36 +30,36 @@
           <td>{{ assignment.playerCount }}</td>
           <td>{{ assignment.createdAt | date:'dd/MM HH:mm' }}</td>
           <td class="assignment-actions">
-            <div class="action-buttons">
-              <a nz-button nzType="primary" nzSize="small" [routerLink]="['/assignments', assignment.id]">
-                <nz-icon nzType="trophy" nzTheme="outline"/>
-                Xếp hạng
-              </a>
-              <button nz-button nzType="default" nzSize="small" type="button" aria-label="Sao chép link"
-                      title="Sao chép link" (click)="copyLink(assignment)">
-                <nz-icon nzType="link" nzTheme="outline"/>
-              </button>
-              <button nz-button nzType="default" nzSize="small" type="button" aria-label="Mã QR" title="Mã QR"
-                      (click)="showQr(assignment)">
-                <nz-icon nzType="qrcode" nzTheme="outline"/>
-              </button>
-              @if (isOpen(assignment)) {
-                <button nz-button nzType="default" nzSize="small" type="button"
-                        nz-popconfirm nzPopconfirmTitle="Đóng bài? Học sinh sẽ không vào chơi được nữa."
-                        nzPopconfirmPlacement="left" (nzOnConfirm)="closeAssignment(assignment)">
-                  Đóng bài
-                </button>
-              } @else {
-                <button nz-button nzType="default" nzSize="small" type="button" (click)="askReopen(assignment)">
-                  Mở lại
-                </button>
-              }
-              <button nz-button nzType="default" nzDanger nzSize="small" type="button" aria-label="Xóa" title="Xóa"
-                      nz-popconfirm nzPopconfirmTitle="Xóa bài này cùng toàn bộ kết quả của học sinh?"
-                      nzPopconfirmPlacement="left" (nzOnConfirm)="remove(assignment)">
-                <nz-icon nzType="delete" nzTheme="outline"/>
-              </button>
-            </div>
+            <button nz-button nzType="default" nzSize="small" type="button" aria-label="Thao tác" title="Thao tác"
+                    nz-dropdown [nzDropdownMenu]="assignmentMenu" nzTrigger="click" nzPlacement="bottomRight">
+              <nz-icon nzType="more" nzTheme="outline"/>
+            </button>
+            <nz-dropdown-menu #assignmentMenu="nzDropdownMenu">
+              <ul nz-menu class="action-menu">
+                <li nz-menu-item [routerLink]="['/assignments', assignment.id]">
+                  <nz-icon nzType="trophy" nzTheme="outline"/> Xếp hạng
+                </li>
+                <li nz-menu-item (click)="copyLink(assignment)">
+                  <nz-icon nzType="link" nzTheme="outline"/> Sao chép link
+                </li>
+                <li nz-menu-item (click)="showQr(assignment)">
+                  <nz-icon nzType="qrcode" nzTheme="outline"/> Mã QR
+                </li>
+                @if (isOpen(assignment)) {
+                  <li nz-menu-item (click)="confirmClose(assignment)">
+                    <nz-icon nzType="lock" nzTheme="outline"/> Đóng bài
+                  </li>
+                } @else {
+                  <li nz-menu-item (click)="askReopen(assignment)">
+                    <nz-icon nzType="unlock" nzTheme="outline"/> Mở lại
+                  </li>
+                }
+                <li nz-menu-divider></li>
+                <li nz-menu-item nzDanger (click)="confirmRemove(assignment)">
+                  <nz-icon nzType="delete" nzTheme="outline"/> Xóa
+                </li>
+              </ul>
+            </nz-dropdown-menu>
           </td>
         </tr>
       }

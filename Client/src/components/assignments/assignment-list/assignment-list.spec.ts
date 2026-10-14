@@ -46,14 +46,19 @@ describe('AssignmentList', () => {
   // The table also has a measuring row and, when empty, a placeholder row: only the assignments' own rows count.
   const rows = (): HTMLElement[] =>
     Array.from(root().querySelectorAll<HTMLElement>('td.assignment-title')).map(cell => cell.closest('tr')!);
-  const rowButton = (row: HTMLElement, label: string): HTMLButtonElement => {
-    const found = Array.from(row.querySelectorAll('button'))
+  // The actions live in a dropdown that renders in an overlay outside the row: open the row's, then look there.
+  async function menuItem(row: HTMLElement, label: string): Promise<HTMLElement> {
+    row.querySelector<HTMLButtonElement>('button[aria-label="Thao tác"]')!.click();
+    // The overlay opens after a short debounce of its own.
+    await new Promise(resolve => setTimeout(resolve, 250));
+    await settle();
+    const found = Array.from(document.body.querySelectorAll<HTMLElement>('.ant-dropdown li[nz-menu-item]'))
       .find(candidate => candidate.textContent?.trim() === label);
     if (!found) {
-      throw new Error(`No button "${label}" in: ${row.textContent}`);
+      throw new Error(`No menu item "${label}"`);
     }
     return found;
-  };
+  }
 
   // A short real wait rather than whenStable(): an open modal's animation keeps the zone busy.
   async function settle(): Promise<void> {
@@ -81,10 +86,9 @@ describe('AssignmentList', () => {
     expect(first.querySelector('nz-tag')?.textContent).toContain('Lớp 3A');
     expect(first.textContent).toContain('Đang mở · đóng lúc');
     expect(first.textContent).toContain('12');
-    expect(first.querySelector('a')?.getAttribute('href')).toBe('/assignments/a');
-    expect(rowButton(first, 'Đóng bài')).toBeTruthy();
+    expect(await menuItem(first, 'Đóng bài')).toBeTruthy();
+    expect(await menuItem(second, 'Mở lại')).toBeTruthy();
     expect(second.textContent).toContain('Đã đóng');
-    expect(rowButton(second, 'Mở lại')).toBeTruthy();
   });
 
   it('points an empty list at the AI tab', async () => {
@@ -108,7 +112,7 @@ describe('AssignmentList', () => {
   it('reopens a closed assignment with no closing time, keeping the student count', async () => {
     await load(assignment('b', {closedAt: '2026-10-14T02:00:00Z', open: false, playerCount: 3}));
 
-    rowButton(rows()[0], 'Mở lại').click();
+    (await menuItem(rows()[0], 'Mở lại')).click();
     await settle();
     const ok = document.body.querySelector<HTMLButtonElement>('.ant-modal-footer .ant-btn-primary')!;
     expect(ok.textContent?.trim()).toBe('Mở lại');
@@ -129,7 +133,7 @@ describe('AssignmentList', () => {
   it('keeps the reopen dialog open and says why when the server refuses', async () => {
     await load(assignment('b', {closedAt: '2026-10-14T02:00:00Z', open: false}));
 
-    rowButton(rows()[0], 'Mở lại').click();
+    (await menuItem(rows()[0], 'Mở lại')).click();
     await settle();
     document.body.querySelector<HTMLButtonElement>('.ant-modal-footer .ant-btn-primary')!.click();
     await settle();
