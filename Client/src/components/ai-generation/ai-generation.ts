@@ -28,6 +28,7 @@ import { NzInputDirective } from 'ng-zorro-antd/input';
 import { ExportType } from '../../models/export-type';
 import { CourseType } from '../../models/course-type';
 import { HskStandard, hskMaxLevel } from '../../models/hsk-standard';
+import { Textbook, textbookFor } from '../../models/textbook';
 import {
   ALL_GESTURE_STAGES,
   gestureStagesOf,
@@ -129,6 +130,12 @@ export class AiGeneration {
     const level = aiGenerationForm.controls.level.value;
     this.setError(aiGenerationForm.controls.level, 'max', isAutoMode && courseType === CourseType.Hsk && level !== null
       && level > hskMaxLevel(aiGenerationForm.controls.hskStandard.value));
+    // A course with a textbook has as many lessons as the book; switching from HSK 3.0 level 3 (18 lessons) to
+    // level 1 can leave a lesson 16 to 18 behind, which the server would refuse.
+    const lesson = aiGenerationForm.controls.lessonNumber.value;
+    const book = this.textbookOf(aiGenerationForm);
+    this.setError(aiGenerationForm.controls.lessonNumber, 'max', isAutoMode && book !== undefined && lesson !== null
+      && lesson > book.lessons);
     // The game and question-count controls are only on the page for a Quiz cử chỉ; for any other platform
     // they are hidden, so they must not block the form.
     const isGestureQuiz = isAutoMode && aiGenerationForm.controls.exportType.value === ExportType.GestureQuiz;
@@ -136,6 +143,11 @@ export class AiGeneration {
     this.setRequired(aiGenerationForm.controls.questionsPerStage, isGestureQuiz);
     return null;
   };
+
+  private textbookOf(form: FormGroup<AiGenerationForm>): Textbook | undefined {
+    const {courseType, hskStandard, level} = form.controls;
+    return textbookFor(courseType.value, hskStandard.value, level.value);
+  }
 
   private setRequired(control: AbstractControl, isRequired: boolean): void {
     this.setError(control, 'required', isRequired && Validators.required(control) !== null);
@@ -163,7 +175,8 @@ export class AiGeneration {
       AIMode: formBuilder.control<AIGenerationMode | null>(AIGenerationMode.Auto, Validators.required),
       courseType: formBuilder.control<CourseType | null>(null),
       courseName: formBuilder.control<string | null>(null),
-      hskStandard: formBuilder.control<HskStandard | null>(HskStandard.V2),
+      // 3.0 by default: the textbooks the server holds are all HSK 3.0.
+      hskStandard: formBuilder.control<HskStandard | null>(HskStandard.V3),
       level: formBuilder.control<number | null>(null),
       lessonNumber: formBuilder.control<number | null>(null),
       exportType: formBuilder.control<ExportType | null>(null),
@@ -461,5 +474,14 @@ export class AiGeneration {
     return this.formGroup.controls.courseType.value === CourseType.Hsk
       ? hskMaxLevel(this.formGroup.controls.hskStandard.value)
       : 9;
+  }
+
+  // The book of the chosen course, if the server holds one: its lessons are used instead of photos.
+  protected get textbook(): Textbook | undefined {
+    return this.textbookOf(this.formGroup);
+  }
+
+  protected get maxLesson(): number {
+    return this.textbook?.lessons ?? 100;
   }
 }

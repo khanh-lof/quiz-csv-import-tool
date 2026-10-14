@@ -33,6 +33,11 @@ func main() {
 }
 
 func run(logger *slog.Logger) error {
+	// The lesson documents are embedded and checked when csvgen loads; a broken one must stop the server here,
+	// not surface as quizzes quietly built without their LESSON MATERIAL.
+	if err := csvgen.TextbooksError(); err != nil {
+		return fmt.Errorf("textbooks: %w", err)
+	}
 	if err := config.LoadDotEnv(".env"); err != nil {
 		return fmt.Errorf("reading .env: %w", err)
 	}

@@ -114,7 +114,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      `gestureStages`, a checkbox per game with at least one ticked, and `questionsPerStage`, 4–10; images are
      optional here. The two quiz controls are validated only for that platform, their limits and the sanitizers
      that read them back from the saved settings are `models/gesture-quiz-options.ts`, and `AiCsvService` sends
-     them only for GestureQuiz) → the job's CSV
+     them only for GestureQuiz; the form defaults to HSK 3.0) → the job's CSV
      has no header rows → on "Tải file" (or, for Wayground, "Tiện ích tự publish") `AiJobs.exportJob(job, publish)` passes it to
      `FileExportService.exportFileFromCsvContent`, which
      calls the matching `CsvBuilder.buildFromCsvContent` to prepend the platform's `CsvHeader` and
@@ -122,6 +122,15 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      job also has "Chơi ngay" (`AiJobs.play(job)`, navigates to `/play/<job id>`), the primary action
      there, with "Tải file" only keeping the quiz, and "Giao bài" (`AiJobs.assign(job)`, which opens
      `AssignDialog`, see [Giao bài](#giao-bài-assignments)). The vocabulary table is never touched in this path.
+
+**Textbooks.** `models/textbook.ts` (`TEXTBOOKS`, `textbookFor(courseType, hskStandard, level)`, with its spec) is a
+hand-kept mirror of the server's registry of curated books (`Server/internal/csvgen/textbooks.go`): HSK 3.0 levels 1–3
+and YCT 6 for now. For these the server sends the lesson's real material to the AI, so no photo is needed. In Auto
+mode `AiGeneration` looks the book up from course type, standard and level (the `textbook` getter, like `maxLevel`)
+and shows under the Cấp/Bài row either "Dùng giáo trình …" or a muted "Chưa có giáo trình …" line; the Bài box is
+capped at the book's `lessons` (100 without a book), and a lesson left over the cap (HSK 3.0 level 3 lesson 18, then
+level 1) gets a `max` error from the form validator like the level's, so the form cannot be submitted. Adding a book
+means editing both lists together; the server also checks the lesson number (400 `Lesson must be 1 to <M> …`).
 
 Export: `exportFile()` validates the form, then `FileExportService` dispatches to `GimkitCsvBuilder`,
 `BlooketCsvBuilder`, or `WaygroundCsvBuilder` (all extend `CsvBuilderBase`, selected by the
@@ -409,7 +418,7 @@ overlays (modals, confirms, dropdowns, notifications) that render outside any co
 - Component stylesheets hold only layout and sizing. Don't restyle library colors there or reach
   for `::ng-deep` without `:host` (that leaks globally); add or change a global override instead,
   and use `nzType`/`nzSize` (e.g. `nzType="primary"` for the main action) rather than CSS.
-
+- Read https://ng.ant.design/llms-full.txt and understand NG-ZORRO components. Use this knowledge when writing code with NG-ZORRO
 `provideNzI18n(en_US)` is set in `app.config.ts` despite most user-facing
 notification strings in the codebase being written in Vietnamese directly at the call site (not via
 i18n).

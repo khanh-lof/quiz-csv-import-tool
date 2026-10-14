@@ -20,7 +20,8 @@ Module `quiz-csv-import-tool/server`, laid out as:
 - `internal/store` — the `User` document, the `Users` interface, `Mongo` (production) and `Memory`
   (tests) implementations; the same pair for `Jobs` and for `Assignments` ("Giao bài", with its students).
 - `internal/csvgen` — creative-mode option parsing, the two system prompts and the per-platform
-  templates (all embedded from `prompts/*.txt`), and the OpenAI-compatible client
+  templates (all embedded from `prompts/*.txt`), the embedded lesson documents of four textbooks
+  (`textbooks/`), and the OpenAI-compatible client
   (`/chat/completions` for the formatted mode, `/responses` for the creative mode).
 
 ## Commands
@@ -85,7 +86,9 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   refunding its call). `isCreative=true` switches to the creative prompt and requires `exportType`,
   `courseType`, `lessonNumber`, plus `level` (HSK/YCT) or `courseName` (`Other`), and for GestureQuiz the
   optional `gestureStages` and `questionsPerStage` (see [Choosing the games](../AGENTS.md#the-gesture-quiz-quiz-cử-chỉ)) — parsed by
-  `csvgen.ParseCreativeOptions` (400 with the message on failure). Images are optional only in
+  `csvgen.ParseCreativeOptions` (400 with the message on failure). `lessonNumber` must be 1 or more (400
+  `Invalid or missing lessonNumber parameter.`), and for a textbook with embedded lessons (below) at most its
+  lesson count: 400 `Lesson must be 1 to <M> for <title>.`, e.g. `Lesson must be 1 to 15 for 《新HSK教程2》.` Images are optional only in
   creative mode. The LLM call runs under `LLM_TIMEOUT_SECONDS`; hitting it fails the job with
   `errorStatus` 504 ("AI generation timed out."), other LLM failures with 502. Either failure refunds the
   rate-limit slot (`RefundAICall`) so the user can resubmit without losing quota. See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
@@ -185,6 +188,46 @@ cookie.
   replaces the usual "mixture of difficulty" (two sentences in `creative_system.txt` step aside when
   a template defines stages or its own ordering format). The client plays those rows, so see the stage table in
   [../AGENTS.md](../AGENTS.md#the-gesture-quiz-quiz-cử-chỉ) before changing the template.
+- **Textbook lessons** (`textbooks.go`, `textbooks/<book>/lesson-NN.md`, embedded with `go:embed textbooks`).
+  For four books the teacher need not send photos, nor leave the model to rebuild the lesson from memory:
+  the curated document of the lesson is sent as a **LESSON MATERIAL** message. The books are the hand-kept
+  `textbookRegistry` (`dir`, title, `CourseType`, `HskStandard`, level and the pinned **lesson count**):
+  `hsk3-1`, `hsk3-2`, `hsk3-3` (HSK 3.0 levels 1 to 3, 15, 15 and 18 lessons, one series: a learner of level
+  N knows the lower books) and `yct-6` (YCT level 6, 15 lessons, alone; YCT 1 to 5 have no material and the
+  learner is assumed to know them). The client mirrors the registry in `Client/src/models/textbook.ts`, so
+  adding a book or a lesson means changing the folder, the registry and that file together. `textbookFor`
+  matches `CourseType` + (HSK only) `HskStandard` + `*Level`; `Other` and HSK 2.0 never match, and neither does
+  anything when the library did not load. A match changes `CourseDisplayName()` to the book's full name
+  (`《新HSK教程2》 (New HSK Course 2), the HSK 3.0 level 2 textbook`) and is why `ParseCreativeOptions` knows the
+  lesson count.
+  - **The documents** follow `Textbooks/LESSON_DOC_FORMAT.md` (repository root): a title line, then
+    `## Objectives`, `## New words` (a six-column table: Word, Pinyin, POS, English, Tiếng Việt, Note),
+    `## Proper nouns`, `## Language points` and `## Texts`. They are written apart from the code, from the
+    scanned books. The code reads only the New words table, as the Word cell of each row.
+  - **Loading** (`loadLibrary`, at package init, into the package variable `books`): for each book the files
+    `lesson-01.md` to `lesson-NN.md`, exactly the pinned count and no other `lesson-*` file, are read and
+    normalized (`normalizePrompt`: CRLF to LF, trimmed). A file that is missing, has no `## New words`
+    section (rows run to the next `## ` line, the header and `|---|` separator skipped), has no rows, a row
+    that is not 6 cells wide, or a Word cell that is empty or contains `★` fails the load, and the error names
+    the book and the lesson. A failed load does **not** panic (the documents are written separately and a
+    half-written folder must not break every test): it leaves `books` empty, so nothing matches, and keeps the
+    error for `csvgen.TextbooksError()`, which `cmd/server` checks first thing in `run` and refuses to start on.
+    `TestEmbeddedTextbooks` pins that the embedded folder loads with its pinned counts; the rest of the tests
+    run on `fstest.MapFS` fixtures swapped in with `useLibrary` / `useFixtureLibrary`.
+  - **The message** (`lessonMaterial`): `LESSON MATERIAL: <full name>, lesson N of M, taken from the textbook
+    itself.`, the normalized document, and a last line `Known vocabulary (words of …, which the learner already
+    knows; …): w1、w2、…`: the New words of the lower books of the series (all their lessons) and then of lessons
+    1 to N-1 of the book, deduplicated in that order. Lesson 1 of the first book has no such words and says so;
+    `yct-6` ends with a sentence that the learner also knows the words of YCT levels 1 to 5.
+  - **The request** (`buildCreativeRequest`): the input parts are the intro, `exportTypeMessages`, the Course /
+    Level / Lesson number messages, the material, then the images. The intro says the material is the lesson
+    (with images: that the images show the part to focus on); for any course without a book the request is
+    exactly what it was before (`TestBuildCreativeRequestWithoutLessonMaterial`). Token caps and the
+    `web_search` tool are unchanged. `creative_system.txt`'s LESSON SOURCE has a case for each of material,
+    only images and neither: with material the model tests only the New words (no ★ word or proper noun as the
+    target), takes pinyin and meanings from the table, builds sentences from the Language points and Texts,
+    and draws distractors only from the lesson and the Known vocabulary; the web search tool stays for
+    illustrations and is never used to look the lesson up.
 - `post` retries transient gateway failures (429, 502/503/504, transport errors), up to 5 attempts
   within the caller's deadline; this is the only retry layer (the client does not re-send) — see `retry.go` and [../AGENTS.md](../AGENTS.md#retrying-ai-requests). Non-2xx answers
   become `*StatusError` (status, gateway `error.code`, `Retry-After`); each attempt's

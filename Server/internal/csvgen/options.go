@@ -124,8 +124,12 @@ func (o Options) GestureQuizQuestions() int {
 }
 
 // CourseDisplayName is the course name handed to the model. For HSK and YCT it names the textbook,
-// since lesson numbers only exist there (the exam syllabuses have levels but no lessons).
+// since lesson numbers only exist there (the exam syllabuses have levels but no lessons). A book whose
+// lessons are embedded (see textbooks.go) is named exactly.
 func (o Options) CourseDisplayName() string {
+	if book := textbookFor(o); book != nil {
+		return fmt.Sprintf("%s, the %s level %d textbook", book.fullName(), book.course, book.level)
+	}
 	switch o.CourseType {
 	case Hsk:
 		if o.HskStandard == Hsk3 {
@@ -187,10 +191,15 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 	}
 
 	lesson, err := strconv.Atoi(strings.TrimSpace(q.Get("lessonNumber")))
-	if err != nil {
+	if err != nil || lesson < 1 {
 		return Options{}, errors.New("Invalid or missing lessonNumber parameter.")
 	}
 	opts.LessonNumber = &lesson
+	// A book we hold the lessons of has a known number of them; for any other course the number is the
+	// teacher's word, since the model only reads it as a position in a book it recalls.
+	if book := textbookFor(opts); book != nil && lesson > book.lessons {
+		return Options{}, fmt.Errorf("Lesson must be 1 to %d for %s.", book.lessons, book.title)
+	}
 
 	opts.Intelligence = DefaultIntelligence
 	if raw := strings.TrimSpace(q.Get("intelligence")); raw != "" {

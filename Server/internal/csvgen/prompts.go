@@ -106,8 +106,23 @@ func buildCreativeRequest(model string, images []Image, opts Options) responsesR
 	if len(images) == 0 {
 		intro = "No image is provided. Follow the LESSON SOURCE section: identify the textbook for the course and level below, recall the new words of that lesson, and generate the CSV using the required format."
 	}
+	// A lesson of an embedded textbook is sent as the LESSON MATERIAL, after the course, level and
+	// lesson number and before the images, and replaces the model's recall of the lesson.
+	material := ""
+	if book, lesson := textbookFor(opts), opts.LessonNumber; book != nil && lesson != nil {
+		material = lessonMaterial(book, *lesson)
+	}
+	if material != "" {
+		intro = "The LESSON MATERIAL message below is the lesson, taken from the textbook; the images show the part of it to focus on. Generate the CSV using the required format."
+		if len(images) == 0 {
+			intro = "Follow the LESSON SOURCE section: the LESSON MATERIAL message below is the lesson, taken from the textbook. Generate the CSV using the required format."
+		}
+	}
 	texts := append([]string{intro}, exportTypeMessages(opts)...)
 	texts = append(texts, lessonMessages(opts)...)
+	if material != "" {
+		texts = append(texts, material)
+	}
 	content := make([]inputPart, 0, len(texts)+len(images))
 	for _, text := range texts {
 		content = append(content, inputPart{Type: "input_text", Text: text})

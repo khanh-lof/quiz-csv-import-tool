@@ -123,13 +123,18 @@ keeps those on each creative job; jobs from before it did have none and drop out
   return **rows without a header** → client never touches the table: on "Tải file" it prepends the header through
   `CsvBuilderBase.buildFromCsvContent` and downloads (for the Quiz cử chỉ platform the job can instead be
   played in the app, its third delivery). **Images are optional in this
-  mode**: with none attached the prompt tells the model to work from the standard word list of the
-  identified lesson instead. The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`, another
+  mode.** The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`, another
   by-ordinal enum duplicated on both sides), a `level` that is required for HSK and YCT but optional
   for `Other`, a `courseName` required only for `Other`, and a `lessonNumber`. For HSK the user
-  also picks the standard, `HskStandard` 2.0 (levels 1–6, the default) or 3.0 (levels 1–9), sent as
-  `hskStandard=2|3` by value, not ordinal; the server rejects a level outside the standard's range. Everything the prompt
-  needs travels in `csvgen.Options` (`Server/internal/csvgen/options.go`).
+  also picks the standard, `HskStandard` 2.0 (levels 1–6, the server's default) or 3.0 (levels 1–9; the form's
+  default), sent as `hskStandard=2|3` by value, not ordinal; the server rejects a level outside the standard's range.
+  Everything the prompt needs travels in `csvgen.Options` (`Server/internal/csvgen/options.go`). Where the lesson's
+  words come from depends on the course:
+  - **A course with a textbook** (see [Textbook lessons](#textbook-lessons)): the server sends the lesson's own
+    material, and the model builds the quiz from it alone. Photos, if any, only say which part to focus on.
+  - **Any other course:** the photos when there are some. With none, the model rebuilds the lesson from its own
+    knowledge of the textbook (the prompt's LESSON SOURCE, Steps 1–3).
+  - **The web search tool** (Wayground only) is for finding illustrations and is never used to look up the lesson.
 
 Consequences to keep in mind when changing anything here:
 
@@ -149,6 +154,35 @@ Consequences to keep in mind when changing anything here:
   call refunded the next time its owner lists jobs.
 - Export output format is per-platform: GimKit, Blooket and Quiz cử chỉ download as `.csv`, Wayground is
   converted to `.xlsx` via `xlsx` before download (`FileExportService.download`).
+
+## Textbook lessons
+
+For four books QuizTool holds the lessons themselves:
+
+| Book | Course | Lessons |
+|---|---|---|
+| 《新HSK教程1》 | HSK 3.0 level 1 | 15 |
+| 《新HSK教程2》 | HSK 3.0 level 2 | 15 |
+| 《新HSK教程3》 | HSK 3.0 level 3 | 18 |
+| 《YCT标准教程6》 | YCT level 6 | 15 |
+
+- **What gets sent.** One curated markdown document per lesson is embedded in the server
+  (`Server/internal/csvgen/textbooks/<book>/lesson-NN.md`) and sent with a request for that lesson as its
+  LESSON MATERIAL. The document holds the lesson's new words (pinyin, part of speech, English, Vietnamese, ★ for
+  words beyond the syllabus), its language points and its texts. The words of the earlier lessons and of the
+  lower books are sent with it as the vocabulary the learner already knows.
+- **Where it comes from.** The documents were written from the scanned books and their typed word lists, which
+  live in `Textbooks/` together with the format (`Textbooks/LESSON_DOC_FORMAT.md`) and how to add a book
+  (`Textbooks/README.md`). The PDFs and raw OCR there are gitignored.
+- **The registry is hand-kept twice.** The server's `textbookRegistry` (`Server/internal/csvgen/textbooks.go`)
+  and the client's `TEXTBOOKS` (`Client/src/models/textbook.ts`) must name the same books with the same lesson
+  counts.
+- **What each side does with it.**
+  - The server refuses a lesson beyond the book: 400 `Lesson must be 1 to <M> for <title>.`
+  - The client caps the lesson field the same way, and tells the user under it whether the course has a book.
+- **The tests pin the documents.** `go test` fails when a registered lesson is missing or malformed. It also
+  fails when a lesson's New words disagree with that book's `vocabulary-index.md`: a missing or extra word, its
+  pinyin, or its ★.
 
 ## The Wayground browser extension
 

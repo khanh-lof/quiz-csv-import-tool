@@ -108,6 +108,9 @@ func TestParseCreativeOptions(t *testing.T) {
 		{query: "exportType=0&courseType=0&hskStandard=3&level=10&lessonNumber=1", wantErr: "HSK 3.0 has levels 1 to 9."},
 		{query: "exportType=0&courseType=0&hskStandard=3&level=0&lessonNumber=1", wantErr: "HSK 3.0 has levels 1 to 9."},
 		{query: "exportType=0&courseType=0&level=1", wantErr: "Invalid or missing lessonNumber parameter."},
+		{query: "exportType=0&courseType=0&level=1&lessonNumber=0", wantErr: "Invalid or missing lessonNumber parameter."},
+		{query: "exportType=0&courseType=0&level=1&lessonNumber=-3", wantErr: "Invalid or missing lessonNumber parameter."},
+		{query: "exportType=0&courseType=2&courseName=Boya&lessonNumber=0", wantErr: "Invalid or missing lessonNumber parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=0", wantErr: "Invalid intelligence parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=3", wantErr: "Invalid intelligence parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=x", wantErr: "Invalid intelligence parameter."},
@@ -508,5 +511,142 @@ func TestModelForIntelligence(t *testing.T) {
 	}
 	if got := NewClient("http://x", "key", "base", nil, slog.New(slog.DiscardHandler)).modelFor(Options{Intelligence: 2}); got != "base" {
 		t.Errorf("without intelligence models want the base model, got %q", got)
+	}
+}
+
+// With the lessons of a textbook at hand, the number of its lessons is known, and the course is named
+// exactly; every other course keeps taking any positive lesson number.
+func TestParseCreativeOptionsForTextbooks(t *testing.T) {
+	useFixtureLibrary(t)
+	tests := []struct {
+		query   string
+		wantErr string
+		course  string
+	}{
+		{query: "exportType=0&courseType=0&hskStandard=3&level=2&lessonNumber=15", course: "《新HSK教程2》 (New HSK Course 2), the HSK 3.0 level 2 textbook"},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=1&lessonNumber=1", course: "《新HSK教程1》 (New HSK Course 1), the HSK 3.0 level 1 textbook"},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=3&lessonNumber=18", course: "《新HSK教程3》 (New HSK Course 3), the HSK 3.0 level 3 textbook"},
+		{query: "exportType=0&courseType=1&level=6&lessonNumber=15", course: "《YCT标准教程6》 (YCT Standard Course 6), the YCT level 6 textbook"},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=2&lessonNumber=16", wantErr: "Lesson must be 1 to 15 for 《新HSK教程2》."},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=3&lessonNumber=19", wantErr: "Lesson must be 1 to 18 for 《新HSK教程3》."},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=1&lessonNumber=0", wantErr: "Invalid or missing lessonNumber parameter."},
+		{query: "exportType=0&courseType=1&level=6&lessonNumber=16", wantErr: "Lesson must be 1 to 15 for 《YCT标准教程6》."},
+		// Courses without material are not limited: the model reads the number as a position in a book.
+		{query: "exportType=0&courseType=0&level=2&lessonNumber=16", course: "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"},
+		{query: "exportType=0&courseType=0&level=2&lessonNumber=40", course: "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"},
+		{query: "exportType=0&courseType=1&level=5&lessonNumber=99", course: "YCT (Youth Chinese Test), taught from 《YCT标准教程》 YCT Standard Course (Giáo trình chuẩn YCT)"},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=4&lessonNumber=30", course: "HSK 3.0 (the nine-level standard GF 0025-2021), taught from the HSK 3.0 edition of 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK 3.0)"},
+		{query: "exportType=0&courseType=2&courseName=Boya&level=2&lessonNumber=99", course: "Boya"},
+	}
+	for _, tt := range tests {
+		q, _ := url.ParseQuery(tt.query)
+		opts, err := ParseCreativeOptions(q)
+		if tt.wantErr != "" {
+			if err == nil || err.Error() != tt.wantErr {
+				t.Errorf("%s: want error %q, got %v", tt.query, tt.wantErr, err)
+			}
+			continue
+		}
+		if err != nil || opts.CourseDisplayName() != tt.course {
+			t.Errorf("%s: got %q, %v, want course %q", tt.query, opts.CourseDisplayName(), err, tt.course)
+		}
+	}
+}
+
+func TestBuildCreativeRequestWithLessonMaterial(t *testing.T) {
+	useFixtureLibrary(t)
+	level, lesson := 2, 7
+	opts := Options{ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumber: &lesson}
+	material := lessonMaterial(textbookFor(opts), lesson)
+	if !strings.HasPrefix(material, "LESSON MATERIAL: 《新HSK教程2》") {
+		t.Fatalf("unexpected material %q", material)
+	}
+
+	// Without images the material is the lesson: it follows the course, level and lesson number.
+	req := buildCreativeRequest("m", nil, opts)
+	texts := textsOf(t, req)
+	want := []string{
+		"Follow the LESSON SOURCE section: the LESSON MATERIAL message below is the lesson, taken from the textbook. Generate the CSV using the required format.",
+		exportTypeMessages(opts)[0],
+		"Course: 《新HSK教程2》 (New HSK Course 2), the HSK 3.0 level 2 textbook",
+		"Level: 2",
+		"Lesson number: 7",
+		material,
+	}
+	if !slices.Equal(texts, want) {
+		t.Fatalf("unexpected text parts:\n%q\nwant\n%q", texts, want)
+	}
+	if len(req.Input[0].Content) != len(want) || req.MaxOutputTokens != 10000 || req.Tools != nil {
+		t.Errorf("unexpected request %+v", req)
+	}
+
+	// With images the material comes before them, and they only narrow it down.
+	withImage := buildCreativeRequest("m", []Image{{ContentType: "image/png", Data: []byte{1, 2}}}, opts)
+	texts = textsOf(t, withImage)
+	if texts[0] != "The LESSON MATERIAL message below is the lesson, taken from the textbook; the images show the part of it to focus on. Generate the CSV using the required format." ||
+		texts[len(texts)-1] != material || len(texts) != len(want) {
+		t.Fatalf("unexpected text parts %q", texts)
+	}
+	parts := withImage.Input[0].Content
+	if len(parts) != len(want)+1 || parts[len(parts)-2].Text != material || parts[len(parts)-1].Type != "input_image" {
+		t.Fatalf("the material must come right before the images: %+v", parts)
+	}
+
+	// The token budgets do not depend on the material.
+	opts.ExportType = Wayground
+	if wayground := buildCreativeRequest("m", nil, opts); wayground.MaxOutputTokens != 16000 || len(wayground.Tools) != 1 {
+		t.Errorf("unexpected Wayground request %+v", wayground)
+	}
+	opts.ExportType = GestureQuiz
+	if gesture := buildCreativeRequest("m", nil, opts); gesture.MaxOutputTokens != 10000 || gesture.Tools != nil {
+		t.Errorf("unexpected gesture request %+v", gesture)
+	}
+}
+
+// A course without material gets exactly the request it always had, whatever the library holds.
+func TestBuildCreativeRequestWithoutLessonMaterial(t *testing.T) {
+	level, lesson := 5, 7
+	hsk2Level := 2
+	tests := []Options{
+		{ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk2, Level: &hsk2Level, LessonNumber: &lesson},
+		{ExportType: Wayground, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumber: &lesson},
+		{ExportType: GimKit, CourseType: Yct, Level: &level, LessonNumber: &lesson},
+		{ExportType: GestureQuiz, CourseType: Other, CourseName: "Boya", LessonNumber: &lesson},
+	}
+	for _, opts := range tests {
+		for _, images := range [][]Image{nil, {{ContentType: "image/png", Data: []byte{1}}}} {
+			useLibrary(t, nil)
+			before, err := json.Marshal(buildCreativeRequest("m", images, opts))
+			if err != nil {
+				t.Fatal(err)
+			}
+			useFixtureLibrary(t)
+			after, err := json.Marshal(buildCreativeRequest("m", images, opts))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(before) != string(after) || strings.Contains(string(after), "LESSON MATERIAL: ") {
+				t.Errorf("%+v with %d images: the request changed:\n%s\n%s", opts, len(images), before, after)
+			}
+		}
+	}
+}
+
+func TestCreativeSystemPromptHasTheMaterialCase(t *testing.T) {
+	prompt := normalizePrompt(creativeSystemPrompt)
+	for _, want := range []string{
+		"### When a LESSON MATERIAL message is provided",
+		"### When only images are provided",
+		"### When neither is provided",
+		"Optionally, a LESSON MATERIAL message",
+		"The web search tool is only for finding illustrations.",
+		"When a LESSON MATERIAL message is provided, it is the lesson",
+	} {
+		if strings.Count(prompt, want) != 1 {
+			t.Errorf("the system prompt must have %q once", want)
+		}
+	}
+	if strings.Index(prompt, "### When a LESSON MATERIAL") > strings.Index(prompt, "### When only images") {
+		t.Error("the material case comes first")
 	}
 }
