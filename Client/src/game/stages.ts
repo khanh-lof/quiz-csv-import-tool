@@ -48,7 +48,7 @@ export const STAGES: StageDef[] = [
     game: 'frog-bite',
     name: 'Ếch đớp chữ',
     icon: '🐸',
-    hint: 'Dịch đầu sang làn có đáp án đúng rồi há miệng để ếch đớp.',
+    hint: 'Dịch đầu sang làn có đáp án đúng rồi há miệng rồi khép lại để ếch đớp.',
     vision: 'face',
     optionCount: 3,
     seconds: 15,
