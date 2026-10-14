@@ -81,7 +81,8 @@
       @if (quiz(); as openQuiz) {
         <app-gesture-stage-map [quiz]="openQuiz" [lockedTimeMode]="assignmentTimeMode()"
                                [allowReset]="mode() === 'local' || mode() === 'job'"
-                               [allOpen]="allStagesOpen()" (start)="openIntro($event)">
+                               [allOpen]="allStagesOpen()" [passPercents]="assignmentPassPercents()"
+                               [attemptsLeft]="attemptsLeftByStage()" (start)="openIntro($event)">
           @if (mode() === 'shared') {
             <p class="share-line">
               👤 {{ playerName() }} · <a href="#" (click)="switchPlayer($event)">Không phải bạn?</a>
@@ -107,7 +108,7 @@
         <ul class="facts">
           <li>{{ stageQuestionCount() }} câu hỏi,
             {{ stageTimeLimit() === null ? 'không giới hạn thời gian' : stageTimeLimit() + ' giây mỗi câu' }}.</li>
-          <li>Cần đúng ít nhất <b>{{ passMarkOf(stageQuestionCount()) }}/{{ stageQuestionCount() }}</b> câu để qua màn.</li>
+          <li>Cần đúng ít nhất <b>{{ stagePassMark() }}/{{ stageQuestionCount() }}</b> câu để qua màn.</li>
         </ul>
         <p class="stand"><span aria-hidden="true">🧍</span> {{ standTip() }}</p>
 
@@ -272,7 +273,7 @@
     @case ('result') {
       @if (result(); as run) {
         <app-gesture-stage-result [result]="run" [saveState]="saveState()" [preview]="mode() === 'preview'"
-                                  (nextStage)="openNextStage()" (retry)="retryStage()" (toMap)="backToMap()"/>
+                                  [attemptsLeft]="resultAttemptsLeft()" (nextStage)="openNextStage()" (retry)="retryStage()" (toMap)="backToMap()"/>
       }
     }
   }

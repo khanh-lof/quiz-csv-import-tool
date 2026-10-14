@@ -34,6 +34,30 @@
   margin: 6px 0 0;
 }
 
+.pass-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pass-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.attempts-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.pass-name {
+  min-width: 170px;
+}
+
 .error {
   margin: 0 0 12px;
   color: var(--qt-error);

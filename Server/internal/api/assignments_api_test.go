@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -215,7 +216,7 @@ func TestAssignmentFlow(t *testing.T) {
 		t.Errorf("content type %q", got)
 	}
 	created := decode[map[string]any](t, rec)
-	wantKeys := []string{"closedAt", "closesAt", "code", "createdAt", "id", "jobId", "label", "open", "playerCount",
+	wantKeys := []string{"closedAt", "closesAt", "code", "createdAt", "id", "jobId", "label", "maxAttempts", "open", "passPercents", "playerCount",
 		"stageCounts", "stageLock", "timeMode", "title"}
 	if got := keysOf(created); !slices.Equal(got, wantKeys) {
 		t.Fatalf("keys %v, want %v", got, wantKeys)
@@ -258,7 +259,7 @@ func TestAssignmentFlow(t *testing.T) {
 		t.Errorf("share is cacheable: %v", rec.Header())
 	}
 	shared := decode[map[string]any](t, rec)
-	if got, want := keysOf(shared), []string{"closesAt", "csv", "label", "stageLock", "timeMode", "title"}; !slices.Equal(got, want) {
+	if got, want := keysOf(shared), []string{"attempts", "closesAt", "csv", "label", "maxAttempts", "passPercents", "stageLock", "timeMode", "title"}; !slices.Equal(got, want) {
 		t.Fatalf("share keys %v, want %v", got, want)
 	}
 	if shared["title"] != "HSK3-Bai5" || shared["label"] != "Lớp 6A" || shared["csv"] != gestureCSV ||
@@ -577,6 +578,31 @@ func TestCreateAssignmentErrors(t *testing.T) {
 		{"time mode missing", createBody(map[string]any{"timeMode": omit{}}), 400, "Invalid time mode."},
 		{"stage lock other", createBody(map[string]any{"stageLock": "free"}), 400, "Invalid stage lock."},
 		{"stage lock case", createBody(map[string]any{"stageLock": "Open"}), 400, "Invalid stage lock."},
+		{"pass percent stage not in quiz", createBody(map[string]any{"passPercents": map[string]int{"3": 70}}), 400, "Invalid pass percents."},
+		{"pass percent stage 7", createBody(map[string]any{"passPercents": map[string]int{"7": 70}}), 400, "Invalid pass percents."},
+		{"pass percent stage not a number", createBody(map[string]any{"passPercents": map[string]int{"one": 70}}), 400, "Invalid pass percents."},
+		{"pass percent 9", createBody(map[string]any{"passPercents": map[string]int{"1": 9}}), 400, "Invalid pass percents."},
+		{"pass percent 101", createBody(map[string]any{"passPercents": map[string]int{"1": 101}}), 400, "Invalid pass percents."},
+		{"pass percent 0", createBody(map[string]any{"passPercents": map[string]int{"1": 0}}), 400, "Invalid pass percents."},
+		{"pass percent negative", createBody(map[string]any{"passPercents": map[string]int{"1": -70}}), 400, "Invalid pass percents."},
+		{"pass percent fractional", createBody(map[string]any{"passPercents": map[string]any{"1": 70.5}}), 400, "Invalid pass percents."},
+		{"pass percent as a string", createBody(map[string]any{"passPercents": map[string]any{"1": "70"}}), 400, "Invalid pass percents."},
+		{"pass percent null value", createBody(map[string]any{"passPercents": map[string]any{"1": nil}}), 400, "Invalid pass percents."},
+		{"pass percent bool", createBody(map[string]any{"passPercents": map[string]any{"1": true}}), 400, "Invalid pass percents."},
+		{"pass percents an array", createBody(map[string]any{"passPercents": []int{70}}), 400, "Invalid pass percents."},
+		{"pass percents a number", createBody(map[string]any{"passPercents": 70}), 400, "Invalid pass percents."},
+		{"one bad pass percent among good ones", createBody(map[string]any{"passPercents": map[string]int{"1": 70, "2": 5}}), 400, "Invalid pass percents."},
+		{"stage counts before pass percents", createBody(map[string]any{"stageCounts": omit{}, "passPercents": map[string]int{"1": 5}}), 400, "Invalid stage counts."},
+		{"replay limit with sequential lock", createBody(map[string]any{"stageLock": "sequential", "maxAttempts": 3}), 400, "Invalid replay limit."},
+		{"replay limit with lock omitted", createBody(map[string]any{"maxAttempts": 3}), 400, "Invalid replay limit."},
+		{"replay limit 0", createBody(map[string]any{"stageLock": "open", "maxAttempts": 0}), 400, "Invalid replay limit."},
+		{"replay limit 11", createBody(map[string]any{"stageLock": "open", "maxAttempts": 11}), 400, "Invalid replay limit."},
+		{"replay limit negative", createBody(map[string]any{"stageLock": "open", "maxAttempts": -1}), 400, "Invalid replay limit."},
+		{"replay limit fractional", createBody(map[string]any{"stageLock": "open", "maxAttempts": 2.5}), 400, "Invalid replay limit."},
+		{"replay limit as a string", createBody(map[string]any{"stageLock": "open", "maxAttempts": "3"}), 400, "Invalid replay limit."},
+		{"replay limit bool", createBody(map[string]any{"stageLock": "open", "maxAttempts": true}), 400, "Invalid replay limit."},
+		{"replay limit an object", createBody(map[string]any{"stageLock": "open", "maxAttempts": map[string]int{"1": 3}}), 400, "Invalid replay limit."},
+		{"pass percents before replay limit", createBody(map[string]any{"passPercents": map[string]int{"1": 5}, "maxAttempts": 0}), 400, "Invalid pass percents."},
 		{"time mode case", createBody(map[string]any{"timeMode": "Standard"}), 400, "Invalid time mode."},
 		{"closes in the past", createBody(map[string]any{"closesAt": inTime(now.Add(-time.Minute))}), 400, "Invalid closing time."},
 		{"closes now", createBody(map[string]any{"closesAt": inTime(now)}), 400, "Invalid closing time."},
@@ -801,14 +827,37 @@ func TestShareRoutesAnswer404ForAnUnknownCode(t *testing.T) {
 
 func TestPassMark(t *testing.T) {
 	for n, want := range map[int]int{1: 1, 2: 2, 3: 3, 4: 3, 5: 4, 6: 5, 10: 7, 20: 14, 25: 18, 50: 35} {
-		if got := passMark(n); got != want {
-			t.Errorf("passMark(%d) = %d, want %d", n, got, want)
+		if got := passMark(n, 70); got != want {
+			t.Errorf("passMark(%d, 70) = %d, want %d", n, got, want)
 		}
 	}
 	// The client computes Math.ceil(0.7 * n) with doubles; the server does it in integers.
 	for n := 1; n <= 300; n++ {
-		if got, want := passMark(n), int(math.Ceil(0.7*float64(n))); got != want {
-			t.Errorf("passMark(%d) = %d, the client's Math.ceil(0.7*n) is %d", n, got, want)
+		if got, want := passMark(n, 70), int(math.Ceil(0.7*float64(n))); got != want {
+			t.Errorf("passMark(%d, 70) = %d, the client's Math.ceil(0.7*n) is %d", n, got, want)
+		}
+		// Exact: the smallest k with 100k >= 70n.
+		k := 0
+		for 100*k < 70*n {
+			k++
+		}
+		if got := passMark(n, 70); got != k {
+			t.Errorf("passMark(%d, 70) = %d, exact integer ceil is %d", n, got, k)
+		}
+		if got := passMark(n, 100); got != n {
+			t.Errorf("passMark(%d, 100) = %d, want %d", n, got, n)
+		}
+		for percent := minPassPercent; percent <= maxPassPercent; percent++ {
+			if got := passMark(n, percent); got < 1 || got > n || 100*got < percent*n || 100*(got-1) >= percent*n {
+				t.Errorf("passMark(%d, %d) = %d is not ceil(%d*n/100)", n, percent, got, percent)
+			}
+		}
+	}
+	for _, tt := range []struct{ n, percent, want int }{
+		{5, 50, 3}, {5, 10, 1}, {5, 100, 5}, {10, 50, 5}, {10, 85, 9}, {7, 60, 5}, {4, 25, 1}, {3, 34, 2},
+	} {
+		if got := passMark(tt.n, tt.percent); got != tt.want {
+			t.Errorf("passMark(%d, %d) = %d, want %d", tt.n, tt.percent, got, tt.want)
 		}
 	}
 }
@@ -1171,5 +1220,319 @@ func TestStageLockDefaultsToSequential(t *testing.T) {
 	}
 	if !validStageLock("sequential") || !validStageLock("open") || validStageLock("") {
 		t.Error("validStageLock disagrees with the contract")
+	}
+}
+
+// ---- pass percents ----
+
+func TestCreateWithPassPercents(t *testing.T) {
+	c := newClassroom(t, map[string]any{"passPercents": map[string]int{"2": 50}})
+	want := map[string]int{"1": 70, "2": 50}
+	if !maps.Equal(c.a.PassPercents, want) {
+		t.Fatalf("created %v, want %v", c.a.PassPercents, want)
+	}
+	// The same complete map comes back from the detail, the list and the share answer.
+	if got := c.detail(t).PassPercents; !maps.Equal(got, want) {
+		t.Errorf("detail %v", got)
+	}
+	rec := c.teacher(http.MethodGet, "/api/assignments", "")
+	wantStatus(t, rec, http.StatusOK)
+	if list := decode[struct{ Assignments []assignmentView }](t, rec).Assignments; len(list) != 1 || !maps.Equal(list[0].PassPercents, want) {
+		t.Errorf("list %+v", list)
+	}
+	shared := decode[struct{ PassPercents map[string]int }](t, c.shareGet())
+	if !maps.Equal(shared.PassPercents, want) {
+		t.Errorf("share %v", shared.PassPercents)
+	}
+	// It is fixed for the assignment's life: a PATCH leaves it alone.
+	wantStatus(t, c.patch(`{"label":"x","passPercents":{"1":10}}`), http.StatusOK)
+	if got := c.detail(t).PassPercents; !maps.Equal(got, want) {
+		t.Errorf("after patch %v", got)
+	}
+
+	// The limits are allowed, and null or an empty object mean all default.
+	for name, v := range map[string]any{"limits": map[string]int{"1": 10, "2": 100}, "null": nil, "empty": map[string]int{}} {
+		c := newClassroom(t, map[string]any{"passPercents": v})
+		wantAll := map[string]int{"1": 70, "2": 70}
+		if name == "limits" {
+			wantAll = map[string]int{"1": 10, "2": 100}
+		}
+		if !maps.Equal(c.a.PassPercents, wantAll) {
+			t.Errorf("%s: %v, want %v", name, c.a.PassPercents, wantAll)
+		}
+	}
+}
+
+func TestPassPercentsDefaultToSeventy(t *testing.T) {
+	c := newClassroom(t, nil)
+	want := map[string]int{"1": 70, "2": 70}
+	if !maps.Equal(c.a.PassPercents, want) {
+		t.Fatalf("created %v", c.a.PassPercents)
+	}
+}
+
+func TestResultPassesAtTheTeachersPercent(t *testing.T) {
+	c := newClassroom(t, map[string]any{"passPercents": map[string]int{"1": 60}})
+	_, token := c.join(t, "Lan")
+	c.finish(t, token, "run-0000001", 1, 3, 5)  // 3 of 5 is 60%
+	c.finish(t, token, "run-0000002", 2, 6, 10) // the default 70% needs 7
+	lan := c.detail(t).Players[0]
+	if !lan.Stages["1"].Passed || lan.Stages["2"].Passed || lan.StagesPassed != 1 {
+		t.Fatalf("lan %+v", lan)
+	}
+
+	// The same 3 of 5 does not pass where the teacher set nothing.
+	d := newClassroom(t, nil)
+	_, token = d.join(t, "Lan")
+	d.finish(t, token, "run-0000001", 1, 3, 5)
+	if lan = d.detail(t).Players[0]; lan.Stages["1"].Passed || lan.StagesPassed != 0 {
+		t.Fatalf("default lan %+v", lan)
+	}
+
+	// A strict stage: 100% needs every answer.
+	e := newClassroom(t, map[string]any{"passPercents": map[string]int{"2": 100}})
+	_, token = e.join(t, "Lan")
+	e.finish(t, token, "run-0000001", 2, 9, 10)
+	if lan = e.detail(t).Players[0]; lan.Stages["2"].Passed {
+		t.Fatalf("9 of 10 passed a 100%% stage: %+v", lan)
+	}
+	e.finish(t, token, "run-0000002", 2, 10, 10)
+	if lan = e.detail(t).Players[0]; !lan.Stages["2"].Passed || lan.StagesPassed != 1 {
+		t.Fatalf("10 of 10 did not pass: %+v", lan)
+	}
+}
+
+// An assignment stored before the setting existed has no passPercents: it reads as 70 everywhere.
+func TestAssignmentWithoutPassPercentsReadsAsSeventy(t *testing.T) {
+	env := newEnv(t)
+	env.seedJob(t, "alice", "job1", nil)
+	token, _ := env.login(t, "alice", "pw")
+	old := &store.Assignment{
+		ID: "old1", Code: "OLDCODE123", Username: "alice", JobID: "job1", Title: "HSK3-Bai5", CSV: gestureCSV,
+		TimeMode: "standard", StageCounts: map[string]int{"1": 5, "2": 10}, CreatedAt: env.clock.Now(),
+	}
+	if err := env.assignments.Create(context.Background(), old); err != nil {
+		t.Fatal(err)
+	}
+	c := &classroom{testEnv: env, token: token}
+	rec := c.teacher(http.MethodGet, "/api/assignments/old1", "")
+	wantStatus(t, rec, http.StatusOK)
+	c.a = decode[assignmentDetailView](t, rec).assignmentView
+	want := map[string]int{"1": 70, "2": 70}
+	if !maps.Equal(c.a.PassPercents, want) {
+		t.Fatalf("view %v", c.a.PassPercents)
+	}
+	shared := decode[struct{ PassPercents map[string]int }](t, c.shareGet())
+	if !maps.Equal(shared.PassPercents, want) {
+		t.Fatalf("share %v", shared.PassPercents)
+	}
+	_, ptoken := c.join(t, "Lan")
+	c.finish(t, ptoken, "run-0000001", 1, 3, 5)
+	c.finish(t, ptoken, "run-0000002", 2, 7, 10)
+	lan := c.detail(t).Players[0]
+	if lan.Stages["1"].Passed || !lan.Stages["2"].Passed {
+		t.Fatalf("lan %+v", lan)
+	}
+	c.finish(t, ptoken, "run-0000003", 1, 4, 5)
+	if lan = c.detail(t).Players[0]; !lan.Stages["1"].Passed || lan.StagesPassed != 2 {
+		t.Fatalf("lan %+v", lan)
+	}
+}
+
+// ---- replay limit ----
+
+func TestCreateWithMaxAttempts(t *testing.T) {
+	c := newClassroom(t, map[string]any{"stageLock": "open", "maxAttempts": 3})
+	if c.a.MaxAttempts == nil || *c.a.MaxAttempts != 3 {
+		t.Fatalf("created %v", c.a.MaxAttempts)
+	}
+	if got := c.detail(t).MaxAttempts; got == nil || *got != 3 {
+		t.Errorf("detail %v", got)
+	}
+	rec := c.teacher(http.MethodGet, "/api/assignments", "")
+	wantStatus(t, rec, http.StatusOK)
+	if list := decode[struct{ Assignments []assignmentView }](t, rec).Assignments; len(list) != 1 || list[0].MaxAttempts == nil || *list[0].MaxAttempts != 3 {
+		t.Errorf("list %+v", list)
+	}
+	shared := decode[map[string]any](t, c.shareGet())
+	if shared["maxAttempts"] != float64(3) {
+		t.Errorf("share %v", shared["maxAttempts"])
+	}
+	// It is fixed for the assignment's life: a PATCH leaves it alone.
+	wantStatus(t, c.patch(`{"label":"x","maxAttempts":9}`), http.StatusOK)
+	if got := c.detail(t).MaxAttempts; got == nil || *got != 3 {
+		t.Errorf("after patch %v", got)
+	}
+
+	// The limits are allowed.
+	for _, n := range []int{1, 10} {
+		c := newClassroom(t, map[string]any{"stageLock": "open", "maxAttempts": n})
+		if c.a.MaxAttempts == nil || *c.a.MaxAttempts != n {
+			t.Errorf("%d: %v", n, c.a.MaxAttempts)
+		}
+	}
+}
+
+func TestMaxAttemptsDefaultsToUnlimited(t *testing.T) {
+	for name, overrides := range map[string]map[string]any{
+		"absent":      nil,
+		"null":        {"maxAttempts": nil},
+		"open absent": {"stageLock": "open"},
+		"open null":   {"stageLock": "open", "maxAttempts": nil},
+		"sequential":  {"stageLock": "sequential", "maxAttempts": nil},
+	} {
+		c := newClassroom(t, overrides)
+		if c.a.MaxAttempts != nil {
+			t.Errorf("%s: view %v", name, *c.a.MaxAttempts)
+		}
+		// The key is always there, null when unlimited.
+		detail := decode[map[string]any](t, c.teacher(http.MethodGet, "/api/assignments/"+c.a.ID, ""))
+		if v, ok := detail["maxAttempts"]; !ok || v != nil {
+			t.Errorf("%s: detail key %v, %v", name, v, ok)
+		}
+		shared := decode[map[string]any](t, c.shareGet())
+		if v, ok := shared["maxAttempts"]; !ok || v != nil {
+			t.Errorf("%s: share key %v, %v", name, v, ok)
+		}
+	}
+}
+
+func TestShareAnswersTheCallersAttempts(t *testing.T) {
+	c := newClassroom(t, map[string]any{"stageLock": "open", "maxAttempts": 5})
+	attemptsOf := func(opts ...reqOpt) map[string]int {
+		t.Helper()
+		rec := c.send(http.MethodGet, "/api/share/"+c.a.Code, "", opts...)
+		wantStatus(t, rec, http.StatusOK)
+		if rec.Header().Get("Cache-Control") != "no-store" {
+			t.Errorf("share is cacheable: %v", rec.Header())
+		}
+		raw := decode[map[string]any](t, rec)
+		if _, ok := raw["attempts"].(map[string]any); !ok {
+			t.Fatalf("attempts is %v, want an object", raw["attempts"])
+		}
+		return decode[struct{ Attempts map[string]int }](t, rec).Attempts
+	}
+
+	_, lan := c.join(t, "Lan")
+	_, nam := c.join(t, "Nam")
+	if got := attemptsOf(); len(got) != 0 {
+		t.Errorf("no token: %v", got)
+	}
+	if got := attemptsOf(header("X-Player-Token", lan)); len(got) != 0 {
+		t.Errorf("before any run: %v", got)
+	}
+
+	c.finish(t, lan, "run-0000001", 1, 5, 5)
+	c.finish(t, lan, "run-0000002", 1, 2, 5)
+	c.finish(t, lan, "run-0000003", 2, 7, 10)
+	c.finish(t, nam, "run-0000004", 2, 7, 10)
+	// A repeated run id is not a new attempt.
+	c.finish(t, lan, "run-0000003", 2, 7, 10)
+
+	if got, want := attemptsOf(header("X-Player-Token", lan)), map[string]int{"1": 2, "2": 1}; !maps.Equal(got, want) {
+		t.Errorf("lan %v, want %v", got, want)
+	}
+	if got, want := attemptsOf(header("X-Player-Token", nam)), map[string]int{"2": 1}; !maps.Equal(got, want) {
+		t.Errorf("nam %v, want %v", got, want)
+	}
+	for name, opts := range map[string][]reqOpt{
+		"no token":            nil,
+		"bad token":           {header("X-Player-Token", "garbage")},
+		"bad token, bad auth": {header("X-Player-Token", "garbage"), header("Authorization", "Bearer garbage")},
+	} {
+		if got := attemptsOf(opts...); len(got) != 0 {
+			t.Errorf("%s: %v", name, got)
+		}
+	}
+
+	// A token of another assignment tells nothing either.
+	other := decode[assignmentView](t, c.teacher(http.MethodPost, "/api/assignments", createBody(map[string]any{"stageLock": "open"})))
+	rec := c.send(http.MethodGet, "/api/share/"+other.Code, "", header("X-Player-Token", lan))
+	wantStatus(t, rec, http.StatusOK)
+	if got := decode[struct{ Attempts map[string]int }](t, rec).Attempts; len(got) != 0 {
+		t.Errorf("another assignment's token: %v", got)
+	}
+}
+
+func TestReplayLimit(t *testing.T) {
+	c := newClassroom(t, map[string]any{"stageLock": "open", "maxAttempts": 2})
+	_, token := c.join(t, "Lan")
+	_, other := c.join(t, "Nam")
+
+	c.finish(t, token, "run-0000001", 1, 2, 5)
+	c.finish(t, token, "run-0000002", 1, 3, 5)
+	before := c.detail(t)
+
+	// A third run of the stage is refused and recorded nowhere.
+	wantError(t, c.report(token, resultBody("run-0000003", 1, 5, 5)), http.StatusConflict, "Replay limit reached")
+	after := c.detail(t)
+	if !reflect.DeepEqual(before, after) {
+		t.Fatalf("ranking changed by a refused run:\n%+v\n%+v", before, after)
+	}
+	lan := after.Players[0]
+	if lan.Stages["1"].Correct != 3 || lan.Stages["1"].Attempts != 2 || lan.Stages["1"].Passed {
+		t.Fatalf("lan %+v", lan)
+	}
+	// A refused run id is not remembered: it is still refused, not 204.
+	wantError(t, c.report(token, resultBody("run-0000003", 1, 5, 5)), http.StatusConflict, "Replay limit reached")
+
+	// A run already reported is resent with its id: still 204, nothing changes.
+	wantStatus(t, c.report(token, resultBody("run-0000002", 1, 3, 5)), http.StatusNoContent)
+	wantStatus(t, c.report(token, resultBody("run-0000001", 1, 2, 5)), http.StatusNoContent)
+	if got := c.detail(t); !reflect.DeepEqual(before, got) {
+		t.Fatalf("a resent run changed the ranking:\n%+v\n%+v", before, got)
+	}
+
+	// The limit is per stage and per student.
+	c.finish(t, token, "run-0000004", 2, 7, 10)
+	c.finish(t, other, "run-0000005", 1, 5, 5)
+	c.finish(t, other, "run-0000006", 1, 5, 5)
+	wantError(t, c.report(other, resultBody("run-0000007", 1, 5, 5)), http.StatusConflict, "Replay limit reached")
+
+	// An invalid result is still a 400, not a 409.
+	wantError(t, c.report(token, resultBody("run-0000008", 1, 9, 5)), http.StatusBadRequest, "Invalid result.")
+}
+
+func TestNoReplayLimitAcceptsManyRuns(t *testing.T) {
+	for name, overrides := range map[string]map[string]any{
+		"sequential": nil,
+		"open":       {"stageLock": "open"},
+	} {
+		c := newClassroom(t, overrides)
+		_, token := c.join(t, "Lan")
+		for i := 0; i < 15; i++ {
+			c.finish(t, token, fmt.Sprintf("run-%07d", i), 1, 1, 5)
+		}
+		if got := c.detail(t).Players[0].Stages["1"].Attempts; got != 15 {
+			t.Errorf("%s: %d attempts", name, got)
+		}
+	}
+}
+
+// An assignment stored before the setting existed has no maxAttempts: it reads as unlimited.
+func TestAssignmentWithoutMaxAttemptsIsUnlimited(t *testing.T) {
+	env := newEnv(t)
+	env.seedJob(t, "alice", "job1", nil)
+	token, _ := env.login(t, "alice", "pw")
+	old := &store.Assignment{
+		ID: "old1", Code: "OLDCODE123", Username: "alice", JobID: "job1", Title: "HSK3-Bai5", CSV: gestureCSV,
+		TimeMode: "standard", StageLock: "open", StageCounts: map[string]int{"1": 5, "2": 10}, CreatedAt: env.clock.Now(),
+	}
+	if err := env.assignments.Create(context.Background(), old); err != nil {
+		t.Fatal(err)
+	}
+	c := &classroom{testEnv: env, token: token}
+	rec := c.teacher(http.MethodGet, "/api/assignments/old1", "")
+	wantStatus(t, rec, http.StatusOK)
+	c.a = decode[assignmentDetailView](t, rec).assignmentView
+	if c.a.MaxAttempts != nil {
+		t.Fatalf("view %v", *c.a.MaxAttempts)
+	}
+	if shared := decode[map[string]any](t, c.shareGet()); shared["maxAttempts"] != nil {
+		t.Fatalf("share %v", shared["maxAttempts"])
+	}
+	_, ptoken := c.join(t, "Lan")
+	for i := 0; i < 12; i++ {
+		c.finish(t, ptoken, fmt.Sprintf("run-%07d", i), 1, 3, 5)
 	}
 }

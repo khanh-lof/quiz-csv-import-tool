@@ -44,6 +44,7 @@ import {
   assignmentStatusText,
   formatStamp,
   isOpenAt,
+  passPercentOf,
   RankedPlayer,
   rankingCsv,
   shareUrl,
@@ -67,6 +68,8 @@ interface StageColumn {
   position: number;
   icon: string;
   name: string;
+  // The percentage of right answers that passes the stage.
+  percent: number;
 }
 
 // One assignment's ranking page (/assignments/:id): the link and the actions of the teacher, and the
@@ -142,8 +145,20 @@ export class AssignmentRanking {
         position: stagePosition(keys.map(Number), Number(key)),
         icon: def?.icon ?? '',
         name: def?.name ?? '',
+        percent: passPercentOf(this.detail()?.passPercents, Number(key)),
       };
     });
+  });
+  // The pass percentage as one line: "70%" when every stage shares it, else each stage's, "Màn 1 70% · Màn 2 50%".
+  protected readonly passText = computed(() => {
+    const columns = this.stages();
+    if (columns.length === 0) {
+      return '';
+    }
+    const first = columns[0].percent;
+    return columns.every(column => column.percent === first)
+      ? `${first}%`
+      : columns.map(column => `Màn ${column.position} ${column.percent}%`).join(' · ');
   });
   // A closing time in the past would close the assignment at once, and the server refuses it.
   protected readonly deadlineInPast = computed(() => {

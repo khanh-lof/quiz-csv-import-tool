@@ -66,12 +66,15 @@ function gestureJob(overrides: Partial<AiJob> = {}): AiJob {
 const CODE = 'ABC123DEF4';
 
 function sharedQuiz(overrides: Partial<SharedQuiz> = {}): SharedQuiz {
-  return { title: 'HSK1 bài 1', label: 'Lớp 6A', csv: DEMO_QUIZ_CSV, timeMode: 'standard', stageLock: 'sequential', closesAt: null, ...overrides };
+  return { title: 'HSK1 bài 1', label: 'Lớp 6A', csv: DEMO_QUIZ_CSV, timeMode: 'standard', stageLock: 'sequential',
+    passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70}, maxAttempts: null, attempts: {},
+    closesAt: null, ...overrides };
 }
 
 function assignmentDetail(overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
   return {
     id: 'a1', code: CODE, jobId: 'job-1', title: 'HSK1 bài 1', label: 'Lớp 6A', timeMode: 'standard', stageLock: 'sequential',
+    passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70}, maxAttempts: null,
     stageCounts: { 1: 5, 2: 5, 3: 5, 4: 5, 5: 5, 6: 5 }, createdAt: '2026-10-14T00:00:00Z', closesAt: null,
     closedAt: null, open: true, playerCount: 0, csv: DEMO_QUIZ_CSV, players: [], ...overrides,
   };
@@ -104,7 +107,7 @@ describe('GesturePlay', () => {
     jobs = { jobs: signal<AiJob[]>([]), refresh: jasmine.createSpy('refresh').and.returnValue(of([])) };
     stored = null;
     shared = jasmine.createSpyObj<SharedPlayService>(
-      'SharedPlayService', ['load', 'join', 'identity', 'forget', 'submit', 'flush', 'pendingCount']);
+      'SharedPlayService', ['load', 'join', 'identity', 'forget', 'submit', 'flush', 'pendingCount', 'pendingByStage']);
     shared.load.and.callFake(() => of(sharedQuiz()));
     shared.identity.and.callFake(() => stored);
     shared.forget.and.callFake(() => {
@@ -118,6 +121,7 @@ describe('GesturePlay', () => {
     shared.submit.and.returnValue(of<SubmitOutcome>('saved'));
     shared.flush.and.returnValue(of(undefined));
     shared.pendingCount.and.returnValue(0);
+    shared.pendingByStage.and.returnValue({});
     assignments = jasmine.createSpyObj<AssignmentService>('AssignmentService', ['get']);
     assignments.get.and.callFake(() => of(assignmentDetail()));
     TestBed.configureTestingModule({
@@ -953,6 +957,72 @@ describe('GesturePlay', () => {
       });
     });
 
+    describe('the pass percentage', () => {
+      // Plays stage 1 answering the first `right` questions right and the rest wrong.
+      function playStageOneRight(right: number): void {
+        let asked = 0;
+        playStageOne(() => (asked++ < right ? rightChoice() : anyWrongChoice()));
+      }
+
+      it('says on the intro what the percentage of the teacher comes to', () => {
+        shared.load.and.returnValue(of(sharedQuiz({ passPercents: { 1: 50, 2: 70, 3: 70, 4: 70, 5: 70, 6: 70 } })));
+        openShared(lan);
+
+        click('.stage-card', 'Màn 1');
+
+        expect(text()).toContain('Cần đúng ít nhất 3/5');
+      });
+
+      it('passes 3 of 5 at 50%, where the default would fail it', () => {
+        shared.load.and.returnValue(of(sharedQuiz({ passPercents: { 1: 50, 2: 70, 3: 70, 4: 70, 5: 70, 6: 70 } })));
+        openShared(lan);
+
+        playStageOneRight(3);
+
+        expect(text()).toContain('Qua màn 1!');
+        expect(text()).toContain('Cần đúng ít nhất 3/5');
+        expect(shared.submit).toHaveBeenCalledWith(CODE, { stage: 1, correct: 3, total: 5 });
+        expect(JSON.parse(localStorage.getItem(PROGRESS_KEY)!)[SAVED_KEY].passed).toEqual([1]);
+        expect(text()).toContain('Màn tiếp theo');
+      });
+
+      it('fails 3 of 5 at the default 70%', () => {
+        openShared(lan);
+
+        playStageOneRight(3);
+
+        expect(text()).toContain('Chưa qua màn 1');
+        expect(text()).toContain('Cần đúng ít nhất 4/5');
+      });
+
+      it('asks for every answer at 100%', () => {
+        shared.load.and.returnValue(of(sharedQuiz({ passPercents: { 1: 100, 2: 70, 3: 70, 4: 70, 5: 70, 6: 70 } })));
+        openShared(lan);
+
+        playStageOneRight(4);
+
+        expect(text()).toContain('Chưa qua màn 1');
+        expect(text()).toContain('Cần đúng ít nhất 5/5');
+      });
+
+      it('shows the own percentage of each stage on the map when they differ', () => {
+        shared.load.and.returnValue(of(sharedQuiz({ passPercents: { 1: 50, 2: 70, 3: 70, 4: 70, 5: 70, 6: 70 } })));
+        openShared(lan);
+
+        const cards = stageCards();
+        expect(cards[0].textContent).toContain('qua màn từ 50%');
+        expect(cards[1].textContent).not.toContain('qua màn từ');
+        expect(normalized('.summary')).toContain('Mỗi màn có điểm qua màn riêng');
+      });
+
+      it('names the one percentage in the summary of the map when every stage shares it', () => {
+        shared.load.and.returnValue(of(sharedQuiz({ passPercents: { 1: 50, 2: 50, 3: 50, 4: 50, 5: 50, 6: 50 } })));
+        openShared(lan);
+
+        expect(normalized('.summary')).toContain('Mỗi màn cần đúng từ 50% số câu để mở màn sau.');
+      });
+    });
+
     describe('the stage lock', () => {
       it('keeps the later stages locked until the earlier one is passed by default', () => {
         openShared(lan);
@@ -972,6 +1042,193 @@ describe('GesturePlay', () => {
 
         click('.stage-card', 'Màn 3');
         expect(text()).toContain('Ếch đớp chữ');
+      });
+    });
+
+    describe('the replay limit', () => {
+      const limited = (overrides: Partial<SharedQuiz> = {}) =>
+        sharedQuiz({ stageLock: 'open', maxAttempts: 2, ...overrides });
+      const cardText = (index: number): string => (stageCards()[index].textContent ?? '').replace(/\s+/g, ' ');
+
+      // Answers the five questions of the stage on screen.
+      function answerQuestions(answer: () => number | string[]): void {
+        for (let question = 0; question < 5; question += 1) {
+          game().choose.emit(answer());
+          fixture.detectChanges();
+          click('button', 'Tiếp');
+        }
+      }
+
+      function replay(answer: () => number | string[]): void {
+        click('button', 'Chơi lại màn');
+        answerQuestions(answer);
+      }
+
+      it('says nothing about runs on the map when there is no limit', () => {
+        shared.load.and.returnValue(of(sharedQuiz({ stageLock: 'open' })));
+        openShared(lan);
+
+        expect(stageCards().some(card => /lượt/.test(card.textContent ?? ''))).toBeFalse();
+        expect(stageCards().every(card => !card.disabled)).toBeTrue();
+      });
+
+      it('says how many runs each stage has left', () => {
+        shared.load.and.returnValue(of(limited({ attempts: { 1: 1 } })));
+        openShared(lan);
+
+        expect(cardText(0)).toContain('Còn 1 lượt');
+        expect(cardText(1)).toContain('Còn 2 lượt');
+        expect(stageCards().every(card => !card.disabled)).toBeTrue();
+      });
+
+      it('shows a stage with all its runs used as used up, and it cannot be opened', () => {
+        shared.load.and.returnValue(of(limited({ attempts: { 1: 2, 3: 5 } })));
+        openShared(lan);
+
+        expect(cardText(0)).toContain('Hết lượt');
+        expect(stageCards()[0].disabled).toBeTrue();
+        expect(stageCards()[2].disabled).toBeTrue();
+        expect(stageCards()[1].disabled).toBeFalse();
+        shared.load.calls.reset();
+        stageCards()[0].click();
+        fixture.detectChanges();
+        expect(shared.load).not.toHaveBeenCalled();
+        expect(element().querySelector('.intro')).toBeNull();
+      });
+
+      it('counts the runs the device still has to send, with the server\'s', () => {
+        shared.load.and.returnValue(of(limited({ attempts: { 1: 1 } })));
+        shared.pendingByStage.and.returnValue({ '1': 1 });
+        openShared(lan);
+
+        expect(cardText(0)).toContain('Hết lượt');
+        expect(stageCards()[0].disabled).toBeTrue();
+      });
+
+      it('reads the queue of the device when it opens the quiz', () => {
+        shared.load.and.returnValue(of(limited()));
+        openShared(lan);
+
+        expect(shared.load).toHaveBeenCalledWith(CODE);
+        expect(shared.pendingByStage).toHaveBeenCalledWith(CODE);
+      });
+
+      it('lets a run be replayed while runs are left', () => {
+        shared.load.and.returnValue(of(limited()));
+        openShared(lan);
+
+        playStageOne(wrongChoice);
+        expect(element().querySelector('app-gesture-stage-result')?.textContent).toContain('Chơi lại màn');
+        expect(text()).not.toContain('Bạn đã dùng hết lượt chơi màn này');
+
+        replay(wrongChoice);
+
+        expect(shared.submit).toHaveBeenCalledTimes(2);
+        expect(text()).toContain('Chưa qua màn 1');
+      });
+
+      it('hides the replay and says why when the last run is used', () => {
+        shared.load.and.returnValue(of(limited()));
+        openShared(lan);
+        playStageOne(wrongChoice);
+
+        replay(wrongChoice);
+
+        expect(text()).not.toContain('Chơi lại màn');
+        expect(text()).toContain('Bạn đã dùng hết lượt chơi màn này');
+        expect(text()).toContain('Về bản đồ');
+        click('button', 'Về bản đồ');
+        expect(cardText(0)).toContain('Hết lượt');
+        expect(stageCards()[0].disabled).toBeTrue();
+      });
+
+      it('still offers the next stage at the limit', () => {
+        shared.load.and.returnValue(of(limited({ maxAttempts: 1 })));
+        openShared(lan);
+
+        playStageOne(rightChoice);
+
+        expect(text()).not.toContain('Chơi lại màn');
+        expect(text()).toContain('Màn tiếp theo');
+        click('button', 'Màn tiếp theo');
+        expect(text()).toContain('Nghiêng đầu');
+      });
+
+      it('counts a run that was only queued, so being offline does not give more runs', () => {
+        shared.load.and.returnValue(of(limited()));
+        shared.submit.and.returnValue(of<SubmitOutcome>('queued'));
+        openShared(lan);
+
+        playStageOne(wrongChoice);
+        click('button', 'Về bản đồ');
+
+        expect(cardText(0)).toContain('Còn 1 lượt');
+      });
+
+      it('does not give a run back when the server\'s answer has not caught up with it', () => {
+        shared.load.and.returnValue(of(limited()));
+        openShared(lan);
+        playStageOne(wrongChoice);
+        click('button', 'Về bản đồ');
+
+        // The answer counts no run yet (the result is still on its way).
+        click('.stage-card', 'Màn 1');
+
+        expect(text()).toContain('Cần đúng ít nhất 4/5');
+        click('button', 'Về bản đồ');
+        expect(cardText(0)).toContain('Còn 1 lượt');
+      });
+
+      it('goes back to the map, with the stage used up, when the check finds the runs gone elsewhere', () => {
+        shared.load.and.returnValue(of(limited()));
+        openShared(lan);
+        shared.load.and.returnValue(of(limited({ attempts: { 1: 2 } })));
+
+        click('.stage-card', 'Màn 1');
+
+        expect(element().querySelector('.intro')).toBeNull();
+        expect(stageCards().length).toBe(6);
+        expect(cardText(0)).toContain('Hết lượt');
+        expect(stageCards()[0].disabled).toBeTrue();
+      });
+
+      it('checks again before a replay, and does not start a stage the server has used up', () => {
+        shared.load.and.returnValue(of(limited({ maxAttempts: 3 })));
+        openShared(lan);
+        playStageOne(wrongChoice);
+        shared.load.and.returnValue(of(limited({ maxAttempts: 3, attempts: { 1: 3 } })));
+
+        click('button', 'Chơi lại màn');
+
+        expect(element().querySelector('[data-game]')).toBeNull();
+        expect(cardText(0)).toContain('Hết lượt');
+      });
+
+      it('marks the stage used up and says so when the server refuses the run, without keeping it', () => {
+        shared.load.and.returnValue(of(limited({ maxAttempts: 5 })));
+        shared.submit.and.returnValue(of<SubmitOutcome>('limit'));
+        openShared(lan);
+
+        playStageOne(rightChoice);
+
+        expect(shared.submit).toHaveBeenCalledTimes(1);
+        expect(text()).toContain('Bạn đã dùng hết lượt chơi màn này, kết quả này không được lưu.');
+        expect(text()).not.toContain('Chơi lại màn');
+        click('button', 'Về bản đồ');
+        expect(cardText(0)).toContain('Hết lượt');
+        expect(stageCards()[0].disabled).toBeTrue();
+      });
+
+      it('gives a new student on the device all the runs', () => {
+        shared.load.and.returnValue(of(limited({ attempts: { 1: 2 } })));
+        openShared(lan);
+        expect(stageCards()[0].disabled).toBeTrue();
+
+        click('a', 'Không phải bạn?');
+        joinAs('Nam');
+
+        expect(cardText(0)).toContain('Còn 2 lượt');
+        expect(stageCards()[0].disabled).toBeFalse();
       });
     });
 
@@ -1235,6 +1492,25 @@ describe('GesturePlay', () => {
       expect(text()).toContain('18 giây mỗi câu');
     });
 
+    it('judges a run by the percentages of the assignment, without writing progress', () => {
+      assignments.get.and.returnValue(of(assignmentDetail({ passPercents: { 1: 50, 2: 70, 3: 70, 4: 70, 5: 70, 6: 70 } })));
+      openPreview();
+
+      click('.stage-card', 'Màn 1');
+      expect(text()).toContain('Cần đúng ít nhất 3/5');
+      click('button', 'Bắt đầu');
+      let asked = 0;
+      for (let question = 0; question < 5; question += 1) {
+        game().choose.emit(asked++ < 3 ? rightChoice() : anyWrongChoice());
+        fixture.detectChanges();
+        click('button', 'Tiếp');
+      }
+
+      expect(text()).toContain('Qua màn 1!');
+      expect(text()).toContain('Cần đúng ít nhất 3/5');
+      expect(localStorage.getItem(PROGRESS_KEY)).toBeNull();
+    });
+
     it('sends nothing and writes no progress, but offers the next stage after a failed run too', () => {
       openPreview();
 
@@ -1246,6 +1522,26 @@ describe('GesturePlay', () => {
       expect(shared.submit).not.toHaveBeenCalled();
       expect(shared.flush).not.toHaveBeenCalled();
       expect(localStorage.getItem(PROGRESS_KEY)).toBeNull();
+    });
+
+    it('never limits the runs, whatever the assignment says', () => {
+      assignments.get.and.returnValue(of(assignmentDetail({ stageLock: 'open', maxAttempts: 1 })));
+      openPreview();
+
+      expect(stageCards().some(card => /lượt/.test(card.textContent ?? ''))).toBeFalse();
+      playStageOne(wrongChoice);
+      expect(text()).toContain('Chơi lại màn');
+      click('button', 'Chơi lại màn');
+      for (let question = 0; question < 5; question += 1) {
+        game().choose.emit(wrongChoice());
+        fixture.detectChanges();
+        click('button', 'Tiếp');
+      }
+
+      expect(text()).toContain('Chơi lại màn');
+      expect(text()).not.toContain('Bạn đã dùng hết lượt');
+      click('button', 'Về bản đồ');
+      expect(stageCards().every(card => !card.disabled)).toBeTrue();
     });
 
     it('does not check the server before a stage', () => {

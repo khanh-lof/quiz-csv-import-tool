@@ -28,7 +28,7 @@ import { Choice, Reveal, StageGameBase, VisionFrame, VisionKind } from '../../ga
 import { passMark, STAGES, stageDef, stagePosition } from '../../game/stages';
 import { VisionService } from '../../game/vision.service';
 import { AiJob } from '../../models/ai-job';
-import { formatClose, PlayerIdentity, StageLock } from '../../models/assignment';
+import { attemptsLeft, formatClose, passPercentOf, PlayerIdentity, SharedQuiz, StageLock } from '../../models/assignment';
 import { ExportType } from '../../models/export-type';
 import { GestureQuiz, parseGestureQuiz, questionCount } from '../../models/gesture-quiz';
 import { AiCsvService } from '../../services/ai-csv.service';
@@ -207,6 +207,13 @@ export class GesturePlay implements OnInit, OnDestroy {
   protected readonly assignmentTimeMode = signal<TimeMode | null>(null);
   // The teacher's stage lock: `open` lets the student play any stage from the start.
   protected readonly assignmentStageLock = signal<StageLock | null>(null);
+  // The teacher's pass percentage of each stage ("1" to "6"); null outside an assignment, where it is the default.
+  protected readonly assignmentPassPercents = signal<Record<string, number> | null>(null);
+  // The teacher's limit on the runs of each stage (an assignment with the open lock), null for none, and the
+  // runs this student has used of each stage ("1" to "6"): the server's count, plus what this device played
+  // since and has not been counted yet. Only a shared quiz is ever limited.
+  protected readonly assignmentMaxAttempts = signal<number | null>(null);
+  private readonly attemptsUsed = signal<Record<string, number>>({});
   // Why a quiz could not be opened: shown on the load screen, or in the error card for the other modes.
   protected readonly problem = signal('');
   protected readonly errorLink = signal<PageLink | null>(null);
@@ -235,8 +242,28 @@ export class GesturePlay implements OnInit, OnDestroy {
   protected readonly stageQuestionCount = computed(() => this.quiz()?.stages.get(this.stage())?.length ?? 0);
   protected readonly stageTimeLimit = computed(() =>
     timeLimitFor(this.def().seconds, this.effectiveTimeMode()));
-  protected readonly passMarkOf = passMark;
+  // The percentage of right answers that passes the stage being played, and the number of answers it makes.
+  private readonly passPercent = computed(() => passPercentOf(this.assignmentPassPercents(), this.stage()));
+  protected readonly stagePassMark = computed(() => passMark(this.stageQuestionCount(), this.passPercent()));
   protected readonly standTip = computed(() => STAND_TIP[this.def().vision]);
+
+  // The runs each stage of the quiz has left, for the map; null when there is no limit to show.
+  protected readonly attemptsLeftByStage = computed<Record<string, number> | null>(() => {
+    const quiz = this.quiz();
+    if (this.mode() !== 'shared' || this.assignmentMaxAttempts() === null || !quiz) {
+      return null;
+    }
+    const left: Record<string, number> = {};
+    for (const stage of quiz.stages.keys()) {
+      left[String(stage)] = this.stageAttemptsLeft(stage) ?? 0;
+    }
+    return left;
+  });
+  // The same for the stage whose result is on screen.
+  protected readonly resultAttemptsLeft = computed(() => {
+    const run = this.result();
+    return run ? this.stageAttemptsLeft(run.stage) : null;
+  });
 
   // One run of a stage.
   protected readonly questions = signal<PlayQuestion[]>([]);
@@ -396,6 +423,9 @@ export class GesturePlay implements OnInit, OnDestroy {
       this.shared.set(null);
       this.assignmentTimeMode.set(null);
       this.assignmentStageLock.set(null);
+      this.assignmentPassPercents.set(null);
+      this.assignmentMaxAttempts.set(null);
+      this.attemptsUsed.set({});
       this.errorLink.set(null);
       this.checking.set(false);
       this.joining.set(false);
@@ -524,6 +554,9 @@ export class GesturePlay implements OnInit, OnDestroy {
         this.shared.set({ label: shared.label, closesAt: shared.closesAt });
         this.assignmentTimeMode.set(shared.timeMode);
         this.assignmentStageLock.set(shared.stageLock);
+        this.assignmentPassPercents.set(shared.passPercents);
+        this.assignmentMaxAttempts.set(shared.maxAttempts ?? null);
+        this.countAttempts(shared);
         const identity = this.sharedPlay.identity(this.shareCode());
         if (identity) {
           this.player.set(identity);
@@ -544,6 +577,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       next: detail => {
         this.assignmentTimeMode.set(detail.timeMode);
         this.assignmentStageLock.set(detail.stageLock);
+        this.assignmentPassPercents.set(detail.passPercents);
         this.shared.set({ label: detail.label, closesAt: detail.closesAt });
         this.openCsv(this.aiCsvService.extractCsvContent(detail.csv), detail.title);
       },
@@ -593,6 +627,8 @@ export class GesturePlay implements OnInit, OnDestroy {
       next: identity => {
         this.joining.set(false);
         this.player.set(identity);
+        // A new student has played nothing, whatever the student before them on this device had.
+        this.attemptsUsed.set({});
         this.resetRun();
         this.screen.set('map');
         this.flushResults();
@@ -673,8 +709,10 @@ export class GesturePlay implements OnInit, OnDestroy {
   // What a shared quiz needs before one of its stages starts (or is replayed): the device must still be a
   // known student (the stored identity is the truth: another tab may have changed it, or a rejected result
   // removed it), the stage must be open for that student, and the assignment must not have closed in the
-  // meantime. A server that cannot be reached does not stop the student: the run is played and its result
-  // queued. The wait is a quick spinner, with no delay added when the answer is fast.
+  // meantime. When the teacher limited the runs of a stage, one with none left cannot start, by what this
+  // page counts and again by what the server answers. A server that cannot be reached does not stop the
+  // student: the run is played and its result queued. The wait is a quick spinner, with no delay added when
+  // the answer is fast.
   private guardSharedStage(stage: number, proceed: () => void): void {
     const identity = this.sharedPlay.identity(this.shareCode());
     if (!identity) {
@@ -688,12 +726,22 @@ export class GesturePlay implements OnInit, OnDestroy {
     if (!quiz?.stages.has(stage) || !(this.allStagesOpen() || this.progress.isUnlocked(quiz, stage))) {
       return;
     }
+    if (this.stageAttemptsLeft(stage) === 0) {
+      this.backToMap();
+      return;
+    }
     this.checking.set(true);
     this.screen.set('loading');
     this.watch(this.sharedPlay.load(this.shareCode()).pipe(timeout(STAGE_CHECK_TIMEOUT_MS)), {
       next: shared => {
         this.checking.set(false);
         this.shared.set({ label: shared.label, closesAt: shared.closesAt });
+        this.countAttempts(shared);
+        if (this.stageAttemptsLeft(stage) === 0) {
+          // The server counts more runs than this page knew of (another tab): the map shows the stage used up.
+          this.backToMap();
+          return;
+        }
         proceed();
       },
       error: err => {
@@ -867,16 +915,17 @@ export class GesturePlay implements OnInit, OnDestroy {
     // A preview keeps nothing, not even on this device: the verdict is worked out without writing progress,
     // and since every stage is open the next one is offered whether or not this run passed.
     const preview = this.mode() === 'preview';
+    const percent = passPercentOf(this.assignmentPassPercents(), stage);
     const passed = preview
-      ? this.correctCount >= passMark(total)
-      : this.progress.record(quiz.key, stage, this.correctCount, total);
+      ? this.correctCount >= passMark(total, percent)
+      : this.progress.record(quiz.key, stage, this.correctCount, total, percent);
     this.result.set({
       stage,
       position: stagePosition(quiz.stages.keys(), stage),
       correct: this.correctCount,
       total,
       points: this.score(),
-      passMark: passMark(total),
+      passMark: passMark(total, percent),
       passed,
       bestStreak: this.bestStreak,
       missed: this.missed,
@@ -885,6 +934,8 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.reveal.set(null);
     this.audio.play(passed ? 'finish' : 'wrong');
     if (this.mode() === 'shared') {
+      // Counted at once, before the server answers, so a replay cannot slip in while the result is on its way.
+      this.attemptsUsed.update(used => ({ ...used, [String(stage)]: (used[String(stage)] ?? 0) + 1 }));
       this.saveResult(stage, this.correctCount, total);
     }
     this.screen.set('result');
@@ -897,10 +948,48 @@ export class GesturePlay implements OnInit, OnDestroy {
     const seq = ++this.submitSeq;
     this.saveState.set('saving');
     this.sharedPlay.submit(this.shareCode(), { stage, correct, total }).subscribe(outcome => {
+      if (outcome === 'limit') {
+        // The server had all the runs of this stage already (another tab or device played them): the run is
+        // not kept, nor queued, and the stage is used up.
+        this.useUpAttempts(stage);
+      }
       if (seq === this.submitSeq) {
         this.saveState.set(outcome);
       }
     });
+  }
+
+  // The runs `stage` has left for this student: null outside a shared quiz (a teacher's preview and a file are
+  // never limited) or when the teacher set no limit.
+  private stageAttemptsLeft(stage: number): number | null {
+    return this.mode() === 'shared'
+      ? attemptsLeft(this.assignmentMaxAttempts(), this.attemptsUsed()[String(stage)])
+      : null;
+  }
+
+  // Takes what the server says this student has used, and what this device has waiting to be sent, as the
+  // runs used. Never less than this page already counted: a run in flight may not be in the server's number
+  // yet, and a stage must not open up again because of that.
+  private countAttempts(shared: SharedQuiz): void {
+    const queued = this.sharedPlay.pendingByStage(this.shareCode());
+    const merged: Record<string, number> = {};
+    for (const key of Object.keys({ ...shared.attempts, ...queued })) {
+      merged[key] = (shared.attempts?.[key] ?? 0) + (queued[key] ?? 0);
+    }
+    this.attemptsUsed.update(used => {
+      const next = { ...merged };
+      for (const [key, count] of Object.entries(used)) {
+        next[key] = Math.max(next[key] ?? 0, count);
+      }
+      return next;
+    });
+  }
+
+  private useUpAttempts(stage: number): void {
+    const max = this.assignmentMaxAttempts();
+    if (max !== null) {
+      this.attemptsUsed.update(used => ({ ...used, [String(stage)]: Math.max(max, used[String(stage)] ?? 0) }));
+    }
   }
 
   protected togglePause(): void {

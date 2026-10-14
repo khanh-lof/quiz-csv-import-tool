@@ -132,9 +132,13 @@ export class SharedPlayService {
   constructor(private readonly http: HttpClient) {
   }
 
-  // 404 (no such code) and 410 (closed) are left for the page to read from the error.
+  // 404 (no such code) and 410 (closed) are left for the page to read from the error. A device that has
+  // joined sends its token, so the answer's `attempts` are this student's own; the token is optional on this
+  // route, and one the server does not know is not an error, only an empty `attempts`.
   load(code: string): Observable<SharedQuiz> {
-    return this.http.get<SharedQuiz>(`${this.baseUrl}/${encodeURIComponent(code)}`);
+    const token = this.identity(code)?.token;
+    return this.http.get<SharedQuiz>(`${this.baseUrl}/${encodeURIComponent(code)}`,
+      token ? {headers: {'X-Player-Token': token}} : {});
   }
 
   // Registers the student under `name` and remembers the answer on this device. Failures are rethrown for
@@ -183,6 +187,10 @@ export class SharedPlayService {
         if (status === 410) {
           return 'closed';
         }
+        if (status === 409) {
+          // `Replay limit reached`, the only conflict a result can meet: final, so it is not queued.
+          return 'limit';
+        }
         if (status === 403) {
           // The token is unknown to the server (the teacher removed this student): the identity is useless.
           this.forget(code);
@@ -201,6 +209,22 @@ export class SharedPlayService {
   pendingCount(code: string): number {
     const key = normalizeCode(code);
     return this.pending.read().filter(entry => entry.code === key).length;
+  }
+
+  // The runs of each stage ("1" to "6") that this device's student has waiting in the queue. The server has not
+  // counted them yet, so the page adds them to the server's `attempts` to count a run played offline.
+  pendingByStage(code: string): Record<string, number> {
+    const identity = this.identity(code);
+    const key = normalizeCode(code);
+    const counts: Record<string, number> = {};
+    if (identity) {
+      for (const entry of this.pending.read()) {
+        if (entry.code === key && entry.token === identity.token) {
+          counts[String(entry.stage)] = (counts[String(entry.stage)] ?? 0) + 1;
+        }
+      }
+    }
+    return counts;
   }
 
   // Reads the queue again before each send, so a second tab flushing the same queue does not make this one

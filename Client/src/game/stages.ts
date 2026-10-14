@@ -85,12 +85,17 @@ export const STAGES: StageDef[] = [
   },
 ];
 
-// A stage is passed with at least this share of its questions answered correctly.
-export const PASS_RATIO = 0.7;
+// A stage is passed with at least this percentage of its questions answered correctly. A teacher can set
+// another percentage per stage for an assignment (MIN to MAX, whole numbers); 70 is the default everywhere.
+export const DEFAULT_PASS_PERCENT = 70;
+export const MIN_PASS_PERCENT = 10;
+export const MAX_PASS_PERCENT = 100;
 
-// How many of `total` questions must be right to pass: 4 of 5, 7 of 10; 0 when there are none.
-export function passMark(total: number): number {
-  return total <= 0 ? 0 : Math.ceil(PASS_RATIO * total);
+// How many of `total` questions must be right to pass at `percent`: 4 of 5 and 7 of 10 at 70%; 0 when there
+// are none. Whole-number arithmetic (a ceiling of percent * total / 100), the same as the server's, so the
+// two never disagree through floating point.
+export function passMark(total: number, percent: number = DEFAULT_PASS_PERCENT): number {
+  return total <= 0 ? 0 : Math.floor((percent * total + 99) / 100);
 }
 
 export function stageDef(stage: number): StageDef {

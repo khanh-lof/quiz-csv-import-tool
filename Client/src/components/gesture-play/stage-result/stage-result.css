@@ -53,6 +53,7 @@
 }
 
 .save-state[data-state='queued'],
+.save-state[data-state='limit'],
 .save-state[data-state='rejected'] {
   color: var(--qt-error);
 }

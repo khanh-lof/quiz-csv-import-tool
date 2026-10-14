@@ -1,8 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TimeMode } from '../components/gesture-play/gesture-settings.service';
-import { STAGES, stagePosition } from '../game/stages';
+import { DEFAULT_PASS_PERCENT, STAGES, stagePosition } from '../game/stages';
 import { Utils } from '../utils';
 import { GestureQuiz } from './gesture-quiz';
+
+export { DEFAULT_PASS_PERCENT, MAX_PASS_PERCENT, MIN_PASS_PERCENT } from '../game/stages';
+
+// The replay limit a teacher may set per stage, as the server checks it (1 to 10); the dialog starts at the default.
+export const MIN_ATTEMPTS_LIMIT = 1;
+export const MAX_ATTEMPTS_LIMIT = 10;
+export const DEFAULT_ATTEMPTS_LIMIT = 3;
 
 // The shapes of the "Giao bài" API (Server/internal/api/assignment_handlers.go and share_handlers.go),
 // kept in step with the server by hand. Times travel as RFC 3339 strings.
@@ -20,6 +27,8 @@ export interface Assignment {
   label: string;
   timeMode: TimeMode;
   stageLock: StageLock;
+  passPercents: Record<string, number>;
+  maxAttempts: number | null;
   stageCounts: Record<string, number>;
   createdAt: string;
   closesAt: string | null;
@@ -65,6 +74,12 @@ export interface SharedQuiz {
   csv: string;
   timeMode: TimeMode;
   stageLock: StageLock;
+  passPercents: Record<string, number>;
+  // The most runs of a stage a student may have (1 to 10), or null for no limit.
+  maxAttempts: number | null;
+  // How many runs of each stage ("1" to "6") the student who sent the X-Player-Token header has had accepted;
+  // empty without a valid token.
+  attempts: Record<string, number>;
   closesAt: string | null;
 }
 
@@ -75,6 +90,10 @@ export interface NewAssignment {
   closesAt: string | null;
   timeMode: TimeMode;
   stageLock: StageLock;
+  passPercents: Record<string, number>;
+  // The replay limit per stage (1 to 10), null or left out for none. The server accepts it only with the
+  // `open` stage lock.
+  maxAttempts?: number | null;
   stageCounts: Record<string, number>;
 }
 
@@ -101,8 +120,9 @@ export interface StageSubmission {
 }
 
 // What became of a reported run: stored on the server, kept on the device to be resent, refused because
-// the assignment is over, or refused as invalid (or as coming from an unknown student).
-export type SubmitOutcome = 'saved' | 'queued' | 'closed' | 'rejected';
+// the assignment is over, refused because the student had used all the runs of that stage (`limit`), or
+// refused as invalid (or as coming from an unknown student).
+export type SubmitOutcome = 'saved' | 'queued' | 'closed' | 'limit' | 'rejected';
 
 export const TIME_MODE_LABELS: Record<TimeMode, string> = {
   standard: 'Bình thường',
@@ -114,6 +134,19 @@ export const STAGE_LOCK_LABELS: Record<StageLock, string> = {
   sequential: 'Phải qua màn trước mới mở màn sau',
   open: 'Mở tất cả các màn',
 };
+
+// The percentage of correct answers that passes a stage, from an assignment's `passPercents` (stage "1" to
+// "6", the server always sends a complete map). Falls back to the default for a stage the map lacks, or
+// when there is no assignment.
+export function passPercentOf(passPercents: Record<string, number> | null | undefined, stage: number): number {
+  return passPercents?.[String(stage)] ?? DEFAULT_PASS_PERCENT;
+}
+
+// The runs a student has left on a stage: the limit less the runs already used, never below 0, or null when
+// there is no limit.
+export function attemptsLeft(maxAttempts: number | null | undefined, used: number | undefined): number | null {
+  return maxAttempts === null || maxAttempts === undefined ? null : Math.max(0, maxAttempts - (used ?? 0));
+}
 
 // The link a student opens. The origin is a parameter so a spec does not depend on where it runs.
 export function shareUrl(code: string, origin: string = location.origin): string {
@@ -193,6 +226,8 @@ const TEACHER_ERRORS: Record<string, string> = {
   'Invalid closing time.': 'Giờ đóng phải ở tương lai (tối đa 180 ngày).',
   'Label is too long.': 'Tên lớp/nhóm dài tối đa 60 ký tự.',
   'Invalid stage counts.': 'Quiz này không có câu hỏi hợp lệ để giao.',
+  'Invalid pass percents.': 'Điểm qua màn phải là số nguyên từ 10% đến 100%.',
+  'Invalid replay limit.': 'Số lần chơi mỗi màn phải từ 1 đến 10, và chỉ đặt được khi mở tất cả các màn.',
 };
 
 // What to tell the teacher when an AssignmentService call fails.

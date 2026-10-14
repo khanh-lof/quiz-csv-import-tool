@@ -18,6 +18,10 @@
     </p>
   }
 
+  @if (attemptsLeft() === 0 && saveState() !== 'limit') {
+    <p class="save-state" data-state="limit" role="status">Bạn đã dùng hết lượt chơi màn này.</p>
+  }
+
   @if (result().missed.length > 0) {
     <div class="missed">
       <h3>Những câu cần xem lại</h3>
@@ -53,12 +57,14 @@
         <nz-icon nzType="arrow-right" nzTheme="outline"/>
       </button>
     }
-    <button nz-button [nzType]="result().passed || result().hasNext ? 'default' : 'primary'" nzSize="large" type="button"
-            (click)="retry.emit()">
-      <nz-icon nzType="reload" nzTheme="outline"/>
-      Chơi lại màn
-    </button>
-    <button nz-button [nzType]="result().passed && !result().hasNext ? 'primary' : 'default'" nzSize="large"
+    @if (attemptsLeft() !== 0) {
+      <button nz-button [nzType]="result().passed || result().hasNext ? 'default' : 'primary'" nzSize="large" type="button"
+              (click)="retry.emit()">
+        <nz-icon nzType="reload" nzTheme="outline"/>
+        Chơi lại màn
+      </button>
+    }
+    <button nz-button [nzType]="!result().hasNext && (result().passed || attemptsLeft() === 0) ? 'primary' : 'default'" nzSize="large"
             type="button" (click)="toMap.emit()">
       Về bản đồ
     </button>

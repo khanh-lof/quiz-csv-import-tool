@@ -19,10 +19,13 @@ function job(overrides: Partial<AiJob> = {}): AiJob {
   };
 }
 
+// A quiz of only stages 2 and 5 (five questions each), shown to the teacher as "Màn 1" and "Màn 2".
+const TWO_STAGE_CSV = DEMO_QUIZ_CSV.split('\n').filter(line => /^[25],/.test(line)).join('\n');
+
 function assignment(overrides: Partial<Assignment> = {}): Assignment {
   return {
     id: 'asg-1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'Quiz HSK 1 bài 3', label: '', timeMode: 'standard', stageLock: 'sequential',
-    stageCounts: {'1': 5, '2': 5, '3': 5, '4': 5, '5': 5, '6': 5}, createdAt: '2026-10-14T00:00:00Z', closesAt: null,
+    passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70}, maxAttempts: null, stageCounts: {'1': 5, '2': 5, '3': 5, '4': 5, '5': 5, '6': 5}, createdAt: '2026-10-14T00:00:00Z', closesAt: null,
     closedAt: null, open: true, playerCount: 0, ...overrides,
   };
 }
@@ -121,6 +124,238 @@ describe('AssignDialog', () => {
     await settle();
   });
 
+  describe('the pass percentages', () => {
+    const percentInputs = (): HTMLInputElement[] =>
+      Array.from(dialog()!.querySelectorAll<HTMLInputElement>('.pass-row input'));
+
+    async function typePercent(index: number, value: string): Promise<void> {
+      const input = percentInputs()[index];
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      input.dispatchEvent(new Event('blur'));
+      await settle();
+    }
+
+    it('lists only the stages the quiz has, by position, each at the default with what it needs', async () => {
+      await show(job({csv: TWO_STAGE_CSV}));
+
+      const rows = Array.from(dialog()!.querySelectorAll('.pass-row'));
+      expect(rows.length).toBe(2);
+      expect(rows[0].textContent).toContain('Màn 1');
+      expect(rows[0].textContent).toContain('Nghiêng đầu');
+      expect(rows[1].textContent).toContain('Màn 2');
+      expect(rows[1].textContent).toContain('Giơ ngón tay');
+      expect(rows.every(row => row.textContent!.includes('cần đúng 4/5 câu'))).toBeTrue();
+      expect(percentInputs().length).toBe(2);
+    });
+
+    it('lists the six stages of a full quiz', async () => {
+      await show();
+
+      expect(dialog()!.querySelectorAll('.pass-row').length).toBe(6);
+    });
+
+    it('sends the default of every stage the quiz has when nothing is changed', async () => {
+      await show(job({csv: TWO_STAGE_CSV}));
+
+      button('Giao bài').click();
+      await settle();
+      const request = http.expectOne(URL);
+      expect(request.request.body.passPercents).toEqual({'2': 70, '5': 70});
+      expect(request.request.body.stageCounts).toEqual({'2': 5, '5': 5});
+      request.flush(assignment(), {status: 201, statusText: 'Created'});
+      await settle();
+    });
+
+    it('sends an edited percentage under the stage number, and shows what it requires', async () => {
+      await show(job({csv: TWO_STAGE_CSV}));
+
+      await typePercent(1, '50');
+
+      const rows = Array.from(dialog()!.querySelectorAll('.pass-row'));
+      expect(rows[0].textContent).toContain('cần đúng 4/5 câu');
+      expect(rows[1].textContent).toContain('cần đúng 3/5 câu');
+
+      button('Giao bài').click();
+      await settle();
+      const request = http.expectOne(URL);
+      expect(request.request.body.passPercents).toEqual({'2': 70, '5': 50});
+      request.flush(assignment(), {status: 201, statusText: 'Created'});
+      await settle();
+    });
+
+    it('reads an emptied box as the default and never sends a value outside the range', async () => {
+      await show(job({csv: TWO_STAGE_CSV}));
+
+      await typePercent(0, '');
+      await typePercent(1, '5000');
+      button('Giao bài').click();
+      await settle();
+
+      const request = http.expectOne(URL);
+      expect(request.request.body.passPercents).toEqual({'2': 70, '5': 100});
+      request.flush(assignment(), {status: 201, statusText: 'Created'});
+      await settle();
+    });
+
+    it('goes back to the defaults when the dialog is opened again', async () => {
+      await show(job({csv: TWO_STAGE_CSV}));
+      await typePercent(0, '100');
+      expect(Array.from(dialog()!.querySelectorAll('.pass-row'))[0].textContent).toContain('cần đúng 5/5 câu');
+
+      fixture.componentInstance.open.set(false);
+      await settle();
+      fixture.componentInstance.open.set(true);
+      await settle();
+
+      expect(Array.from(dialog()!.querySelectorAll('.pass-row'))[0].textContent).toContain('cần đúng 4/5 câu');
+      button('Giao bài').click();
+      await settle();
+      const request = http.expectOne(URL);
+      expect(request.request.body.passPercents).toEqual({'2': 70, '5': 70});
+      request.flush(assignment(), {status: 201, statusText: 'Created'});
+      await settle();
+    });
+
+    it('tells the teacher when the server refuses the percentages', async () => {
+      await show();
+
+      button('Giao bài').click();
+      await settle();
+      http.expectOne(URL).flush('Invalid pass percents.', {status: 400, statusText: 'Bad Request'});
+      await settle();
+
+      expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain('10% đến 100%');
+    });
+  });
+
+  describe('the replay limit', () => {
+    const attemptsField = (): HTMLElement | null => dialog()!.querySelector('.attempts-row');
+    const attemptsSwitch = (): HTMLButtonElement => attemptsField()!.querySelector<HTMLButtonElement>('button[nz-switch], .ant-switch')!;
+    const attemptsInput = (): HTMLInputElement | null => dialog()!.querySelector<HTMLInputElement>('.attempts-row input');
+
+    async function pickLock(label: string): Promise<void> {
+      Array.from(dialog()!.querySelectorAll<HTMLInputElement>('input[type=radio]'))
+        .find(input => input.closest('label')?.textContent?.includes(label))!.click();
+      await settle();
+    }
+
+    async function typeAttempts(value: string): Promise<void> {
+      const input = attemptsInput()!;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      input.dispatchEvent(new Event('blur'));
+      await settle();
+    }
+
+    async function send(): Promise<Record<string, unknown>> {
+      button('Giao bài').click();
+      await settle();
+      const request = http.expectOne(URL);
+      const body = request.request.body;
+      request.flush(assignment(), {status: 201, statusText: 'Created'});
+      await settle();
+      return body;
+    }
+
+    it('is offered only with the open stage lock', async () => {
+      await show();
+      expect(text()).not.toContain('Giới hạn số lần chơi mỗi màn');
+
+      await pickLock('Mở tất cả');
+      expect(text()).toContain('Giới hạn số lần chơi mỗi màn');
+      expect(text()).toContain('Không giới hạn');
+      expect(attemptsInput()).toBeNull();
+
+      await pickLock('Phải qua màn trước');
+      expect(text()).not.toContain('Giới hạn số lần chơi mỗi màn');
+    });
+
+    it('sends no limit by default, even with the open lock', async () => {
+      await show();
+      await pickLock('Mở tất cả');
+
+      const body = await send();
+
+      expect(body['stageLock']).toBe('open');
+      expect(body['maxAttempts']).toBeNull();
+    });
+
+    it('shows a number box at 3 with its hint once switched on, and sends the number', async () => {
+      await show();
+      await pickLock('Mở tất cả');
+
+      attemptsSwitch().click();
+      await settle();
+
+      expect(attemptsInput()!.value).toBe('3');
+      expect(text()).toContain('Học sinh chỉ được chơi mỗi màn tối đa 3 lần, tính cả lần đạt.');
+      await typeAttempts('5');
+      expect(text()).toContain('tối đa 5 lần');
+
+      expect((await send())['maxAttempts']).toBe(5);
+    });
+
+    it('reads an emptied box as 3 and never sends a number outside 1 to 10', async () => {
+      await show();
+      await pickLock('Mở tất cả');
+      attemptsSwitch().click();
+      await settle();
+
+      await typeAttempts('');
+      expect(text()).toContain('tối đa 3 lần');
+      await typeAttempts('500');
+      expect(text()).toContain('tối đa 10 lần');
+      await typeAttempts('0');
+      expect(text()).toContain('tối đa 1 lần');
+
+      expect((await send())['maxAttempts']).toBe(1);
+    });
+
+    it('sends null after the lock goes back to sequential, whatever was set', async () => {
+      await show();
+      await pickLock('Mở tất cả');
+      attemptsSwitch().click();
+      await settle();
+      await typeAttempts('2');
+
+      await pickLock('Phải qua màn trước');
+
+      const body = await send();
+      expect(body['stageLock']).toBe('sequential');
+      expect(body['maxAttempts']).toBeNull();
+    });
+
+    it('starts over when the dialog is opened again', async () => {
+      await show();
+      await pickLock('Mở tất cả');
+      attemptsSwitch().click();
+      await settle();
+      await typeAttempts('2');
+
+      fixture.componentInstance.open.set(false);
+      await settle();
+      fixture.componentInstance.open.set(true);
+      await settle();
+
+      expect(text()).not.toContain('Giới hạn số lần chơi mỗi màn');
+      await pickLock('Mở tất cả');
+      expect(attemptsInput()).toBeNull();
+      expect((await send())['maxAttempts']).toBeNull();
+    });
+
+    it('tells the teacher when the server refuses the limit', async () => {
+      await show();
+
+      button('Giao bài').click();
+      await settle();
+      http.expectOne(URL).flush('Invalid replay limit.', {status: 400, statusText: 'Bad Request'});
+      await settle();
+
+      expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain('từ 1 đến 10');
+    });
+  });
+
   it('creates the assignment, then shows its link, QR code and the ways on', async () => {
     await show();
     await typeLabel('  Lớp 3A ');
@@ -135,6 +370,8 @@ describe('AssignDialog', () => {
       closesAt: null,
       timeMode: 'standard',
       stageLock: 'sequential',
+      passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70},
+      maxAttempts: null,
       stageCounts: {'1': 5, '2': 5, '3': 5, '4': 5, '5': 5, '6': 5},
     });
     expect(button('Giao bài').classList).toContain('ant-btn-loading');

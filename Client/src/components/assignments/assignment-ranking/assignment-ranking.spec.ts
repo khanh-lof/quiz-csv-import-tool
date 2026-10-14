@@ -38,7 +38,7 @@ const HOA = player({
 function detail(overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
   return {
     id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: 'Lớp 6A', timeMode: 'standard', stageLock: 'sequential',
-    stageCounts: {'1': 5, '2': 5}, createdAt: iso(-60 * MINUTE), closesAt: null, closedAt: null, open: true,
+    passPercents: {'1': 70, '2': 70}, maxAttempts: null, stageCounts: {'1': 5, '2': 5}, createdAt: iso(-60 * MINUTE), closesAt: null, closedAt: null, open: true,
     playerCount: 3, csv: '', players: [LAN, MINH, HOA], ...overrides,
   };
 }
@@ -154,11 +154,48 @@ describe('AssignmentRanking', () => {
 
     const stageHeaders = Array.from(root().querySelectorAll<HTMLElement>('thead th')).slice(4, 6);
     expect(stageHeaders.map(th => th.textContent?.trim())).toEqual(['🍉 Màn 1', '🧩 Màn 2']);
-    expect(stageHeaders.map(th => th.title)).toEqual(['Chém hoa quả', 'Xếp câu']);
+    expect(stageHeaders.map(th => th.title)).toEqual(['Chém hoa quả · qua màn từ 70%', 'Xếp câu · qua màn từ 70%']);
     // The cells follow the columns: the results of stage 4 first, then those of stage 6.
     expect(rows()[0].textContent).toContain('5/5 ✓');
     expect(rows()[0].textContent).toContain('4/5');
     expect(rows()[0].textContent).toContain('1/2');
+    leave();
+  }));
+
+  it('says in the header the percentage that passes a stage, once when every stage shares it', fakeAsync(() => {
+    open();
+
+    expect(text()).toContain('Điểm qua màn: 70%');
+    leave();
+  }));
+
+  it('lists the percentage of each stage by position when they differ, and in the column titles', fakeAsync(() => {
+    open(detail({
+      stageCounts: {'4': 5, '6': 5},
+      passPercents: {'4': 70, '6': 50},
+      players: [player({
+        stagesPassed: 1, correct: 9, possible: 10,
+        stages: {'4': {correct: 5, total: 5, passed: true, attempts: 1}, '6': {correct: 4, total: 5, passed: true, attempts: 1}},
+      })],
+    }));
+
+    expect(text()).toContain('Điểm qua màn: Màn 1 70% · Màn 2 50%');
+    const stageHeaders = Array.from(root().querySelectorAll<HTMLElement>('thead th')).slice(4, 6);
+    expect(stageHeaders.map(th => th.title)).toEqual(['Chém hoa quả · qua màn từ 70%', 'Xếp câu · qua màn từ 50%']);
+    leave();
+  }));
+
+  it('says in the header how many runs of a stage a student may play when the teacher limited them', fakeAsync(() => {
+    open(detail({stageLock: 'open', maxAttempts: 3}));
+
+    expect(text()).toContain('Giới hạn: 3 lần/màn');
+    leave();
+  }));
+
+  it('says nothing about a limit when the runs are not limited', fakeAsync(() => {
+    open();
+
+    expect(text()).not.toContain('Giới hạn');
     leave();
   }));
 

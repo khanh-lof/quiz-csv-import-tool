@@ -19,6 +19,12 @@
     <p class="meta">
       <span>Thời gian mỗi câu: {{ timeModeLabels[d.timeMode] }}</span>
       <span>Các màn: {{ stageLockLabels[d.stageLock] }}</span>
+      @if (passText()) {
+        <span>Điểm qua màn: {{ passText() }}</span>
+      }
+      @if (d.maxAttempts !== null) {
+        <span>Giới hạn: {{ d.maxAttempts }} lần/màn</span>
+      }
       <span>Giao lúc {{ formatStamp(d.createdAt) }}</span>
       <span>{{ d.players.length }} học sinh</span>
     </p>
@@ -85,7 +91,7 @@
             <th>Màn đã qua</th>
             <th>Câu đúng</th>
             @for (column of stages(); track column.key) {
-              <th [title]="column.name">{{ column.icon }} Màn {{ column.position }}</th>
+              <th [title]="column.name + ' · qua màn từ ' + column.percent + '%'">{{ column.icon }} Màn {{ column.position }}</th>
             }
             <th>Lần chơi</th>
             <th>Cập nhật</th>

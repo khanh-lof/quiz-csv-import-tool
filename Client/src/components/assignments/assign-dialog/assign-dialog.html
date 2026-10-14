@@ -65,8 +65,51 @@
             <label nz-radio [nzValue]="lock.value">{{ lock.label }}</label>
           }
         </nz-radio-group>
-        <p class="muted hint">Mở tất cả: học sinh chơi màn nào cũng được. Nếu không, mỗi màn chỉ mở sau khi đạt từ 70% ở màn trước.</p>
+        <p class="muted hint">Mở tất cả: học sinh chơi màn nào cũng được. Nếu không, mỗi màn chỉ mở sau khi đạt điểm qua màn của màn trước.</p>
       </div>
+
+      @if (stageLock() === 'open') {
+        <div class="field">
+          <span class="field-label" id="assign-attempts">Giới hạn số lần chơi mỗi màn</span>
+          <div class="attempts-row" role="group" aria-labelledby="assign-attempts">
+            <nz-switch [ngModel]="limitAttempts()" (ngModelChange)="limitAttempts.set($event)"
+                       nzCheckedChildren="Giới hạn" nzUnCheckedChildren="Không"/>
+            @if (limitAttempts()) {
+              <nz-input-number nzId="assign-attempts-count" [ngModel]="attemptsInput()"
+                               (ngModelChange)="attemptsInput.set($event)" [nzMin]="minAttemptsLimit"
+                               [nzMax]="maxAttemptsLimit" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
+              <span class="muted">lần mỗi màn</span>
+            } @else {
+              <span class="muted">Không giới hạn</span>
+            }
+          </div>
+          @if (limitAttempts()) {
+            <p class="muted hint">Học sinh chỉ được chơi mỗi màn tối đa {{ maxAttemptsSent() }} lần, tính cả lần đạt.</p>
+          }
+        </div>
+      }
+
+      @if (passRows().length > 0) {
+        <div class="field">
+          <span class="field-label" id="assign-pass">Điểm qua màn</span>
+          <div class="pass-rows" role="group" aria-labelledby="assign-pass">
+            @for (row of passRows(); track row.stage) {
+              <div class="pass-row">
+                <label class="pass-name" [for]="'assign-pass-' + row.stage">
+                  {{ row.icon }} Màn {{ row.position }} <span class="muted">({{ row.name }})</span>
+                </label>
+                <nz-input-number [nzId]="'assign-pass-' + row.stage" [ngModel]="row.value"
+                                 (ngModelChange)="setPercent(row.stage, $event)" [nzMin]="minPercent"
+                                 [nzMax]="maxPercent" [nzStep]="5" [nzPrecision]="0"
+                                 [nzFormatter]="formatPercent" [nzParser]="parsePercent"
+                                 [nzPlaceHolder]="defaultPercent + '%'"></nz-input-number>
+                <span class="muted pass-need">cần đúng {{ row.mark }}/{{ row.count }} câu</span>
+              </div>
+            }
+          </div>
+          <p class="muted hint">Học sinh phải đúng ít nhất chừng này phần trăm số câu của màn để qua màn ({{ minPercent }}–{{ maxPercent }}%, để trống là {{ defaultPercent }}%).</p>
+        </div>
+      }
 
       @if (error(); as message) {
         <p class="error" role="alert">{{ message }}</p>

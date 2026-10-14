@@ -11,17 +11,21 @@
 
   <p class="summary">
     @if (cards().length === 1) {
-      Quiz có 1 màn, <b>{{ total() }}</b> câu hỏi. Đúng từ 70% số câu là qua màn.
+      Quiz có 1 màn, <b>{{ total() }}</b> câu hỏi. Đúng từ {{ cards()[0].percent }}% số câu là qua màn.
     } @else {
       Quiz có <b>{{ cards().length }}</b> màn, <b>{{ total() }}</b> câu hỏi, chơi từ dễ đến khó.
-      Mỗi màn cần đúng từ 70% số câu để mở màn sau.
+      @if (commonPercent(); as percent) {
+        Mỗi màn cần đúng từ {{ percent }}% số câu để mở màn sau.
+      } @else {
+        Mỗi màn có điểm qua màn riêng, ghi trên thẻ của màn.
+      }
     }
   </p>
 
   <div class="stages">
     @for (card of cards(); track card.def.stage) {
       <button type="button" class="stage-card" [class]="'stage-card status-' + card.status"
-              [disabled]="card.status === 'locked'"
+              [disabled]="!card.playable"
               (click)="start.emit(card.def.stage)">
         <span class="card-top">
           <span class="stage-icon" aria-hidden="true">{{ card.def.icon }}</span>
@@ -36,6 +40,9 @@
             @case ('open') {
               <nz-tag nzColor="processing">Đang mở</nz-tag>
             }
+            @case ('used') {
+              <nz-tag>Hết lượt</nz-tag>
+            }
             @case ('locked') {
               <nz-tag>Khóa 🔒</nz-tag>
             }
@@ -43,7 +50,15 @@
         </span>
         <span class="stage-hint">{{ card.def.hint }}</span>
         <span class="card-foot">
-          <span>{{ card.count }} câu</span>
+          <span>
+            {{ card.count }} câu
+            @if (card.percent !== defaultPercent) {
+              · qua màn từ {{ card.percent }}%
+            }
+            @if (card.attemptsText) {
+              · {{ card.attemptsText }}
+            }
+          </span>
           <span class="best">
             @if (card.best; as best) {
               Tốt nhất: <b>{{ best.correct }}/{{ best.total }}</b> · {{ best.correct * pointsPerCorrect }} điểm

@@ -37,12 +37,13 @@ const SAVE_TEXT: Record<SaveState, string> = {
   saved: 'Đã lưu kết quả cho thầy cô ✓',
   queued: 'Chưa gửi được kết quả, máy sẽ tự gửi lại khi có mạng.',
   closed: 'Bài đã đóng nên kết quả này không được lưu.',
+  limit: 'Bạn đã dùng hết lượt chơi màn này, kết quả này không được lưu.',
   rejected: 'Máy chủ không nhận kết quả này. Nếu thầy cô đã xóa tên bạn khỏi bài, hãy vào lại bằng tên khác.',
 };
 
 // The screen after a stage: the verdict against the pass mark, the questions to learn from, and where
 // to go next. For a student's assignment it also says what became of the run (`saveState`), and in the
-// teacher's preview (`preview`) that nothing is kept.
+// teacher's preview (`preview`) that nothing is kept. A stage with no runs left (`attemptsLeft` 0) cannot be replayed.
 @Component({
   selector: 'app-gesture-stage-result',
   imports: [NzButtonComponent, NzIconDirective],
@@ -54,6 +55,8 @@ export class GestureStageResult {
   readonly result = input.required<StageRunResult>();
   readonly saveState = input<SaveState | null>(null);
   readonly preview = input(false);
+  // The runs left on this stage when the teacher limited them (null: no limit). At 0 there is no replay.
+  readonly attemptsLeft = input<number | null>(null);
 
   readonly nextStage = output<void>();
   readonly retry = output<void>();

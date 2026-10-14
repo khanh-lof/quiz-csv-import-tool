@@ -6,8 +6,8 @@ import { NzPopconfirmDirective } from 'ng-zorro-antd/popconfirm';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { NzSwitchComponent } from 'ng-zorro-antd/switch';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
-import { STAGES, StageDef, stagePosition } from '../../../game/stages';
-import { TIME_MODE_LABELS } from '../../../models/assignment';
+import { DEFAULT_PASS_PERCENT, STAGES, StageDef, stagePosition } from '../../../game/stages';
+import { passPercentOf, TIME_MODE_LABELS } from '../../../models/assignment';
 import { GestureQuiz, questionCount } from '../../../models/gesture-quiz';
 import {
   GestureProgressService,
@@ -16,7 +16,8 @@ import {
 } from '../../../services/gesture-progress.service';
 import { GestureSettingsService, TimeMode } from '../gesture-settings.service';
 
-type StageStatus = 'passed' | 'open' | 'locked';
+// 'used' is an open stage whose runs are all spent (the teacher's replay limit).
+type StageStatus = 'passed' | 'open' | 'locked' | 'used';
 
 interface StageCard {
   def: StageDef;
@@ -24,8 +25,14 @@ interface StageCard {
   // is still the stage's identity, which is what `start` emits.
   position: number;
   count: number;
+  // The percentage of right answers that passes the stage: the teacher's for an assignment, else the default.
+  percent: number;
   best: StageBest | null;
   status: StageStatus;
+  // What the card says about the runs left under the teacher's limit; empty when there is no limit.
+  attemptsText: string;
+  // Whether the card can be opened: not locked, and not played out.
+  playable: boolean;
 }
 
 // A card for each stage the quiz has (a quiz holds 1 to 6 of the six), numbered by position and with its
@@ -58,6 +65,11 @@ export class GestureStageMap {
   readonly allowReset = input(true);
   // Every stage with questions can be opened, passed or not (the teacher's preview).
   readonly allOpen = input(false);
+  // The teacher's pass percentage of each stage, when there is one (an assignment).
+  readonly passPercents = input<Record<string, number> | null>(null);
+  // The runs each stage has left ("1" to "6"), when the teacher limited them (an assignment with a limit);
+  // null when there is no limit, a stage at 0 cannot be opened.
+  readonly attemptsLeft = input<Record<string, number> | null>(null);
 
   readonly start = output<number>();
 
@@ -70,19 +82,32 @@ export class GestureStageMap {
   protected readonly cards = computed<StageCard[]>(() => {
     const quiz = this.quiz();
     return STAGES.filter(def => quiz.stages.has(def.stage)).map(def => {
+      const left = this.attemptsLeft()?.[String(def.stage)] ?? null;
+      const passed = this.progress.isPassed(quiz.key, def.stage);
+      const open = this.allOpen() || this.progress.isUnlocked(quiz, def.stage);
       const status: StageStatus =
-        this.progress.isPassed(quiz.key, def.stage) ? 'passed'
-          : this.allOpen() || this.progress.isUnlocked(quiz, def.stage) ? 'open'
-            : 'locked';
+        passed ? 'passed' : open ? (left === 0 ? 'used' : 'open') : 'locked';
       return {
         def,
         position: stagePosition(quiz.stages.keys(), def.stage),
         count: quiz.stages.get(def.stage)?.length ?? 0,
+        percent: passPercentOf(this.passPercents(), def.stage),
         best: this.progress.best(quiz.key, def.stage),
         status,
+        // A stage the tag already calls "Hết lượt" does not say it twice.
+        attemptsText: left === null ? '' : left > 0 ? `Còn ${left} lượt` : status === 'used' ? '' : 'Hết lượt',
+        playable: status !== 'locked' && status !== 'used' && left !== 0,
       };
     });
   });
+
+  // The one percentage every stage shares (the summary can then say it), or null when the stages differ.
+  protected readonly commonPercent = computed(() => {
+    const percents = new Set(this.cards().map(card => card.percent));
+    return percents.size === 1 ? [...percents][0] : null;
+  });
+
+  protected readonly defaultPercent = DEFAULT_PASS_PERCENT;
 
   // Every stage of the quiz is passed: the quiz is finished.
   protected readonly allPassed = computed(() => {

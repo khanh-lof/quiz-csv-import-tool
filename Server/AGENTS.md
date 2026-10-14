@@ -119,7 +119,7 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   for results, the `X-Player-Token` header. The order of checks, which decides the status when several
   things are wrong: the code is trimmed and upper-cased and looked up (404 `Assignment not found`) in all
   three. `getShared` then answers 410 `Assignment closed` unless `OpenAt(now)`, else `{title, label, csv,
-  timeMode, stageLock, closesAt}`, with `no-store` on every answer, errors included, since a close must show at once.
+  timeMode, stageLock, passPercents, maxAttempts, attempts, closesAt}`, with `no-store` on every answer, errors included, since a close must show at once.
   `joinShared` refuses a closed assignment (410) before it reads the body, then `cleanPlayerName` (400
   `Invalid name.`: trimmed, whitespace runs folded, 1–40 runes, no control characters), then the 300-player cap
   (409 `Assignment is full`), then `CreatePlayer` (409 `Name taken` on `ErrDuplicate`); it mints a token of 32
@@ -129,7 +129,10 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   effective close), then 403 `Unknown player` for a missing header or a token no player of this assignment
   holds, *before* the body is read, then 400 `Invalid result.` (`runId` not `^[A-Za-z0-9-]{8,64}$`, stage not in
   `stageCounts`, `total` not that stage's count, `correct` outside `0..total`), then works out `passed` with
-  `passMark(n) = (7n+9)/10` (equal to the client's `Math.ceil(0.7 * n)`, `TestPassMark` checks up to 300) and
+  `passMark(n, percent) = (percent*n+99)/100` with the assignment's percent for the stage (`passPercentOf`, 70 when
+  unset; at 70 equal to the client's `Math.ceil(0.7 * n)`, `TestPassMark` checks up to 300); before recording it
+  answers 409 `Replay limit reached` when `maxAttempts` is set, the `runId` is new and the player's attempts in
+  that stage have reached it, and
   calls `RecordResult`, answering 204; an `ErrNotFound` from it (the teacher removed the student meanwhile) is
   also 403. Nothing limits joins by IP, by design; the 300 cap and unique names are the only brakes.
 
@@ -257,7 +260,7 @@ rate-limit `roundStart` (for refunds) and timestamps. `Complete`/`Fail` only tou
 Assignments (`internal/store/assignments*.go`): `store.Assignments` is implemented by `MongoAssignments` and
 `MemoryAssignments` (tests), and holds two kinds of document. An `Assignment` (collection
 `MONGODB_ASSIGNMENTS_COLLECTION`, `_id` a random hex id) is the snapshot of a job: owner `username`, `jobId`,
-`title`, the raw `csv`, `label`, `timeMode` (`standard`/`extra`/`unlimited`), `stageLock` (`sequential`/`open`; empty on old documents, read as `sequential` by `stageLockOf`), `stageCounts` (stage → number of
+`title`, the raw `csv`, `label`, `timeMode` (`standard`/`extra`/`unlimited`), `stageLock` (`sequential`/`open`; empty on old documents, read as `sequential` by `stageLockOf`), `passPercents` (stage → percent; stages or whole map missing read as 70 by `passPercentOf`), `maxAttempts` (nil = unlimited), `stageCounts` (stage → number of
 questions), `createdAt`, the public `code`, and two optional times, `closesAt` (scheduled) and `closedAt` (by
 hand), left out of the document when unset. It is copied rather than referenced so deleting a job, or the
 newest-30 prune, cannot break a live link. `OpenAt(now)` is "`closedAt` unset and `closesAt` unset or ahead";

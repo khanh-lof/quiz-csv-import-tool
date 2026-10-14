@@ -83,6 +83,21 @@ describe('GestureProgressService', () => {
       expect(service.isPassed('k', 2)).toBeFalse();
     });
 
+    it('passes at the percentage it is given instead of the default', () => {
+      expect(service.record('k', 1, 3, 5, 50)).toBeTrue();
+      expect(service.record('k', 2, 2, 5, 50)).toBeFalse();
+      expect(service.record('k', 3, 4, 5, 100)).toBeFalse();
+      expect(service.record('k', 4, 5, 5, 100)).toBeTrue();
+      expect(service.isPassed('k', 1)).toBeTrue();
+      expect(service.isPassed('k', 2)).toBeFalse();
+      expect(service.isPassed('k', 3)).toBeFalse();
+      expect(service.isPassed('k', 4)).toBeTrue();
+    });
+
+    it('still fails 3 of 5 without a percentage', () => {
+      expect(service.record('k', 1, 3, 5)).toBeFalse();
+    });
+
     it('passes at 3 of 4 and fails at 2 of 4', () => {
       expect(passMark(4)).toBe(3);
       expect(service.record('k', 1, 3, 4)).toBeTrue();

@@ -4,9 +4,14 @@ import {
   assignmentErrorMessage,
   AssignmentDetail,
   assignmentStatusText,
+  attemptsLeft,
+  DEFAULT_ATTEMPTS_LIMIT,
   formatClose,
   formatStamp,
   isOpenAt,
+  MAX_ATTEMPTS_LIMIT,
+  MIN_ATTEMPTS_LIMIT,
+  passPercentOf,
   RankedPlayer,
   rankingCsv,
   shareUrl,
@@ -24,7 +29,7 @@ function local(y: number, mo: number, d: number, h = 0, mi = 0): string {
 function assignment(overrides: Partial<Assignment> = {}): Assignment {
   return {
     id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: '', timeMode: 'standard', stageLock: 'sequential',
-    stageCounts: {'1': 5, '2': 5}, createdAt: local(2026, 10, 14, 8), closesAt: null, closedAt: null,
+    passPercents: {'1': 70, '2': 70}, maxAttempts: null, stageCounts: {'1': 5, '2': 5}, createdAt: local(2026, 10, 14, 8), closesAt: null, closedAt: null,
     open: true, playerCount: 0, ...overrides,
   };
 }
@@ -212,6 +217,41 @@ describe('rankingCsv', () => {
   });
 });
 
+describe('passPercentOf', () => {
+  it('gives the percentage stored for the stage', () => {
+    expect(passPercentOf({'1': 50, '2': 90}, 1)).toBe(50);
+    expect(passPercentOf({'1': 50, '2': 90}, 2)).toBe(90);
+  });
+
+  it('falls back to 70 for a stage the map lacks, or when there is no map', () => {
+    expect(passPercentOf({'1': 50}, 3)).toBe(70);
+    expect(passPercentOf(null, 1)).toBe(70);
+    expect(passPercentOf(undefined, 6)).toBe(70);
+  });
+});
+
+describe('attemptsLeft', () => {
+  it('is the limit less the runs used', () => {
+    expect(attemptsLeft(3, 0)).toBe(3);
+    expect(attemptsLeft(3, 2)).toBe(1);
+    expect(attemptsLeft(3, undefined)).toBe(3);
+  });
+
+  it('never goes below 0', () => {
+    expect(attemptsLeft(3, 3)).toBe(0);
+    expect(attemptsLeft(3, 7)).toBe(0);
+  });
+
+  it('is null when there is no limit', () => {
+    expect(attemptsLeft(null, 5)).toBeNull();
+    expect(attemptsLeft(undefined, 0)).toBeNull();
+  });
+
+  it('has the limits of the server', () => {
+    expect([MIN_ATTEMPTS_LIMIT, DEFAULT_ATTEMPTS_LIMIT, MAX_ATTEMPTS_LIMIT]).toEqual([1, 3, 10]);
+  });
+});
+
 describe('assignmentErrorMessage', () => {
   const failure = (status: number, error: unknown = '') => new HttpErrorResponse({status, error});
 
@@ -219,6 +259,8 @@ describe('assignmentErrorMessage', () => {
     expect(assignmentErrorMessage(failure(409, 'Too many assignments.'))).toContain('100 bài giao');
     expect(assignmentErrorMessage(failure(404, 'Job not found'))).toContain('Không tìm thấy quiz');
     expect(assignmentErrorMessage(failure(400, 'Invalid closing time.\n'))).toContain('tương lai');
+    expect(assignmentErrorMessage(failure(400, 'Invalid pass percents.'))).toContain('10% đến 100%');
+    expect(assignmentErrorMessage(failure(400, 'Invalid replay limit.'))).toContain('từ 1 đến 10');
   });
 
   it('explains a lost connection, an expired login and anything unknown', () => {

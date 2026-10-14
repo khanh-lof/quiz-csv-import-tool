@@ -65,8 +65,37 @@ describe('SharedPlayService', () => {
 
       const req = http.expectOne(`/api/share/${CODE}`);
       expect(req.request.method).toBe('GET');
-      req.flush({title: 'HSK1 bài 1', label: '6A', csv: '', timeMode: 'standard', stageLock: 'sequential', closesAt: null});
+      req.flush({title: 'HSK1 bài 1', label: '6A', csv: '', timeMode: 'standard', stageLock: 'sequential', passPercents: {'1': 70}, maxAttempts: null, attempts: {}, closesAt: null});
       expect(title).toBe('HSK1 bài 1');
+    });
+
+    it('sends no player header from a device that has not joined', () => {
+      service.load(CODE).subscribe();
+
+      const req = http.expectOne(`/api/share/${CODE}`);
+      expect(req.request.headers.has('X-Player-Token')).toBeFalse();
+      req.flush({});
+    });
+
+    it('sends the stored token, so the answer holds the attempts of this student', () => {
+      joined();
+      let attempts: Record<string, number> = {};
+      service.load(CODE.toLowerCase()).subscribe(quiz => attempts = quiz.attempts);
+
+      const req = http.expectOne(`/api/share/${CODE.toLowerCase()}`);
+      expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
+      req.flush({title: 'HSK1 bài 1', maxAttempts: 3, attempts: {'1': 2, '4': 1}});
+      expect(attempts).toEqual({'1': 2, '4': 1});
+    });
+
+    it('sends no header again once the device forgot the student', () => {
+      joined();
+      service.forget(CODE);
+      service.load(CODE).subscribe();
+
+      const req = http.expectOne(`/api/share/${CODE}`);
+      expect(req.request.headers.has('X-Player-Token')).toBeFalse();
+      req.flush({});
     });
 
     it('escapes the code in the URL', () => {
@@ -260,6 +289,16 @@ describe('SharedPlayService', () => {
       expect(service.identity(CODE)).toEqual(LAN);
     });
 
+    it('says limit on a 409, without queueing the run or forgetting the student', () => {
+      joined();
+      const outcomes = submitStage();
+      http.expectOne(RESULTS_URL).flush('Replay limit reached', {status: 409, statusText: 'Conflict'});
+
+      expect(outcomes).toEqual(['limit']);
+      expect(service.pendingCount(CODE)).toBe(0);
+      expect(service.identity(CODE)).toEqual(LAN);
+    });
+
     it('forgets the identity on a 403 and says rejected', () => {
       joined();
       const outcomes = submitStage();
@@ -398,6 +437,35 @@ describe('SharedPlayService', () => {
       const req = http.expectOne(RESULTS_URL);
       expect(req.request.body.runId).toBe('run-00003');
       req.flush(null, {status: 204, statusText: 'No Content'});
+    });
+  });
+
+  describe('pendingByStage', () => {
+    it('counts the queued runs of this student for each stage', () => {
+      joined();
+      expect(service.pendingByStage(CODE)).toEqual({});
+
+      submitStage(1);
+      failResult();
+      submitStage(1);
+      failResult();
+      submitStage(4);
+      failResult();
+
+      expect(service.pendingByStage(CODE)).toEqual({'1': 2, '4': 1});
+      expect(service.pendingByStage('OTHER00000')).toEqual({});
+    });
+
+    it('leaves out the runs of another student who used this device, and is empty without an identity', () => {
+      joined();
+      submitStage(2);
+      failResult();
+
+      joined({playerId: 'p2', token: 'tok-nam', name: 'Nam'});
+      expect(service.pendingByStage(CODE)).toEqual({});
+
+      service.forget(CODE);
+      expect(service.pendingByStage(CODE)).toEqual({});
     });
   });
 

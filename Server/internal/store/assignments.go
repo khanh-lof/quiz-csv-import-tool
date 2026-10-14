@@ -37,7 +37,15 @@ type Assignment struct {
 	// StageCounts is the number of questions in each stage ("1" to "6"), which is what a result is
 	// checked against; stages without questions are absent.
 	StageCounts map[string]int `bson:"stageCounts"`
-	CreatedAt   time.Time      `bson:"createdAt"`
+	// PassPercents is, per stage, the percentage of right answers that passes it (10 to 100), as the
+	// teacher set it; a stage that is absent, like every stage of an assignment made before the setting,
+	// uses the default 70. Use the API's passPercentOf to read it.
+	PassPercents map[string]int `bson:"passPercents,omitempty"`
+	// MaxAttempts caps how many finished runs a student may report per stage (1 to 10); nil, which is
+	// what every assignment made before the setting reads as, means unlimited. Only set on an "open"
+	// stage lock.
+	MaxAttempts *int      `bson:"maxAttempts,omitempty"`
+	CreatedAt   time.Time `bson:"createdAt"`
 	// ClosesAt is the teacher's scheduled closing time and ClosedAt the moment they closed it by hand;
 	// the assignment closes at the earlier of the two. Clearing ClosedAt reopens it.
 	ClosesAt *time.Time `bson:"closesAt,omitempty"`
@@ -224,6 +232,15 @@ func (a Assignment) stored() Assignment {
 	counts := map[string]int{}
 	maps.Copy(counts, a.StageCounts)
 	a.StageCounts = counts
+	if len(a.PassPercents) > 0 {
+		a.PassPercents = maps.Clone(a.PassPercents)
+	} else {
+		a.PassPercents = nil
+	}
+	if a.MaxAttempts != nil {
+		v := *a.MaxAttempts
+		a.MaxAttempts = &v
+	}
 	a.CreatedAt = storedTime(a.CreatedAt)
 	a.ClosesAt = storedTimePtr(a.ClosesAt)
 	a.ClosedAt = storedTimePtr(a.ClosedAt)

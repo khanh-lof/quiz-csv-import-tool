@@ -11,7 +11,7 @@ const URL = '/api/assignments';
 function assignment(id: string, overrides: Partial<Assignment> = {}): Assignment {
   return {
     id, code: 'K7M2X9QD4P', jobId: 'job-1', title: `Quiz ${id}`, label: '', timeMode: 'standard', stageLock: 'sequential',
-    stageCounts: {'1': 5}, createdAt: '2026-10-14T01:30:00Z', closesAt: null, closedAt: null, open: true,
+    passPercents: {'1': 70}, maxAttempts: null, stageCounts: {'1': 5}, createdAt: '2026-10-14T01:30:00Z', closesAt: null, closedAt: null, open: true,
     playerCount: 0, ...overrides,
   };
 }

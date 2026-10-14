@@ -221,7 +221,7 @@ a teacher's preview does not record, and a student's run is also reported to the
   `HoldSelector` (a `HoldGate` plus its sounds), `StableReading` (a pose must be reported several frames in a
   row before it counts) and the key/ring helpers. `game-audio.ts` (`GameAudio`) synthesizes every sound with
   Web Audio (no files) and must be `resume()`d from a user gesture. `stages.ts` is the `STAGES` table (game,
-  icon, hint, vision kind, option count, seconds per question), `PASS_RATIO`, `passMark` and `stagePosition`
+  icon, hint, vision kind, option count, seconds per question), `DEFAULT_PASS_PERCENT`, `passMark(total, percent)` and `stagePosition`
   (the number a stage is shown with: its position among the stages a quiz has, while the stage number stays
   the game's identity in data). The intro, the HUD and the result (`StageRunResult.position`) show it too.
 
@@ -379,6 +379,13 @@ routes added for this (see above for their guards).
   the page with the time mode (`assignmentStageLock`). `allStagesOpen` is true in a preview or when it is `open`,
   and then the map's `allOpen`, `openIntro`, `guardSharedStage` and `hasNext` skip `GestureProgressService.isUnlocked`.
   Passing is still recorded and reported either way. `AssignDialog` offers it as a radio under the time mode.
+- **The pass percent and the replay limit.** `passPercents` (`passPercentOf` falls back to 70) reaches the page as
+  `assignmentPassPercents` and drives `finishRun` (also in a preview), the intro's rules line, the result's
+  `passMark` and the stage map; `AssignDialog` has one number input per stage the quiz has. `maxAttempts` (open
+  lock only) is a switch plus number in the dialog; on the page the attempts used per stage start from the share
+  answer's `attempts` (sent with the player's `X-Player-Token`) and a run finished here counts at once, so a stage
+  with none left cannot be started, the map shows "Hết lượt" / "Còn N lượt" and the result hides replay; a 409
+  `Replay limit reached` on a result marks the stage used up and is not queued. A preview is never limited.
 
 **Teacher components** (`src/components/assignments/`, all with their own spec):
 - `AssignDialog` (`assign-dialog/`, `app-assign-dialog`: input `job`, `[(open)]`, output `created`) is mounted by

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -38,13 +39,33 @@ func (s *Server) getShared(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusGone, "Assignment closed")
 		return
 	}
+	// The player's own run counts, for a student's page to show the replays left. The token is
+	// optional here and a bad one is not an error: this route never answers 401 or 403.
+	attempts := map[string]int{}
+	if token := r.Header.Get(playerTokenHeader); token != "" {
+		player, err := s.Assignments.PlayerByToken(r.Context(), a.ID, hashPlayerToken(token))
+		switch {
+		case err == nil:
+			for stage, res := range player.Stages {
+				if res.Attempts > 0 {
+					attempts[stage] = res.Attempts
+				}
+			}
+		case !errors.Is(err, store.ErrNotFound):
+			s.internalError(w, r, "looking up player failed", err)
+			return
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"title":    a.Title,
-		"label":    a.Label,
-		"csv":      a.CSV,
-		"timeMode":  a.TimeMode,
-		"stageLock": stageLockOf(a),
-		"closesAt": utcPtr(a.ClosesAt),
+		"title":        a.Title,
+		"label":        a.Label,
+		"csv":          a.CSV,
+		"timeMode":     a.TimeMode,
+		"stageLock":    stageLockOf(a),
+		"passPercents": passPercentsOf(a),
+		"maxAttempts":  a.MaxAttempts,
+		"attempts":     attempts,
+		"closesAt":     utcPtr(a.ClosesAt),
 	})
 }
 
@@ -154,7 +175,17 @@ func (s *Server) reportResult(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	passed := req.Correct >= passMark(req.Total)
+	// The replay limit. A run id the player already reported is resent, not new: it is answered 204
+	// below like any repeat (RecordResult ignores it), even at the limit. The check and the write are
+	// not atomic, so two runs of one player racing at the limit could both get through; at classroom
+	// scale (one student, one browser) that is accepted.
+	if a.MaxAttempts != nil && !slices.Contains(player.RunIDs, req.RunID) &&
+		player.Stages[stage].Attempts >= *a.MaxAttempts {
+		writeText(w, http.StatusConflict, "Replay limit reached")
+		return
+	}
+
+	passed := req.Correct >= passMark(req.Total, passPercentOf(a, stage))
 	err = s.Assignments.RecordResult(r.Context(), a.ID, player.ID, req.RunID, stage, req.Correct, req.Total, passed, now)
 	if errors.Is(err, store.ErrNotFound) {
 		// The teacher removed the student between the token check and now.
@@ -185,10 +216,10 @@ func (s *Server) sharedAssignment(w http.ResponseWriter, r *http.Request) (*stor
 	return a, true
 }
 
-// passMark is how many of n questions must be right to pass a stage: 70%, rounded up. It is
-// ceil(0.7n) in integers, the same number as the client's Math.ceil(0.7 * n).
-func passMark(n int) int {
-	return (7*n + 9) / 10
+// passMark is how many of n questions must be right to pass a stage that needs percent: percent of n,
+// rounded up, in integers. With 70 it is the same number as the client's Math.ceil(0.7 * n).
+func passMark(n, percent int) int {
+	return (percent*n + 99) / 100
 }
 
 // cleanPlayerName trims a student's name and folds every run of whitespace into one space, then

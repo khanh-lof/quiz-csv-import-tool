@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { passMark, STAGES } from '../game/stages';
+import { DEFAULT_PASS_PERCENT, passMark, STAGES } from '../game/stages';
 import { GestureQuiz } from '../models/gesture-quiz';
 
 const STORAGE_KEY = 'gesture-quiz-progress';
@@ -100,10 +100,11 @@ export class GestureProgressService {
     return this.store()[key]?.best[stage] ?? null;
   }
 
-  // Stores a finished run and says whether it passed the stage. The best result only improves, and a
-  // stage that was passed once stays passed however a later run goes.
-  record(key: string, stage: number, correct: number, total: number): boolean {
-    const passed = correct >= passMark(total);
+  // Stores a finished run and says whether it passed the stage at `percent` right (an assignment's own
+  // pass percentage, else the default). The best result only improves, and a stage that was passed once
+  // stays passed however a later run goes.
+  record(key: string, stage: number, correct: number, total: number, percent: number = DEFAULT_PASS_PERCENT): boolean {
+    const passed = correct >= passMark(total, percent);
     // Read again before writing, so a second tab's progress is not overwritten by this tab's older copy.
     const store = loadStore();
     const progress = store[key] ?? { passed: [], best: {} };

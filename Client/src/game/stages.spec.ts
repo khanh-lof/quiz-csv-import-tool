@@ -1,4 +1,4 @@
-import { passMark, STAGES, stageDef, stagePosition } from './stages';
+import { DEFAULT_PASS_PERCENT, MAX_PASS_PERCENT, MIN_PASS_PERCENT, passMark, STAGES, stageDef, stagePosition } from './stages';
 
 describe('stagePosition', () => {
   it('is the stage number itself when the quiz has all six stages', () => {
@@ -48,5 +48,24 @@ describe('stages', () => {
     expect(passMark(5)).toBe(4);
     expect(passMark(10)).toBe(7);
     expect(passMark(0)).toBe(0);
+  });
+
+  it('works out the pass mark of another percentage with whole numbers, rounded up', () => {
+    expect(passMark(5, 50)).toBe(3);
+    expect(passMark(5, 100)).toBe(5);
+    expect(passMark(5, 10)).toBe(1);
+    expect(passMark(10, 50)).toBe(5);
+    expect(passMark(7, 90)).toBe(7);
+    expect(passMark(0, 50)).toBe(0);
+    for (let total = 1; total <= 300; total++) {
+      expect(passMark(total, 100)).toBe(total);
+      expect(passMark(total, DEFAULT_PASS_PERCENT)).toBe(Math.ceil(0.7 * total));
+    }
+  });
+
+  it('keeps the percentage limits and the default in range', () => {
+    expect(MIN_PASS_PERCENT).toBe(10);
+    expect(MAX_PASS_PERCENT).toBe(100);
+    expect(DEFAULT_PASS_PERCENT).toBe(70);
   });
 });

@@ -47,11 +47,16 @@ type assignmentView struct {
 	TimeMode    string         `json:"timeMode"`
 	StageLock   string         `json:"stageLock"`
 	StageCounts map[string]int `json:"stageCounts"`
-	CreatedAt   time.Time      `json:"createdAt"`
-	ClosesAt    *time.Time     `json:"closesAt"`
-	ClosedAt    *time.Time     `json:"closedAt"`
-	Open        bool           `json:"open"`
-	PlayerCount int            `json:"playerCount"`
+	// PassPercents is the share of right answers that passes each stage, for exactly the stages in
+	// StageCounts, defaults filled in.
+	PassPercents map[string]int `json:"passPercents"`
+	// MaxAttempts is the cap on finished runs per stage, null when unlimited.
+	MaxAttempts *int       `json:"maxAttempts"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	ClosesAt    *time.Time `json:"closesAt"`
+	ClosedAt    *time.Time `json:"closedAt"`
+	Open        bool       `json:"open"`
+	PlayerCount int        `json:"playerCount"`
 }
 
 func newAssignmentView(a *store.Assignment, now time.Time, playerCount int) assignmentView {
@@ -61,8 +66,10 @@ func newAssignmentView(a *store.Assignment, now time.Time, playerCount int) assi
 	}
 	return assignmentView{
 		ID: a.ID, Code: a.Code, JobID: a.JobID, Title: a.Title, Label: a.Label, TimeMode: a.TimeMode,
-		StageLock: stageLockOf(a),
-		StageCounts: counts, CreatedAt: a.CreatedAt.UTC(), ClosesAt: utcPtr(a.ClosesAt), ClosedAt: utcPtr(a.ClosedAt),
+		StageLock:    stageLockOf(a),
+		PassPercents: passPercentsOf(a),
+		MaxAttempts:  a.MaxAttempts,
+		StageCounts:  counts, CreatedAt: a.CreatedAt.UTC(), ClosesAt: utcPtr(a.ClosesAt), ClosedAt: utcPtr(a.ClosedAt),
 		Open: a.OpenAt(now), PlayerCount: playerCount,
 	}
 }
@@ -97,6 +104,10 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		TimeMode    string         `json:"timeMode"`
 		StageLock   string         `json:"stageLock"`
 		StageCounts map[string]int `json:"stageCounts"`
+		// PassPercents is read raw so that a value that is not an integer is told apart from bad JSON.
+		PassPercents json.RawMessage `json:"passPercents"`
+		// MaxAttempts is read raw for the same reason.
+		MaxAttempts json.RawMessage `json:"maxAttempts"`
 	}
 	if !s.readJSON(w, r, &req) {
 		return
@@ -132,6 +143,16 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "Invalid stage counts.")
 		return
 	}
+	passPercents, ok := parsePassPercents(req.PassPercents, req.StageCounts)
+	if !ok {
+		writeText(w, http.StatusBadRequest, "Invalid pass percents.")
+		return
+	}
+	maxAttempts, ok := parseMaxAttempts(req.MaxAttempts, req.StageLock)
+	if !ok {
+		writeText(w, http.StatusBadRequest, "Invalid replay limit.")
+		return
+	}
 
 	count, err := s.Assignments.Count(r.Context(), username)
 	if err != nil {
@@ -158,16 +179,18 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := &store.Assignment{
-		Username:    username,
-		JobID:       job.ID,
-		Title:       job.Title,
-		Label:       label,
-		CSV:         job.CSV,
-		TimeMode:    req.TimeMode,
-		StageLock:   req.StageLock,
-		StageCounts: req.StageCounts,
-		CreatedAt:   now.UTC().Truncate(time.Millisecond),
-		ClosesAt:    closesAt,
+		Username:     username,
+		JobID:        job.ID,
+		Title:        job.Title,
+		Label:        label,
+		CSV:          job.CSV,
+		TimeMode:     req.TimeMode,
+		StageLock:    req.StageLock,
+		StageCounts:  req.StageCounts,
+		PassPercents: passPercents,
+		MaxAttempts:  maxAttempts,
+		CreatedAt:    now.UTC().Truncate(time.Millisecond),
+		ClosesAt:     closesAt,
 	}
 	for attempt := 1; ; attempt++ {
 		a.ID, a.Code = newJobID(), newShareCode()
@@ -404,6 +427,75 @@ func stageLockOf(a *store.Assignment) string {
 		return stageLockOpen
 	}
 	return stageLockSequential
+}
+
+const (
+	defaultPassPercent = 70
+	minPassPercent     = 10
+	maxPassPercent     = 100
+)
+
+// passPercentOf is the percentage of right answers that passes the stage: what the teacher set, or
+// the default for a stage without a setting (all of them on an assignment made before the setting).
+func passPercentOf(a *store.Assignment, stage string) int {
+	if p, ok := a.PassPercents[stage]; ok {
+		return p
+	}
+	return defaultPassPercent
+}
+
+// passPercentsOf is the complete map for the assignment's stages, defaults filled in, never nil.
+func passPercentsOf(a *store.Assignment) map[string]int {
+	out := make(map[string]int, len(a.StageCounts))
+	for stage := range a.StageCounts {
+		out[stage] = passPercentOf(a, stage)
+	}
+	return out
+}
+
+const (
+	minMaxAttempts = 1
+	maxMaxAttempts = 10
+)
+
+// parseMaxAttempts reads the optional maxAttempts of a create request: absent or null is unlimited
+// (nil); otherwise a plain JSON integer from minMaxAttempts to maxMaxAttempts, and only on an "open"
+// stage lock, since a sequential assignment's replays are always unlimited.
+func parseMaxAttempts(raw json.RawMessage, stageLock string) (*int, bool) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, true
+	}
+	n, err := strconv.Atoi(string(raw))
+	if err != nil || n < minMaxAttempts || n > maxMaxAttempts || stageLock != stageLockOpen {
+		return nil, false
+	}
+	return &n, true
+}
+
+// parsePassPercents reads the optional passPercents of a create request. Absent or null is "all
+// default" (nil); otherwise it must be an object whose keys are stages of the quiz and whose values are
+// integers from minPassPercent to maxPassPercent, written as plain JSON integers. Only what was sent
+// is kept.
+func parsePassPercents(raw json.RawMessage, stageCounts map[string]int) (map[string]int, bool) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, true
+	}
+	var values map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return nil, false
+	}
+	out := make(map[string]int, len(values))
+	for stage, v := range values {
+		if _, ok := stageCounts[stage]; !ok {
+			return nil, false
+		}
+		p, err := strconv.Atoi(string(v))
+		if err != nil || p < minPassPercent || p > maxPassPercent {
+			return nil, false
+		}
+		out[stage] = p
+	}
+	return out, true
 }
 
 // parseClosesAt reads a closing time, which must be an RFC 3339 instant after now and no further

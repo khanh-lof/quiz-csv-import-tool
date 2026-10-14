@@ -224,7 +224,8 @@ grouped by stage. The stage, 1 to 6, fixes the row shape and, because the
 prompt tells the model to classify each question by its real difficulty (the creative prompt's stage
 rules replace its usual difficulty mixture), the difficulty too. The Explanation is one Vietnamese
 sentence shown after the answer. The stages are played easiest to hardest, one game each, and a stage is
-passed with at least 70% right (`PASS_RATIO` / `passMark`: 4 of 5, 7 of 10), which opens the next stage the
+passed with at least 70% right by default (`DEFAULT_PASS_PERCENT` / `passMark`: 4 of 5, 7 of 10; a teacher can
+set another percentage per stage in an assignment, see [Giao bài](#giao-bài-assignments)), which opens the next stage the
 quiz has (a quiz may have only some of the six, see *Choosing the games* below):
 
 | Stage | Game (`GameKind`) | The learner… | Row shape |
@@ -323,14 +324,16 @@ open, the result grace) only to show the right screen without a round trip.
   `^[A-Za-z0-9-]{8,64}$` (else 400 `Invalid result.`). A `runId` the player has already reported (the last 50
   are remembered) is answered 204 and changes nothing: the client creates the id once per finished run and
   queues a run it could not deliver with the same id, so resending is safe and never counts a run twice.
-  Whether the stage was **passed** is decided by the server, not reported: `correct >= passMark(total)` with the server's
-  `passMark(n) = (7n+9)/10` in integer division, which is the client's `passMark` (`Math.ceil(0.7 * n)`,
-  `PASS_RATIO` in `game/stages.ts`) without floating point; `TestPassMark` checks that they agree for every
-  `n` up to 300. Changing the pass rule on one side means changing the other.
+  Whether the stage was **passed** is decided by the server, not reported: `correct >= passMark(total, percent)`
+  where `percent` is the assignment's pass percent for that stage (70 unless the teacher set another, see
+  below) and `passMark(n, p) = (p*n+99)/100` in integer division, which is the client's
+  `passMark(total, percent)` (`Math.floor((percent*total+99)/100)`, `game/stages.ts`); `TestPassMark` checks the
+  70% case against `ceil(0.7n)` for every `n` up to 300. Changing the pass rule on one side means changing the other.
 - **Best run per stage.** A player's results are merged by `mergeResult` (`store/assignments.go`, used by both
   stores): each stage keeps the best `correct` so far, a pass once made stays, `attempts` counts every
   accepted run, and `bestAt` is when the best score was reached (or the pass made), which is what breaks
-  ties. A replay can only raise a score, and a student can replay until the assignment closes.
+  ties. A replay can only raise a score, and a student can replay until the assignment closes, or until the
+  stage's replay limit is used up (see `maxAttempts` below).
 - **The ranking** (`rankPlayers`, `api/ranking.go`, computed on every `GET assignments/{id}`) orders players who
   have results by stages passed, then total correct (the sum of the best of each stage), then who reached that
   score first (`reachedAt`, the latest `bestAt` over the player's stages), then who joined first. Players equal
@@ -367,6 +370,22 @@ open, the result grace) only to show the right screen without a round trip.
   400 `Invalid stage lock.`, checked right after the time mode), fixed for the assignment's life, and returned
   by `assignmentView` and `GET share/{code}`. Like every lock it is enforced by the client alone; the server
   does not check the order of results.
+  The teacher also picks, per stage, the **pass percent** `passPercents` (stage `"1"`–`"6"` → integer 10–100):
+  the share of a stage's questions that must be right to pass it, 70 for a stage not sent. It is sent on
+  `POST assignments` (400 `Invalid pass percents.` for a key that is not one of the `stageCounts`, or a value that
+  is not a plain integer 10–100, checked after `stageCounts`), fixed for the assignment's life, and returned as a
+  complete map for exactly the stages of `stageCounts` by `assignmentView` and `GET share/{code}`. The server
+  uses it to decide `passed` when a result arrives; the client uses it for the stage verdict, the unlock, the
+  rules line and the ranking page. Assignments stored without it read as all 70.
+  With the `open` lock the teacher can also set a **replay limit** `maxAttempts` (1–10 finished runs per stage;
+  null, the default, is unlimited). It is sent on `POST assignments` (400 `Invalid replay limit.` when it is not a
+  plain integer 1–10 or the stage lock is not `open`), fixed for the assignment's life, and returned by
+  `assignmentView` and `GET share/{code}` (`null` when unlimited). Unlike the locks it is also enforced by the
+  server: `POST share/{code}/results` answers 409 `Replay limit reached` when the player already has
+  `maxAttempts` accepted runs in that stage, except for a `runId` already recorded, which is still 204. To let a
+  reload or another device know the count, `GET share/{code}` returns `attempts` (stage → accepted runs) for the
+  player named by the optional `X-Player-Token` header, `{}` for no or an unknown token (never 401/403). The
+  check and the record are not atomic, so two simultaneous runs could both get in: acceptable for a classroom.
   Adding or renaming a field, status or message means changing both sides and their specs together.
 
 The Client's half is in [Client/AGENTS.md](Client/AGENTS.md#giao-bài-assignments), the Server's (the store, its
