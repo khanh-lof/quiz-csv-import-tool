@@ -1,0 +1,78 @@
+<div class="board" [class.locked]="locked()">
+  <div class="top">
+    <div class="card prompt">
+      <span class="label">Xếp thành câu có nghĩa</span>
+      <span class="meaning">{{ question().question }}</span>
+    </div>
+    @if (reveal() === null) {
+      <button
+        type="button"
+        class="card target undo"
+        [class.off]="line().length === 0"
+        [class.hot]="hovered() === undoId"
+        [attr.data-target]="undoId"
+        (click)="activate(undoId)"
+      >
+        <span aria-hidden="true">↩</span> Hoàn tác
+      </button>
+    }
+  </div>
+
+  <div class="line" [class.right]="verdict() === 'right'" [class.wrong]="verdict() === 'wrong'">
+    @for (slot of slots(); track $index) {
+      @if (slot.filled) {
+        <button
+          type="button"
+          class="tile target placed"
+          [class.hot]="hovered() === lineId($index)"
+          [attr.data-target]="lineId($index)"
+          (click)="activate(lineId($index))"
+        >
+          {{ slot.text }}
+        </button>
+      } @else {
+        <span class="slot"></span>
+      }
+    }
+  </div>
+
+  @if (reveal() !== null) {
+    <div class="card solution">
+      <span class="label">Đáp án đúng</span>
+      <span class="sentence">{{ solution() }}</span>
+    </div>
+  } @else {
+    <div class="pool">
+      @for (tile of pool(); track tile.index) {
+        <button
+          type="button"
+          class="tile target"
+          [class.gone]="tile.placed"
+          [class.hot]="hovered() === poolId(tile.index)"
+          [attr.data-target]="poolId(tile.index)"
+          (click)="activate(poolId(tile.index))"
+        >
+          @if (!cameraActive() && tile.index < 9) {
+            <kbd>{{ tile.index + 1 }}</kbd>
+          }
+          {{ tile.text }}
+        </button>
+      }
+    </div>
+    <p class="hint">{{ hint() }}</p>
+  }
+</div>
+
+@if (cameraActive()) {
+  <div
+    #cursor
+    class="cursor"
+    [class.visible]="handVisible()"
+    [class.pinched]="pinched()"
+    aria-hidden="true"
+  >
+    <span class="progress"></span>
+    <span class="ring"></span>
+    <span class="dot"></span>
+  </div>
+}

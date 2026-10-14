@@ -6,13 +6,14 @@
       <li>Thêm ảnh bài học: kéo thả vào khung, dán (Ctrl+V) hoặc bấm <b>Thêm ảnh</b>. Chụp rõ phần từ vựng.</li>
       <li>Chọn chế độ:
         <ul>
-          <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình (HSK thì chọn thêm chuẩn 2.0 hay 3.0), cấp, bài và nền tảng. Không có ảnh cũng được. AI chạy trên máy chủ nên bạn có thể đóng trang; xong thì chọn <b>Tải file</b> (với Wayground còn có <b>Tiện ích tự publish</b>) ở bảng lịch sử bên dưới.</li>
+          <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình (HSK thì chọn thêm chuẩn 2.0 hay 3.0), cấp, bài và nền tảng. Không có ảnh cũng được. AI chạy trên máy chủ nên bạn có thể đóng trang; xong thì chọn <b>Tải file</b> (với Wayground còn có <b>Tiện ích tự publish</b>, với Quiz cử chỉ còn có <b>Chơi ngay</b>) ở bảng lịch sử bên dưới.</li>
           <li><b>"Tiếng Việt + pinyin + chữ Hán là gì?"</b>: cần ít nhất 1 ảnh. Khi AI xong, bấm <b>Mở trong bảng</b> ở bảng lịch sử để đưa từ vựng vào <b>Tạo thủ công</b>, sửa rồi tải file.</li>
         </ul>
       </li>
     </ol>
     <p>Bảng lịch sử bên dưới lưu các lần tạo gần đây của bạn: tìm theo từ khóa (cả trong câu hỏi, đáp án), lọc theo trạng thái, chế độ, nền tảng, giáo trình, chuẩn HSK, cấp, bài.</p>
     <p>Với Wayground, nếu đã cài tiện ích QuizTool cho Chrome, khi AI xong, bấm <b>Tiện ích tự publish</b> ở bảng lịch sử: quiz được tạo và publish luôn trên Wayground, rồi link chia sẻ hiện ở đây. Bấm <b>Tải file</b> nếu muốn tự import. <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" target="_blank" rel="noopener">Xem cách cài tiện ích</a>.</p>
+    <p>Quiz cử chỉ không phải import vào đâu: chọn nó ở ô "Tạo quiz cho", khi AI xong bấm <b>Chơi ngay</b> ở bảng lịch sử để chơi bằng camera ngay trên QuizTool. Hoặc bấm <b>Tải file</b> để giữ quiz, sau này mở lại ở trang Quiz cử chỉ mà không cần đăng nhập.</p>
   </app-usage-guide>
   <nz-content>
     <form class="ai-form" [formGroup]="formGroup" (ngSubmit)="generate()">
@@ -128,6 +129,7 @@
               <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
               <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
               <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
+              <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Quiz cử chỉ (camera)"></nz-option>
             </nz-select>
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.exportType}"/>
@@ -146,6 +148,9 @@
             }
           </div>
         </div>
+        @if (formGroup.controls.exportType.value === ExportType.GestureQuiz) {
+          <small class="export-hint">Quiz này chơi ngay trên QuizTool bằng camera, gồm 6 màn từ dễ đến khó.</small>
+        }
       }
 
       <div class="images-actions">

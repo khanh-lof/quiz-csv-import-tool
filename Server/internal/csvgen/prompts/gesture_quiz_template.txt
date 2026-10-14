@@ -1,0 +1,27 @@
+GESTURE QUIZ STAGES
+
+This quiz is not imported into another platform: QuizTool plays it itself as a classroom game in which the learner answers with body gestures in front of a webcam. The game has 6 stages, played in order from the easiest to the hardest, and a stage must be passed before the next one opens. Each stage is a different gesture game, so the stage of a row fixes both its difficulty and its shape.
+
+Classify every question by how difficult it really is for a learner of this lesson, and put it in the stage that matches that difficulty and its format. Do not put a hard question in an early stage only because it has the right number of options.
+
+Stage 1 – True or false (the learner shows thumbs up or thumbs down). The easiest stage: direct recognition of a single lesson word. Question: one short statement that is either true or false, for example a Chinese word with a Vietnamese meaning, a word with its pinyin, or a very short sentence with its Vietnamese meaning. Correct Answer: exactly Đúng or Sai. Wrong Answer 1, 2 and 3: empty. Make about half of the statements false, and make every false statement plausible: the meaning of another lesson word, a wrong tone, a look-alike character.
+
+Stage 2 – Two choices (the learner tilts the head toward the left or the right answer). Easy recognition: Chinese word to Vietnamese meaning, Vietnamese meaning to Chinese word, pinyin to characters. Correct Answer and Wrong Answer 1 are the two options; Wrong Answer 2 and 3 are empty.
+
+Stage 3 – Three choices (the learner moves the head into a lane and opens the mouth to bite the answer). Recognition with closer distractors: meaning, pinyin with tones, look-alike characters, words of the same topic. Correct Answer, Wrong Answer 1 and Wrong Answer 2 are the options; Wrong Answer 3 is empty.
+
+Stage 4 – Three choices (the learner slices the fruit whose colour matches the answer). Usage: fill in the blank in a short sentence (write the blank as ____ in the Question), collocations such as verb and object, measure words, particles. Correct Answer, Wrong Answer 1 and Wrong Answer 2 are the options; Wrong Answer 3 is empty.
+
+Stage 5 – Four choices (the learner shows 1 to 4 fingers). Context and discrimination: the natural reply in a short dialogue, what to say in a situation described in Vietnamese, near-synonyms, the grammatically correct sentence. Correct Answer and Wrong Answer 1 to 3 are the four options. Never use the bare numbers 1 to 4 as options, since the learner picks an option by showing that many fingers.
+
+Stage 6 – Sentence ordering (the learner points at the word tiles in the right order). The hardest stage: build a Chinese sentence from lesson vocabulary. Question: the Vietnamese meaning of the sentence, or a situation described in Vietnamese that the sentence answers. Correct Answer: the correct Chinese sentence cut into 3 to 6 chunks, written in the correct order and separated by " / ", for example 我 / 是 / 越南人. Each chunk is a word or a short phrase; put the final punctuation, if any, on the last chunk. The game shuffles the chunks itself, so never shuffle them and never write full orderings as options. Wrong Answer 1, 2 and 3: empty.
+
+Options are shown in big type on a camera screen, so keep every option short: at most 8 Chinese characters or about 6 Vietnamese words in stages 2 to 5. The options of a row must all be different, exactly one of them is correct, and none carries a label such as "A.", "1." or "a)". Never write an option such as "Cả A và B" that refers to other options.
+
+Explanation: one short Vietnamese sentence shown after the learner answers, for example the tested word with its pinyin and meaning, or why the answer is right. Every row has one.
+
+Stage: the digit 1 to 6, in the first column.
+
+An empty column is still written as an empty field, so every row has exactly 7 fields.
+
+Write 4 to 5 questions for every stage, 24 to 30 rows in total, and output the rows grouped by stage, stage 1 first. Every stage must have at least 4 rows, because the game needs them to decide whether the learner passed the stage.

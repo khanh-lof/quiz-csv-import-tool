@@ -1,0 +1,79 @@
+<div class="frame" [class.cam]="cameraActive()" [class.locked]="locked()">
+  <div class="question">
+    <p>{{ question().question }}</p>
+  </div>
+
+  <div class="arena">
+    @for (card of cards(); track card.index) {
+      <button
+        type="button"
+        class="card"
+        [class.left]="card.index === 0"
+        [class.right]="card.index === 1"
+        [class.active]="activeSide() === card.index"
+        [class.picked]="picked() === card.index"
+        [class.correct]="isCorrect(card.index)"
+        [class.wrong]="isWrong(card.index)"
+        (click)="pick(card.index)">
+        <span class="chip">
+          <kbd>{{ card.index === 0 ? '←' : '→' }}</kbd>
+          {{ card.index === 0 ? 'Trái' : 'Phải' }}
+        </span>
+        <span class="word" [class]="card.size">{{ card.main }}</span>
+        @if (card.note) {
+          <span class="note">{{ card.note }}</span>
+        }
+        @if (isCorrect(card.index)) {
+          <b class="mark">✓</b>
+        } @else if (isWrong(card.index)) {
+          <b class="mark">✗</b>
+        }
+        @if (activeSide() === card.index) {
+          <i class="charge" [style.width.%]="progress() * 100"></i>
+        }
+      </button>
+    }
+
+    @if (cameraActive()) {
+      <div class="middle" aria-hidden="true">
+        <svg class="ring" viewBox="0 0 200 200">
+          <defs>
+            <linearGradient id="head-tilt-ring" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" style="stop-color: var(--qt-pink)" />
+              <stop offset="1" style="stop-color: var(--qt-blue)" />
+            </linearGradient>
+          </defs>
+          <circle class="ring-track" cx="100" cy="100" r="96" />
+          <circle
+            class="ring-fill"
+            cx="100"
+            cy="100"
+            r="96"
+            [attr.stroke-dashoffset]="ringOffset()" />
+        </svg>
+      </div>
+    }
+  </div>
+
+  <div class="footer">
+    @if (cameraActive()) {
+      @if (ready()) {
+        <div class="status" role="status">
+          <div class="meter" aria-hidden="true">
+            <span>←</span>
+            <div class="track"><i [style.left.%]="meterLeft()"></i></div>
+            <span>→</span>
+          </div>
+          <p class="hint" [class.warn]="problem()">{{ hintText() }}</p>
+        </div>
+      }
+      <app-face-calibration
+        [calibrating]="!ready()"
+        [status]="calibrationStatus()"
+        [progress]="calibrationProgress()"
+        (recalibrate)="recalibrate()" />
+    } @else {
+      <p class="status hint">Bấm vào đáp án hoặc nhấn phím ← / → (hay 1 / 2)</p>
+    }
+  </div>
+</div>

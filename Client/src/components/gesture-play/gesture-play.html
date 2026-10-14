@@ -1,0 +1,253 @@
+<header class="topbar">
+  <a nz-button nzType="default" nzSize="small" class="back-link" [routerLink]="jobId() ? '/ai' : '/quiz'">
+    <nz-icon nzType="arrow-left" nzTheme="outline"/>
+    <span class="back-text">{{ jobId() ? 'Về trang AI' : 'Về bảng quiz' }}</span>
+  </a>
+  <h1 class="title">{{ quiz()?.title ?? 'Quiz cử chỉ' }}</h1>
+  @if (screen() === 'map' && !jobId()) {
+    <button nz-button nzType="default" nzSize="small" type="button" (click)="openAnother()">
+      Mở quiz khác
+    </button>
+  }
+</header>
+
+<main class="content" [class.is-playing]="screen() === 'playing'">
+  @switch (screen()) {
+    @case ('loading') {
+      <section class="card message">
+        <nz-spin nzSimple nzSize="large"/>
+        <p>Đang tải quiz…</p>
+      </section>
+    }
+
+    @case ('error') {
+      <section class="card message" role="alert">
+        <div class="big-emoji" aria-hidden="true">😕</div>
+        <p>{{ problem() }}</p>
+        <a nz-button nzType="primary" routerLink="/ai">Về trang AI</a>
+      </section>
+    }
+
+    @case ('load') {
+      <section class="card load">
+        <app-usage-guide>
+          <ol>
+            <li>Quiz cử chỉ do AI tạo: vào tab <b>Tạo bằng AI</b>, chọn "Tạo quiz cho" là <b>Quiz cử chỉ</b>. Khi AI xong, bấm <b>Chơi ngay</b> ở bảng lịch sử, hoặc bấm <b>Tải file</b> rồi mở file đó ở đây bằng <b>Mở file quiz</b> (không cần đăng nhập).</li>
+            <li>Quiz có 6 màn, chơi từ dễ đến khó: <b>1</b> Đúng hay sai (ngón cái), <b>2</b> Nghiêng đầu, <b>3</b> Ếch đớp chữ (dịch đầu và há miệng), <b>4</b> Chém hoa quả (vung ngón trỏ), <b>5</b> Giơ ngón tay, <b>6</b> Xếp câu (chỉ ngón trỏ vào các mảnh).</li>
+            <li>Đúng từ <b>70%</b> số câu của một màn thì qua màn và mở màn tiếp theo. Chưa đạt thì chơi lại màn đó; tiến độ được nhớ trên máy này.</li>
+            <li>Không có camera cũng chơi được: dùng chuột, cảm ứng hoặc bàn phím (phím 1–4, mũi tên, Backspace; P để tạm dừng, Enter để sang câu tiếp).</li>
+          </ol>
+          <p><b>Camera:</b> hình ảnh chỉ được xử lý ngay trên máy này, không ghi hình và không gửi đi đâu cả. Trình duyệt sẽ hỏi quyền dùng camera khi bạn bật.</p>
+          <p><b>Đứng thế nào?</b> Cách webcam khoảng 0,6–1,2 m, có ánh sáng chiếu vào phía trước (đừng đứng ngược sáng), để tay và mặt nằm trong khung hình.</p>
+        </app-usage-guide>
+
+        <div class="load-body">
+          <div class="big-emoji" aria-hidden="true">🙌</div>
+          <h2>Quiz cử chỉ</h2>
+          <p class="muted">Chơi quiz từ vựng bằng cử chỉ trước camera: giơ ngón cái, nghiêng đầu, chém hoa quả… Mở file quiz do AI tạo, hoặc thử ngay quiz mẫu.</p>
+
+          @if (problem()) {
+            <p class="problem" role="alert">{{ problem() }}</p>
+          }
+
+          <input #fileInput type="file" accept=".csv,text/csv" class="file-input" (change)="onFilePicked($event)"/>
+          <div class="load-actions">
+            <button nz-button nzType="primary" nzSize="large" type="button" (click)="fileInput.click()">
+              <nz-icon nzType="folder-open" nzTheme="outline"/>
+              Mở file quiz
+            </button>
+            <button nz-button nzSize="large" type="button" (click)="playDemo()">
+              <nz-icon nzType="play-circle" nzTheme="outline"/>
+              Chơi thử quiz mẫu
+            </button>
+          </div>
+        </div>
+      </section>
+    }
+
+    @case ('map') {
+      @if (quiz(); as openQuiz) {
+        <app-gesture-stage-map [quiz]="openQuiz" (start)="openIntro($event)"/>
+      }
+    }
+
+    @case ('intro') {
+      <section class="card intro">
+        <div class="intro-head">
+          <span class="intro-icon" aria-hidden="true">{{ def().icon }}</span>
+          <div>
+            <div class="eyebrow">Màn {{ stage() }}</div>
+            <h2>{{ def().name }}</h2>
+          </div>
+        </div>
+        <p class="hint">{{ def().hint }}</p>
+        <ul class="facts">
+          <li>{{ stageQuestionCount() }} câu hỏi,
+            {{ stageTimeLimit() === null ? 'không giới hạn thời gian' : stageTimeLimit() + ' giây mỗi câu' }}.</li>
+          <li>Cần đúng ít nhất <b>{{ passMarkOf(stageQuestionCount()) }}/{{ stageQuestionCount() }}</b> câu để qua màn.</li>
+        </ul>
+        <p class="stand"><span aria-hidden="true">🧍</span> {{ standTip() }}</p>
+
+        <div class="camera-box">
+          <div #preview class="preview">
+            @if (!cameraOn()) {
+              <span class="preview-text">{{ cameraState() === 'starting' ? 'Đang bật camera…' : 'Camera đang tắt' }}</span>
+            }
+          </div>
+          <div class="camera-side">
+            <button nz-button [nzType]="cameraOn() ? 'default' : 'primary'" type="button" (click)="toggleCamera()">
+              <nz-icon nzType="video-camera" nzTheme="outline"/>
+              {{ cameraOn() || cameraState() === 'starting' ? 'Tắt camera' : 'Bật camera' }}
+            </button>
+            <div class="chips">
+              <span class="chip" [attr.data-tone]="cameraChip().tone">{{ cameraChip().text }}</span>
+              @if (modelChip(); as chip) {
+                <span class="chip" [attr.data-tone]="chip.tone">{{ chip.text }}</span>
+              }
+            </div>
+            @if (cameraNotice(); as notice) {
+              <p class="notice" role="alert">{{ notice }}</p>
+              @if (modelState() === 'error' && cameraOn()) {
+                <button nz-button nzSize="small" type="button" (click)="retryModel()">Thử tải lại</button>
+              }
+            }
+            <p class="privacy"><span aria-hidden="true">🔒</span> Camera chỉ xử lý trên máy này, không ghi hình, không gửi đi.</p>
+            <p class="muted">Không bật camera cũng được: bạn chơi bằng chuột hoặc bàn phím.</p>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button nz-button nzType="primary" nzSize="large" type="button" (click)="begin()">
+            <nz-icon nzType="caret-right" nzTheme="outline"/>
+            Bắt đầu
+          </button>
+          <button nz-button nzSize="large" type="button" (click)="backToMap()">Về bản đồ</button>
+        </div>
+      </section>
+    }
+
+    @case ('playing') {
+      <div class="hud">
+        <span class="pill stage-pill">{{ def().icon }} Màn {{ stage() }}</span>
+        <span class="pill">Câu {{ index() + 1 }}/{{ totalQuestions() }}</span>
+        <span class="pill">⭐ {{ score() }}</span>
+        @if (secondsLeft() !== null) {
+          <span class="pill time" [class.warn]="secondsLeft()! <= 5" title="Thời gian còn lại">⏱ {{ secondsLeft() }}s</span>
+        } @else {
+          <span class="pill time" title="Không giới hạn thời gian">⏱ ∞</span>
+        }
+        @if (streak() >= 2) {
+          <span class="pill streak">🔥 Chuỗi đúng {{ streak() }}</span>
+        }
+        <span class="chips">
+          <span class="chip" [attr.data-tone]="cameraChip().tone">{{ cameraChip().text }}</span>
+          @if (modelChip(); as chip) {
+            <span class="chip" [attr.data-tone]="chip.tone">{{ chip.text }}</span>
+          }
+          @if (trackingChip(); as chip) {
+            <span class="chip" [attr.data-tone]="chip.tone">{{ chip.text }}</span>
+          }
+        </span>
+        <span class="hud-buttons">
+          <button nz-button nzShape="circle" type="button" [attr.aria-label]="paused() ? 'Chơi tiếp' : 'Tạm dừng (P)'"
+                  [title]="paused() ? 'Chơi tiếp (P)' : 'Tạm dừng (P)'" (click)="togglePause()">
+            <nz-icon [nzType]="paused() ? 'caret-right' : 'pause'" nzTheme="outline"/>
+          </button>
+          <button nz-button nzShape="circle" type="button" [attr.aria-label]="settings().sound ? 'Tắt âm thanh' : 'Bật âm thanh'"
+                  [title]="settings().sound ? 'Tắt âm thanh' : 'Bật âm thanh'" (click)="toggleSound()">
+            <nz-icon [nzType]="settings().sound ? 'sound' : 'audio-muted'" nzTheme="outline"/>
+          </button>
+          <button nz-button nzShape="circle" type="button" [nzType]="cameraOn() ? 'primary' : 'default'"
+                  [attr.aria-label]="cameraOn() ? 'Tắt camera' : 'Bật camera'"
+                  [title]="cameraOn() ? 'Tắt camera' : 'Bật camera'" (click)="toggleCamera()">
+            <nz-icon nzType="video-camera" nzTheme="outline"/>
+          </button>
+          <button nz-button nzShape="circle" type="button"
+                  [attr.aria-label]="fullscreen() ? 'Thoát toàn màn hình' : 'Toàn màn hình'"
+                  [title]="fullscreen() ? 'Thoát toàn màn hình' : 'Toàn màn hình'" (click)="toggleFullscreen()">
+            <nz-icon [nzType]="fullscreen() ? 'fullscreen-exit' : 'fullscreen'" nzTheme="outline"/>
+          </button>
+          <button nz-button nzShape="circle" type="button" aria-label="Về bản đồ" title="Về bản đồ"
+                  (click)="backToMap()">
+            <nz-icon nzType="appstore" nzTheme="outline"/>
+          </button>
+        </span>
+      </div>
+
+      @if (cameraNotice(); as notice) {
+        <p class="notice" role="alert">
+          {{ notice }}
+          @if (modelState() === 'error' && cameraOn()) {
+            <button nz-button nzSize="small" type="button" (click)="retryModel()">Thử tải lại</button>
+          }
+        </p>
+      }
+
+      <!-- The stage is the game's whole area: the camera picture is put under it by the page, and the game
+           fills it (see StageGameBase). Nothing else in the page overlaps it. -->
+      <div #stageBox class="stage" [class.camera-on]="cameraOn()">
+        @if (view(); as question) {
+          @switch (def().game) {
+            @case ('true-false') {
+              <app-true-false-game [question]="question" [reveal]="reveal()" [paused]="paused()"
+                                   [cameraActive]="cameraActive()" (choose)="onChoose($event)"/>
+            }
+            @case ('head-tilt') {
+              <app-head-tilt-game [question]="question" [reveal]="reveal()" [paused]="paused()"
+                                  [cameraActive]="cameraActive()" (choose)="onChoose($event)"/>
+            }
+            @case ('frog-bite') {
+              <app-frog-bite-game [question]="question" [reveal]="reveal()" [paused]="paused()"
+                                  [cameraActive]="cameraActive()" (choose)="onChoose($event)"/>
+            }
+            @case ('fruit-slice') {
+              <app-fruit-slice-game [question]="question" [reveal]="reveal()" [paused]="paused()"
+                                    [cameraActive]="cameraActive()" (choose)="onChoose($event)"/>
+            }
+            @case ('finger-count') {
+              <app-finger-count-game [question]="question" [reveal]="reveal()" [paused]="paused()"
+                                     [cameraActive]="cameraActive()" (choose)="onChoose($event)"/>
+            }
+            @case ('word-order') {
+              <app-word-order-game [question]="question" [reveal]="reveal()" [paused]="paused()"
+                                   [cameraActive]="cameraActive()" (choose)="onChoose($event)"/>
+            }
+          }
+        }
+        @if (paused()) {
+          <div class="pause-overlay">
+            <div class="pause-card">
+              <h2>Tạm dừng</h2>
+              <button nz-button nzType="primary" nzSize="large" type="button" (click)="togglePause()">
+                <nz-icon nzType="caret-right" nzTheme="outline"/>
+                Chơi tiếp
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="feedback" [attr.data-kind]="verdict()?.kind ?? 'hint'" role="status" aria-live="polite">
+        @if (verdict(); as judged) {
+          <div class="feedback-text">
+            <div class="verdict">{{ judged.text }}</div>
+            <div class="answer">Đáp án: <b>{{ correctText() }}</b></div>
+            @if (current()?.source?.explanation; as explanation) {
+              <div class="explanation">{{ explanation }}</div>
+            }
+          </div>
+          <button nz-button nzType="primary" type="button" title="Phím Enter" (click)="next()">Tiếp →</button>
+        } @else {
+          <div class="stage-hint">{{ def().hint }}</div>
+        }
+      </div>
+    }
+
+    @case ('result') {
+      @if (result(); as run) {
+        <app-gesture-stage-result [result]="run" (nextStage)="openNextStage()" (retry)="retryStage()"
+                                  (toMap)="backToMap()"/>
+      }
+    }
+  }
+</main>

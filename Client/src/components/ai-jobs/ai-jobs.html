@@ -20,18 +20,21 @@
       <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
       <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
       <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
+      <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Quiz cử chỉ"></nz-option>
     </nz-select>
     <nz-select class="filter-select" nzAllowClear nzPlaceHolder="Giáo trình" [ngModel]="courseType()"
-               (ngModelChange)="courseType.set($event ?? null)">
+               (ngModelChange)="setCourseType($event ?? null)">
       <nz-option [nzValue]="CourseType.Hsk" nzLabel="HSK"></nz-option>
       <nz-option [nzValue]="CourseType.Yct" nzLabel="YCT"></nz-option>
       <nz-option [nzValue]="CourseType.Other" nzLabel="Khác"></nz-option>
     </nz-select>
-    <nz-select class="filter-select" nzAllowClear nzPlaceHolder="Chuẩn HSK" [ngModel]="hskStandard()"
-               (ngModelChange)="hskStandard.set($event ?? null)">
-      <nz-option [nzValue]="HskStandard.V2" nzLabel="HSK 2.0"></nz-option>
-      <nz-option [nzValue]="HskStandard.V3" nzLabel="HSK 3.0"></nz-option>
-    </nz-select>
+    @if (courseType() === CourseType.Hsk) {
+      <nz-select class="filter-select" nzAllowClear nzPlaceHolder="Chuẩn HSK" [ngModel]="hskStandard()"
+                 (ngModelChange)="hskStandard.set($event ?? null)">
+        <nz-option [nzValue]="HskStandard.V2" nzLabel="HSK 2.0"></nz-option>
+        <nz-option [nzValue]="HskStandard.V3" nzLabel="HSK 3.0"></nz-option>
+      </nz-select>
+    }
     <nz-input-number class="filter-number" nzPlaceHolder="Cấp" aria-label="Lọc theo cấp" [nzMin]="1" [nzMax]="maxLevel"
                      [nzStep]="1" [nzPrecision]="0" [ngModel]="level()" (ngModelChange)="level.set($event ?? null)"/>
     <nz-input-number class="filter-number" nzPlaceHolder="Bài" aria-label="Lọc theo bài" [nzMin]="1" [nzMax]="100"
@@ -49,7 +52,6 @@
             [nzNoResult]="isFiltering() ? 'Không có kết quả nào khớp.' : 'Chưa có lần tạo nào. Gửi yêu cầu ở trên, kết quả sẽ hiện ở đây.'">
     <thead>
       <tr>
-        <th nzWidth="40px"></th>
         <th>Tiêu đề</th>
         <th>Chế độ</th>
         <th>Bài học</th>
@@ -62,8 +64,6 @@
     <tbody>
       @for (job of jobsTable.data; track job.id) {
         <tr>
-          <td [nzExpand]="isExpanded(job.id)" (nzExpandChange)="setExpanded(job.id, $event)"
-              [nzShowExpand]="job.status !== 'running'"></td>
           <td class="job-title">{{ job.title }}</td>
           <td>{{ job.creative ? 'AI tự nghĩ' : 'Từ ảnh (' + job.imageCount + ')' }}</td>
           <td>{{ lessonLabel(job) }}</td>
@@ -83,9 +83,23 @@
             }
           </td>
           <td class="job-actions">
+            @if (job.status !== 'running') {
+              <button nz-button nzType="default" nzSize="small" type="button" aria-label="Xem kết quả" title="Xem kết quả"
+                      (click)="view(job)">
+                <nz-icon nzType="eye" nzTheme="outline"/>
+              </button>
+            }
             @if (job.status === 'done') {
               @if (job.creative) {
-                <button nz-button nzType="primary" nzSize="small" type="button" (click)="exportJob(job, false)">
+                @if (job.exportType === ExportType.GestureQuiz) {
+                  <!-- Played on QuizTool itself, so playing is the main action and the file only keeps the quiz. -->
+                  <button nz-button nzType="primary" nzSize="small" type="button" (click)="play(job)">
+                    <nz-icon nzType="play-circle" nzTheme="outline"/>
+                    Chơi ngay
+                  </button>
+                }
+                <button nz-button [nzType]="job.exportType === ExportType.GestureQuiz ? 'default' : 'primary'" nzSize="small"
+                        type="button" (click)="exportJob(job, false)">
                   <nz-icon nzType="download" nzTheme="outline"/>
                   Tải file
                 </button>
@@ -115,14 +129,46 @@
             }
           </td>
         </tr>
-        <tr [nzExpand]="isExpanded(job.id)">
-          @if (job.status === 'failed') {
-            <p class="job-error">{{ job.errorMessage || 'Không rõ lỗi.' }} Lượt dùng AI đã được hoàn lại.</p>
-          } @else {
-            <pre class="job-result">{{ resultText(job) || '(AI không trả về gì)' }}</pre>
-          }
-        </tr>
       }
     </tbody>
   </nz-table>
+
+  <nz-modal [nzVisible]="viewOpen()" (nzVisibleChange)="viewOpen.set($event)" (nzOnCancel)="viewOpen.set(false)"
+            [nzFooter]="null" nzWidth="min(1400px, 95vw)">
+    <!-- A template, not nzTitle: the popup is reused for different jobs, and a string title is read once. -->
+    <ng-container *nzModalTitle>{{ viewing()?.title }}</ng-container>
+    <ng-container *nzModalContent>
+      @if (viewing(); as job) {
+        @if (job.status === 'failed') {
+          <p class="job-error">{{ job.errorMessage || 'Không rõ lỗi.' }} Lượt dùng AI đã được hoàn lại.</p>
+        } @else if (viewTable(); as result) {
+          @if (result.rows.length === 0) {
+            <p>(AI không trả về gì)</p>
+          } @else {
+            <nz-table #resultTable nzSize="small" class="result-table" [nzData]="result.rows" [nzFrontPagination]="false"
+                      [nzShowPagination]="false" [nzScroll]="{ x: 'max-content', y: '60vh' }">
+              <thead>
+                <tr>
+                  <th nzWidth="50px">#</th>
+                  @for (header of result.headers; track $index) {
+                    <th>{{ header }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of resultTable.data; track $index; let i = $index) {
+                  <tr>
+                    <td>{{ i + 1 }}</td>
+                    @for (header of result.headers; track $index; let c = $index) {
+                      <td class="result-cell">{{ row[c] }}</td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </nz-table>
+          }
+        }
+      }
+    </ng-container>
+  </nz-modal>
 </section>

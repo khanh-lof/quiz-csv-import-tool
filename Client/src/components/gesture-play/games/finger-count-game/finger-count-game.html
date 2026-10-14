@@ -1,0 +1,63 @@
+<div class="board" [class.locked]="locked()" [class.revealed]="reveal() !== null">
+  <p class="question">{{ question().question }}</p>
+
+  <div class="cards">
+    @for (option of question().options; track $index) {
+      @let number = $index + 1;
+      <button
+        type="button"
+        class="card"
+        [class.charging]="cameraActive() && view().choice === $index"
+        [class.picked]="picked() === $index"
+        [class.correct]="isCorrect($index)"
+        [class.wrong]="isWrong($index)"
+        [attr.aria-label]="number + ': ' + option"
+        (click)="onCard($index, $event)">
+        @if (isCorrect($index)) {
+          <b class="mark">✓</b>
+        } @else if (isWrong($index)) {
+          <b class="mark">✗</b>
+        }
+        <span class="head">
+          <!-- The number as fingers: the first `number` fingers are up, the rest folded. -->
+          <svg class="hand" viewBox="0 0 44 44" aria-hidden="true">
+            @for (finger of fingers; track finger) {
+              <rect
+                class="finger"
+                [class.up]="finger < number"
+                [attr.x]="3 + finger * 10"
+                [attr.y]="finger < number ? 2 : 16"
+                [attr.height]="finger < number ? 26 : 12"
+                width="8"
+                rx="4" />
+            }
+            <rect class="palm" x="3" y="22" width="38" height="20" rx="8" />
+          </svg>
+          <span class="num">
+            @if (cameraActive()) {
+              <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
+                <circle class="track" cx="50" cy="50" r="46" pathLength="100" />
+                <circle
+                  class="fill"
+                  cx="50"
+                  cy="50"
+                  r="46"
+                  pathLength="100"
+                  [attr.stroke-dashoffset]="offset($index)" />
+              </svg>
+            }
+            <span class="digit">{{ number }}</span>
+          </span>
+        </span>
+        <span class="text" [class.han]="isHan(option)">{{ option }}</span>
+      </button>
+    }
+  </div>
+
+  @if (cameraActive()) {
+    <div class="status" [class.hidden]="locked()">
+      <b class="badge" [class.seen]="view().count >= 0">{{ badge() }}</b>
+      <span class="hint">{{ status() }}</span>
+    </div>
+  }
+</div>

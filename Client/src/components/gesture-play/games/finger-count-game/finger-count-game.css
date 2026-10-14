@@ -1,0 +1,259 @@
+/* The host fills the stage; its own size is the unit for everything inside (cqmin), so the layout
+   follows the stage and not the window. */
+:host {
+  display: block;
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  /* The one colour the tokens do not have: the "right answer" green. */
+  --fc-ok: #52c41a;
+}
+
+.board {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 2cqmin, 18px);
+  padding: clamp(8px, 2cqmin, 20px);
+}
+
+/* Over a moving camera image everything sits on a nearly opaque white card with the pink border. */
+.question,
+.card,
+.status {
+  background: rgba(255, 255, 255, 0.9);
+  border: var(--qt-border-width) solid var(--qt-border);
+  box-shadow: var(--qt-card-shadow);
+}
+
+.question {
+  flex: 0 1 auto;
+  max-height: 34%;
+  margin: 0;
+  padding: clamp(8px, 2cqmin, 18px) clamp(12px, 3cqmin, 28px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.05rem, 0.8rem + 2.4cqmin, 2.2rem);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--qt-text);
+  border-radius: var(--qt-radius-lg);
+}
+
+/* Two by two, and four across once the stage is wide enough for four cards side by side. */
+.cards {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  align-items: end;
+  gap: clamp(8px, 2cqmin, 18px);
+}
+
+@container (min-width: 760px) {
+  .cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.card {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  /* Capped, so on a wide stage the cards sit low and leave the player's hand in view above them. */
+  max-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(4px, 1.5cqmin, 12px);
+  padding: clamp(6px, 1.5cqmin, 14px);
+  overflow: hidden;
+  font: inherit;
+  color: var(--qt-text);
+  border-radius: var(--qt-radius-lg);
+  cursor: pointer;
+  transition: all var(--qt-transition);
+}
+
+.board:not(.locked) .card:hover {
+  border-color: var(--qt-focus);
+  box-shadow: var(--qt-lift-shadow);
+}
+
+.board.locked .card {
+  cursor: default;
+}
+
+.card.charging {
+  border-color: var(--qt-focus);
+  box-shadow: var(--qt-focus-shadow);
+  transform: scale(1.03);
+}
+
+.card.picked {
+  border-color: var(--qt-focus);
+}
+
+.card.correct {
+  border-color: var(--fc-ok);
+  background: color-mix(in srgb, var(--fc-ok) 26%, white);
+}
+
+.card.wrong {
+  border-color: var(--qt-error);
+  background: color-mix(in srgb, var(--qt-error) 18%, white);
+}
+
+.revealed .card:not(.correct):not(.wrong) {
+  opacity: 0.6;
+}
+
+.mark {
+  position: absolute;
+  top: 2px;
+  right: 10px;
+  font-size: 1.5rem;
+}
+
+.correct .mark {
+  color: var(--fc-ok);
+}
+
+.wrong .mark {
+  color: var(--qt-error);
+}
+
+/* The number, twice: as a hand with that many fingers up, and as the digit inside the ring that
+   fills while the matching hand is held. */
+.head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 2cqmin, 14px);
+}
+
+.hand {
+  width: clamp(28px, 9cqmin, 52px);
+  aspect-ratio: 1;
+}
+
+.finger {
+  fill: var(--qt-border);
+  opacity: 0.4;
+}
+
+.finger.up {
+  fill: var(--qt-pink);
+  opacity: 1;
+}
+
+.palm {
+  fill: var(--qt-pink);
+}
+
+.num {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(40px, 13cqmin, 76px);
+  aspect-ratio: 1;
+}
+
+.digit {
+  font-size: clamp(1.3rem, 6.5cqmin, 2.8rem);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.track,
+.fill {
+  fill: none;
+  stroke-width: 7;
+}
+
+.track {
+  stroke: var(--qt-blue);
+  opacity: 0.25;
+}
+
+/* The ring is drawn with pathLength="100", so the dash array is the whole circle and the offset runs
+   from 100 (empty) to 0 (full). It only shows on the card being held. */
+.fill {
+  stroke: var(--qt-pink);
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  opacity: 0;
+}
+
+.charging .fill {
+  opacity: 1;
+}
+
+.text {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-wrap: anywhere;
+  font-size: clamp(1rem, 0.7rem + 2.4cqmin, 2rem);
+  line-height: 1.3;
+  text-align: center;
+}
+
+.text.han {
+  font-family: var(--qt-font-han);
+  font-size: clamp(1.4rem, 0.9rem + 4.2cqmin, 3.2rem);
+}
+
+.status {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px 12px;
+  align-self: center;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 6px 16px;
+  font-size: clamp(0.85rem, 0.65rem + 1.4cqmin, 1.15rem);
+  text-align: center;
+  color: var(--qt-text);
+  border-radius: var(--qt-radius-lg);
+}
+
+.badge {
+  padding: 2px 12px;
+  color: var(--qt-text-muted);
+  background: var(--qt-gradient-soft);
+  border-radius: 999px;
+}
+
+.badge.seen {
+  color: var(--qt-text);
+}
+
+.hint {
+  color: var(--qt-text-muted);
+}
+
+/* Kept in the layout, so the cards do not jump when the verdict arrives. */
+.status.hidden {
+  visibility: hidden;
+}

@@ -16,6 +16,12 @@
       <nz-icon nzType="robot" nzTheme="outline"/>
       <span><a routerLink="/ai">Tạo bằng AI</a></span>
     </li>
+    <!-- Leaves this frame: the game is a full-screen page of its own, so the item never stays highlighted. -->
+    <li nz-menu-item nz-tooltip nzTooltipPlacement="bottom"
+        nzTooltipTitle="Chơi quiz do AI tạo bằng cử chỉ trước camera, hoặc thử quiz mẫu.">
+      <nz-icon nzType="camera" nzTheme="outline"/>
+      <span><a routerLink="/play">Quiz cử chỉ</a></span>
+    </li>
     <!-- The table works anonymously, so logging in is optional; the AI page asks for it on its own. -->
     @if (isLoggedIn()) {
       <li nz-menu-item class="account-item" (click)="logout()">

@@ -5,10 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 QuizTool turns photos of a Chinese (HSK) lesson into a quiz file that can be imported into GimKit,
-Blooket, or Wayground. It is one git repo holding two independently built and independently deployed
+Blooket, or Wayground, or into a quiz that QuizTool plays itself as a webcam gesture game
+("Quiz cử chỉ"). It is one git repo holding two independently built and independently deployed
 projects, plus an optional browser extension:
 
-- `Client/` — Angular 20 SPA (standalone components, ng-zorro-antd).
+- `Client/` — Angular 22 SPA (standalone components, ng-zorro-antd).
 - `Server/` — Go (`net/http`) API with MongoDB persistence. Runs as a standalone binary / Docker
   image (`Server/Dockerfile`).
 - `Extension/` — Chrome extension (plain JS, loaded unpacked, not deployed) that imports and
@@ -36,7 +37,7 @@ manually.
 Client (run from `Client/`):
 ```bash
 npm start        # ng serve → http://localhost:4200
-npm test         # Karma + Jasmine (specs: csv-import, image-compression services)
+npm test         # Karma + Jasmine (specs: services, models, and the gesture quiz's engine, games and page)
 npm run build    # ng build (production)
 ```
 
@@ -88,8 +89,9 @@ the model has answered and the result is saved on the job. The client does not w
 the user's jobs from `GET csv/jobs`, which `AiJobService` polls every 3 s while any job runs. A job
 finishing is announced wherever the user is in the app. The result is delivered from the table, not on
 completion: **Formatted** jobs get a "Mở trong bảng" action, **Auto** jobs a "Tải file" action
-and, for a Wayground job, also "Tiện ích tự publish" (the extension; disabled when it is not installed): the
-user picks the delivery per job once the AI is done. The table's search covers titles, errors and the generated
+and, for a Wayground job, also "Tiện ích tự publish" (the extension; disabled when it is not installed)
+or, for a Quiz cử chỉ job, "Chơi ngay" (played in the app, see
+[the gesture quiz](#the-gesture-quiz-quiz-cử-chỉ)): the user picks the delivery per job once the AI is done. The table's search covers titles, errors and the generated
 CSV; its filters are status, mode, platform, course type, HSK standard, level and lesson number (the server
 keeps those on each creative job; jobs from before it did have none and drop out when one is set).
 
@@ -104,7 +106,8 @@ keeps those on each creative job; jobs from before it did have none and drop out
   (`csvgen.buildCreativeRequest`, `prompts/creative_system.txt`), a long Chinese-teacher prompt that is told the exact
   column layout of the *target platform* via `exportTypeMessages` and asked to
   return **rows without a header** → client never touches the table: on "Tải file" it prepends the header through
-  `CsvBuilderBase.buildFromCsvContent` and downloads. **Images are optional in this
+  `CsvBuilderBase.buildFromCsvContent` and downloads (for the Quiz cử chỉ platform the job can instead be
+  played in the app, its third delivery). **Images are optional in this
   mode**: with none attached the prompt tells the model to work from the standard word list of the
   identified lesson instead. The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`, another
   by-ordinal enum duplicated on both sides), a `level` that is required for HSK and YCT but optional
@@ -116,19 +119,21 @@ keeps those on each creative job; jobs from before it did have none and drop out
 Consequences to keep in mind when changing anything here:
 
 - The `ExportType` enum exists twice (`Client/src/models/export-type.ts` and
-  `Server/internal/csvgen/options.go`) and is passed over the wire **by ordinal**. Adding or
-  reordering a member on one side silently mis-maps the other.
+  `Server/internal/csvgen/options.go`) and is passed over the wire **by ordinal**: `GimKit`, `Blooket`,
+  `Wayground`, `GestureQuiz` (0–3). Adding or reordering a member on one side silently mis-maps the other.
 - Adding a new export platform means three coordinated changes: a client `CsvBuilder` (with a
   `CsvHeader` matching what the platform expects on import), an `exportTypeMessages` case
-  on the server describing the same columns to the LLM, and the enum entry on both sides.
+  on the server describing the same columns to the LLM, and the enum entry on both sides. `GestureQuiz`
+  bends the first one: its builder only prepends the header (the "columns" are the ones the game's own
+  parser reads), and it throws if the vocabulary table ever asks it to build rows.
 - A job outlives the connection that started it only if the host keeps the process alive after the
   client leaves. The handler flushes its `202` early with `Connection: close` and goes on working;
   where the platform buffers the response until the handler ends (Vercel's behaviour for a Go
   service is unverified), the client just gets the `202` late and polling still shows the job. A job
   still `running` well past the LLM deadline (its process died) is failed as "interrupted" and its
   call refunded the next time its owner lists jobs.
-- Export output format is per-platform: GimKit and Blooket download as `.csv`, Wayground is converted
-  to `.xlsx` via `xlsx` before download (`FileExportService.download`).
+- Export output format is per-platform: GimKit, Blooket and Quiz cử chỉ download as `.csv`, Wayground is
+  converted to `.xlsx` via `xlsx` before download (`FileExportService.download`).
 
 ## The Wayground browser extension
 
@@ -155,6 +160,57 @@ extension listens on (`Extension/manifest.json`: production `https://kt-quiz-csv
 and `http://localhost:4200`; Vercel preview URLs are not included) are hand-kept in step on both
 sides. Quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in
 `Extension/selectors.js`).
+
+## The gesture quiz (Quiz cử chỉ)
+
+`ExportType.GestureQuiz` (ordinal 3 on both sides) is the one platform that is not an import target:
+QuizTool plays the quiz itself, as a game in which the learner answers with body gestures in front of a
+webcam. For the pipeline it is an `Auto`-mode platform like the others (same `POST csv/jobs`, rate limit,
+job and polling); only the prompt and what the client does with the finished job differ. Camera frames
+are processed locally in the browser (MediaPipe), nothing is recorded or sent anywhere.
+
+**The CSV contract.** The model returns headerless rows of exactly 7 fields, `Stage,Question,Correct
+Answer,Wrong Answer 1,Wrong Answer 2,Wrong Answer 3,Explanation` (an unused column is an empty field),
+grouped by stage, 4–5 rows per stage (24–30 rows). The stage, 1 to 6, fixes the row shape and, because the
+prompt tells the model to classify each question by its real difficulty (the creative prompt's stage
+rules replace its usual difficulty mixture), the difficulty too. The Explanation is one Vietnamese
+sentence shown after the answer. The stages are played easiest to hardest, one game each, and a stage is
+passed with at least 70% right (`PASS_RATIO` / `passMark`: 4 of 5, 7 of 10), which opens the next one:
+
+| Stage | Game (`GameKind`) | The learner… | Row shape |
+|---|---|---|---|
+| 1 | Đúng hay sai (`true-false`) | holds a thumb up or down | Correct Answer exactly `Đúng` or `Sai`, no wrong answers |
+| 2 | Nghiêng đầu (`head-tilt`) | tilts or leans the head to the left or right card | Correct Answer + Wrong Answer 1 |
+| 3 | Ếch đớp chữ (`frog-bite`) | moves the head to a lane and opens the mouth to bite | Correct Answer + Wrong Answer 1–2 |
+| 4 | Chém hoa quả (`fruit-slice`) | slashes, with the index fingertip, the fruit whose colour matches the answer | Correct Answer + Wrong Answer 1–2 |
+| 5 | Giơ ngón tay (`finger-count`) | shows 1–4 fingers (thumb ignored) for the option's number | Correct Answer + Wrong Answer 1–3 |
+| 6 | Xếp câu (`word-order`) | points at word tiles in order, resting on a tile or pinching | Correct Answer = the sentence's chunks in the right order joined by ` / `, no wrong answers |
+
+Stages 1, 4, 5 and 6 read the hand and 2 and 3 the face (MediaPipe's GestureRecognizer and FaceLandmarker);
+every game also works with mouse, touch or keyboard, so a quiz is playable without a camera. The server's
+`prompts/gesture_quiz_template.txt` (the model must not shuffle: the page shuffles the options and the
+chunks itself) and the client's `parseGestureQuiz` (`Client/src/models/gesture-quiz.ts`) with the stage
+table `STAGES` (`Client/src/game/stages.ts`) describe this one format from both ends, and, like the
+other contracts, are kept in step by hand. The parser is forgiving: a header row is optional and rows that
+break their stage's rules are dropped and counted (`skipped`, announced to the player), so a drifting
+prompt shows up as missing questions, not as an error. A stage without any questions shows as empty on the
+map and does not block the ones after it.
+
+**Entry points.** On a finished GestureQuiz job the AI jobs table shows "Chơi ngay", which navigates to
+`/play/<job id>` (login required; the page takes the job from `AiJobService`), and "Tải file", which
+downloads `<title>-Quiz-cử-chỉ.csv` with the header prepended. A downloaded file, or the built-in sample
+(`Client/src/game/demo-quiz.ts`), is opened on `/play`, which needs no login. The vocabulary table does not
+offer this platform: its rows have no stages. Progress (stages passed, best result per stage) is kept in
+`localStorage` per quiz, keyed by a hash of the questions rather than the title, so a job and the file
+downloaded from it share it; nothing about the quiz or the player goes to the server.
+
+The camera needs HTTPS (or localhost) and the player's permission, and the two MediaPipe models are
+fetched from Google's storage on first use. The specs run against fakes and synthetic landmarks, so they
+cover the logic but not the recognition: how the real webcam behaves (lighting, distance, the gesture
+thresholds) can only be checked by playing on a machine with a camera.
+
+The Client's half (page, engine, MediaPipe loading) is in [Client/AGENTS.md](Client/AGENTS.md#gesture-quiz-play), the
+prompt's in [Server/AGENTS.md](Server/AGENTS.md).
 
 ## Rate limiting
 

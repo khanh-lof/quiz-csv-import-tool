@@ -14,6 +14,8 @@ var (
 	creativeSystemPrompt string
 	//go:embed prompts/wayground_template.txt
 	waygroundTemplate string
+	//go:embed prompts/gesture_quiz_template.txt
+	gestureQuizTemplate string
 )
 
 // Image is one uploaded lesson photo.
@@ -84,7 +86,8 @@ func buildSimpleRequest(model string, images []Image) chatRequest {
 }
 
 // buildCreativeRequest asks for ready-to-import rows, without a header, laid out for the target
-// platform; the client prepends the header and downloads the file directly.
+// platform; the client prepends the header and downloads the file directly (or, for GestureQuiz,
+// plays it itself).
 func buildCreativeRequest(model string, images []Image, opts Options) responsesRequest {
 	intro := "Convert the images to CSV using the required format."
 	if len(images) == 0 {
@@ -129,7 +132,8 @@ func lessonMessages(opts Options) []string {
 }
 
 // exportTypeMessages describes the platform's import columns to the model. They must match the
-// CsvHeader of the corresponding client-side CsvBuilder.
+// CsvHeader of the corresponding client-side CsvBuilder, or for GestureQuiz the columns the game's
+// own CSV parser reads.
 func exportTypeMessages(t ExportType) []string {
 	switch t {
 	case GimKit:
@@ -142,6 +146,13 @@ func exportTypeMessages(t ExportType) []string {
 			`Question type will be ""Multiple Choice"" or ""Fill-in-the-Blank"". The option 2-5 must be empty for ""Fill-in-the-Blank"", the option 1 is the correct answer`,
 			normalizePrompt(waygroundTemplate),
 			"Image Link: fill it only for questions that cannot be answered without the image, and make at least half of the rows such visual questions, following the IMAGE USAGE section. Plan the images before writing the questions.",
+		}
+	case GestureQuiz:
+		// The stage rules carry the whole format, including how many rows to write, so unlike
+		// Wayground there is no message after the template.
+		return []string{
+			"CSV columns: Stage,Question,Correct Answer,Wrong Answer 1,Wrong Answer 2,Wrong Answer 3,Explanation",
+			normalizePrompt(gestureQuizTemplate),
 		}
 	}
 	panic(fmt.Sprintf("csvgen: unknown export type %d", t))

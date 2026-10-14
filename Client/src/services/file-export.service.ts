@@ -4,6 +4,7 @@ import { BlooketCsvBuilder } from './blooket-csv-builder';
 import { QuestionDefinition } from '../models/question-definition';
 import { ExportType } from '../models/export-type';
 import { WaygroundCsvBuilder } from './wayground-csv-builder';
+import { GestureQuizCsvBuilder } from './gesture-quiz-csv-builder';
 import * as XLSX from 'xlsx';
 
 // What an export built. For Wayground it also carries the .xlsx itself, so the same file (with the
@@ -20,7 +21,8 @@ export class FileExportService {
 
   constructor(private readonly gimKitCsvBuilder: GimkitCsvBuilder,
               private readonly blooketCsvBuilder: BlooketCsvBuilder,
-              private readonly waygroundCsvBuilder: WaygroundCsvBuilder) {
+              private readonly waygroundCsvBuilder: WaygroundCsvBuilder,
+              private readonly gestureQuizCsvBuilder: GestureQuizCsvBuilder) {
   }
 
   // Both exports return the file they built (Wayground's becomes .xlsx), or null when there was nothing
@@ -55,16 +57,19 @@ export class FileExportService {
         return 'Blooket';
       case ExportType.Wayground:
         return 'Wayground';
+      case ExportType.GestureQuiz:
+        return 'Quiz cử chỉ';
       default:
         return 'Quiz';
     }
   }
 
   // A download name that says what the file is, e.g. "HSK3-Bai5-Gimkit.csv". Characters a file system
-  // rejects are dropped and spaces become dashes.
+  // rejects are dropped and spaces become dashes, in the platform's name too ("HSK3-Bai5-Quiz-cử-chỉ.csv").
   public static buildFileName(label: string, exportType: ExportType): string {
     const safeLabel = label.replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '-') || 'QuizTool';
-    return `${safeLabel}-${FileExportService.platformName(exportType)}.csv`;
+    const platform = FileExportService.platformName(exportType).replace(/\s+/g, '-');
+    return `${safeLabel}-${platform}.csv`;
   }
 
   // Reads the CSV text into a workbook and writes it back out as .xlsx bytes.
@@ -81,6 +86,8 @@ export class FileExportService {
         return this.blooketCsvBuilder.buildFromRows(rows);
       case ExportType.Wayground:
         return this.waygroundCsvBuilder.buildFromRows(rows);
+      case ExportType.GestureQuiz:
+        return this.gestureQuizCsvBuilder.buildFromRows(rows);
       default:
         throw new Error(`Unsupported export type: ${exportType}`);
     }
@@ -93,6 +100,8 @@ export class FileExportService {
         return this.blooketCsvBuilder.buildFromCsvContent(csvContent);
       case ExportType.Wayground:
         return this.waygroundCsvBuilder.buildFromCsvContent(csvContent);
+      case ExportType.GestureQuiz:
+        return this.gestureQuizCsvBuilder.buildFromCsvContent(csvContent);
       default:
         throw new Error(`Unsupported export type: ${exportType}`);
     }
@@ -117,6 +126,7 @@ export class FileExportService {
       }
       case ExportType.GimKit:
       case ExportType.Blooket:
+      case ExportType.GestureQuiz:
       default:
         if (download) this.downloadBlob(filename, new Blob([csvResult], {type: 'text/csv;charset=utf-8'}));
         return {fileName: filename};

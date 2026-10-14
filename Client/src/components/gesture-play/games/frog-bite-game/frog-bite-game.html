@@ -1,0 +1,101 @@
+<div class="frame" [class.cam]="cameraActive()" [class.locked]="locked()">
+  <div class="question">
+    <p>{{ question().question }}</p>
+  </div>
+
+  <div class="lanes">
+    @for (slot of lanes(); track slot.index) {
+      <div
+        class="lane"
+        [class.here]="frogLane() === slot.index"
+        [class.ready]="armedLane() === slot.index">
+        @if (slot.filled) {
+          <button
+            type="button"
+            class="card"
+            [class.picked]="picked() === slot.index"
+            [class.correct]="isCorrect(slot.index)"
+            [class.wrong]="isWrong(slot.index)"
+            (click)="pick(slot.index)">
+            <span class="chip"><kbd>{{ slot.index + 1 }}</kbd></span>
+            @if (reveal() === null) {
+              <span class="fly" aria-hidden="true">🪰</span>
+            }
+            <span class="word" [class]="slot.size">{{ slot.main }}</span>
+            @if (slot.note) {
+              <span class="note">{{ slot.note }}</span>
+            }
+            @if (isCorrect(slot.index)) {
+              <b class="mark">✓</b>
+            } @else if (isWrong(slot.index)) {
+              <b class="mark">✗</b>
+            }
+          </button>
+        }
+        <div class="track">
+          @if (picked() === slot.index) {
+            <i class="tongue"></i>
+          }
+        </div>
+      </div>
+    }
+
+    <div
+      class="frog"
+      [style.left.%]="frogLeft()"
+      [class.bite]="picked() !== null"
+      aria-hidden="true">
+      <svg class="frog-svg" viewBox="0 0 120 100">
+        <ellipse class="dark" cx="18" cy="86" rx="16" ry="11" />
+        <ellipse class="dark" cx="102" cy="86" rx="16" ry="11" />
+        <ellipse class="skin" cx="60" cy="68" rx="48" ry="30" />
+        <circle class="skin" cx="34" cy="36" r="17" />
+        <circle class="skin" cx="86" cy="36" r="17" />
+        <circle cx="34" cy="36" r="11" fill="#fff" />
+        <circle cx="86" cy="36" r="11" fill="#fff" />
+        <circle cx="35" cy="37" r="5.5" fill="#333" />
+        <circle cx="85" cy="37" r="5.5" fill="#333" />
+        <circle cx="24" cy="70" r="7" fill="#ff8ecb" opacity="0.45" />
+        <circle cx="96" cy="70" r="7" fill="#ff8ecb" opacity="0.45" />
+        <ellipse
+          class="mouth"
+          cx="60"
+          cy="74"
+          rx="24"
+          [attr.ry]="3 + 17 * frogMouth()" />
+        @if (frogMouth() > 0.3) {
+          <ellipse
+            cx="60"
+            [attr.cy]="74 + 8 * frogMouth()"
+            rx="12"
+            [attr.ry]="6 * frogMouth()"
+            fill="#ff8ecb" />
+        }
+      </svg>
+    </div>
+  </div>
+
+  <div class="footer">
+    @if (cameraActive()) {
+      @if (ready()) {
+        <div class="status" role="status">
+          <div class="mouth-meter" aria-hidden="true">
+            <span>😮</span>
+            <div class="track-bar">
+              <i class="fill" [class.open]="mouthOpen()" [style.width.%]="mouthPercent()"></i>
+              <b class="limit" [style.left.%]="biteMarkPercent"></b>
+            </div>
+          </div>
+          <p class="hint" [class.warn]="problem()">{{ hintText() }}</p>
+        </div>
+      }
+      <app-face-calibration
+        [calibrating]="!ready()"
+        [status]="calibrationStatus()"
+        [progress]="calibrationProgress()"
+        (recalibrate)="recalibrate()" />
+    } @else {
+      <p class="status hint">Bấm vào đáp án hoặc nhấn 1 / 2 / 3 (← ↓ → dời ếch, Space để đớp)</p>
+    }
+  </div>
+</div>

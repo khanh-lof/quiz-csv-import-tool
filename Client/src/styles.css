@@ -14,6 +14,11 @@
   --qt-text: #333;
   --qt-text-muted: #666;
   --qt-error: #ff4d4f;
+  /* Hanzi in the games: a handwriting-style (Kai) face where the system has one, else any serif CJK font.
+     Latin UI fonts come first, and they have no CJK glyphs, so Vietnamese and pinyin keep a readable face
+     and the browser falls back to the Kai faces only for the hanzi themselves (KaiTi's own Latin is poor). */
+  --qt-font-han: 'Segoe UI', 'Helvetica Neue', Roboto, Arial, 'KaiTi', '楷体', 'STKaiti', 'Kaiti SC',
+    'Noto Serif CJK SC', 'Songti SC', serif;
 
   --qt-gradient: linear-gradient(90deg, var(--qt-pink), var(--qt-blue));
   --qt-gradient-header: linear-gradient(90deg, #ffb7d4, #b7cfff);

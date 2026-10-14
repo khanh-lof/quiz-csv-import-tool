@@ -1,0 +1,411 @@
+/* One full-screen page: a slim header, then the current screen. While playing, the stage takes whatever
+   height the HUD above it and the feedback bar below it leave over. */
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--qt-gradient-page);
+}
+
+.topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Scrolls on its own when a screen is taller than the window (a phone's stage map); the playing screen
+   fits the window instead. */
+.content {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 16px 16px;
+  overflow-y: auto;
+}
+
+.content.is-playing {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  background: rgba(255, 255, 255, 0.92);
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: var(--qt-radius-lg);
+  box-shadow: var(--qt-card-shadow);
+}
+
+.muted {
+  color: var(--qt-text-muted);
+}
+
+.big-emoji {
+  font-size: 56px;
+  line-height: 1.1;
+}
+
+/* ---- Messages and the load screen ---- */
+
+.message {
+  max-width: 480px;
+  text-align: center;
+}
+
+.message nz-spin {
+  display: block;
+  margin: 8px 0;
+}
+
+.load app-usage-guide {
+  margin-bottom: 0;
+}
+
+.load-body {
+  text-align: center;
+}
+
+.load-body h2 {
+  margin: 4px 0 8px;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.problem {
+  margin: 12px 0;
+  padding: 8px 12px;
+  color: var(--qt-error);
+  background: #fff;
+  border: 1px solid var(--qt-error);
+  border-radius: var(--qt-radius);
+}
+
+.file-input {
+  display: none;
+}
+
+.load-actions,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* ---- Stage intro ---- */
+
+.intro-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.intro-icon {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.eyebrow {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--qt-text-muted);
+}
+
+.intro-head h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.hint {
+  margin: 12px 0 0;
+  font-size: 16px;
+}
+
+.facts {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--qt-text-muted);
+}
+
+.stand {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  background: var(--qt-gradient-soft);
+  border-radius: var(--qt-radius);
+}
+
+.camera-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+/* The camera picture goes in here once the camera is on (see the stylesheet's last rule). */
+.preview {
+  position: relative;
+  flex: 0 1 280px;
+  min-width: 200px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--qt-gradient-soft);
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: var(--qt-radius-lg);
+}
+
+.preview-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  text-align: center;
+  color: var(--qt-text-muted);
+}
+
+.camera-side {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.camera-side p,
+.notice {
+  margin: 0;
+  font-size: 13px;
+}
+
+.privacy {
+  color: var(--qt-text);
+}
+
+.notice {
+  color: var(--qt-error);
+}
+
+/* ---- HUD ---- */
+
+.hud {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.pill {
+  padding: 2px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.92);
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: 999px;
+}
+
+.pill.time.warn {
+  color: var(--qt-error);
+  border-color: var(--qt-error);
+  animation: time-pulse 0.8s ease-in-out infinite;
+}
+
+.pill.streak {
+  background: var(--qt-gradient-soft);
+}
+
+@keyframes time-pulse {
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.chip {
+  padding: 1px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--qt-border);
+  border-radius: 999px;
+}
+
+.chip[data-tone='ok'] {
+  border-color: var(--qt-focus);
+}
+
+.chip[data-tone='bad'] {
+  color: var(--qt-error);
+  border-color: var(--qt-error);
+}
+
+.hud-buttons {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.content.is-playing .notice {
+  flex: none;
+  padding: 4px 12px;
+  background: #fff;
+  border: 1px solid var(--qt-error);
+  border-radius: var(--qt-radius);
+}
+
+/* ---- Stage ---- */
+
+/* The page's one fixed rule for games: the stage is a positioned, clipped box that nothing overlaps.
+   The camera picture sits at the back, the game on top of it. */
+.stage {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 260px;
+  overflow: hidden;
+  background: var(--qt-gradient-soft);
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: var(--qt-radius-lg);
+  box-shadow: var(--qt-card-shadow);
+}
+
+.pause-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(6px);
+}
+
+.pause-card {
+  text-align: center;
+}
+
+.pause-card h2 {
+  margin: 0 0 12px;
+  font-size: 32px;
+  font-weight: 800;
+}
+
+/* ---- Feedback bar ---- */
+
+/* A fixed height, so judging an answer never resizes the stage under the player's hand. A long
+   explanation scrolls inside it. */
+.feedback {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: clamp(84px, 15dvh, 132px);
+  padding: 8px 16px;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.92);
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: var(--qt-radius-lg);
+}
+
+.feedback[data-kind='correct'] {
+  background: var(--qt-gradient-soft);
+  border-color: var(--qt-focus);
+}
+
+.feedback[data-kind='wrong'] {
+  border-color: var(--qt-error);
+}
+
+.stage-hint {
+  flex: 1;
+  text-align: center;
+  color: var(--qt-text-muted);
+}
+
+.feedback-text {
+  min-width: 0;
+}
+
+.verdict {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.feedback[data-kind='wrong'] .verdict {
+  color: var(--qt-error);
+}
+
+.answer {
+  font-family: var(--qt-font-han), system-ui, sans-serif;
+  word-break: break-word;
+}
+
+.explanation {
+  font-size: 14px;
+  color: var(--qt-text-muted);
+}
+
+/* The picture from the camera is created outside this template (VisionService owns the one element),
+   so it is styled through the host: it fills the stage or the preview, mirrored like a mirror. */
+:host ::ng-deep .qt-camera-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    padding: 8px 12px;
+  }
+
+  .back-text {
+    display: none;
+  }
+
+  .content {
+    padding: 0 12px 12px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .feedback {
+    height: auto;
+    min-height: 84px;
+    max-height: 28dvh;
+  }
+
+  .stage-hint {
+    font-size: 14px;
+  }
+}
