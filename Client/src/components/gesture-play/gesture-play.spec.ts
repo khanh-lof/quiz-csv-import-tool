@@ -284,7 +284,7 @@ describe('GesturePlay', () => {
         open();
 
         expect(text()).withContext(message).toContain(message);
-        expect(element().querySelector('a[href="/ai"].ant-btn-primary')).withContext(message).not.toBeNull();
+        expect(element().querySelector('a[href="/ai-history"].ant-btn-primary')).withContext(message).not.toBeNull();
         expect(element().querySelectorAll('.stage-card').length).toBe(0);
         fixture.destroy();
       }

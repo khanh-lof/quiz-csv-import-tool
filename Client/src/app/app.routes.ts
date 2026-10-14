@@ -4,6 +4,7 @@ import { VocabularyTable } from '../components/vocabulary-table/vocabulary-table
 import { OfflineComponent } from '../components/offline/offline';
 import { Workspace } from '../components/workspace/workspace';
 import { AiGeneration } from '../components/ai-generation/ai-generation';
+import { AiJobs } from '../components/ai-jobs/ai-jobs';
 import { authGuard } from '../services/auth.guard';
 
 export const routes: Routes = [
@@ -42,6 +43,8 @@ export const routes: Routes = [
       {path: 'quiz', component: VocabularyTable},
       // The server requires a token for AI generation.
       {path: 'ai', component: AiGeneration, canActivate: [authGuard]},
+      // The history of the AI generations is its own page (and tab), apart from the form that starts them.
+      {path: 'ai-history', component: AiJobs, canActivate: [authGuard]},
       // The teacher's assignments and their rankings: lazy, like the game, since only a teacher opens them.
       {
         path: 'assignments',

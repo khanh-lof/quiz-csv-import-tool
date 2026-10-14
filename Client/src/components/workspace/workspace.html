@@ -17,6 +17,12 @@
       <span><a routerLink="/ai">Tạo bằng AI</a></span>
     </li>
     <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="bottom"
+        [nzTooltipTrigger]="mode() === '/ai-history' ? null : 'hover'"
+        nzTooltipTitle="Các lần tạo bằng AI: xem trạng thái, tải file, chơi ngay hoặc giao bài. Cần đăng nhập.">
+      <nz-icon nzType="history" nzTheme="outline"/>
+      <span><a routerLink="/ai-history">Lịch sử AI</a></span>
+    </li>
+    <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="bottom"
         [nzTooltipTrigger]="mode() === '/assignments' ? null : 'hover'"
         nzTooltipTitle="Các quiz cử chỉ đã giao cho học sinh: link, mã QR và bảng xếp hạng. Cần đăng nhập.">
       <nz-icon nzType="trophy" nzTheme="outline"/>

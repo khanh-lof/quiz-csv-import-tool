@@ -50,7 +50,7 @@ const CLOCK_TICK_MS = 30_000;
 export class AssignmentList implements OnInit {
   protected readonly pageSize = PAGE_SIZE;
   protected readonly helpText =
-    'Giao bài từ bảng lịch sử ở tab Tạo bằng AI: chọn một Quiz cử chỉ đã xong và bấm Giao bài.';
+    'Giao bài từ tab Lịch sử AI: chọn một Quiz cử chỉ đã xong và bấm Giao bài.';
   protected readonly assignments = signal<Assignment[]>([]);
   protected readonly loading = signal(false);
   // False until a list has arrived, so the empty state is not claimed before (or instead of) an answer.

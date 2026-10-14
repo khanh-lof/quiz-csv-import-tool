@@ -19,9 +19,9 @@ import { AuthService } from '../../services/auth.service';
 
 // The pages of the frame, as the routes that host them: the two ways of building a quiz, and the
 // assignments of the quizzes already built.
-type WorkspaceMode = '/quiz' | '/ai' | '/assignments';
+type WorkspaceMode = '/quiz' | '/ai' | '/ai-history' | '/assignments';
 
-// Frame shared by the vocabulary table, the AI page and the assignment pages: the nav menu (the modes and
+// Frame shared by the vocabulary table, the AI pages and the assignment pages: the nav menu (the modes and
 // the account action) and the title. Switching is plain router navigation, so /ai's auth guard sends an
 // anonymous user to log in, and a refused navigation simply leaves the current item highlighted.
 @Component({
@@ -73,6 +73,9 @@ export class Workspace {
 
   private currentMode(): WorkspaceMode {
     const url = this.router.url;
+    if (url.startsWith('/ai-history')) {
+      return '/ai-history';
+    }
     return url.startsWith('/ai') ? '/ai' : url.startsWith('/assignments') ? '/assignments' : '/quiz';
   }
 
@@ -91,7 +94,7 @@ export class Workspace {
     ).subscribe(() => {
       this.notificationService.success('Đã đăng xuất', 'Hẹn gặp lại nhaa.', {nzPlacement: 'top'});
       // The AI and assignment pages need a login, so fall back to the table that works anonymously.
-      if (this.currentMode() === '/ai' || this.currentMode() === '/assignments') {
+      if (this.currentMode() !== '/quiz') {
         this.router.navigateByUrl('/quiz');
       }
     });

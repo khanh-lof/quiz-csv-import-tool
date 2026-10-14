@@ -60,7 +60,7 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
   retries with the new token. A failed refresh clears the token but does not redirect.
 - `/quiz` (the vocabulary table), `/play` (the gesture quiz, from a file or the sample) and `/play/s/:code`
   (a student's link to an assignment, which has no account) are open to anonymous users; only `/ai` (AI
-  generation), `/play/:jobId` (a gesture quiz taken from one of the user's AI jobs), `/play/preview/:assignmentId`
+  generation), `/ai-history` (its history), `/play/:jobId` (a gesture quiz taken from one of the user's AI jobs), `/play/preview/:assignmentId`
   and the `/assignments` pages need a login, enforced by `authGuard` (`services/auth.guard.ts`), which redirects to
   `/login?returnUrl=/ai`. `LoginComponent` navigates to `returnUrl` after login (only in-app paths
   are accepted, otherwise `/quiz`). A 401 from the AI endpoint sends the user the same way. The
@@ -70,12 +70,12 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
 ### Vocabulary table & CSV pipeline
 
 `Workspace` (`src/components/workspace/`) is the shell of the main screens: a horizontal `nz-menu`
-(four `routerLink` items, "Tạo thủ công", "Tạo bằng AI", "Bài đã giao" and "Quiz cử chỉ", plus the login/logout item;
-the first three are highlighted via `nzMatchRouter`, the last never is because it leaves the frame for
+(five `routerLink` items, "Tạo thủ công", "Tạo bằng AI", "Lịch sử AI", "Bài đã giao" and "Quiz cử chỉ", plus the login/logout item;
+the first four are highlighted via `nzMatchRouter`, the last never is because it leaves the frame for
 the full-screen `/play` page, see [Gesture quiz](#gesture-quiz-play)) and the title. The menu navigates between its child routes
-`/quiz` (`VocabularyTable`), `/ai` (`AiGeneration`, `src/components/ai-generation/`) and the teacher's
-`/assignments` pages (see [Giao bài](#giao-bài-assignments)); `WorkspaceMode` knows all three, and logging out
-on `/ai` or `/assignments`, which need a login, falls back to `/quiz`. The AI
+`/quiz` (`VocabularyTable`), `/ai` (`AiGeneration`, `src/components/ai-generation/`), `/ai-history` (`AiJobs`, below) and the teacher's
+`/assignments` pages (see [Giao bài](#giao-bài-assignments)); `WorkspaceMode` knows all four, and logging out
+on any page but `/quiz`, which all need a login, falls back to `/quiz`. The AI
 request runs on the server (see below), so `/ai` can be left freely once it has been sent. Each screen has a `UsageGuide` (`src/components/usage-guide/`), a "Hướng dẫn sử dụng" button above the table or AI form
 that opens the how-to in a popup (`nz-modal`), so the page keeps its full width; keep its text in step with the screen when the flow changes.
 
@@ -98,7 +98,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
    not awaited. `AiJobService` (root service) keeps the user's jobs in a signal (`GET /api/csv/jobs`),
    polling every 3 s while any job runs (`watch(idlePolls)`; stops after N answers without a running job
    or 10 failed ones, and is reset by `AuthService.cleared$` on logout) and announcing each job that
-   finishes. `AiJobs` (`src/components/ai-jobs/`, below the form) is the history table: client-side search
+   finishes. `AiJobs` (`src/components/ai-jobs/`, the page of the "Lịch sử AI" tab, `/ai-history`) is the history table: client-side search
    (`filterJobs` in `models/ai-job.ts`: accent- and case-insensitive over title, error and the generated
    CSV) and status/mode/platform/course type/HSK standard/level/lesson filters (the last four match the
    lesson fields the server keeps on creative jobs), an eye button that opens the result as a table in a popup (Auto jobs' headerless CSV gets the platform's column names, `CREATIVE_COLUMNS` in `ai-jobs.ts`), delete, and the
@@ -304,7 +304,7 @@ routes added for this (see above for their guards).
 |---|---|---|---|---|
 | Route | `/play` | `/play/:jobId` | `/play/s/:code` | `/play/preview/:assignmentId` |
 | Quiz comes from | a file or the sample | `AiJobService` | `SharedPlayService.load` | `AssignmentService.get`, the snapshot |
-| Topbar link | Về bảng quiz, Mở quiz khác | Về trang AI | none | Về bảng xếp hạng |
+| Topbar link | Về bảng quiz, Mở quiz khác | Về lịch sử AI | none | Về bảng xếp hạng |
 | Progress key | the quiz's hash | the quiz's hash | `asg:<CODE>:<playerId>` | the quiz's hash, never written |
 | Time mode | the player's setting | the player's setting | the teacher's, fixed | the teacher's, fixed |
 | Map | locks, reset | locks, reset | locks, no reset | every stage open, no reset |

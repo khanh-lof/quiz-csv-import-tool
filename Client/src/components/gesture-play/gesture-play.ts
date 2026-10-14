@@ -194,7 +194,7 @@ export class GesturePlay implements OnInit, OnDestroy {
   protected readonly backLink = computed<PageLink | null>(() => {
     switch (this.mode()) {
       case 'job':
-        return { url: '/ai', text: 'Về trang AI' };
+        return { url: '/ai-history', text: 'Về lịch sử AI' };
       case 'preview':
         return { url: `/assignments/${encodeURIComponent(this.assignmentId() ?? '')}`, text: 'Về bảng xếp hạng' };
       case 'local':

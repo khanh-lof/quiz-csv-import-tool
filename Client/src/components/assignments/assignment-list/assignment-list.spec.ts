@@ -92,7 +92,7 @@ describe('AssignmentList', () => {
 
     expect(rows().length).toBe(0);
     expect(text()).toContain('chọn một Quiz cử chỉ đã xong và bấm Giao bài');
-    expect(root().querySelector('a[href="/ai"]')?.textContent).toContain('Đến tab Tạo bằng AI');
+    expect(root().querySelector('a[href="/ai-history"]')?.textContent).toContain('Đến tab Lịch sử AI');
   });
 
   it('tells the teacher when the list could not be loaded', async () => {

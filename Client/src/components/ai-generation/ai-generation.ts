@@ -42,7 +42,6 @@ import { NzSpinComponent } from 'ng-zorro-antd/spin';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { ImageCompressionService, UploadTooLargeError } from '../../services/image-compression.service';
 import { UsageGuide } from '../usage-guide/usage-guide';
-import { AiJobs } from '../ai-jobs/ai-jobs';
 import { NzContentComponent, NzLayoutComponent } from 'ng-zorro-antd/layout';
 
 interface ImageItem {
@@ -85,7 +84,6 @@ interface AiGenerationForm {
   imports: [
     CommonModule,
     UsageGuide,
-    AiJobs,
     NzLayoutComponent,
     NzContentComponent,
     NzButtonComponent,
@@ -360,11 +358,11 @@ export class AiGeneration {
       } satisfies AiGenerationRequest, this.lessonLabel());
     submit$.pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.setGenerating(false))).subscribe({
       next: () => {
-        // From here the server works on its own: the page may be left or closed, and the history table
-        // below follows the job.
+        // From here the server works on its own: the page may be left or closed, and the history tab
+        // follows the job.
         this.clearAllImages();
         this.notificationService.info('Đã gửi yêu cầu',
-          'AI đang tạo trên máy chủ, bạn có thể làm việc khác hoặc đóng trang. Kết quả sẽ hiện ở bảng lịch sử bên dưới.',
+          'AI đang tạo trên máy chủ, bạn có thể làm việc khác hoặc đóng trang. Kết quả sẽ hiện ở tab Lịch sử AI.',
           {nzPlacement: 'top'});
         // The first polls can come before the job is visible, so keep polling a little longer than usual.
         this.aiJobService.watch(NEW_JOB_IDLE_POLLS);
