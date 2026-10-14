@@ -39,23 +39,38 @@ func (g *fakeGenerator) Generate(ctx context.Context, images []csvgen.Image, cre
 	return "a,b", g.err
 }
 
+// testClockStart is where newEnv's clock begins; tests build closing times from it.
+var testClockStart = time.Date(2026, time.October, 14, 9, 0, 0, 0, time.UTC)
+
+// testClock is the clock the assignment handlers read in tests: it stands still until a test moves it.
+type testClock struct{ now time.Time }
+
+func (c *testClock) Now() time.Time          { return c.now }
+func (c *testClock) Advance(d time.Duration) { c.now = c.now.Add(d) }
+
 type testEnv struct {
-	srv   *Server
-	h     http.Handler
-	users *store.Memory
-	jobs  *store.MemoryJobs
-	gen   *fakeGenerator
+	srv         *Server
+	h           http.Handler
+	users       *store.Memory
+	jobs        *store.MemoryJobs
+	assignments *store.MemoryAssignments
+	clock       *testClock
+	gen         *fakeGenerator
 }
 
 func newEnv(t *testing.T) *testEnv {
 	t.Helper()
 	users := store.NewMemory()
 	jobs := store.NewMemoryJobs()
+	assignments := store.NewMemoryAssignments()
+	clock := &testClock{now: testClockStart}
 	jwt := auth.NewJWT([]byte("0123456789abcdef0123456789abcdef"), "quiztool", "quiztool-api", 15*time.Minute)
 	gen := &fakeGenerator{}
 	srv := &Server{
 		Users:           users,
 		Jobs:            jobs,
+		Assignments:     assignments,
+		Now:             clock.Now,
 		Auth:            auth.NewService(users, jwt, 30*24*time.Hour, 5),
 		JWT:             jwt,
 		Generator:       gen,
@@ -65,7 +80,7 @@ func newEnv(t *testing.T) *testEnv {
 		RoundDuration:   time.Minute,
 		Logger:          slog.New(slog.DiscardHandler),
 	}
-	env := &testEnv{srv: srv, h: srv.Handler(), users: users, jobs: jobs, gen: gen}
+	env := &testEnv{srv: srv, h: srv.Handler(), users: users, jobs: jobs, assignments: assignments, clock: clock, gen: gen}
 	env.createUser(t, "alice", "pw", []string{"User"})
 	return env
 }
@@ -379,6 +394,8 @@ func TestCreateJobRequestErrors(t *testing.T) {
 		{"truncated", upload{token: token, ctype: ptr("multipart/form-data; boundary=xyz"), rawBody: ptr("--xyz\r\nContent-Disposition: form-data; name=\"images\"; filename=\"a.png\"\r\n\r\nabc")}, http.StatusBadRequest, "Malformed multipart body."},
 		{"no image", upload{token: token}, http.StatusBadRequest, "Image is required."},
 		{"bad creative options", upload{token: token, query: "?isCreative=true&exportType=9"}, http.StatusBadRequest, "Invalid or missing exportType parameter."},
+		{"bad gesture stages", upload{token: token, query: "?isCreative=true&exportType=3&courseType=0&level=1&lessonNumber=1&gestureStages=7"}, http.StatusBadRequest, "Invalid gestureStages parameter."},
+		{"bad questions per stage", upload{token: token, query: "?isCreative=true&exportType=3&courseType=0&level=1&lessonNumber=1&questionsPerStage=11"}, http.StatusBadRequest, "Invalid questionsPerStage parameter."},
 	}
 	for _, tt := range tests {
 		rec := env.upload(t, tt.upload)

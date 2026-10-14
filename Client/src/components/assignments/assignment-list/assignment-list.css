@@ -1,0 +1,34 @@
+:host {
+  display: block;
+}
+
+.help {
+  margin: 0 0 12px;
+  color: var(--qt-text-muted);
+}
+
+.empty {
+  padding: 16px 0;
+}
+
+.empty .help {
+  margin-bottom: 16px;
+}
+
+.assignment-title {
+  word-break: break-word;
+}
+
+.label-tag {
+  margin-left: 6px;
+}
+
+/* The row's one button opens the menu of its actions; it sits at the right edge of the column. */
+.assignment-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.reopen-help {
+  margin: 0 0 12px;
+}

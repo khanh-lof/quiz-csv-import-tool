@@ -1,0 +1,78 @@
+<!-- While the request is out the dialog cannot be dismissed, or its answer would land in a closed dialog. -->
+<nz-modal [nzVisible]="open()" (nzVisibleChange)="open.set($event)" (nzOnCancel)="open.set(false)"
+          nzTitle="Giao bài cho học sinh" [nzFooter]="null" nzWidth="min(560px, 95vw)"
+          [nzClosable]="!sending()" [nzMaskClosable]="!sending()" [nzKeyboard]="!sending()">
+  <ng-container *nzModalContent>
+    @if (assignment(); as made) {
+      <p class="done-text">
+        <nz-icon nzType="check-circle" nzTheme="fill" class="done-icon"/>
+        Đã giao bài! Gửi link hoặc cho học sinh quét mã QR để vào chơi, chỉ cần nhập tên.
+      </p>
+      <app-share-link [code]="made.code" [qrSize]="200"/>
+      <div class="actions">
+        <button nz-button nzType="default" type="button" (click)="tryAssignment(made)">
+          <nz-icon nzType="eye" nzTheme="outline"/>
+          Xem thử
+        </button>
+        <button nz-button nzType="default" type="button" (click)="close()">Xong</button>
+        <button nz-button nzType="primary" type="button" (click)="showRanking(made)">
+          <nz-icon nzType="trophy" nzTheme="outline"/>
+          Xem bảng xếp hạng
+        </button>
+      </div>
+    } @else {
+      <div class="quiz-info">
+        <div class="quiz-title">{{ job()?.title }}</div>
+        @if (questions() > 0) {
+          <div class="muted">{{ questions() }} câu · {{ quiz()!.stages.size }} màn</div>
+          @if (quiz()!.skipped > 0) {
+            <div class="muted">Bỏ qua {{ quiz()!.skipped }} dòng không hợp lệ.</div>
+          }
+        }
+      </div>
+      @if (questions() === 0) {
+        <p class="error" role="alert">Quiz này không có câu hỏi hợp lệ để giao.</p>
+      }
+
+      <div class="field">
+        <label class="field-label" for="assign-label">
+          Lớp / nhóm <span class="muted">(không bắt buộc)</span>
+        </label>
+        <input id="assign-label" nz-input placeholder="VD: Lớp 3A" [attr.maxlength]="maxLabelLength"
+               [ngModel]="label()" (ngModelChange)="label.set($event ?? '')" (keydown.enter)="submit()"/>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Hẹn giờ đóng</span>
+        <app-deadline-picker [(value)]="deadline"/>
+      </div>
+
+      <div class="field">
+        <span class="field-label" id="assign-time-mode">Thời gian mỗi câu</span>
+        <nz-radio-group class="radios" aria-labelledby="assign-time-mode" [ngModel]="timeMode()"
+                        (ngModelChange)="timeMode.set($event)">
+          @for (mode of timeModes; track mode.value) {
+            <label nz-radio [nzValue]="mode.value">{{ mode.label }}</label>
+          }
+        </nz-radio-group>
+        <p class="muted hint">Mọi học sinh trong bài này dùng chung một chế độ.</p>
+      </div>
+
+      @if (error(); as message) {
+        <p class="error" role="alert">{{ message }}</p>
+      }
+
+      <div class="actions">
+        <button nz-button nzType="default" type="button" [disabled]="questions() === 0" (click)="tryJob()">
+          <nz-icon nzType="eye" nzTheme="outline"/>
+          Xem thử
+        </button>
+        <button nz-button nzType="primary" type="button" [nzLoading]="sending()" [disabled]="!canSubmit()"
+                (click)="submit()">
+          <nz-icon nzType="send" nzTheme="outline"/>
+          Giao bài
+        </button>
+      </div>
+    }
+  </ng-container>
+</nz-modal>

@@ -1,5 +1,5 @@
 <div class="center-container">
-  <!-- The items stay unselectable on click: the two modes are highlighted from the route alone
+  <!-- The items stay unselectable on click: the modes are highlighted from the route alone
        (nzMatchRouter), so a refused navigation leaves the current page highlighted. -->
   <ul nz-menu nzMode="horizontal" [nzSelectable]="false" class="workspace-nav">
     <!-- A tooltip only on the item not shown: the page itself already explains the current one. It is
@@ -15,6 +15,18 @@
         nzTooltipTitle="Gửi ảnh bài học (hoặc chỉ chọn bài) để AI soạn câu hỏi giúp. Cần đăng nhập.">
       <nz-icon nzType="robot" nzTheme="outline"/>
       <span><a routerLink="/ai">Tạo bằng AI</a></span>
+    </li>
+    <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="bottom"
+        [nzTooltipTrigger]="mode() === '/ai-history' ? null : 'hover'"
+        nzTooltipTitle="Các lần tạo bằng AI: xem trạng thái, tải file, chơi ngay hoặc giao bài. Cần đăng nhập.">
+      <nz-icon nzType="history" nzTheme="outline"/>
+      <span><a routerLink="/ai-history">Lịch sử AI</a></span>
+    </li>
+    <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="bottom"
+        [nzTooltipTrigger]="mode() === '/assignments' ? null : 'hover'"
+        nzTooltipTitle="Các quiz cử chỉ đã giao cho học sinh: link, mã QR và bảng xếp hạng. Cần đăng nhập.">
+      <nz-icon nzType="trophy" nzTheme="outline"/>
+      <span><a routerLink="/assignments">Bài đã giao</a></span>
     </li>
     <!-- Leaves this frame: the game is a full-screen page of its own, so the item never stays highlighted. -->
     <li nz-menu-item nz-tooltip nzTooltipPlacement="bottom"

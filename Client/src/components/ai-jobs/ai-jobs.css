@@ -30,13 +30,10 @@
   word-break: break-word;
 }
 
+/* The row's one button opens the menu of its actions; it sits at the right edge of the column. */
 .job-actions {
-  white-space: nowrap;
   text-align: right;
-}
-
-.job-actions button + button {
-  margin-left: 8px;
+  white-space: nowrap;
 }
 
 /* The popup's table: long cells wrap rather than stretch it. */

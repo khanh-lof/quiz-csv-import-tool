@@ -1,0 +1,23 @@
+:host {
+  display: block;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 0;
+}
+
+.custom-time {
+  display: block;
+  width: min(260px, 100%);
+  margin-top: 8px;
+}
+
+.close-text {
+  margin: 8px 0 0;
+}
+
+.muted {
+  color: var(--qt-text-muted);
+}

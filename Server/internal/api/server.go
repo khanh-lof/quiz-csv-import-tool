@@ -21,6 +21,9 @@ type Server struct {
 	Users store.Users
 	// Jobs holds the AI generations, which outlive the request that started them.
 	Jobs store.Jobs
+	// Assignments holds the quizzes teachers handed to students, and those students.
+	Assignments store.Assignments
+
 	Auth *auth.Service
 	JWT  *auth.JWT
 	// Generator is nil when the LLM settings are incomplete; CSV generation then fails with 500.
@@ -33,7 +36,18 @@ type Server struct {
 	// LLMTimeout bounds each Generator call; zero means no limit.
 	LLMTimeout time.Duration
 
+	// Now is the clock the assignment handlers read (opening times, results, closing); nil means
+	// time.Now. Tests set it to step through a closing time without waiting.
+	Now func() time.Time
+
 	Logger *slog.Logger
+}
+
+func (s *Server) now() time.Time {
+	if s.Now != nil {
+		return s.Now()
+	}
+	return time.Now()
 }
 
 func (s *Server) Handler() http.Handler {
@@ -49,6 +63,18 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /api/csv/jobs", csvRoute(s.createJob))
 	mux.Handle("GET /api/csv/jobs", csvRoute(s.listJobs))
 	mux.Handle("DELETE /api/csv/jobs/{id}", csvRoute(s.deleteJob))
+	// The teacher's side of "Giao bài" needs a login like the jobs it hands out.
+	mux.Handle("POST /api/assignments", csvRoute(s.createAssignment))
+	mux.Handle("GET /api/assignments", csvRoute(s.listAssignments))
+	mux.Handle("GET /api/assignments/{id}", csvRoute(s.getAssignment))
+	mux.Handle("PATCH /api/assignments/{id}", csvRoute(s.patchAssignment))
+	mux.Handle("DELETE /api/assignments/{id}", csvRoute(s.deleteAssignment))
+	mux.Handle("DELETE /api/assignments/{id}/players/{playerId}", csvRoute(s.deleteAssignmentPlayer))
+	// The students' side is anonymous: the link's code and the player's own token are the credentials,
+	// and these routes never answer 401, which the SPA's interceptor would answer with a refresh.
+	mux.HandleFunc("GET /api/share/{code}", s.getShared)
+	mux.HandleFunc("POST /api/share/{code}/players", s.joinShared)
+	mux.HandleFunc("POST /api/share/{code}/results", s.reportResult)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeText(w, http.StatusOK, "ok")
 	})

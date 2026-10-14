@@ -40,6 +40,7 @@ describe('AiCsvService', () => {
     service.submitCreative([], {
       courseType: CourseType.Hsk, courseName: 'ignored', hskStandard: HskStandard.V3, level: 4, lessonNumber: 5,
       AIMode: AIGenerationMode.Auto, exportType: ExportType.Wayground, intelligence: 2,
+      gestureStages: [1, 3], questionsPerStage: 7,
     }, 'HSK3.0-4-Bai5').subscribe();
 
     const params = http.expectOne(r => r.url === URL).request.params;
@@ -52,6 +53,64 @@ describe('AiCsvService', () => {
     expect(params.get('lessonNumber')).toBe('5');
     expect(params.get('intelligence')).toBe('2');
     expect(params.has('courseName')).toBeFalse();
+  });
+
+  describe('the gesture quiz options', () => {
+    const request = (exportType: ExportType, gestureStages: number[] | null, questionsPerStage: number | null) => ({
+      courseType: CourseType.Hsk, courseName: null, hskStandard: HskStandard.V2, level: 2, lessonNumber: 3,
+      AIMode: AIGenerationMode.Auto, exportType, intelligence: 1, gestureStages, questionsPerStage,
+    });
+
+    it('sends the chosen games in ascending order and the question count for a Quiz cử chỉ', () => {
+      service.submitCreative([], request(ExportType.GestureQuiz, [6, 1, 4], 8), 'HSK2-Bai3').subscribe();
+
+      const params = http.expectOne(r => r.url === URL).request.params;
+      expect(params.get('exportType')).toBe(String(ExportType.GestureQuiz));
+      expect(params.get('gestureStages')).toBe('1,4,6');
+      expect(params.get('questionsPerStage')).toBe('8');
+    });
+
+    it('sends a single game as just its number', () => {
+      service.submitCreative([], request(ExportType.GestureQuiz, [5], 4), 'HSK2-Bai3').subscribe();
+
+      const params = http.expectOne(r => r.url === URL).request.params;
+      expect(params.get('gestureStages')).toBe('5');
+      expect(params.get('questionsPerStage')).toBe('4');
+    });
+
+    it('does not change the list it was given', () => {
+      const stages = [3, 1];
+      service.submitCreative([], request(ExportType.GestureQuiz, stages, 5), 'HSK2-Bai3').subscribe();
+      http.expectOne(r => r.url === URL);
+
+      expect(stages).toEqual([3, 1]);
+    });
+
+    it('leaves out an option that is null, so the server uses its default', () => {
+      service.submitCreative([], request(ExportType.GestureQuiz, null, null), 'HSK2-Bai3').subscribe();
+
+      const params = http.expectOne(r => r.url === URL).request.params;
+      expect(params.has('gestureStages')).toBeFalse();
+      expect(params.has('questionsPerStage')).toBeFalse();
+    });
+
+    for (const exportType of [ExportType.GimKit, ExportType.Blooket, ExportType.Wayground]) {
+      it(`sends neither for ${ExportType[exportType]}, whatever the form holds`, () => {
+        service.submitCreative([], request(exportType, [1, 2, 3], 6), 'HSK2-Bai3').subscribe();
+
+        const params = http.expectOne(r => r.url === URL).request.params;
+        expect(params.has('gestureStages')).toBeFalse();
+        expect(params.has('questionsPerStage')).toBeFalse();
+      });
+    }
+
+    it('sends neither with a formatted job', () => {
+      service.submitFormatted([], 'Từ ảnh').subscribe();
+
+      const params = http.expectOne(r => r.url === URL).request.params;
+      expect(params.has('gestureStages')).toBeFalse();
+      expect(params.has('questionsPerStage')).toBeFalse();
+    });
   });
 
   for (const status of [400, 401, 403, 413, 500, 502, 503, 504]) {

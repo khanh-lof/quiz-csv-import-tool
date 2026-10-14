@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -62,6 +63,29 @@ const IntelligenceLevels = 2
 // DefaultIntelligence is used when the client sends none; it matches the GUI default (Thấp).
 const DefaultIntelligence = 1
 
+// GestureStageCount is how many games (stages) a Quiz cử chỉ can have. A stage's number, 1 to
+// GestureStageCount, is the identity of its game in the CSV, so it never changes when a quiz leaves
+// other stages out. Keep in step with STAGES in Client/src/game/stages.ts.
+const GestureStageCount = 6
+
+// The number of questions a gesture quiz asks for in each of its stages. Four is the minimum because
+// a stage is passed with 70% right, and with fewer questions it would be all-or-nothing. Keep in step
+// with Client/src/models/gesture-quiz-options.ts.
+const (
+	MinQuestionsPerStage     = 4
+	MaxQuestionsPerStage     = 10
+	DefaultQuestionsPerStage = 5
+)
+
+// AllGestureStages returns every stage number, the quiz a teacher gets without choosing games.
+func AllGestureStages() []int {
+	stages := make([]int, GestureStageCount)
+	for i := range stages {
+		stages[i] = i + 1
+	}
+	return stages
+}
+
 // Options is everything the creative prompt needs to know about the lesson. Level is optional for
 // CourseType Other, and images are optional altogether: without them the model falls back to the
 // canonical word list of the lesson.
@@ -76,11 +100,36 @@ type Options struct {
 	LessonNumber *int
 	// Intelligence is 1..IntelligenceLevels and selects the model, see Client.modelFor.
 	Intelligence int
+	// GestureStages (ascending, unique, each 1..GestureStageCount) and QuestionsPerStage describe the
+	// quiz of the GestureQuiz platform and stay zero for the other platforms. ParseCreativeOptions
+	// always fills them for GestureQuiz; the accessors below also give a hand-built Options its defaults.
+	GestureStages     []int
+	QuestionsPerStage int
+}
+
+// GestureQuizStages returns the stage numbers of a gesture quiz, all of them when none were chosen.
+func (o Options) GestureQuizStages() []int {
+	if len(o.GestureStages) == 0 {
+		return AllGestureStages()
+	}
+	return o.GestureStages
+}
+
+// GestureQuizQuestions returns how many questions each stage of a gesture quiz gets.
+func (o Options) GestureQuizQuestions() int {
+	if o.QuestionsPerStage == 0 {
+		return DefaultQuestionsPerStage
+	}
+	return o.QuestionsPerStage
 }
 
 // CourseDisplayName is the course name handed to the model. For HSK and YCT it names the textbook,
-// since lesson numbers only exist there (the exam syllabuses have levels but no lessons).
+// since lesson numbers only exist there (the exam syllabuses have levels but no lessons). A book whose
+// lessons are embedded (see textbooks.go) is named exactly.
 func (o Options) CourseDisplayName() string {
+	if book := textbookFor(o); book != nil {
+		return fmt.Sprintf("%s, the %s level %d textbook", book.fullName(), book.course, book.level)
+	}
 	switch o.CourseType {
 	case Hsk:
 		if o.HskStandard == Hsk3 {
@@ -142,10 +191,15 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 	}
 
 	lesson, err := strconv.Atoi(strings.TrimSpace(q.Get("lessonNumber")))
-	if err != nil {
+	if err != nil || lesson < 1 {
 		return Options{}, errors.New("Invalid or missing lessonNumber parameter.")
 	}
 	opts.LessonNumber = &lesson
+	// A book we hold the lessons of has a known number of them; for any other course the number is the
+	// teacher's word, since the model only reads it as a position in a book it recalls.
+	if book := textbookFor(opts); book != nil && lesson > book.lessons {
+		return Options{}, fmt.Errorf("Lesson must be 1 to %d for %s.", book.lessons, book.title)
+	}
 
 	opts.Intelligence = DefaultIntelligence
 	if raw := strings.TrimSpace(q.Get("intelligence")); raw != "" {
@@ -155,7 +209,47 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 		}
 		opts.Intelligence = intelligence
 	}
+
+	// The two gesture quiz settings belong to that platform alone: for the others they are ignored,
+	// even when invalid, so a stale parameter cannot make a GimKit request fail.
+	if opts.ExportType == GestureQuiz {
+		if opts.GestureStages, err = parseGestureStages(q.Get("gestureStages")); err != nil {
+			return Options{}, err
+		}
+		opts.QuestionsPerStage = DefaultQuestionsPerStage
+		if raw := strings.TrimSpace(q.Get("questionsPerStage")); raw != "" {
+			n, err := strconv.Atoi(raw)
+			if err != nil || n < MinQuestionsPerStage || n > MaxQuestionsPerStage {
+				return Options{}, errors.New("Invalid questionsPerStage parameter.")
+			}
+			opts.QuestionsPerStage = n
+		}
+	}
 	return opts, nil
+}
+
+// parseGestureStages reads the comma-separated stage numbers, in any order, and returns them
+// ascending. A stage is a single digit, so anything else (an empty element, 0, 7, "03", "+3", a
+// repeat) is invalid rather than guessed at. An absent or blank value means every stage.
+func parseGestureStages(raw string) ([]int, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return AllGestureStages(), nil
+	}
+	var stages []int
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if len(part) != 1 || part[0] < '1' || part[0] > '0'+GestureStageCount {
+			return nil, errors.New("Invalid gestureStages parameter.")
+		}
+		stage := int(part[0] - '0')
+		if slices.Contains(stages, stage) {
+			return nil, errors.New("Invalid gestureStages parameter.")
+		}
+		stages = append(stages, stage)
+	}
+	slices.Sort(stages)
+	return stages, nil
 }
 
 // parseEnum accepts an ordinal or a member name (case-insensitive).

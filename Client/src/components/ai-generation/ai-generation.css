@@ -40,10 +40,6 @@
   color: var(--qt-text-muted);
 }
 
-app-ai-jobs {
-  margin-top: 32px;
-}
-
 /* Never squeezed by the page fitting the screen (see :host); its min-height would let it shrink. */
 .ai-form {
   flex-shrink: 0;
@@ -301,7 +297,44 @@ app-ai-jobs {
 .output-selection .export-type-select {
   width: 200px;
 }
-/* A line under the platform row; the form's own gap spaces it. */
+/* The Quiz cử chỉ choices under the platform row: the games, the question count and what they make. */
+.gesture-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+.gesture-options .field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.gesture-options .field-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.gesture-options .field-label {
+  white-space: nowrap;
+}
+.gesture-options nz-input-number {
+  width: 80px;
+}
+/* The checkboxes sit beside the label when there is room and drop below it when there is not: 300px is
+   more than a phone leaves next to the label, so there the group takes the whole line and fits two games
+   a row instead of squeezing one into each. min-width 0 lets it shrink to the row, never push it wider. */
+.gesture-options .games-row {
+  align-items: flex-start;
+}
+.gesture-options nz-checkbox-group {
+  display: flex;
+  flex: 1 1 300px;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-width: 0;
+}
+/* A line under the choices. */
 .export-hint {
   color: var(--qt-text-muted);
 }

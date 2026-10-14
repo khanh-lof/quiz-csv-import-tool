@@ -6,8 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 QuizTool turns photos of a Chinese (HSK) lesson into a quiz file that can be imported into GimKit,
 Blooket, or Wayground, or into a quiz that QuizTool plays itself as a webcam gesture game
-("Quiz cử chỉ"). It is one git repo holding two independently built and independently deployed
-projects, plus an optional browser extension:
+("Quiz cử chỉ"). A teacher can also hand a Quiz cử chỉ to students as a link ("Giao bài"): they play it
+with no account and the teacher watches their ranking. It is one git repo holding two independently built
+and independently deployed projects, plus an optional browser extension:
 
 - `Client/` — Angular 22 SPA (standalone components, ng-zorro-antd).
 - `Server/` — Go (`net/http`) API with MongoDB persistence. Runs as a standalone binary / Docker
@@ -63,8 +64,14 @@ no configurable backend URL:
 | — (admin only, `X-Admin-Key` header) | `users` (`auth_handlers.go`) |
 | `AiCsvService.submitFormatted` / `.submitCreative` | `POST csv/jobs` (`internal/api/csv_handler.go`) |
 | `AiJobService.refresh` / `.remove` | `GET csv/jobs`, `DELETE csv/jobs/{id}` (`csv_handler.go`) |
+| `AssignmentService.create` | `POST assignments` (`internal/api/assignment_handlers.go`) |
+| `AssignmentService.list` / `.get` | `GET assignments`, `GET assignments/{id}` (`assignment_handlers.go`) |
+| `AssignmentService.update` | `PATCH assignments/{id}` (`assignment_handlers.go`) |
+| `AssignmentService.remove` / `.removePlayer` | `DELETE assignments/{id}`, `DELETE assignments/{id}/players/{playerId}` (`assignment_handlers.go`) |
+| `SharedPlayService.load` / `.join` | `GET share/{code}`, `POST share/{code}/players` (`internal/api/share_handlers.go`, anonymous) |
+| `SharedPlayService.submit` / `.flush` | `POST share/{code}/results` (`share_handlers.go`, anonymous, `X-Player-Token` header) |
 
-Two things make the wiring non-obvious:
+Three things make the wiring non-obvious:
 
 - **Same-origin everywhere, no CORS.** On Vercel the SPA and API are services of one deployment
   (every preview included); locally the `ng serve` proxy puts them on one origin too. The server
@@ -73,9 +80,16 @@ Two things make the wiring non-obvious:
   origins is not supported: the browser would block the calls and never send the cookie, breaking
   the silent-refresh-on-boot flow in `app.config.ts`.
 - **Auth is split across two mechanisms.** The access token is a Bearer JWT the client attaches via
-  `AuthInterceptor`; only the `csv/jobs` routes require it, via the `authenticate` +
-  `requireRole` middleware wrapped around that route (`Server/internal/api/middleware.go`).
+  `AuthInterceptor`; only the `csv/jobs` and `assignments` routes require it (the latter being the teacher's
+  half of [Giao bài](#giao-bài-assignments)), via the `authenticate` + `requireRole` middleware wrapped
+  around that route (`Server/internal/api/middleware.go`).
   The refresh token lives only in the cookie and is never in a JSON body.
+- **The student routes are anonymous and never answer 401.** `share/{code}` and its two sub-routes are
+  registered bare, with no `authenticate`: the link's code and the student's own token are their only
+  credentials. A 401 would be wrong for a student, because `AuthInterceptor` answers every 401 by calling
+  `auth/refresh` and retrying, and a student has no session to refresh. So a refusal there is always a 400,
+  403, 404, 409 or 410, even when the request carries a bad or expired `Authorization` header
+  (`TestStudentRoutesNeverAnswer401` pins it). Keep it that way for any route added under `share/`.
 
 ## The two AI generation modes
 
@@ -85,7 +99,7 @@ completely different paths through the system. First, what they share — **AI g
 validates the request, stores a job in MongoDB (`store.Job`, collection `Jobs`, newest 30 kept per user),
 answers `202 {"id"}` and keeps working in the same handler, detached from the client's connection, until
 the model has answered and the result is saved on the job. The client does not wait for the result: the
-`AiGeneration` page shows a "Đã gửi yêu cầu" notice, and the history table below the form (`AiJobs`) shows
+`AiGeneration` page shows a "Đã gửi yêu cầu" notice, and the history table on its own "Lịch sử AI" tab (`/ai-history`, `AiJobs`) shows
 the user's jobs from `GET csv/jobs`, which `AiJobService` polls every 3 s while any job runs. A job
 finishing is announced wherever the user is in the app. The result is delivered from the table, not on
 completion: **Formatted** jobs get a "Mở trong bảng" action, **Auto** jobs a "Tải file" action
@@ -102,19 +116,25 @@ keeps those on each creative job; jobs from before it did have none and drop out
   them and later exports via `FileExportService.exportFile` (client-side builders synthesize the
   distractors).
 - **`Auto`** (sent as `isCreative=true`, alongside `exportType`, `courseType`, `lessonNumber`, and
-  `level`/`courseName` depending on the course) → server's creative prompt
+  `level`/`courseName` depending on the course, and for Quiz cử chỉ `gestureStages`/`questionsPerStage`, see
+  [the gesture quiz](#the-gesture-quiz-quiz-cử-chỉ)) → server's creative prompt
   (`csvgen.buildCreativeRequest`, `prompts/creative_system.txt`), a long Chinese-teacher prompt that is told the exact
   column layout of the *target platform* via `exportTypeMessages` and asked to
   return **rows without a header** → client never touches the table: on "Tải file" it prepends the header through
   `CsvBuilderBase.buildFromCsvContent` and downloads (for the Quiz cử chỉ platform the job can instead be
   played in the app, its third delivery). **Images are optional in this
-  mode**: with none attached the prompt tells the model to work from the standard word list of the
-  identified lesson instead. The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`, another
+  mode.** The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`, another
   by-ordinal enum duplicated on both sides), a `level` that is required for HSK and YCT but optional
   for `Other`, a `courseName` required only for `Other`, and a `lessonNumber`. For HSK the user
-  also picks the standard, `HskStandard` 2.0 (levels 1–6, the default) or 3.0 (levels 1–9), sent as
-  `hskStandard=2|3` by value, not ordinal; the server rejects a level outside the standard's range. Everything the prompt
-  needs travels in `csvgen.Options` (`Server/internal/csvgen/options.go`).
+  also picks the standard, `HskStandard` 2.0 (levels 1–6, the server's default) or 3.0 (levels 1–9; the form's
+  default), sent as `hskStandard=2|3` by value, not ordinal; the server rejects a level outside the standard's range.
+  Everything the prompt needs travels in `csvgen.Options` (`Server/internal/csvgen/options.go`). Where the lesson's
+  words come from depends on the course:
+  - **A course with a textbook** (see [Textbook lessons](#textbook-lessons)): the server sends the lesson's own
+    material, and the model builds the quiz from it alone. Photos, if any, only say which part to focus on.
+  - **Any other course:** the photos when there are some. With none, the model rebuilds the lesson from its own
+    knowledge of the textbook (the prompt's LESSON SOURCE, Steps 1–3).
+  - **The web search tool** (Wayground only) is for finding illustrations and is never used to look up the lesson.
 
 Consequences to keep in mind when changing anything here:
 
@@ -134,6 +154,35 @@ Consequences to keep in mind when changing anything here:
   call refunded the next time its owner lists jobs.
 - Export output format is per-platform: GimKit, Blooket and Quiz cử chỉ download as `.csv`, Wayground is
   converted to `.xlsx` via `xlsx` before download (`FileExportService.download`).
+
+## Textbook lessons
+
+For four books QuizTool holds the lessons themselves:
+
+| Book | Course | Lessons |
+|---|---|---|
+| 《新HSK教程1》 | HSK 3.0 level 1 | 15 |
+| 《新HSK教程2》 | HSK 3.0 level 2 | 15 |
+| 《新HSK教程3》 | HSK 3.0 level 3 | 18 |
+| 《YCT标准教程6》 | YCT level 6 | 15 |
+
+- **What gets sent.** One curated markdown document per lesson is embedded in the server
+  (`Server/internal/csvgen/textbooks/<book>/lesson-NN.md`) and sent with a request for that lesson as its
+  LESSON MATERIAL. The document holds the lesson's new words (pinyin, part of speech, English, Vietnamese, ★ for
+  words beyond the syllabus), its language points and its texts. The words of the earlier lessons and of the
+  lower books are sent with it as the vocabulary the learner already knows.
+- **Where it comes from.** The documents were written from the scanned books and their typed word lists, which
+  live in `Textbooks/` together with the format (`Textbooks/LESSON_DOC_FORMAT.md`) and how to add a book
+  (`Textbooks/README.md`). The PDFs and raw OCR there are gitignored.
+- **The registry is hand-kept twice.** The server's `textbookRegistry` (`Server/internal/csvgen/textbooks.go`)
+  and the client's `TEXTBOOKS` (`Client/src/models/textbook.ts`) must name the same books with the same lesson
+  counts.
+- **What each side does with it.**
+  - The server refuses a lesson beyond the book: 400 `Lesson must be 1 to <M> for <title>.`
+  - The client caps the lesson field the same way, and tells the user under it whether the course has a book.
+- **The tests pin the documents.** `go test` fails when a registered lesson is missing or malformed. It also
+  fails when a lesson's New words disagree with that book's `vocabulary-index.md`: a missing or extra word, its
+  pinyin, or its ★.
 
 ## The Wayground browser extension
 
@@ -171,11 +220,12 @@ are processed locally in the browser (MediaPipe), nothing is recorded or sent an
 
 **The CSV contract.** The model returns headerless rows of exactly 7 fields, `Stage,Question,Correct
 Answer,Wrong Answer 1,Wrong Answer 2,Wrong Answer 3,Explanation` (an unused column is an empty field),
-grouped by stage, 4–5 rows per stage (24–30 rows). The stage, 1 to 6, fixes the row shape and, because the
+grouped by stage. The stage, 1 to 6, fixes the row shape and, because the
 prompt tells the model to classify each question by its real difficulty (the creative prompt's stage
 rules replace its usual difficulty mixture), the difficulty too. The Explanation is one Vietnamese
 sentence shown after the answer. The stages are played easiest to hardest, one game each, and a stage is
-passed with at least 70% right (`PASS_RATIO` / `passMark`: 4 of 5, 7 of 10), which opens the next one:
+passed with at least 70% right (`PASS_RATIO` / `passMark`: 4 of 5, 7 of 10), which opens the next stage the
+quiz has (a quiz may have only some of the six, see *Choosing the games* below):
 
 | Stage | Game (`GameKind`) | The learner… | Row shape |
 |---|---|---|---|
@@ -193,8 +243,23 @@ chunks itself) and the client's `parseGestureQuiz` (`Client/src/models/gesture-q
 table `STAGES` (`Client/src/game/stages.ts`) describe this one format from both ends, and, like the
 other contracts, are kept in step by hand. The parser is forgiving: a header row is optional and rows that
 break their stage's rules are dropped and counted (`skipped`, announced to the player), so a drifting
-prompt shows up as missing questions, not as an error. A stage without any questions shows as empty on the
-map and does not block the ones after it.
+prompt shows up as missing questions, not as an error. The map shows only the stages that have questions, so a
+stage left out of the quiz, or one whose rows were all dropped, is simply not there and blocks nothing.
+
+**Choosing the games.** A quiz need not have all six stages. On the AI form the teacher ticks which games it has (any 1 to 6, all by
+default) and how many questions each gets (4 to 10, 5 by default; four is the least for which the 70% pass
+mark is not all-or-nothing). They travel as `gestureStages=4,6` and `questionsPerStage=7` on `POST csv/jobs`
+and are read only for GestureQuiz (`csvgen.Options.GestureStages` / `.QuestionsPerStage`): absent means all
+six and 5, a value out of range is 400 `Invalid gestureStages parameter.` or `Invalid questionsPerStage
+parameter.`. The server's template then describes only those stages and asks for exactly that many rows of
+each. The limits are constants on both sides (`csvgen`'s `Min`/`Max`/`DefaultQuestionsPerStage`, the client's
+`models/gesture-quiz-options.ts`), kept in step by hand. Nothing about the choice is stored on the job: the
+stages a quiz has are read from its CSV.
+
+**The stage number stays the game's identity** everywhere it is stored or sent (the CSV's Stage column, the
+progress, an assignment's `stageCounts`, results), so a quiz of Chém hoa quả and Xếp câu has rows with Stage 4
+and 6. Only what a person reads is renumbered by position (`stagePosition` in `game/stages.ts`): that quiz
+shows "Màn 1" and "Màn 2" on the map, in the game, on its result and in an assignment's ranking.
 
 **Entry points.** On a finished GestureQuiz job the AI jobs table shows "Chơi ngay", which navigates to
 `/play/<job id>` (login required; the page takes the job from `AiJobService`), and "Tải file", which
@@ -202,7 +267,11 @@ downloads `<title>-Quiz-cử-chỉ.csv` with the header prepended. A downloaded 
 (`Client/src/game/demo-quiz.ts`), is opened on `/play`, which needs no login. The vocabulary table does not
 offer this platform: its rows have no stages. Progress (stages passed, best result per stage) is kept in
 `localStorage` per quiz, keyed by a hash of the questions rather than the title, so a job and the file
-downloaded from it share it; nothing about the quiz or the player goes to the server.
+downloaded from it share it; nothing about the quiz or the player goes to the server, except when a teacher
+hands the quiz out: the job also gets "Giao bài" (see [Giao bài](#giao-bài-assignments)), and a student who
+opens its link plays the same game on `/play/s/<code>` (no login), which reports each finished stage to the
+server under the name the student typed. The teacher's own try-out of an assignment is
+`/play/preview/<assignment id>` (login required, all stages open, nothing saved).
 
 The camera needs HTTPS (or localhost) and the player's permission, and the two MediaPipe models are
 fetched from Google's storage on first use. The specs run against fakes and synthetic landmarks, so they
@@ -211,6 +280,91 @@ thresholds) can only be checked by playing on a machine with a camera.
 
 The Client's half (page, engine, MediaPipe loading) is in [Client/AGENTS.md](Client/AGENTS.md#gesture-quiz-play), the
 prompt's in [Server/AGENTS.md](Server/AGENTS.md).
+
+## Giao bài (assignments)
+
+A teacher (any logged-in user) gives a finished Quiz cử chỉ job to students: the AI jobs table's "Giao bài"
+makes an *assignment*, a link `<origin>/play/s/<code>` that anyone can open. A student types a name, plays the
+six-stage game above, and the browser reports each finished stage run; the teacher sees a ranking on
+`/assignments/<id>`, can close and reopen the assignment, set a closing time, preview it, remove a student and
+download the ranking as CSV. A teacher may assign the same quiz several times (one per class), each with its
+own link, label and ranking. The server half is `Server/internal/api/{assignment,share}_handlers.go` and
+`ranking.go` over `store.Assignments`, the client's `AssignmentService` and `SharedPlayService`; the rules
+below are decided by the server, and the client repeats a few of them (the pass mark, whether an assignment is
+open, the result grace) only to show the right screen without a round trip.
+
+- **The assignment is a snapshot.** Creating one copies the job's `title` and raw `csv` into the assignment
+  (`POST assignments` takes a `jobId`, but only to read it: the job must be the caller's own, `done`,
+  `creative` and `exportType` GestureQuiz, else 409 `Job is not a finished gesture quiz.`). The copy is why a
+  live link survives the teacher deleting the job or the table pruning it (the newest 30 kept per user): the
+  students' game needs a quiz that cannot disappear under it. The server does not parse the quiz: the client
+  counts the questions of each stage with `parseGestureQuiz` (`stageCountsOf`) and sends them as `stageCounts`
+  (`{"1": 5, …}`, only the stages that have questions; keys `"1"`–`"6"`, 1–50 each), which the server checks
+  for shape and then keeps as what a result is checked against. The dialog refuses a quiz with no questions.
+- **The code** is 10 characters of Crockford base32 (digits and letters without `I L O U`, so it can be read
+  out or typed from a projector), drawn from `crypto/rand` (`newShareCode`), 50 random bits; a clash with an
+  existing code redraws, up to 3 attempts. It is stored upper-case and matched case-insensitively (a student's
+  typing is trimmed and upper-cased). It is the only credential for opening the quiz: whoever has it can read
+  the quiz, answers included, from `GET share/{code}`, since the browser plays it. There is no IP restriction.
+- **A student is a name and a token, no account.** `POST share/{code}/players` creates the player and answers
+  `{playerId, token, name}`. The token is 32 random bytes, base64url; only its SHA-256 (base64url, the same
+  scheme as the refresh tokens) is stored, so reading the database does not let anyone play as somebody else.
+  The browser keeps the identity per code in `localStorage` and sends the token as the `X-Player-Token`
+  header on every result, which is what makes a reload resume as the same student. "Không phải bạn?" forgets
+  it on that device and the old player stays in the ranking until the teacher removes it; a 403 on a result
+  (the teacher removed the player) also makes the client forget it.
+- **Names** are trimmed, with inner whitespace collapsed to one space, 1–40 characters, no control
+  characters, and must be unique within the assignment as `strings.ToLower(name)` (`nameKey`: accents are
+  kept, so "Nam" and "Năm" are different students, "Lan" and "lan" are not): 409 `Name taken`. The
+  assignment takes at most 300 players (409 `Assignment is full`).
+- **A result** is `POST share/{code}/results` with `{runId, stage, correct, total}` and the token header, and
+  answers 204. The server accepts what could have happened in this quiz: `stage` is one of the assignment's
+  `stageCounts` and `total` equals that stage's count, `0 ≤ correct ≤ total`, `runId` matches
+  `^[A-Za-z0-9-]{8,64}$` (else 400 `Invalid result.`). A `runId` the player has already reported (the last 50
+  are remembered) is answered 204 and changes nothing: the client creates the id once per finished run and
+  queues a run it could not deliver with the same id, so resending is safe and never counts a run twice.
+  Whether the stage was **passed** is decided by the server, not reported: `correct >= passMark(total)` with the server's
+  `passMark(n) = (7n+9)/10` in integer division, which is the client's `passMark` (`Math.ceil(0.7 * n)`,
+  `PASS_RATIO` in `game/stages.ts`) without floating point; `TestPassMark` checks that they agree for every
+  `n` up to 300. Changing the pass rule on one side means changing the other.
+- **Best run per stage.** A player's results are merged by `mergeResult` (`store/assignments.go`, used by both
+  stores): each stage keeps the best `correct` so far, a pass once made stays, `attempts` counts every
+  accepted run, and `bestAt` is when the best score was reached (or the pass made), which is what breaks
+  ties. A replay can only raise a score, and a student can replay until the assignment closes.
+- **The ranking** (`rankPlayers`, `api/ranking.go`, computed on every `GET assignments/{id}`) orders players who
+  have results by stages passed, then total correct (the sum of the best of each stage), then who reached that
+  score first (`reachedAt`, the latest `bestAt` over the player's stages), then who joined first. Players equal
+  on all three share a rank, like a race (1, 1, 3). Players who joined but have no result come last, in the
+  order they joined, with `rank: null`. Only the assignment's stages count, and `possible` is the sum of the
+  stage counts. The client shows the order as it arrives and never sorts.
+- **Open, closed, closing time.** An assignment is closed by hand (`closedAt`) or scheduled (`closesAt`, in
+  the future and at most 180 days ahead): it is *open* while `closedAt` is unset and `closesAt` is unset or
+  still ahead. The server computes `open` for each response, and the client recomputes it from the two times
+  (`isOpenAt`), since a page left open goes stale. Opening the link (`GET share/{code}`) and joining are
+  refused with 410 `Assignment closed` the moment it is not open, but **results get a 5 minute grace**
+  (`store.ResultGrace`, counted from the earlier of the two times; the ranking page repeats it as
+  `RESULT_GRACE_MS` to know how long to keep polling) so a student in the middle of a stage at the deadline
+  does not lose it; after that a result is a 410 too. `PATCH assignments/{id}` takes any of
+  `label`, `closesAt` (null removes it) and `closed` (`true` closes now, keeping the first moment if it was
+  already closed; `false` reopens), and a key left out stays as it is. A reopen is refused (400 `Invalid
+  closing time.`) when the closing time that would remain is already past, because it would close again
+  at once, so the client's reopen dialogs always send a new `closesAt` (or null). A page checks the link
+  again before each stage and shows the closed card if it closed meanwhile.
+- **Limits:** 100 assignments per user (409 `Too many assignments.`), 300 players per assignment, a label of
+  at most 60 characters. Assignments are not AI calls: they use none of the rate-limit quota.
+- **Results are reported by the student's browser**, so the server can only check that they are plausible (the
+  rules above); a student who tampers with their own browser can post full marks, and stage locks are enforced
+  by the client alone. That is accepted for a classroom: do not treat the ranking as proof.
+- **The contract is hand-kept, like the others.** `Client/src/models/assignment.ts` mirrors the JSON of
+  `assignmentView`, `assignmentDetailView` (the assignment plus `csv` and the ranked players), `rankedPlayer`
+  and the three share answers; the plain-text error bodies are matched by the client as strings
+  (`TEACHER_ERRORS` in the model, `GesturePlay`'s join messages for `Name taken` and `Assignment is full`);
+  the time mode (`standard`, `extra`, `unlimited`) travels by name and is the same `TimeMode` the game's
+  settings use. The teacher picks one time mode per assignment, which replaces the student's own setting.
+  Adding or renaming a field, status or message means changing both sides and their specs together.
+
+The Client's half is in [Client/AGENTS.md](Client/AGENTS.md#giao-bài-assignments), the Server's (the store, its
+collections and indexes, the handlers' order of checks) in [Server/AGENTS.md](Server/AGENTS.md).
 
 ## Rate limiting
 

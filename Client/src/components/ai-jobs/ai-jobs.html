@@ -83,49 +83,54 @@
             }
           </td>
           <td class="job-actions">
+            <!-- A running job has nothing to do yet, so it gets no menu. -->
             @if (job.status !== 'running') {
-              <button nz-button nzType="default" nzSize="small" type="button" aria-label="Xem kết quả" title="Xem kết quả"
-                      (click)="view(job)">
-                <nz-icon nzType="eye" nzTheme="outline"/>
+              <button nz-button nzType="default" nzSize="small" type="button" aria-label="Thao tác" title="Thao tác"
+                      nz-dropdown [nzDropdownMenu]="jobMenu" nzTrigger="click" nzPlacement="bottomRight">
+                <nz-icon nzType="more" nzTheme="outline"/>
               </button>
-            }
-            @if (job.status === 'done') {
-              @if (job.creative) {
-                @if (job.exportType === ExportType.GestureQuiz) {
-                  <!-- Played on QuizTool itself, so playing is the main action and the file only keeps the quiz. -->
-                  <button nz-button nzType="primary" nzSize="small" type="button" (click)="play(job)">
-                    <nz-icon nzType="play-circle" nzTheme="outline"/>
-                    Chơi ngay
-                  </button>
-                }
-                <button nz-button [nzType]="job.exportType === ExportType.GestureQuiz ? 'default' : 'primary'" nzSize="small"
-                        type="button" (click)="exportJob(job, false)">
-                  <nz-icon nzType="download" nzTheme="outline"/>
-                  Tải file
-                </button>
-                @if (job.exportType === ExportType.Wayground) {
-                  <!-- The extension imports and publishes the quiz in the user's Wayground tab; without it the
-                       download above is the only way, and the title says why. -->
-                  <button nz-button nzType="default" nzSize="small" type="button" [disabled]="!extensionInstalled"
-                          [title]="extensionInstalled ? '' : 'Chưa cài tiện ích QuizTool cho Chrome'"
-                          (click)="exportJob(job, true)">
-                    <nz-icon nzType="cloud-upload" nzTheme="outline"/>
-                    Tiện ích tự publish
-                  </button>
-                }
-              } @else {
-                <button nz-button nzType="primary" nzSize="small" type="button" (click)="openInTable(job)">
-                  <nz-icon nzType="table" nzTheme="outline"/>
-                  Mở trong bảng
-                </button>
-              }
-            }
-            @if (job.status !== 'running') {
-              <button nz-button nzType="default" nzDanger nzSize="small" type="button" aria-label="Xóa"
-                      nz-popconfirm nzPopconfirmTitle="Xóa mục này?" nzPopconfirmPlacement="left"
-                      (nzOnConfirm)="remove(job)">
-                <nz-icon nzType="delete" nzTheme="outline"/>
-              </button>
+              <nz-dropdown-menu #jobMenu="nzDropdownMenu">
+                <ul nz-menu class="action-menu">
+                  <li nz-menu-item (click)="view(job)">
+                    <nz-icon nzType="eye" nzTheme="outline"/> Xem kết quả
+                  </li>
+                  @if (job.status === 'done') {
+                    @if (job.creative) {
+                      @if (job.exportType === ExportType.GestureQuiz) {
+                        <!-- Played on QuizTool itself, so playing comes first and the file only keeps the quiz. -->
+                        <li nz-menu-item (click)="play(job)">
+                          <nz-icon nzType="play-circle" nzTheme="outline"/> Chơi ngay
+                        </li>
+                        <!-- Gives the quiz to students: a link they open to play under their own name, and a ranking
+                             for the teacher. -->
+                        <li nz-menu-item (click)="assign(job)">
+                          <nz-icon nzType="send" nzTheme="outline"/> Giao bài
+                        </li>
+                      }
+                      <li nz-menu-item (click)="exportJob(job, false)">
+                        <nz-icon nzType="download" nzTheme="outline"/> Tải file
+                      </li>
+                      @if (job.exportType === ExportType.Wayground) {
+                        <!-- The extension imports and publishes the quiz in the user's Wayground tab; without it the
+                             download above is the only way, and the title says why. -->
+                        <li nz-menu-item [nzDisabled]="!extensionInstalled"
+                            [title]="extensionInstalled ? '' : 'Chưa cài tiện ích QuizTool cho Chrome'"
+                            (click)="exportJob(job, true)">
+                          <nz-icon nzType="cloud-upload" nzTheme="outline"/> Tiện ích tự publish
+                        </li>
+                      }
+                    } @else {
+                      <li nz-menu-item (click)="openInTable(job)">
+                        <nz-icon nzType="table" nzTheme="outline"/> Mở trong bảng
+                      </li>
+                    }
+                  }
+                  <li nz-menu-divider></li>
+                  <li nz-menu-item nzDanger (click)="confirmRemove(job)">
+                    <nz-icon nzType="delete" nzTheme="outline"/> Xóa
+                  </li>
+                </ul>
+              </nz-dropdown-menu>
             }
           </td>
         </tr>
@@ -171,4 +176,6 @@
       }
     </ng-container>
   </nz-modal>
+
+  <app-assign-dialog [job]="assigning()" [(open)]="assignOpen"/>
 </section>

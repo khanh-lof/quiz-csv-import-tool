@@ -55,6 +55,18 @@ func (m *MongoJobs) finish(ctx context.Context, username, id string, set bson.M)
 	return err
 }
 
+func (m *MongoJobs) Get(ctx context.Context, username, id string) (*Job, error) {
+	var job Job
+	err := m.jobs.FindOne(ctx, bson.M{"_id": id, "username": username}).Decode(&job)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &job, nil
+}
+
 func (m *MongoJobs) List(ctx context.Context, username string, limit int) ([]Job, error) {
 	cursor, err := m.jobs.Find(ctx, bson.M{"username": username},
 		options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}).SetLimit(int64(limit)))

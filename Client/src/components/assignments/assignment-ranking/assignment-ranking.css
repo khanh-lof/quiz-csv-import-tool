@@ -1,0 +1,222 @@
+/* Inside the workspace's column, which already limits the width to 1200px. */
+:host {
+  display: block;
+  flex: none;
+}
+
+nz-card {
+  display: block;
+}
+
+.head-card {
+  margin-bottom: 16px;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: var(--qt-text-muted);
+}
+
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--qt-text);
+  word-break: break-word;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 8px 0 16px;
+  color: var(--qt-text-muted);
+}
+
+/* The buttons wrap onto more lines on a narrow screen instead of squeezing. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.board-extra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 12px;
+}
+
+.live {
+  color: var(--qt-text-muted);
+  font-size: 13px;
+}
+
+.stale {
+  color: #cf1322;
+  font-size: 13px;
+}
+
+.empty {
+  padding: 8px 0;
+}
+
+.empty-text {
+  margin: 0 0 16px;
+  color: var(--qt-text-muted);
+}
+
+.rank {
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.player-name {
+  max-width: 260px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+/* A student who has joined but has not finished a stage yet has no place, and reads as waiting. */
+.unranked td {
+  color: var(--qt-text-muted);
+  opacity: 0.7;
+}
+
+.stage {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.stage.passed {
+  background: #f6ffed;
+  color: #389e0d;
+}
+
+.remove {
+  text-align: right;
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.big-emoji {
+  font-size: 48px;
+}
+
+.message-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.message-text {
+  margin: 0 0 8px;
+  color: var(--qt-text-muted);
+}
+
+.message-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.qr-modal {
+  text-align: center;
+}
+
+.qr-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.qr-label {
+  margin: 4px 0 0;
+  font-size: 18px;
+  color: var(--qt-text-muted);
+}
+
+.qr-modal app-share-link {
+  margin-top: 16px;
+  text-align: left;
+}
+
+.deadline-help {
+  margin: 0 0 12px;
+}
+
+/* The projector view: the card fills the screen on white, with larger type so a class can read it from
+   the back of the room. Its own scrollbar takes over when the ranking is longer than the screen. */
+.board.is-fullscreen {
+  overflow: auto;
+  border: none;
+  border-radius: 0;
+  background: #fff;
+  backdrop-filter: none;
+}
+
+.big-title {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.big-tag {
+  font-size: 18px;
+  line-height: 32px;
+}
+
+.board.is-fullscreen td,
+.board.is-fullscreen th {
+  padding: 14px 16px;
+  font-size: 24px;
+}
+
+.board.is-fullscreen .rank {
+  font-size: 32px;
+}
+
+.board.is-fullscreen .empty-text {
+  font-size: 24px;
+}
+
+@media (max-width: 767px) {
+  .title {
+    font-size: 19px;
+  }
+
+  .qr-title {
+    font-size: 22px;
+  }
+
+  /* A wide table scrolls inside its box rather than the page. */
+  .rank-table {
+    overflow-x: auto;
+  }
+}

@@ -1,22 +1,28 @@
 <header class="topbar">
-  <a nz-button nzType="default" nzSize="small" class="back-link" [routerLink]="jobId() ? '/ai' : '/quiz'">
-    <nz-icon nzType="arrow-left" nzTheme="outline"/>
-    <span class="back-text">{{ jobId() ? 'Về trang AI' : 'Về bảng quiz' }}</span>
-  </a>
-  <h1 class="title">{{ quiz()?.title ?? 'Quiz cử chỉ' }}</h1>
-  @if (screen() === 'map' && !jobId()) {
+  @if (backLink(); as back) {
+    <a nz-button nzType="default" nzSize="small" class="back-link" [routerLink]="back.url">
+      <nz-icon nzType="arrow-left" nzTheme="outline"/>
+      <span class="back-text">{{ back.text }}</span>
+    </a>
+  }
+  <h1 class="title">{{ heading() }}</h1>
+  @if (screen() === 'map' && mode() === 'local') {
     <button nz-button nzType="default" nzSize="small" type="button" (click)="openAnother()">
       Mở quiz khác
     </button>
   }
 </header>
 
+@if (mode() === 'preview' && screen() !== 'loading' && screen() !== 'error') {
+  <p class="preview-banner" role="status">👁 Xem thử: mọi màn đều mở, kết quả không được lưu.</p>
+}
+
 <main class="content" [class.is-playing]="screen() === 'playing'">
   @switch (screen()) {
     @case ('loading') {
       <section class="card message">
         <nz-spin nzSimple nzSize="large"/>
-        <p>Đang tải quiz…</p>
+        <p>{{ checking() ? 'Đang kiểm tra bài…' : 'Đang tải quiz…' }}</p>
       </section>
     }
 
@@ -24,16 +30,24 @@
       <section class="card message" role="alert">
         <div class="big-emoji" aria-hidden="true">😕</div>
         <p>{{ problem() }}</p>
-        <a nz-button nzType="primary" routerLink="/ai">Về trang AI</a>
+        @if (errorLink(); as link) {
+          <a nz-button nzType="primary" [routerLink]="link.url">{{ link.text }}</a>
+        }
       </section>
+    }
+
+    @case ('join') {
+      <app-share-join [title]="quiz()?.title ?? ''" [label]="shared()?.label ?? ''"
+                      [closesAt]="shared()?.closesAt ?? null" [error]="joinError()" [busy]="joining()"
+                      (join)="joinQuiz($event)"/>
     }
 
     @case ('load') {
       <section class="card load">
         <app-usage-guide>
           <ol>
-            <li>Quiz cử chỉ do AI tạo: vào tab <b>Tạo bằng AI</b>, chọn "Tạo quiz cho" là <b>Quiz cử chỉ</b>. Khi AI xong, bấm <b>Chơi ngay</b> ở bảng lịch sử, hoặc bấm <b>Tải file</b> rồi mở file đó ở đây bằng <b>Mở file quiz</b> (không cần đăng nhập).</li>
-            <li>Quiz có 6 màn, chơi từ dễ đến khó: <b>1</b> Đúng hay sai (ngón cái), <b>2</b> Nghiêng đầu, <b>3</b> Ếch đớp chữ (dịch đầu và há miệng), <b>4</b> Chém hoa quả (vung ngón trỏ), <b>5</b> Giơ ngón tay, <b>6</b> Xếp câu (chỉ ngón trỏ vào các mảnh).</li>
+            <li>Quiz cử chỉ do AI tạo: vào tab <b>Tạo bằng AI</b>, chọn "Tạo quiz cho" là <b>Quiz cử chỉ</b>. Khi AI xong, bấm <b>Chơi ngay</b> ở tab <b>Lịch sử AI</b>, hoặc bấm <b>Tải file</b> rồi mở file đó ở đây bằng <b>Mở file quiz</b> (không cần đăng nhập).</li>
+            <li>Một quiz có từ 1 đến 6 màn, mỗi màn là một trò chơi (chọn lúc tạo quiz) và được chơi từ dễ đến khó. Sáu trò chơi: Đúng hay sai (ngón cái), Nghiêng đầu, Ếch đớp chữ (dịch đầu và há miệng), Chém hoa quả (vung ngón trỏ), Giơ ngón tay, Xếp câu (chỉ ngón trỏ vào các mảnh).</li>
             <li>Đúng từ <b>70%</b> số câu của một màn thì qua màn và mở màn tiếp theo. Chưa đạt thì chơi lại màn đó; tiến độ được nhớ trên máy này.</li>
             <li>Không có camera cũng chơi được: dùng chuột, cảm ứng hoặc bàn phím (phím 1–4, mũi tên, Backspace; P để tạm dừng, Enter để sang câu tiếp).</li>
           </ol>
@@ -67,7 +81,18 @@
 
     @case ('map') {
       @if (quiz(); as openQuiz) {
-        <app-gesture-stage-map [quiz]="openQuiz" (start)="openIntro($event)"/>
+        <app-gesture-stage-map [quiz]="openQuiz" [lockedTimeMode]="assignmentTimeMode()"
+                               [allowReset]="mode() === 'local' || mode() === 'job'"
+                               [allOpen]="mode() === 'preview'" (start)="openIntro($event)">
+          @if (mode() === 'shared') {
+            <p class="share-line">
+              👤 {{ playerName() }} · <a href="#" (click)="switchPlayer($event)">Không phải bạn?</a>
+              @if (closeText()) {
+                · Bài đóng lúc {{ closeText() }}
+              }
+            </p>
+          }
+        </app-gesture-stage-map>
       }
     }
 
@@ -76,7 +101,7 @@
         <div class="intro-head">
           <span class="intro-icon" aria-hidden="true">{{ def().icon }}</span>
           <div>
-            <div class="eyebrow">Màn {{ stage() }}</div>
+            <div class="eyebrow">Màn {{ position() }}</div>
             <h2>{{ def().name }}</h2>
           </div>
         </div>
@@ -128,7 +153,7 @@
 
     @case ('playing') {
       <div class="hud">
-        <span class="pill stage-pill">{{ def().icon }} Màn {{ stage() }}</span>
+        <span class="pill stage-pill">{{ def().icon }} Màn {{ position() }}</span>
         <span class="pill">Câu {{ index() + 1 }}/{{ totalQuestions() }}</span>
         <span class="pill">⭐ {{ score() }}</span>
         @if (secondsLeft() !== null) {
@@ -245,8 +270,8 @@
 
     @case ('result') {
       @if (result(); as run) {
-        <app-gesture-stage-result [result]="run" (nextStage)="openNextStage()" (retry)="retryStage()"
-                                  (toMap)="backToMap()"/>
+        <app-gesture-stage-result [result]="run" [saveState]="saveState()" [preview]="mode() === 'preview'"
+                                  (nextStage)="openNextStage()" (retry)="retryStage()" (toMap)="backToMap()"/>
       }
     }
   }

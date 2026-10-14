@@ -2,7 +2,8 @@ import { inject, Injectable, NgZone, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { BehaviorSubject, fromEvent } from 'rxjs';
 
-// /play and /play/:jobId, with or without a query string or fragment.
+// /play and everything under it (/play/:jobId, a student's /play/s/:code, the teacher's
+// /play/preview/:assignmentId), with or without a query string or fragment.
 const GESTURE_PLAY_URL = /^\/play(?:[/?#]|$)/;
 
 @Injectable({

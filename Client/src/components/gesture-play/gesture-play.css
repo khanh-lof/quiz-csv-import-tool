@@ -27,6 +27,26 @@
   white-space: nowrap;
 }
 
+/* The teacher's preview says on every screen that nothing is kept. */
+.preview-banner {
+  flex: none;
+  margin: 0 16px 8px;
+  padding: 4px 12px;
+  font-size: 14px;
+  text-align: center;
+  background: var(--qt-gradient-soft);
+  border: 1px solid var(--qt-focus);
+  border-radius: var(--qt-radius);
+}
+
+/* A student's line above the stage map (projected into it, so it lines up with the map). */
+.share-line {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--qt-text-muted);
+  overflow-wrap: anywhere;
+}
+
 /* Scrolls on its own when a screen is taller than the window (a phone's stage map); the playing screen
    fits the window instead. */
 .content {
@@ -393,6 +413,10 @@
 
   .content {
     padding: 0 12px 12px;
+  }
+
+  .preview-banner {
+    margin: 0 12px 8px;
   }
 
   .card {

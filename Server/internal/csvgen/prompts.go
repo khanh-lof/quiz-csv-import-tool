@@ -4,7 +4,9 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
+	"text/template"
 )
 
 var (
@@ -14,8 +16,12 @@ var (
 	creativeSystemPrompt string
 	//go:embed prompts/wayground_template.txt
 	waygroundTemplate string
+	// The Quiz cử chỉ message is built from two files: the framing, a text/template that fills in the
+	// chosen stages, and the six stage rules, of which only the chosen ones are sent.
 	//go:embed prompts/gesture_quiz_template.txt
 	gestureQuizTemplate string
+	//go:embed prompts/gesture_quiz_stages.txt
+	gestureQuizStages string
 )
 
 // Image is one uploaded lesson photo.
@@ -73,8 +79,15 @@ type responsesTool struct {
 
 const (
 	maxOutputTokens = 10000
-	// Searching for images adds reasoning between the searches, which counts as output.
-	maxOutputTokensWithSearch = 16000
+	// maxOutputTokensLarge is for requests whose answer or reasoning is longer than the usual budget
+	// covers: Wayground's image searches add reasoning between the searches, and a gesture quiz of
+	// more than gestureRowsInBaseBudget rows is a long answer. It is a ceiling, billing follows what
+	// the model actually writes. Reasoning counts as output, so a quiz close to the base budget would
+	// otherwise risk an incomplete response, which fails the whole call.
+	maxOutputTokensLarge = 16000
+	// gestureRowsInBaseBudget is the size of the default gesture quiz (six stages of five questions),
+	// the largest one the base budget was sized for.
+	gestureRowsInBaseBudget = 30
 )
 
 // buildSimpleRequest asks for a two-column CSV (Câu hỏi / Đáp án), header included, that the client
@@ -93,8 +106,23 @@ func buildCreativeRequest(model string, images []Image, opts Options) responsesR
 	if len(images) == 0 {
 		intro = "No image is provided. Follow the LESSON SOURCE section: identify the textbook for the course and level below, recall the new words of that lesson, and generate the CSV using the required format."
 	}
-	texts := append([]string{intro}, exportTypeMessages(opts.ExportType)...)
+	// A lesson of an embedded textbook is sent as the LESSON MATERIAL, after the course, level and
+	// lesson number and before the images, and replaces the model's recall of the lesson.
+	material := ""
+	if book, lesson := textbookFor(opts), opts.LessonNumber; book != nil && lesson != nil {
+		material = lessonMaterial(book, *lesson)
+	}
+	if material != "" {
+		intro = "The LESSON MATERIAL message below is the lesson, taken from the textbook; the images show the part of it to focus on. Generate the CSV using the required format."
+		if len(images) == 0 {
+			intro = "Follow the LESSON SOURCE section: the LESSON MATERIAL message below is the lesson, taken from the textbook. Generate the CSV using the required format."
+		}
+	}
+	texts := append([]string{intro}, exportTypeMessages(opts)...)
 	texts = append(texts, lessonMessages(opts)...)
+	if material != "" {
+		texts = append(texts, material)
+	}
 	content := make([]inputPart, 0, len(texts)+len(images))
 	for _, text := range texts {
 		content = append(content, inputPart{Type: "input_text", Text: text})
@@ -113,7 +141,10 @@ func buildCreativeRequest(model string, images []Image, opts Options) responsesR
 	// Only Wayground has an image column; web search lets the model find real Pexels photos for it.
 	if opts.ExportType == Wayground {
 		req.Tools = []responsesTool{{Type: "web_search"}}
-		req.MaxOutputTokens = maxOutputTokensWithSearch
+		req.MaxOutputTokens = maxOutputTokensLarge
+	}
+	if opts.ExportType == GestureQuiz && len(opts.GestureQuizStages())*opts.GestureQuizQuestions() > gestureRowsInBaseBudget {
+		req.MaxOutputTokens = maxOutputTokensLarge
 	}
 	return req
 }
@@ -133,9 +164,9 @@ func lessonMessages(opts Options) []string {
 
 // exportTypeMessages describes the platform's import columns to the model. They must match the
 // CsvHeader of the corresponding client-side CsvBuilder, or for GestureQuiz the columns the game's
-// own CSV parser reads.
-func exportTypeMessages(t ExportType) []string {
-	switch t {
+// own CSV parser reads. The options only matter to GestureQuiz, whose stages the teacher chooses.
+func exportTypeMessages(opts Options) []string {
+	switch opts.ExportType {
 	case GimKit:
 		return []string{"CSV columns: Question,Correct Answer,Incorrect Answer 1,Incorrect Answer 2 (Optional),Incorrect Answer 3 (Optional)"}
 	case Blooket:
@@ -152,10 +183,128 @@ func exportTypeMessages(t ExportType) []string {
 		// Wayground there is no message after the template.
 		return []string{
 			"CSV columns: Stage,Question,Correct Answer,Wrong Answer 1,Wrong Answer 2,Wrong Answer 3,Explanation",
-			normalizePrompt(gestureQuizTemplate),
+			buildGestureQuizMessage(opts),
 		}
 	}
-	panic(fmt.Sprintf("csvgen: unknown export type %d", t))
+	panic(fmt.Sprintf("csvgen: unknown export type %d", opts.ExportType))
+}
+
+// gestureStage is what the prompt says about one game, beside its rule paragraph.
+type gestureStage struct {
+	// name is how the opening paragraph names the game; it has no commas, so a list of them reads.
+	name string
+	// hasOptions is whether the game shows answer options on screen (stages 2 to 5), which is what the
+	// short-options paragraph is about. True or false and sentence ordering have none.
+	hasOptions bool
+}
+
+// gestureStages is indexed by stage number minus one, in the order of the client's STAGES.
+var gestureStages = [GestureStageCount]gestureStage{
+	{"true or false", false},
+	{"two choices answered by tilting the head", true},
+	{"three choices answered by biting with the mouth", true},
+	{"three choices answered by slicing fruit", true},
+	{"four choices answered by showing fingers", true},
+	{"sentence ordering", false},
+}
+
+var (
+	// gestureStageRules holds the six rule paragraphs of prompts/gesture_quiz_stages.txt, indexed by
+	// stage number minus one. They are tuned text and are sent word for word, only the chosen ones.
+	gestureStageRules = splitGestureStageRules(gestureQuizStages)
+	// gestureQuizPrompt is the framing of prompts/gesture_quiz_template.txt.
+	gestureQuizPrompt = template.Must(template.New("gesture_quiz").Option("missingkey=error").Parse(normalizePrompt(gestureQuizTemplate)))
+)
+
+// splitGestureStageRules cuts the stage rules file into its paragraphs, one per stage in order. A file
+// that does not hold exactly one "Stage N – " paragraph per stage would silently send the wrong rules,
+// so it panics at start-up instead, like the unknown export type above.
+func splitGestureStageRules(file string) [GestureStageCount]string {
+	paragraphs := strings.Split(normalizePrompt(file), "\n\n")
+	if len(paragraphs) != GestureStageCount {
+		panic(fmt.Sprintf("csvgen: gesture_quiz_stages.txt has %d paragraphs, want %d", len(paragraphs), GestureStageCount))
+	}
+	var rules [GestureStageCount]string
+	for i, paragraph := range paragraphs {
+		if !strings.HasPrefix(paragraph, fmt.Sprintf("Stage %d – ", i+1)) {
+			panic(fmt.Sprintf("csvgen: paragraph %d of gesture_quiz_stages.txt does not start with its stage number", i+1))
+		}
+		rules[i] = strings.TrimSpace(paragraph)
+	}
+	return rules
+}
+
+// buildGestureQuizMessage fills prompts/gesture_quiz_template.txt for the stages and the number of
+// questions the teacher chose, so the model is only told about the games it has to write. The template
+// holds the framing and its single/several-stage variants, the stage rules come from the second file,
+// and the short-options paragraph is left out when no chosen stage shows options.
+func buildGestureQuizMessage(opts Options) string {
+	stages := opts.GestureQuizStages()
+	questions := opts.GestureQuizQuestions()
+
+	rules := make([]string, 0, len(stages))
+	stageList := make([]string, 0, len(stages))
+	var withOptions []int
+	for _, n := range stages {
+		rules = append(rules, gestureStageRules[n-1])
+		stageList = append(stageList, fmt.Sprintf("stage %d (%s)", n, gestureStages[n-1].name))
+		if gestureStages[n-1].hasOptions {
+			withOptions = append(withOptions, n)
+		}
+	}
+	optionStages := ""
+	if len(withOptions) > 0 {
+		optionStages = describeStages(withOptions)
+	}
+
+	var out strings.Builder
+	err := gestureQuizPrompt.Execute(&out, map[string]any{
+		"Single":       len(stages) == 1,
+		"Skipped":      len(stages) < GestureStageCount,
+		"Count":        len(stages),
+		"StageList":    joinWords(stageList, "and"),
+		"Numbers":      joinWords(stageNumbers(stages), "or"),
+		"Rules":        strings.Join(rules, "\n\n"),
+		"OptionStages": optionStages,
+		"Questions":    questions,
+		"Total":        len(stages) * questions,
+		"First":        stages[0],
+	})
+	if err != nil {
+		panic(fmt.Sprintf("csvgen: gesture quiz template: %v", err))
+	}
+	return normalizePrompt(out.String())
+}
+
+func stageNumbers(stages []int) []string {
+	numbers := make([]string, len(stages))
+	for i, n := range stages {
+		numbers[i] = strconv.Itoa(n)
+	}
+	return numbers
+}
+
+// describeStages names a set of stage numbers for a sentence: "stage 4", "stages 3 and 5", and, for a
+// run of three or more, "stages 2 to 5" as the prompt has always said it.
+func describeStages(stages []int) string {
+	if len(stages) == 1 {
+		return fmt.Sprintf("stage %d", stages[0])
+	}
+	if first, last := stages[0], stages[len(stages)-1]; len(stages) >= 3 && last-first == len(stages)-1 {
+		return fmt.Sprintf("stages %d to %d", first, last)
+	}
+	return "stages " + joinWords(stageNumbers(stages), "and")
+}
+
+// joinWords joins items as "a", "a and b" or "a, b and c".
+func joinWords(items []string, conjunction string) string {
+	switch len(items) {
+	case 0:
+		return ""
+	case 1:
+		return items[0]
+	}
+	return strings.Join(items[:len(items)-1], ", ") + " " + conjunction + " " + items[len(items)-1]
 }
 
 func newRequest(model, systemPrompt, reasoningEffort string, userParts []contentPart) chatRequest {

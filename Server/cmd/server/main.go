@@ -33,6 +33,11 @@ func main() {
 }
 
 func run(logger *slog.Logger) error {
+	// The lesson documents are embedded and checked when csvgen loads; a broken one must stop the server here,
+	// not surface as quizzes quietly built without their LESSON MATERIAL.
+	if err := csvgen.TextbooksError(); err != nil {
+		return fmt.Errorf("textbooks: %w", err)
+	}
 	if err := config.LoadDotEnv(".env"); err != nil {
 		return fmt.Errorf("reading .env: %w", err)
 	}
@@ -59,8 +64,11 @@ func run(logger *slog.Logger) error {
 	if err := client.Ping(startupCtx, nil); err != nil {
 		return fmt.Errorf("pinging MongoDB: %w", err)
 	}
-	users := store.NewMongo(client.Database(cfg.MongoDatabase).Collection(cfg.MongoCollection))
-	jobs := store.NewMongoJobs(client.Database(cfg.MongoDatabase).Collection(cfg.MongoJobsCollection))
+	db := client.Database(cfg.MongoDatabase)
+	users := store.NewMongo(db.Collection(cfg.MongoCollection))
+	jobs := store.NewMongoJobs(db.Collection(cfg.MongoJobsCollection))
+	assignments := store.NewMongoAssignments(
+		db.Collection(cfg.MongoAssignmentsCollection), db.Collection(cfg.MongoPlayersCollection))
 
 	if cfg.AdminAPIKey == "" {
 		logger.Warn("ADMIN_API_KEY is not set; POST /api/users rejects every request")
@@ -76,6 +84,7 @@ func run(logger *slog.Logger) error {
 	srv := &api.Server{
 		Users:           users,
 		Jobs:            jobs,
+		Assignments:     assignments,
 		Auth:            auth.NewService(users, jwt, cfg.RefreshTokenTTL, cfg.MaxRefreshTokensPerUser),
 		JWT:             jwt,
 		Generator:       generator,
