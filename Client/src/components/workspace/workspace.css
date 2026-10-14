@@ -38,6 +38,40 @@
   overflow: hidden auto;
 }
 
+/* The collapse switch: an icon button at the top, right-aligned while open and centered in the 80px rail when
+   collapsed. The nav takes the middle so the account item stays at the foot. */
+.sidebar-head {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px 0;
+}
+
+.sidebar.collapsed .sidebar-head {
+  justify-content: center;
+}
+
+.collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--qt-text);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.collapse-toggle:hover {
+  background: rgba(255, 180, 210, 0.25);
+}
+
+.workspace-nav {
+  flex: 1;
+}
+
 .workspace-nav,
 .sidebar-foot {
   font-size: 15px;

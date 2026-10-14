@@ -71,8 +71,8 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
 
 `Workspace` (`src/components/workspace/`) is the shell of the main screens: a collapsible side menu (an
 inline `nz-menu` built from `NAV`: "Quiz thủ công", then the groups "AI" with "Tạo quiz" and "Lịch sử", and
-"Game" with "Chơi game" and "Bài đã giao", plus the login/logout item and the collapse switch at its
-foot), a breadcrumb (`breadcrumbFor`, with its spec: group › page, and "Bảng xếp hạng" under "Bài đã giao" on an
+"Game" with "Chơi game" and "Bài đã giao", plus the login/logout item at its foot and, at its
+top, the collapse switch: a double-left/double-right icon button with a tooltip), a breadcrumb (`breadcrumbFor`, with its spec: group › page, and "Bảng xếp hạng" under "Bài đã giao" on an
 assignment's ranking, which is why that page has no back link) and the title. The pages are highlighted via
 `nzMatchRouter`, "Chơi game" never is because it leaves the frame for the full-screen `/play` page (see
 [Gesture quiz](#gesture-quiz-play)). The groups are open whenever the menu is; collapsed, the menu shows only
