@@ -23,6 +23,7 @@ import { CsvImportService } from '../../services/csv-import.service';
 import { PendingImportService } from '../../services/pending-import.service';
 import { FileExportService } from '../../services/file-export.service';
 import { WaygroundExtensionService } from '../../services/wayground-extension.service';
+import { AssignDialog } from '../assignments/assign-dialog/assign-dialog';
 
 const PAGE_SIZE = 10;
 
@@ -58,6 +59,7 @@ interface ResultTable {
     NzOptionComponent,
     NzTagComponent,
     NzPopconfirmDirective,
+    AssignDialog,
   ],
   templateUrl: './ai-jobs.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -86,6 +88,9 @@ export class AiJobs implements OnInit {
   // The job whose result is shown in the popup. Kept apart from `viewOpen` so the content stays while the popup fades out.
   protected readonly viewing = signal<AiJob | null>(null);
   protected readonly viewOpen = signal(false);
+  // The job being given to students in the assign dialog. Kept apart from `assignOpen` for the same reason as `viewing`.
+  protected readonly assigning = signal<AiJob | null>(null);
+  protected readonly assignOpen = signal(false);
   protected readonly viewTable = computed<ResultTable | null>(() => {
     const job = this.viewing();
     return job && job.status === 'done' ? this.resultTable(job) : null;
@@ -181,6 +186,12 @@ export class AiJobs implements OnInit {
   // A gesture quiz is played on QuizTool itself, straight from its job; the page loads the job by id.
   protected play(job: AiJob): void {
     this.router.navigateByUrl('/play/' + job.id);
+  }
+
+  // Giving a gesture quiz to students happens in a dialog; it opens at the form each time.
+  protected assign(job: AiJob): void {
+    this.assigning.set(job);
+    this.assignOpen.set(true);
   }
 
   // A creative job is already a whole quiz: build the platform's file, then download it, or (Wayground

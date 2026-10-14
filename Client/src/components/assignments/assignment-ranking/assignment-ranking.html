@@ -1,0 +1,213 @@
+@if (notFound()) {
+  <nz-card>
+    <div class="message" role="alert">
+      <div class="big-emoji" aria-hidden="true">😕</div>
+      <h2 class="message-title">Không tìm thấy bài này</h2>
+      <p class="message-text">Có thể bài đã bị xóa hoặc link không đúng.</p>
+      <a nz-button nzType="primary" routerLink="/assignments">Về Bài đã giao</a>
+    </div>
+  </nz-card>
+} @else if (detail(); as d) {
+  <nz-card class="head-card">
+    <a class="back-link" routerLink="/assignments">
+      <nz-icon nzType="arrow-left" nzTheme="outline"/>
+      Bài đã giao
+    </a>
+    <div class="title-row">
+      <h2 class="title">{{ d.title }}</h2>
+      @if (d.label) {
+        <nz-tag>{{ d.label }}</nz-tag>
+      }
+      <nz-tag [nzColor]="open() ? 'green' : undefined">{{ statusText() }}</nz-tag>
+    </div>
+    <p class="meta">
+      <span>Thời gian mỗi câu: {{ timeModeLabels[d.timeMode] }}</span>
+      <span>Giao lúc {{ formatStamp(d.createdAt) }}</span>
+      <span>{{ d.players.length }} học sinh</span>
+    </p>
+
+    <div class="actions">
+      <button nz-button nzType="primary" type="button" (click)="copyLink()">
+        <nz-icon nzType="copy" nzTheme="outline"/>
+        Sao chép link
+      </button>
+      <button nz-button nzType="default" type="button" (click)="qrOpen.set(true)">
+        <nz-icon nzType="qrcode" nzTheme="outline"/>
+        Mã QR
+      </button>
+      <a nz-button nzType="default" [routerLink]="['/play/preview', d.id]">
+        <nz-icon nzType="play-circle" nzTheme="outline"/>
+        Xem thử
+      </a>
+      @if (open()) {
+        <button nz-button nzType="default" nzDanger type="button" [disabled]="busy()"
+                nz-popconfirm nzPopconfirmTitle="Đóng bài? Học sinh sẽ không vào chơi được nữa."
+                nzOkText="Đóng bài" nzCancelText="Hủy" nzPopconfirmPlacement="bottom"
+                (nzOnConfirm)="closeAssignment()">
+          <nz-icon nzType="stop" nzTheme="outline"/>
+          Đóng bài
+        </button>
+        <button nz-button nzType="default" type="button" (click)="openDeadline('schedule')">
+          <nz-icon nzType="clock-circle" nzTheme="outline"/>
+          Hẹn giờ đóng
+        </button>
+      } @else {
+        <button nz-button nzType="default" type="button" (click)="openDeadline('reopen')">
+          <nz-icon nzType="unlock" nzTheme="outline"/>
+          Mở lại
+        </button>
+      }
+      <button nz-button nzType="default" type="button" [disabled]="d.players.length === 0" (click)="downloadRanking()">
+        <nz-icon nzType="download" nzTheme="outline"/>
+        Tải bảng điểm
+      </button>
+      <button nz-button nzType="default" type="button" (click)="toggleFullscreen()">
+        <nz-icon nzType="fullscreen" nzTheme="outline"/>
+        Toàn màn hình
+      </button>
+    </div>
+  </nz-card>
+
+  <!-- The card that goes full screen on a projector: in that mode it shows the quiz's title, a larger
+       table and no action but the way out. -->
+  <nz-card #board class="board" [class.is-fullscreen]="fullscreen()" [nzTitle]="boardTitle" [nzExtra]="boardExtra">
+    @if (d.players.length === 0) {
+      <div class="empty">
+        <p class="empty-text">Chưa có học sinh nào vào bài. Gửi link hoặc cho học sinh quét mã QR nhé.</p>
+        @if (open()) {
+          <app-share-link [code]="d.code" [qrSize]="200"/>
+        }
+      </div>
+    } @else {
+      <nz-table #rankTable nzSize="small" class="rank-table" [nzData]="d.players" [nzFrontPagination]="false"
+                [nzShowPagination]="false" [nzScroll]="{ x: 'max-content' }">
+        <thead>
+          <tr>
+            <th>Hạng</th>
+            <th>Tên</th>
+            <th>Màn đã qua</th>
+            <th>Câu đúng</th>
+            @for (column of stages(); track column.key) {
+              <th [title]="column.name">{{ column.icon }} Màn {{ column.number }}</th>
+            }
+            <th>Lần chơi</th>
+            <th>Cập nhật</th>
+            @if (!fullscreen()) {
+              <th></th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (player of rankTable.data; track player.id) {
+            <tr [class.unranked]="player.rank === null">
+              <td class="rank">{{ medal(player.rank) }}</td>
+              <td class="player-name">{{ player.name }}</td>
+              <td>{{ player.stagesPassed }}/{{ stages().length }}</td>
+              <td>{{ player.correct }}/{{ player.possible }}</td>
+              @for (column of stages(); track column.key) {
+                <td>
+                  @if (stageCell(player, column.key); as cell) {
+                    <span class="stage" [class.passed]="cell.passed">{{ cell.text }}</span>
+                  } @else {
+                    –
+                  }
+                </td>
+              }
+              <td>{{ player.attempts }}</td>
+              <td>{{ player.lastPlayedAt ? (player.lastPlayedAt | date:'HH:mm') : '–' }}</td>
+              @if (!fullscreen()) {
+                <td class="remove">
+                  <button nz-button nzType="default" nzDanger nzSize="small" type="button"
+                          [attr.aria-label]="'Xóa ' + player.name" title="Xóa khỏi bảng xếp hạng"
+                          nz-popconfirm [nzPopconfirmTitle]="'Xóa ' + player.name + ' khỏi bảng xếp hạng?'"
+                          nzOkText="Xóa" nzCancelText="Hủy" nzPopconfirmPlacement="left"
+                          (nzOnConfirm)="removePlayer(player)">
+                    <nz-icon nzType="delete" nzTheme="outline"/>
+                  </button>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </nz-table>
+    }
+  </nz-card>
+
+  <ng-template #boardTitle>
+    @if (fullscreen()) {
+      <span class="big-title">{{ d.title }}</span>
+      @if (d.label) {
+        <nz-tag class="big-tag">{{ d.label }}</nz-tag>
+      }
+      <nz-tag class="big-tag" [nzColor]="open() ? 'green' : undefined">{{ statusText() }}</nz-tag>
+    } @else {
+      Bảng xếp hạng
+    }
+  </ng-template>
+
+  <ng-template #boardExtra>
+    <div class="board-extra">
+      @if (stale()) {
+        <span class="stale" role="status">Chưa cập nhật được</span>
+      } @else if (live()) {
+        <span class="live">Tự cập nhật mỗi 5 giây</span>
+      }
+      @if (fullscreen()) {
+        <button nz-button nzType="default" type="button" (click)="toggleFullscreen()">
+          <nz-icon nzType="fullscreen-exit" nzTheme="outline"/>
+          Thoát toàn màn hình
+        </button>
+      } @else {
+        <button nz-button nzType="default" type="button" [disabled]="refreshing()" (click)="refresh()">
+          <nz-icon nzType="reload" nzTheme="outline" [nzSpin]="refreshing()"/>
+          Làm mới
+        </button>
+      }
+    </div>
+  </ng-template>
+
+  <nz-modal [nzVisible]="qrOpen()" (nzVisibleChange)="qrOpen.set($event)" (nzOnCancel)="qrOpen.set(false)"
+            [nzFooter]="null" nzCentered nzWidth="min(760px, 95vw)">
+    <ng-container *nzModalContent>
+      <div class="qr-modal">
+        <p class="qr-title">{{ d.title }}</p>
+        @if (d.label) {
+          <p class="qr-label">{{ d.label }}</p>
+        }
+        <app-share-link [code]="d.code" [qrSize]="320"/>
+      </div>
+    </ng-container>
+  </nz-modal>
+
+  <nz-modal [nzVisible]="deadlineOpen()" (nzVisibleChange)="deadlineOpen.set($event)"
+            (nzOnCancel)="deadlineOpen.set(false)" [nzOkText]="deadlineMode() === 'reopen' ? 'Mở lại' : 'Lưu'"
+            nzCancelText="Hủy" [nzOkLoading]="busy()" [nzOkDisabled]="deadlineInPast()" (nzOnOk)="saveDeadline()"
+            nzWidth="min(560px, 95vw)">
+    <!-- A template, not nzTitle: the dialog is reused for both uses, and a string title is read once. -->
+    <ng-container *nzModalTitle>{{ deadlineMode() === 'reopen' ? 'Mở lại bài' : 'Hẹn giờ đóng' }}</ng-container>
+    <ng-container *nzModalContent>
+      <p class="deadline-help">
+        {{ deadlineMode() === 'reopen'
+          ? 'Bài sẽ mở lại bằng cùng link. Chọn giờ đóng mới nếu bạn muốn hẹn giờ.'
+          : 'Chọn lúc bài tự đóng. Học sinh đang chơi dở vẫn được nhận kết quả thêm vài phút.' }}
+      </p>
+      <app-deadline-picker [(value)]="deadline"/>
+    </ng-container>
+  </nz-modal>
+} @else if (loadError(); as message) {
+  <nz-card>
+    <div class="message" role="alert">
+      <div class="big-emoji" aria-hidden="true">😕</div>
+      <h2 class="message-title">Chưa tải được bảng xếp hạng</h2>
+      <p class="message-text">{{ message }}</p>
+      <div class="message-actions">
+        <button nz-button nzType="primary" type="button" [nzLoading]="refreshing()" (click)="refresh()">Thử lại</button>
+        <a nz-button nzType="default" routerLink="/assignments">Về Bài đã giao</a>
+      </div>
+    </div>
+  </nz-card>
+} @else {
+  <div class="loading" aria-live="polite">
+    <nz-spin nzSimple nzSize="large"/>
+  </div>
+}

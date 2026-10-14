@@ -18,7 +18,7 @@ Module `quiz-csv-import-tool/server`, laid out as:
 - `internal/api` — routing (`Server.Handler`) and all handlers.
 - `internal/auth` — JWT issue/parse, PBKDF2 password hashing, and `Service` (login/refresh/logout).
 - `internal/store` — the `User` document, the `Users` interface, `Mongo` (production) and `Memory`
-  (tests) implementations.
+  (tests) implementations; the same pair for `Jobs` and for `Assignments` ("Giao bài", with its students).
 - `internal/csvgen` — creative-mode option parsing, the two system prompts and the per-platform
   templates (all embedded from `prompts/*.txt`), and the OpenAI-compatible client
   (`/chat/completions` for the formatted mode, `/responses` for the creative mode).
@@ -28,7 +28,7 @@ Module `quiz-csv-import-tool/server`, laid out as:
 ```bash
 go build ./...
 go vet ./...
-go test ./...                                    # Mongo integration tests are skipped…
+go test ./...                                    # Mongo integration tests (users, jobs, assignments) are skipped…
 MONGODB_TEST_URI=mongodb://localhost:27017 go test ./internal/store/   # …unless this is set
 go run ./cmd/server                              # http://localhost:7071 (reads .env if present)
 docker compose up --build                        # MongoDB + API on 7071
@@ -42,7 +42,9 @@ without them.
 
 - `PORT` (default 7071 — the client's `ng serve` proxy points there)
 - `MONGODB_URI`, `MONGODB_DATABASE` (default `QuizDb`), `MONGODB_COLLECTION` (default `Users`),
-  `MONGODB_JOBS_COLLECTION` (default `Jobs`, the AI generation jobs)
+  `MONGODB_JOBS_COLLECTION` (default `Jobs`, the AI generation jobs),
+  `MONGODB_ASSIGNMENTS_COLLECTION` (default `Assignments`) and `MONGODB_PLAYERS_COLLECTION` (default
+  `AssignmentPlayers`): the quizzes teachers handed to students, and the students who joined them with their results
 - `JWT_SECRET` (≥ 32 bytes, RFC 7518 §3.2 for HS256), `JWT_ISSUER` (default `quiztool`),
   `JWT_AUDIENCE` (default `quiztool-api`) — issuer and audience are always set and validated
 - `JWT_ACCESS_TOKEN_EXPIRES_MINUTES` (15), `JWT_REFRESH_TOKEN_EXPIRES_DAYS` (30),
@@ -86,6 +88,50 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   creative mode. The LLM call runs under `LLM_TIMEOUT_SECONDS`; hitting it fails the job with
   `errorStatus` 504 ("AI generation timed out."), other LLM failures with 502. Either failure refunds the
   rate-limit slot (`RefundAICall`) so the user can resubmit without losing quota. See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
+- **Assignments** (`assignment_handlers.go`, the teacher's side of "Giao bài"): `POST assignments`,
+  `GET assignments`, `GET`/`PATCH`/`DELETE assignments/{id}` and `DELETE assignments/{id}/players/{playerId}`,
+  wrapped like the csv routes (`csvRoute`, i.e. `authenticate` + `requireRole`). Every lookup is scoped to the
+  caller's username, so someone else's assignment is a 404 `Assignment not found`, never a 403. The order of
+  `createAssignment`'s checks is part of the contract: the payload first (`readJSON`'s 400s, then label ≤ 60
+  runes, time mode, closing time in the future and ≤ 180 days ahead, stage counts: 400 `Label is too long.`,
+  `Invalid time mode.`, `Invalid closing time.`, `Invalid stage counts.`), before anything is read from the
+  database; then the 100-per-user cap (409 `Too many assignments.`); then the job through `Jobs.Get` (404
+  `Job not found`, or 409 `Job is not a finished gesture quiz.` unless it is `done`, `creative` and
+  `exportType` GestureQuiz). So a user at the cap gets the 409 even for a job id that does not exist. It copies `job.Title` and `job.CSV`, draws the id (`newJobID`) and the code
+  (`newShareCode`: 10 characters of Crockford base32 from `crypto/rand`) and retries on `ErrDuplicate` up to
+  3 times. The server never parses the CSV: `stageCounts` is the client's count of each stage, checked for
+  shape only (keys `"1"`–`"6"`, 1–50 each). `listAssignments` leaves the CSV out and adds each `playerCount`;
+  `getAssignment` adds the CSV and `rankPlayers`' output (`ranking.go`) to the same view, and both answer
+  `Cache-Control: no-store`, as the client polls the detail. `patchAssignment` reads the body as a map of raw
+  values, so an absent key (leave it) differs from `null` (clear `closesAt`; a `null` label or `closed` is
+  a 400 `Invalid payload`); `closed: true` closes now unless it was already closed by hand (the first moment is
+  kept, so the result grace does not slide), and `closed: false` is refused (400 `Invalid closing time.`) if the
+  closing time that would remain, the old one or the one in the same request, is not in the future.
+  `deleteAssignmentPlayer` loads the assignment first only to check the caller owns it, since the store's
+  player methods do not know owners.
+- **Share** (`share_handlers.go`, the students' side): `GET share/{code}`, `POST share/{code}/players`,
+  `POST share/{code}/results`. They are registered bare, with no `authenticate`, and must never answer 401
+  (the SPA's interceptor would answer that with a token refresh): a student's credentials are the code and,
+  for results, the `X-Player-Token` header. The order of checks, which decides the status when several
+  things are wrong: the code is trimmed and upper-cased and looked up (404 `Assignment not found`) in all
+  three. `getShared` then answers 410 `Assignment closed` unless `OpenAt(now)`, else `{title, label, csv,
+  timeMode, closesAt}`, with `no-store` on every answer, errors included, since a close must show at once.
+  `joinShared` refuses a closed assignment (410) before it reads the body, then `cleanPlayerName` (400
+  `Invalid name.`: trimmed, whitespace runs folded, 1–40 runes, no control characters), then the 300-player cap
+  (409 `Assignment is full`), then `CreatePlayer` (409 `Name taken` on `ErrDuplicate`); it mints a token of 32
+  random bytes (base64url), stores only `hashPlayerToken(token)` (SHA-256, base64url, the same as the refresh
+  tokens; `auth` keeps its helper unexported) and answers 201 `{playerId, token, name}`. `reportResult` refuses
+  with 410 once `AcceptsResultsAt(now)` is false (open, or within `store.ResultGrace`, 5 minutes, of the
+  effective close), then 403 `Unknown player` for a missing header or a token no player of this assignment
+  holds, *before* the body is read, then 400 `Invalid result.` (`runId` not `^[A-Za-z0-9-]{8,64}$`, stage not in
+  `stageCounts`, `total` not that stage's count, `correct` outside `0..total`), then works out `passed` with
+  `passMark(n) = (7n+9)/10` (equal to the client's `Math.ceil(0.7 * n)`, `TestPassMark` checks up to 300) and
+  calls `RecordResult`, answering 204; an `ErrNotFound` from it (the teacher removed the student meanwhile) is
+  also 403. Nothing limits joins by IP, by design; the 300 cap and unique names are the only brakes.
+
+`Server.Now` is the clock the assignment and share handlers read (nil means `time.Now`; they call `s.now()`),
+so a test can step through a closing time or the grace period without waiting. The other handlers still read
+`time.Now` directly.
 
 Auth is net/http middleware (`middleware.go`), composed per route in `Server.Handler`: `authenticate`
 stores the validated `*auth.Claims` in the request context under an unexported key
@@ -94,7 +140,22 @@ it finds no claims. Protect a new route by wrapping it the same way rather than 
 the handler.
 
 The plain-text error bodies and status codes are part of the contract with the client and were kept
-identical to the former .NET implementation; `internal/api/api_test.go` pins them down.
+identical to the former .NET implementation; `internal/api/api_test.go` pins them down. The assignment routes
+follow the same rule: the client matches some of their bodies as strings (`TEACHER_ERRORS` in
+`Client/src/models/assignment.ts`, and `Name taken` / `Assignment is full` in `GesturePlay`), and
+`assignments_api_test.go` pins them. The rules behind them are in
+[../AGENTS.md](../AGENTS.md#giao-bài-assignments).
+
+Tests of "Giao bài": `store/assignments_test.go` runs one contract (`testAssignments`) against both stores
+(`TestMemoryAssignments`; `TestMongoAssignments` only when `MONGODB_TEST_URI` is set, in a throwaway database,
+with `TestMongoAssignmentsWithoutIndexes` and `TestMongoAssignmentDocuments` for uniqueness without indexes and
+the stored field names) beside unit tests of `OpenAt`, `EffectiveClose`, `AcceptsResultsAt` and `mergeResult`;
+`jobs_test.go` covers `Jobs.Get`. `api/assignments_api_test.go` drives the HTTP handlers over the memory stores
+with a `testClock` (`env.clock.Advance`) as `Server.Now`: the whole flow (create, share, join, results with a
+repeated `runId`, ranking, close, the grace period, reopen, remove a student, delete), every error status and
+body, ownership, `TestTeacherRoutesNeedALogin`, `TestStudentRoutesNeverAnswer401` (with bad `Authorization`
+headers too), the limits, `TestPassMark` and store failures answering 500. `api/ranking_test.go` tests
+`rankPlayers` as plain Go, and `config/config_test.go` the new collection settings.
 
 There is no CORS handling: the API is only ever called from the SPA's own origin (Vercel Services in
 production, the `ng serve` proxy locally), which is also why the refresh cookie can be
@@ -139,7 +200,50 @@ images — and, for a creative job, the lesson: course type ordinal, course name
 lesson number, which `listJobs` returns so the client can filter by them), `status` (`running`/`done`/`failed`), the raw model `csv`, `errorStatus`/`errorMessage`, the
 rate-limit `roundStart` (for refunds) and timestamps. `Complete`/`Fail` only touch a job that is still
 `running`, so an expired job is never revived by a late answer; `Prune` never deletes a running job.
+`Get(username, id)` returns one job, `ErrNotFound` for another user's too (`createAssignment` is its caller).
 `MongoJobs.EnsureIndexes` (username + createdAt) is, like the users' one, not called on start.
+
+Assignments (`internal/store/assignments*.go`): `store.Assignments` is implemented by `MongoAssignments` and
+`MemoryAssignments` (tests), and holds two kinds of document. An `Assignment` (collection
+`MONGODB_ASSIGNMENTS_COLLECTION`, `_id` a random hex id) is the snapshot of a job: owner `username`, `jobId`,
+`title`, the raw `csv`, `label`, `timeMode` (`standard`/`extra`/`unlimited`), `stageCounts` (stage → number of
+questions), `createdAt`, the public `code`, and two optional times, `closesAt` (scheduled) and `closedAt` (by
+hand), left out of the document when unset. It is copied rather than referenced so deleting a job, or the
+newest-30 prune, cannot break a live link. `OpenAt(now)` is "`closedAt` unset and `closesAt` unset or ahead";
+`EffectiveClose` is the earlier of the two, and `AcceptsResultsAt(now)` is open, or no later than the effective
+close plus `ResultGrace` (5 minutes). A `Player` (collection `MONGODB_PLAYERS_COLLECTION`) is a student of one
+assignment: `assignmentId`, `name`, `nameKey` (the lower-cased name, unique within the assignment), `tokenHash`
+(never the token), `joinedAt`, `lastPlayedAt`, `stages` (the best result of each stage: `correct`, `total`,
+`attempts`, `passed`, `bestAt`), the last 50 `runIds` and a `version`. Players are a collection of their own,
+not an array on the assignment, so many students finishing a stage at the same moment write different
+documents. The interface's teacher-side methods (`Get`, `List`, `Count`, `Update`, `Delete`) take the owner's
+username, so another user's assignment is `ErrNotFound`; `GetByCode` and the player methods (`CreatePlayer`,
+`CountPlayers`, `ListPlayers`, `PlayerByToken`, `RecordResult`, `DeletePlayer`) work from the public code or the
+token and leave authorization to the handlers. `List` leaves the CSV out; `Delete` removes the players too
+(in Mongo only after the assignment itself went, so deleting someone else's cannot wipe its players); `Update`
+takes an `AssignmentUpdate` where each time is a `TimeChange{Set, Value}` (not set: unchanged; set with a nil
+value: cleared, i.e. `$unset`).
+
+- `RecordResult` merges one run through `mergeResult`, shared by both implementations so the rules cannot
+  drift: an already-recorded `runId` changes nothing (and returns nil, which is what makes a resend safe), else
+  `attempts` counts it, the stage's `correct` rises only if the run beat it (`bestAt` moves then), a pass once
+  made stays (and sets `bestAt` when it first happens), and the last 50 run ids are kept. Mongo does it like
+  `UpdateSessions`: read the player, merge, write back only where `version` is unchanged (`$inc`), retry up to
+  5 times, else `ErrConflict`; this keeps two runs of one student reported at the same moment (two tabs, a
+  queue being flushed) from overwriting each other's merge. The memory store does it under its mutex.
+- Times are stored as UTC milliseconds (`storedTime`), the precision MongoDB keeps, and both implementations
+  copy and normalize through `Assignment.stored()`/`Player.stored()`, so a value reads back the same from
+  either (and empty maps and slices are stored as `{}` and `[]`, not `null`). `MemoryAssignments.Now` exists for
+  parity with the other memory stores but no method reads it: `RecordResult` takes its time from the caller.
+- Uniqueness of the code and of a name within an assignment is **checked before inserting** (`Create`,
+  `CreatePlayer`), so it holds even where no index was ever created (`TestMongoAssignmentsWithoutIndexes`); the
+  unique indexes only close the race between two simultaneous inserts. `MongoAssignments.EnsureIndexes` defines,
+  on the assignments collection, unique `code` and `{username, createdAt: -1}` (`List`, `Count`), and on the
+  players collection unique `{assignmentId, nameKey}` and `{assignmentId, tokenHash}` (`PlayerByToken`; this one
+  is not unique, tokens being 256 random bits). Like the users' and jobs' ones, **the server does not call
+  `EnsureIndexes`** (it would slow every serverless cold start) and nothing else does either: create the four
+  indexes once by hand, or from a one-off that calls it. Without them the lookups by code, by owner and by
+  token scan their collection, which is fine for a classroom's volumes but not for ever.
 
 Data model (`internal/store`): one `User` document per user in one collection, `_id` = username,
 holding `passwordHash`, `roles`, `createdAt`, `refreshTokens` (`tokenHash`, `expiresAt`,

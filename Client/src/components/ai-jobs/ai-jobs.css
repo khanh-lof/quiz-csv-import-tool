@@ -30,13 +30,20 @@
   word-break: break-word;
 }
 
-.job-actions {
-  white-space: nowrap;
-  text-align: right;
+/* The buttons of a row sit on one line, right-aligned. A Quiz cử chỉ row has one more than the others, so
+   its group stops growing at a width and wraps the rest onto a second line (the table scrolls instead
+   when even that does not fit a phone). */
+.action-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 6px 8px;
+  margin-left: auto;
 }
 
-.job-actions button + button {
-  margin-left: 8px;
+.action-buttons.quiz-actions {
+  flex-wrap: wrap;
+  max-width: 320px;
 }
 
 /* The popup's table: long cells wrap rather than stretch it. */

@@ -21,6 +21,10 @@ type Config struct {
 	MongoCollection string
 	// MongoJobsCollection holds the AI generation jobs.
 	MongoJobsCollection string
+	// MongoAssignmentsCollection holds the quizzes teachers handed to students ("Giao bài"), and
+	// MongoPlayersCollection the students who joined them with their results.
+	MongoAssignmentsCollection string
+	MongoPlayersCollection     string
 
 	JWTSecret       []byte
 	JWTIssuer       string // defaults to "quiztool"; always validated
@@ -94,6 +98,9 @@ func FromEnv() (Config, error) {
 		MongoDatabase:       envOr("MONGODB_DATABASE", "QuizDb"),
 		MongoCollection:     envOr("MONGODB_COLLECTION", "Users"),
 		MongoJobsCollection: envOr("MONGODB_JOBS_COLLECTION", "Jobs"),
+
+		MongoAssignmentsCollection: envOr("MONGODB_ASSIGNMENTS_COLLECTION", "Assignments"),
+		MongoPlayersCollection:     envOr("MONGODB_PLAYERS_COLLECTION", "AssignmentPlayers"),
 
 		JWTSecret:               []byte(os.Getenv("JWT_SECRET")),
 		JWTIssuer:               envOr("JWT_ISSUER", "quiztool"),

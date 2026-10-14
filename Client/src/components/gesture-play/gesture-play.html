@@ -1,22 +1,28 @@
 <header class="topbar">
-  <a nz-button nzType="default" nzSize="small" class="back-link" [routerLink]="jobId() ? '/ai' : '/quiz'">
-    <nz-icon nzType="arrow-left" nzTheme="outline"/>
-    <span class="back-text">{{ jobId() ? 'Về trang AI' : 'Về bảng quiz' }}</span>
-  </a>
-  <h1 class="title">{{ quiz()?.title ?? 'Quiz cử chỉ' }}</h1>
-  @if (screen() === 'map' && !jobId()) {
+  @if (backLink(); as back) {
+    <a nz-button nzType="default" nzSize="small" class="back-link" [routerLink]="back.url">
+      <nz-icon nzType="arrow-left" nzTheme="outline"/>
+      <span class="back-text">{{ back.text }}</span>
+    </a>
+  }
+  <h1 class="title">{{ heading() }}</h1>
+  @if (screen() === 'map' && mode() === 'local') {
     <button nz-button nzType="default" nzSize="small" type="button" (click)="openAnother()">
       Mở quiz khác
     </button>
   }
 </header>
 
+@if (mode() === 'preview' && screen() !== 'loading' && screen() !== 'error') {
+  <p class="preview-banner" role="status">👁 Xem thử: mọi màn đều mở, kết quả không được lưu.</p>
+}
+
 <main class="content" [class.is-playing]="screen() === 'playing'">
   @switch (screen()) {
     @case ('loading') {
       <section class="card message">
         <nz-spin nzSimple nzSize="large"/>
-        <p>Đang tải quiz…</p>
+        <p>{{ checking() ? 'Đang kiểm tra bài…' : 'Đang tải quiz…' }}</p>
       </section>
     }
 
@@ -24,8 +30,16 @@
       <section class="card message" role="alert">
         <div class="big-emoji" aria-hidden="true">😕</div>
         <p>{{ problem() }}</p>
-        <a nz-button nzType="primary" routerLink="/ai">Về trang AI</a>
+        @if (errorLink(); as link) {
+          <a nz-button nzType="primary" [routerLink]="link.url">{{ link.text }}</a>
+        }
       </section>
+    }
+
+    @case ('join') {
+      <app-share-join [title]="quiz()?.title ?? ''" [label]="shared()?.label ?? ''"
+                      [closesAt]="shared()?.closesAt ?? null" [error]="joinError()" [busy]="joining()"
+                      (join)="joinQuiz($event)"/>
     }
 
     @case ('load') {
@@ -67,7 +81,18 @@
 
     @case ('map') {
       @if (quiz(); as openQuiz) {
-        <app-gesture-stage-map [quiz]="openQuiz" (start)="openIntro($event)"/>
+        <app-gesture-stage-map [quiz]="openQuiz" [lockedTimeMode]="assignmentTimeMode()"
+                               [allowReset]="mode() === 'local' || mode() === 'job'"
+                               [allOpen]="mode() === 'preview'" (start)="openIntro($event)">
+          @if (mode() === 'shared') {
+            <p class="share-line">
+              👤 {{ playerName() }} · <a href="#" (click)="switchPlayer($event)">Không phải bạn?</a>
+              @if (closeText()) {
+                · Bài đóng lúc {{ closeText() }}
+              }
+            </p>
+          }
+        </app-gesture-stage-map>
       }
     }
 
@@ -245,8 +270,8 @@
 
     @case ('result') {
       @if (result(); as run) {
-        <app-gesture-stage-result [result]="run" (nextStage)="openNextStage()" (retry)="retryStage()"
-                                  (toMap)="backToMap()"/>
+        <app-gesture-stage-result [result]="run" [saveState]="saveState()" [preview]="mode() === 'preview'"
+                                  (nextStage)="openNextStage()" (retry)="retryStage()" (toMap)="backToMap()"/>
       }
     }
   }

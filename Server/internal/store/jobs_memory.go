@@ -54,6 +54,16 @@ func (m *MemoryJobs) finish(username, id string, apply func(*Job)) error {
 	return nil
 }
 
+func (m *MemoryJobs) Get(_ context.Context, username, id string) (*Job, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	j, ok := m.jobs[id]
+	if !ok || j.Username != username {
+		return nil, ErrNotFound
+	}
+	return &j, nil
+}
+
 func (m *MemoryJobs) List(_ context.Context, username string, limit int) ([]Job, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

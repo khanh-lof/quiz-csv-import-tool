@@ -56,6 +56,8 @@ type Jobs interface {
 	Complete(ctx context.Context, username, id, csv string) error
 	// Fail marks a running job as failed. Finished jobs are left alone.
 	Fail(ctx context.Context, username, id string, errorStatus int, message string) error
+	// Get returns one job; ErrNotFound when the user has no such job, which includes another user's.
+	Get(ctx context.Context, username, id string) (*Job, error)
 	// List returns the user's newest jobs first, at most limit of them.
 	List(ctx context.Context, username string, limit int) ([]Job, error)
 	// Delete removes one job; ErrNotFound when the user has no such job.

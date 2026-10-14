@@ -45,6 +45,18 @@
   color: var(--qt-text-muted);
 }
 
+/* One quiet line about where the run went; only the two outcomes that need the student to act stand out. */
+.save-state {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--qt-text-muted);
+}
+
+.save-state[data-state='queued'],
+.save-state[data-state='rejected'] {
+  color: var(--qt-error);
+}
+
 .missed {
   margin: 20px 0 0;
   text-align: left;

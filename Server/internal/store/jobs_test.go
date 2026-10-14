@@ -90,6 +90,24 @@ func testJobs(t *testing.T, jobs Jobs) {
 		t.Fatalf("failed job: %+v", j)
 	}
 
+	// Get returns one job of the owner, as it is now, and nobody else's.
+	if j, err := jobs.Get(ctx, "alice", "new"); err != nil || j.ID != "new" || j.Username != "alice" || j.Title != "new" ||
+		j.Status != JobDone || j.CSV != "a,b" || j.FinishedAt == nil {
+		t.Fatalf("Get: %+v %v", j, err)
+	}
+	if j, err := jobs.Get(ctx, "alice", "old"); err != nil || j.Status != JobRunning || j.FinishedAt != nil {
+		t.Fatalf("Get of a running job: %+v %v", j, err)
+	}
+	if _, err := jobs.Get(ctx, "bob", "new"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Get of another user's job: %v", err)
+	}
+	if _, err := jobs.Get(ctx, "alice", "bobs"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Get of another user's job by its id: %v", err)
+	}
+	if _, err := jobs.Get(ctx, "alice", "missing"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Get of a missing job: %v", err)
+	}
+
 	// ExpireRunning fails only running jobs older than the cutoff.
 	expired, err := jobs.ExpireRunning(ctx, "alice", base.Add(-30*time.Second), "interrupted")
 	if err != nil || len(expired) != 1 || expired[0].ID != "old" || expired[0].Status != JobFailed {
@@ -134,5 +152,8 @@ func testJobs(t *testing.T, jobs Jobs) {
 	}
 	if err := jobs.Delete(ctx, "alice", "new"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("deleting twice: %v", err)
+	}
+	if _, err := jobs.Get(ctx, "alice", "new"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Get after Delete: %v", err)
 	}
 }

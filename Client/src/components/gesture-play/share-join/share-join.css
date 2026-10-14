@@ -1,0 +1,65 @@
+:host {
+  display: block;
+}
+
+/* The same card as the gesture page's other message screens. */
+.join-card {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.92);
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: var(--qt-radius-lg);
+  box-shadow: var(--qt-card-shadow);
+}
+
+.big-emoji {
+  font-size: 56px;
+  line-height: 1.1;
+}
+
+.title {
+  margin: 8px 0 0;
+  font-size: 22px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.label {
+  margin: 4px 0 0;
+  font-size: 16px;
+  color: var(--qt-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.closing {
+  margin: 8px 0 0;
+  color: var(--qt-text-muted);
+}
+
+.field {
+  margin-top: 20px;
+  text-align: left;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.error {
+  margin: 4px 0 0;
+}
+
+.hint {
+  margin: 8px 0 16px;
+  font-size: 14px;
+  color: var(--qt-text-muted);
+}
+
+.join-button {
+  min-width: 160px;
+}

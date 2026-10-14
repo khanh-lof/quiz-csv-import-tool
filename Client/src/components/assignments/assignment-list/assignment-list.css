@@ -1,0 +1,39 @@
+:host {
+  display: block;
+}
+
+.help {
+  margin: 0 0 12px;
+  color: var(--qt-text-muted);
+}
+
+.empty {
+  padding: 16px 0;
+}
+
+.empty .help {
+  margin-bottom: 16px;
+}
+
+.assignment-title {
+  word-break: break-word;
+}
+
+.label-tag {
+  margin-left: 6px;
+}
+
+/* One line of buttons: on a phone the table scrolls inside its box instead of squeezing them. */
+.assignment-actions {
+  white-space: nowrap;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.reopen-help {
+  margin: 0 0 12px;
+}

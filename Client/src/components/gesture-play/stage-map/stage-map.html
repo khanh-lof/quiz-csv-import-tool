@@ -1,4 +1,6 @@
 <section class="map">
+  <ng-content/>
+
   @if (allPassed()) {
     <div class="celebration" role="status">
       <div class="trophy" aria-hidden="true">🏆</div>
@@ -54,25 +56,31 @@
 
   <div class="settings">
     <div class="setting">
-      <span class="setting-label">Thời gian mỗi câu</span>
-      <nz-radio-group [ngModel]="settings().timeMode" (ngModelChange)="setTimeMode($event)"
-                      nzButtonStyle="solid" nzSize="small">
-        <label nz-radio-button nzValue="standard">Chuẩn</label>
-        <label nz-radio-button nzValue="extra">Thêm giờ (×1,5)</label>
-        <label nz-radio-button nzValue="unlimited">Không giới hạn</label>
-      </nz-radio-group>
+      @if (lockedTimeMode(); as locked) {
+        <span><span class="setting-label">Thời gian mỗi câu:</span> {{ timeModeLabels[locked] }} (thầy cô đặt)</span>
+      } @else {
+        <span class="setting-label">Thời gian mỗi câu</span>
+        <nz-radio-group [ngModel]="settings().timeMode" (ngModelChange)="setTimeMode($event)"
+                        nzButtonStyle="solid" nzSize="small">
+          <label nz-radio-button nzValue="standard">Chuẩn</label>
+          <label nz-radio-button nzValue="extra">Thêm giờ (×1,5)</label>
+          <label nz-radio-button nzValue="unlimited">Không giới hạn</label>
+        </nz-radio-group>
+      }
     </div>
     <div class="setting">
       <span class="setting-label">Âm thanh</span>
       <nz-switch [ngModel]="settings().sound" (ngModelChange)="setSound($event)"
                  nzCheckedChildren="Bật" nzUnCheckedChildren="Tắt"/>
     </div>
-    <button nz-button nzDanger type="button" class="reset-button"
-            nz-popconfirm nzPopconfirmTitle="Xóa tiến độ của quiz này và chơi lại từ đầu?"
-            nzPopconfirmPlacement="top" nzOkText="Chơi lại" nzOkDanger nzCancelText="Thôi"
-            (nzOnConfirm)="resetProgress()">
-      <nz-icon nzType="reload" nzTheme="outline"/>
-      Chơi lại từ đầu
-    </button>
+    @if (allowReset()) {
+      <button nz-button nzDanger type="button" class="reset-button"
+              nz-popconfirm nzPopconfirmTitle="Xóa tiến độ của quiz này và chơi lại từ đầu?"
+              nzPopconfirmPlacement="top" nzOkText="Chơi lại" nzOkDanger nzCancelText="Thôi"
+              (nzOnConfirm)="resetProgress()">
+        <nz-icon nzType="reload" nzTheme="outline"/>
+        Chơi lại từ đầu
+      </button>
+    }
   </div>
 </section>

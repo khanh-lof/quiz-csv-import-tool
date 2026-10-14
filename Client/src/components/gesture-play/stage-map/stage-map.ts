@@ -7,6 +7,7 @@ import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { NzSwitchComponent } from 'ng-zorro-antd/switch';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
 import { STAGES, StageDef } from '../../../game/stages';
+import { TIME_MODE_LABELS } from '../../../models/assignment';
 import { GestureQuiz, questionCount } from '../../../models/gesture-quiz';
 import {
   GestureProgressService,
@@ -27,7 +28,9 @@ interface StageCard {
 
 // The six stages as cards with their questions, best result and lock, plus the play settings and the
 // reset. The page opens a stage when a card is chosen; everything else here is read from the progress
-// and settings services, so the map updates itself.
+// and settings services, so the map updates itself. A quiz given as an assignment narrows the settings
+// (`lockedTimeMode`, `allowReset`) and a teacher's preview opens every stage (`allOpen`); the page sets
+// those, the map only shows them. Whatever the page puts inside the tag is shown above the summary.
 @Component({
   selector: 'app-gesture-stage-map',
   imports: [
@@ -46,6 +49,12 @@ interface StageCard {
 })
 export class GestureStageMap {
   readonly quiz = input.required<GestureQuiz>();
+  // The teacher's time mode, when there is one: shown as text, since the student cannot change it.
+  readonly lockedTimeMode = input<TimeMode | null>(null);
+  // Whether the player may wipe the quiz's progress: not for a student, whose results are the teacher's.
+  readonly allowReset = input(true);
+  // Every stage with questions can be opened, passed or not (the teacher's preview).
+  readonly allOpen = input(false);
 
   readonly start = output<number>();
 
@@ -62,7 +71,7 @@ export class GestureStageMap {
       const status: StageStatus =
         count === 0 ? 'empty'
           : this.progress.isPassed(quiz.key, def.stage) ? 'passed'
-            : this.progress.isUnlocked(quiz, def.stage) ? 'open'
+            : this.allOpen() || this.progress.isUnlocked(quiz, def.stage) ? 'open'
               : 'locked';
       return { def, count, best: this.progress.best(quiz.key, def.stage), status };
     });
@@ -78,6 +87,7 @@ export class GestureStageMap {
     this.cards().reduce((sum, card) => sum + (card.best?.correct ?? 0) * POINTS_PER_CORRECT, 0));
 
   protected readonly pointsPerCorrect = POINTS_PER_CORRECT;
+  protected readonly timeModeLabels = TIME_MODE_LABELS;
 
   protected setTimeMode(mode: TimeMode): void {
     this.settingsService.update({ timeMode: mode });

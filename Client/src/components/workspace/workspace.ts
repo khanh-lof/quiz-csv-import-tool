@@ -17,12 +17,13 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTooltipDirective } from 'ng-zorro-antd/tooltip';
 import { AuthService } from '../../services/auth.service';
 
-// The two ways of building a quiz, as the routes that host them.
-type WorkspaceMode = '/quiz' | '/ai';
+// The pages of the frame, as the routes that host them: the two ways of building a quiz, and the
+// assignments of the quizzes already built.
+type WorkspaceMode = '/quiz' | '/ai' | '/assignments';
 
-// Frame shared by the vocabulary table and the AI page: the nav menu (the two modes and the account
-// action) and the title. Switching is plain router navigation, so /ai's auth guard sends an anonymous
-// user to log in, and a refused navigation simply leaves the current item highlighted.
+// Frame shared by the vocabulary table, the AI page and the assignment pages: the nav menu (the modes and
+// the account action) and the title. Switching is plain router navigation, so /ai's auth guard sends an
+// anonymous user to log in, and a refused navigation simply leaves the current item highlighted.
 @Component({
   selector: 'app-workspace',
   imports: [
@@ -71,7 +72,8 @@ export class Workspace {
   }
 
   private currentMode(): WorkspaceMode {
-    return this.router.url.startsWith('/ai') ? '/ai' : '/quiz';
+    const url = this.router.url;
+    return url.startsWith('/ai') ? '/ai' : url.startsWith('/assignments') ? '/assignments' : '/quiz';
   }
 
   protected isLoggedIn(): boolean {
@@ -88,8 +90,8 @@ export class Workspace {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(() => {
       this.notificationService.success('Đã đăng xuất', 'Hẹn gặp lại nhaa.', {nzPlacement: 'top'});
-      // The AI page needs a login, so fall back to the table that works anonymously.
-      if (this.currentMode() === '/ai') {
+      // The AI and assignment pages need a login, so fall back to the table that works anonymously.
+      if (this.currentMode() === '/ai' || this.currentMode() === '/assignments') {
         this.router.navigateByUrl('/quiz');
       }
     });

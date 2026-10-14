@@ -12,6 +12,11 @@
     }
   </p>
   <p class="rule">Cần đúng ít nhất <b>{{ result().passMark }}/{{ result().total }}</b> câu để qua màn.</p>
+  @if (saveText()) {
+    <p class="save-state" [attr.data-state]="preview() ? 'preview' : saveState()" role="status" aria-live="polite">
+      {{ saveText() }}
+    </p>
+  }
 
   @if (result().missed.length > 0) {
     <div class="missed">
@@ -42,13 +47,13 @@
   }
 
   <div class="actions">
-    @if (result().passed && result().hasNext) {
+    @if (result().hasNext) {
       <button nz-button nzType="primary" nzSize="large" type="button" (click)="nextStage.emit()">
         Màn tiếp theo
         <nz-icon nzType="arrow-right" nzTheme="outline"/>
       </button>
     }
-    <button nz-button [nzType]="result().passed ? 'default' : 'primary'" nzSize="large" type="button"
+    <button nz-button [nzType]="result().passed || result().hasNext ? 'default' : 'primary'" nzSize="large" type="button"
             (click)="retry.emit()">
       <nz-icon nzType="reload" nzTheme="outline"/>
       Chơi lại màn

@@ -1,0 +1,42 @@
+:host {
+  display: block;
+}
+
+.share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.qr {
+  flex: none;
+}
+
+.details {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.code {
+  margin: 0 0 8px;
+}
+
+.code-text {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, 'Courier New', monospace;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  user-select: all;
+}
+
+.link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.link {
+  flex: 1 1 200px;
+  min-width: 0;
+}

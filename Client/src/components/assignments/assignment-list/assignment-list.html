@@ -1,0 +1,112 @@
+<nz-card nzTitle="Bài đã giao" [nzExtra]="refreshTemplate">
+  @if (assignments().length > 0) {
+    <p class="help">{{ helpText }}</p>
+  }
+
+  <nz-table #listTable nzSize="small" class="list-table" [nzData]="assignments()" [nzLoading]="loading()"
+            [nzPageSize]="pageSize" [nzShowPagination]="assignments().length > pageSize"
+            [nzScroll]="{ x: '720px' }" [nzNoResult]="emptyTemplate">
+    <thead>
+      <tr>
+        <th>Bài</th>
+        <th>Trạng thái</th>
+        <th>Học sinh</th>
+        <th>Lúc giao</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (assignment of listTable.data; track assignment.id) {
+        <tr>
+          <td class="assignment-title">
+            {{ assignment.title }}
+            @if (assignment.label) {
+              <nz-tag class="label-tag">{{ assignment.label }}</nz-tag>
+            }
+          </td>
+          <td>
+            <nz-tag [nzColor]="isOpen(assignment) ? 'green' : undefined">{{ statusText(assignment) }}</nz-tag>
+          </td>
+          <td>{{ assignment.playerCount }}</td>
+          <td>{{ assignment.createdAt | date:'dd/MM HH:mm' }}</td>
+          <td class="assignment-actions">
+            <div class="action-buttons">
+              <a nz-button nzType="primary" nzSize="small" [routerLink]="['/assignments', assignment.id]">
+                <nz-icon nzType="trophy" nzTheme="outline"/>
+                Xếp hạng
+              </a>
+              <button nz-button nzType="default" nzSize="small" type="button" aria-label="Sao chép link"
+                      title="Sao chép link" (click)="copyLink(assignment)">
+                <nz-icon nzType="link" nzTheme="outline"/>
+              </button>
+              <button nz-button nzType="default" nzSize="small" type="button" aria-label="Mã QR" title="Mã QR"
+                      (click)="showQr(assignment)">
+                <nz-icon nzType="qrcode" nzTheme="outline"/>
+              </button>
+              @if (isOpen(assignment)) {
+                <button nz-button nzType="default" nzSize="small" type="button"
+                        nz-popconfirm nzPopconfirmTitle="Đóng bài? Học sinh sẽ không vào chơi được nữa."
+                        nzPopconfirmPlacement="left" (nzOnConfirm)="closeAssignment(assignment)">
+                  Đóng bài
+                </button>
+              } @else {
+                <button nz-button nzType="default" nzSize="small" type="button" (click)="askReopen(assignment)">
+                  Mở lại
+                </button>
+              }
+              <button nz-button nzType="default" nzDanger nzSize="small" type="button" aria-label="Xóa" title="Xóa"
+                      nz-popconfirm nzPopconfirmTitle="Xóa bài này cùng toàn bộ kết quả của học sinh?"
+                      nzPopconfirmPlacement="left" (nzOnConfirm)="remove(assignment)">
+                <nz-icon nzType="delete" nzTheme="outline"/>
+              </button>
+            </div>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </nz-table>
+</nz-card>
+
+<ng-template #refreshTemplate>
+  <button nz-button nzType="default" type="button" [disabled]="loading()" (click)="load()">
+    <nz-icon nzType="reload" nzTheme="outline"/>
+    Làm mới
+  </button>
+</ng-template>
+
+<!-- Shown by the table only when there is no row; nothing until the first answer, so it never claims an
+     empty list that was not loaded. -->
+<ng-template #emptyTemplate>
+  @if (failed()) {
+    <p class="help">Chưa tải được danh sách. Bấm Làm mới để thử lại.</p>
+  } @else if (loaded()) {
+    <div class="empty">
+      <p class="help">{{ helpText }}</p>
+      <a nz-button nzType="primary" routerLink="/ai">
+        <nz-icon nzType="robot" nzTheme="outline"/>
+        Đến tab Tạo bằng AI
+      </a>
+    </div>
+  }
+</ng-template>
+
+<nz-modal [nzVisible]="qrOpen()" (nzVisibleChange)="qrOpen.set($event)" (nzOnCancel)="qrOpen.set(false)"
+          [nzFooter]="null" nzWidth="min(640px, 95vw)">
+  <!-- A template, not nzTitle: the popup is reused for different assignments, and a string title is read once. -->
+  <ng-container *nzModalTitle>{{ qrFor()?.title }}</ng-container>
+  <ng-container *nzModalContent>
+    @if (qrFor(); as assignment) {
+      <app-share-link [code]="assignment.code" [qrSize]="280"/>
+    }
+  </ng-container>
+</nz-modal>
+
+<nz-modal [nzVisible]="reopenOpen()" (nzVisibleChange)="reopenOpen.set($event)" (nzOnCancel)="reopenOpen.set(false)"
+          nzOkText="Mở lại" nzCancelText="Hủy" [nzOkLoading]="reopenBusy()" [nzOkDisabled]="reopenDeadlinePassed()"
+          (nzOnOk)="confirmReopen()" nzWidth="min(560px, 95vw)">
+  <ng-container *nzModalTitle>Mở lại: {{ reopening()?.title }}</ng-container>
+  <ng-container *nzModalContent>
+    <p class="reopen-help">Bài sẽ mở lại bằng cùng link. Chọn giờ đóng mới nếu bạn muốn hẹn giờ.</p>
+    <app-deadline-picker [(value)]="reopenDeadline"/>
+  </ng-container>
+</nz-modal>
