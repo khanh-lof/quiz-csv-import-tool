@@ -2,13 +2,11 @@
 <nz-layout class="quiz-layout">
   <app-usage-guide>
     <ol>
-      <li>Chọn nền tảng ở ô <b>Tạo quiz cho</b> (Gimkit, Blooket hoặc Wayground).</li>
-      <li>Nhập câu hỏi và đáp án vào bảng, bấm <b>+</b> để thêm dòng. Với Wayground, chọn thêm loại câu hỏi cho từng dòng.</li>
-      <li>Cần ít nhất {{ minRows }} câu có đáp án: đáp án sai của mỗi câu được lấy ngẫu nhiên từ đáp án các câu khác. Dòng để trống sẽ bị bỏ qua.</li>
-      <li>Bấm <b>Tải file</b>, rồi import file vừa tải vào nền tảng đã chọn.</li>
+      <li>Chọn nền tảng ở ô <b>Tạo quiz cho</b>.</li>
+      <li>Nhập câu hỏi và đáp án, bấm <b>+</b> để thêm dòng (cần ít nhất {{ minRows }} câu; dòng trống bị bỏ qua).</li>
+      <li>Bấm <b>Tải file</b> rồi import vào nền tảng. Bảng tự lưu trên trình duyệt này.</li>
     </ol>
-    <p>Bảng được tự lưu trên trình duyệt này, tải lại trang không bị mất.</p>
-    <p>Với Wayground, nếu đã cài tiện ích QuizTool cho Chrome, chọn <b>Tiện ích tự publish</b> rồi bấm <b>Publish lên Wayground</b>: quiz được tạo và publish luôn, rồi link chia sẻ hiện ở đây. Chọn <b>Tải file</b> nếu muốn tự import. <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" target="_blank" rel="noopener">Xem cách cài tiện ích</a>.</p>
+    <p>Wayground: có thể dùng <b>Tiện ích tự publish</b> (<a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" target="_blank" rel="noopener">cách cài</a>).</p>
   </app-usage-guide>
   <nz-content>
     <form [formGroup]="formGroup" (ngSubmit)="exportFile()">

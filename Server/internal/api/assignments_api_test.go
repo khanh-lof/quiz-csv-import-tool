@@ -112,7 +112,7 @@ func rankOf(p rankedPlayer) int {
 
 func inTime(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
-// seedJob stores a finished Quiz cử chỉ job; edit may turn it into something else.
+// seedJob stores a finished Game job; edit may turn it into something else.
 func (e *testEnv) seedJob(t *testing.T, username, id string, edit func(*store.Job)) {
 	t.Helper()
 	job := &store.Job{
@@ -208,7 +208,7 @@ func TestAssignmentFlow(t *testing.T) {
 	// Create: the assignment snapshots the job under a fresh code.
 	closes := start.Add(time.Hour)
 	rec := c.teacher(http.MethodPost, "/api/assignments", createBody(map[string]any{
-		"label": "  Lớp 6A ", "closesAt": inTime(closes), "timeMode": "extra",
+		"label": "  Lớp 6A ", "closesAt": inTime(closes), "timeMode": "extra", "stageLock": "open",
 	}))
 	wantStatus(t, rec, http.StatusCreated)
 	if got := rec.Header().Get("Content-Type"); got != "application/json" {
@@ -216,13 +216,13 @@ func TestAssignmentFlow(t *testing.T) {
 	}
 	created := decode[map[string]any](t, rec)
 	wantKeys := []string{"closedAt", "closesAt", "code", "createdAt", "id", "jobId", "label", "open", "playerCount",
-		"stageCounts", "timeMode", "title"}
+		"stageCounts", "stageLock", "timeMode", "title"}
 	if got := keysOf(created); !slices.Equal(got, wantKeys) {
 		t.Fatalf("keys %v, want %v", got, wantKeys)
 	}
 	counts, _ := created["stageCounts"].(map[string]any)
 	if created["jobId"] != "job1" || created["title"] != "HSK3-Bai5" || created["label"] != "Lớp 6A" ||
-		created["timeMode"] != "extra" || created["createdAt"] != inTime(start) || created["closesAt"] != inTime(closes) ||
+		created["timeMode"] != "extra" || created["stageLock"] != "open" || created["createdAt"] != inTime(start) || created["closesAt"] != inTime(closes) ||
 		created["closedAt"] != nil || created["open"] != true || created["playerCount"] != float64(0) ||
 		len(counts) != 2 || counts["1"] != float64(5) || counts["2"] != float64(10) {
 		t.Fatalf("created %v", created)
@@ -258,11 +258,11 @@ func TestAssignmentFlow(t *testing.T) {
 		t.Errorf("share is cacheable: %v", rec.Header())
 	}
 	shared := decode[map[string]any](t, rec)
-	if got, want := keysOf(shared), []string{"closesAt", "csv", "label", "timeMode", "title"}; !slices.Equal(got, want) {
+	if got, want := keysOf(shared), []string{"closesAt", "csv", "label", "stageLock", "timeMode", "title"}; !slices.Equal(got, want) {
 		t.Fatalf("share keys %v, want %v", got, want)
 	}
 	if shared["title"] != "HSK3-Bai5" || shared["label"] != "Lớp 6A" || shared["csv"] != gestureCSV ||
-		shared["timeMode"] != "extra" || shared["closesAt"] != inTime(closes) {
+		shared["timeMode"] != "extra" || shared["stageLock"] != "open" || shared["closesAt"] != inTime(closes) {
 		t.Fatalf("share %v", shared)
 	}
 
@@ -575,6 +575,8 @@ func TestCreateAssignmentErrors(t *testing.T) {
 		{"time mode other", createBody(map[string]any{"timeMode": "fast"}), 400, "Invalid time mode."},
 		{"time mode empty", createBody(map[string]any{"timeMode": ""}), 400, "Invalid time mode."},
 		{"time mode missing", createBody(map[string]any{"timeMode": omit{}}), 400, "Invalid time mode."},
+		{"stage lock other", createBody(map[string]any{"stageLock": "free"}), 400, "Invalid stage lock."},
+		{"stage lock case", createBody(map[string]any{"stageLock": "Open"}), 400, "Invalid stage lock."},
 		{"time mode case", createBody(map[string]any{"timeMode": "Standard"}), 400, "Invalid time mode."},
 		{"closes in the past", createBody(map[string]any{"closesAt": inTime(now.Add(-time.Minute))}), 400, "Invalid closing time."},
 		{"closes now", createBody(map[string]any{"closesAt": inTime(now)}), 400, "Invalid closing time."},
@@ -1157,3 +1159,17 @@ func (brokenAssignments) List(context.Context, string, int) ([]store.Assignment,
 	return nil, errBroken
 }
 func (brokenAssignments) Delete(context.Context, string, string) error { return errBroken }
+
+// An assignment created without a stage lock, or stored before the setting existed, plays as it always
+// did: each stage opens once the one before it is passed.
+func TestStageLockDefaultsToSequential(t *testing.T) {
+	if got := stageLockOf(&store.Assignment{}); got != "sequential" {
+		t.Errorf("empty lock reads %q", got)
+	}
+	if got := stageLockOf(&store.Assignment{StageLock: "open"}); got != "open" {
+		t.Errorf("open lock reads %q", got)
+	}
+	if !validStageLock("sequential") || !validStageLock("open") || validStageLock("") {
+		t.Error("validStageLock disagrees with the contract")
+	}
+}

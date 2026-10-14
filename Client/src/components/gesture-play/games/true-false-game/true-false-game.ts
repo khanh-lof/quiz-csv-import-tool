@@ -16,6 +16,7 @@ import {
   IDLE_THUMB_VIEW,
   THUMB_HOLD_MS,
   THUMB_TARGETS,
+  TRUE_INDEX,
   ThumbReader,
   ThumbView,
   sameThumbView,
@@ -37,6 +38,8 @@ export class TrueFalseGame extends StageGameBase {
   readonly visionKind = stageDef(1).vision;
 
   protected readonly targets = THUMB_TARGETS;
+  // Which target is Đúng, for the template to colour it green and the other red.
+  protected readonly trueIndex = TRUE_INDEX;
 
   private readonly audio = inject(GameAudio);
   private readonly reader = new ThumbReader();

@@ -3,7 +3,8 @@ import { Flash, FruitField, Half, Fruit, Particle, SLOTS, TAU } from './fruit-sl
 
 // Canvas drawing for the fruit-slicing game: the three fruit sprites (ported from the prototype's
 // `FRUIT_DRAW`, a whole fruit and a cross-section each), the scene and the swipe trails. The fruits
-// carry no text on purpose: the player has to match them to the answer boxes by colour alone.
+// still carry no text on purpose; the answer boxes show each fruit's icon besides its colour, so the
+// match also works by shape.
 
 type Ctx = CanvasRenderingContext2D;
 

@@ -7,6 +7,7 @@
       <button
         type="button"
         class="card"
+        [attr.data-n]="number"
         [class.charging]="cameraActive() && view().choice === $index"
         [class.picked]="picked() === $index"
         [class.correct]="isCorrect($index)"

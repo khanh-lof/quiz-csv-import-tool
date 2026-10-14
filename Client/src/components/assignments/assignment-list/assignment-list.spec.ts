@@ -10,7 +10,7 @@ const URL = '/api/assignments';
 
 function assignment(id: string, overrides: Partial<Assignment> = {}): Assignment {
   return {
-    id, code: 'K7M2X9QD4P', jobId: 'job-1', title: `Quiz ${id}`, label: '', timeMode: 'standard',
+    id, code: 'K7M2X9QD4P', jobId: 'job-1', title: `Quiz ${id}`, label: '', timeMode: 'standard', stageLock: 'sequential',
     stageCounts: {'1': 5}, createdAt: '2026-10-14T01:30:00Z', closesAt: null, closedAt: null, open: true,
     playerCount: 0, ...overrides,
   };
@@ -95,8 +95,8 @@ describe('AssignmentList', () => {
     await load();
 
     expect(rows().length).toBe(0);
-    expect(text()).toContain('chọn một Quiz cử chỉ đã xong và bấm Giao bài');
-    expect(root().querySelector('a[href="/ai-history"]')?.textContent).toContain('Đến tab Lịch sử AI');
+    expect(text()).toContain('chọn một Game đã xong và bấm Giao bài');
+    expect(root().querySelector('a[href="/ai-history"]')?.textContent).toContain('Đến AI › Lịch sử');
   });
 
   it('tells the teacher when the list could not be loaded', async () => {

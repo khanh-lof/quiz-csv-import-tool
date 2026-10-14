@@ -106,6 +106,10 @@ export class FruitSliceGame extends StageGameBase {
   private readonly questionBox = viewChild.required<ElementRef<HTMLElement>>('questionBox');
   private readonly answerBoxes = viewChildren<ElementRef<HTMLElement>>('answerBox');
 
+  // The fruit each answer box stands for (slot 0 watermelon/green, 1 apple/red, 2 lemon/yellow, as in
+  // SLOTS), shown in the box so the match does not rest on colour alone.
+  protected readonly fruitIcons = ['🍉', '🍎', '🍋'];
+
   // At most one answer per fruit colour; stage 4 always has three.
   protected readonly answers = computed(() => this.question().options.slice(0, SLOTS.length));
   protected readonly slotCount = computed(() => this.answers().length);

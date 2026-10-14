@@ -65,7 +65,7 @@ describe('SharedPlayService', () => {
 
       const req = http.expectOne(`/api/share/${CODE}`);
       expect(req.request.method).toBe('GET');
-      req.flush({title: 'HSK1 bài 1', label: '6A', csv: '', timeMode: 'standard', closesAt: null});
+      req.flush({title: 'HSK1 bài 1', label: '6A', csv: '', timeMode: 'standard', stageLock: 'sequential', closesAt: null});
       expect(title).toBe('HSK1 bài 1');
     });
 

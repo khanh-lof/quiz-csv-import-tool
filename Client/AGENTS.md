@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The Angular (v22, standalone components) frontend for QuizTool. It lets a user build a table of
 question/answer vocabulary pairs (manually, via CSV import, or via AI generation), then export
 them as a CSV formatted for GimKit or Blooket import, or as an `.xlsx` for Wayground. The AI can also
-write a "Quiz cử chỉ" quiz, which is not exported anywhere: the app plays it itself, on a full-screen
+write a "Game" quiz, which is not exported anywhere: the app plays it itself, on a full-screen
 page that reads the player's gestures from the webcam (see [Gesture quiz](#gesture-quiz-play)), and a teacher
 can give that quiz to students as a link and watch their ranking (see [Giao bài](#giao-bài-assignments)). Auth (JWT access token + HttpOnly
 refresh cookie) and the AI image-to-CSV endpoint are served by the sibling `../Server` Go API
@@ -69,10 +69,16 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
 
 ### Vocabulary table & CSV pipeline
 
-`Workspace` (`src/components/workspace/`) is the shell of the main screens: a horizontal `nz-menu`
-(five `routerLink` items, "Tạo thủ công", "Tạo bằng AI", "Lịch sử AI", "Bài đã giao" and "Quiz cử chỉ", plus the login/logout item;
-the first four are highlighted via `nzMatchRouter`, the last never is because it leaves the frame for
-the full-screen `/play` page, see [Gesture quiz](#gesture-quiz-play)) and the title. The menu navigates between its child routes
+`Workspace` (`src/components/workspace/`) is the shell of the main screens: a collapsible side menu (an
+inline `nz-menu` built from `NAV`: "Quiz thủ công", then the groups "AI" with "Tạo quiz" and "Lịch sử", and
+"Game" with "Chơi game" and "Bài đã giao", plus the login/logout item at its foot and, at its
+top, the collapse switch: a double-left/double-right icon button with a tooltip), a breadcrumb (`breadcrumbFor`, with its spec: group › page, and "Bảng xếp hạng" under "Bài đã giao" on an
+assignment's ranking, which is why that page has no back link) and the title. The pages are highlighted via
+`nzMatchRouter`, "Chơi game" never is because it leaves the frame for the full-screen `/play` page (see
+[Gesture quiz](#gesture-quiz-play)). The groups are open whenever the menu is; collapsed, the menu shows only
+icons and the groups become fly-outs. The wide layout remembers the collapse in `localStorage`
+(`workspace-nav-collapsed`); under 768px the menu always starts collapsed and, opened, lies over the page
+until a page is picked. The menu navigates between its child routes
 `/quiz` (`VocabularyTable`), `/ai` (`AiGeneration`, `src/components/ai-generation/`), `/ai-history` (`AiJobs`, below) and the teacher's
 `/assignments` pages (see [Giao bài](#giao-bài-assignments)); `WorkspaceMode` knows all four, and logging out
 on any page but `/quiz`, which all need a login, falls back to `/quiz`. The AI
@@ -98,7 +104,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
    not awaited. `AiJobService` (root service) keeps the user's jobs in a signal (`GET /api/csv/jobs`),
    polling every 3 s while any job runs (`watch(idlePolls)`; stops after N answers without a running job
    or 10 failed ones, and is reset by `AuthService.cleared$` on logout) and announcing each job that
-   finishes. `AiJobs` (`src/components/ai-jobs/`, the page of the "Lịch sử AI" tab, `/ai-history`) is the history table: client-side search
+   finishes. `AiJobs` (`src/components/ai-jobs/`, the page of "AI › Lịch sử" in the menu, `/ai-history`) is the history table: client-side search
    (`filterJobs` in `models/ai-job.ts`: accent- and case-insensitive over title, error and the generated
    CSV) and status/mode/platform/course type/HSK standard/level/lesson filters (the last four match the
    lesson fields the server keeps on creative jobs), a "Thao tác" dropdown (`⋯`) on each finished row, which holds every action of the job: "Xem kết quả" (the result as a table in a popup; Auto jobs' headerless CSV gets the platform's column names, `CREATIVE_COLUMNS` in `ai-jobs.ts`), the delivery actions below, and "Xóa" (confirmed in a modal, because a popconfirm cannot live inside a menu item). A running job has no menu.
@@ -110,7 +116,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      navigates to `/quiz`, where `VocabularyTable.ngOnInit` takes them and adds them like any other
      import.
    - **`Auto`** (requires `courseType`/`lessonNumber`/`exportType` in the page's form, plus `level`
-     for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — or `courseName` for `Other`, and for Quiz cử chỉ
+     for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — or `courseName` for `Other`, and for Game
      `gestureStages`, a checkbox per game with at least one ticked, and `questionsPerStage`, 4–10; images are
      optional here. The two quiz controls are validated only for that platform, their limits and the sanitizers
      that read them back from the saved settings are `models/gesture-quiz-options.ts`, and `AiCsvService` sends
@@ -118,7 +124,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      has no header rows → on "Tải file" (or, for Wayground, "Tiện ích tự publish") `AiJobs.exportJob(job, publish)` passes it to
      `FileExportService.exportFileFromCsvContent`, which
      calls the matching `CsvBuilder.buildFromCsvContent` to prepend the platform's `CsvHeader` and
-     downloads (or the extension takes it, when the user clicked the publish button). A Quiz cử chỉ
+     downloads (or the extension takes it, when the user clicked the publish button). A Game
      job also has "Chơi ngay" (`AiJobs.play(job)`, navigates to `/play/<job id>`), the primary action
      there, with "Tải file" only keeping the quiz, and "Giao bài" (`AiJobs.assign(job)`, which opens
      `AssignDialog`, see [Giao bài](#giao-bài-assignments)). The vocabulary table is never touched in this path.
@@ -135,18 +141,18 @@ means editing both lists together; the server also checks the lesson number (400
 Export: `exportFile()` validates the form, then `FileExportService` dispatches to `GimkitCsvBuilder`,
 `BlooketCsvBuilder`, or `WaygroundCsvBuilder` (all extend `CsvBuilderBase`, selected by the
 `exportType` form control, `ExportType` enum) based on the target platform's required CSV shape. A fourth,
-`GestureQuizCsvBuilder` (`services/gesture-quiz-csv-builder.ts`), serves only the AI's Quiz cử chỉ output: it
+`GestureQuizCsvBuilder` (`services/gesture-quiz-csv-builder.ts`), serves only the AI's Game output: it
 carries the header (`GESTURE_QUIZ_COLUMNS`) for `buildFromCsvContent`, while its `buildFromRows` throws, because
 the table's rows have no stages, so the vocabulary table's platform select does not list the platform.
 GimKit/Blooket builders synthesize incorrect-answer distractors by randomly sampling other rows'
 answers via `Utils.getRandomItem`/`shuffle`, so a builder run needs at least a few rows or the "pick
 a distinct wrong answer" loop can spin/repeat. `Utils.escapeCsvField` handles quoting for the
 generated CSV (not the same code path as the import parser). `FileExportService.buildFile` then
-picks the output format per platform: GimKit/Blooket/Quiz cử chỉ download as `.csv` directly; Wayground is
+picks the output format per platform: GimKit/Blooket/Game download as `.csv` directly; Wayground is
 converted to `.xlsx` via the `xlsx` package first (`FileExportService.buildXlsx`). Both export methods
 return an `ExportedFile` (`fileName`, plus the `xlsx` bytes for Wayground) and take a `download` flag.
 `buildFileName` makes `<label>-<platform>.csv` with spaces turned into dashes in the platform's name too
-(`platformName` of Quiz cử chỉ is "Quiz cử chỉ", so `HSK3-Bai5-Quiz-cử-chỉ.csv`).
+(`platformName` of Game is "Game", so `HSK3-Bai5-Game.csv`).
 For Wayground the table page shows a `WaygroundDelivery` radio (download vs. extension, preference held
 by `WaygroundExtensionService.preferredDelivery`); the AI jobs table has no such setting and offers both
 buttons on each finished Wayground job, the extension one disabled without `../Extension`. When the
@@ -156,9 +162,9 @@ share link it sends back (see [../AGENTS.md](../AGENTS.md#the-wayground-browser-
 
 ### Gesture quiz (`/play`)
 
-The AI's Quiz cử chỉ output (`ExportType.GestureQuiz`, ordinal 3) is played in the app, not imported
+The AI's Game output (`ExportType.GestureQuiz`, ordinal 3) is played in the app, not imported
 anywhere; the CSV contract, the stage ladder (1 to 6 of the six games, chosen on the AI form) and the pass rule are in
-[../AGENTS.md](../AGENTS.md#the-gesture-quiz-quiz-cử-chỉ). This section is the client's half.
+[../AGENTS.md](../AGENTS.md#the-gesture-quiz-game). This section is the client's half.
 
 **Routes.** `app.routes.ts` declares four `loadComponent` routes for `GesturePlay`, placed *outside* the
 `Workspace` route so the game fills the screen with no menu: `play` (a file or the sample), `play/s/:code` (a
@@ -236,6 +242,20 @@ of the neutral pose, status messages) and `face-calibration-panel.ts`; `face-fix
 option; the head-tilt game also ← →; the frog moves with ← ↓ → and bites with Space; the word-order game uses
 digits for tiles and Backspace to undo).
 
+**The look of the play area.** The stage does not follow the app's pink/blue style: each game is its own world,
+saturated enough to survive a classroom projector. `play-themes.css` (a second stylesheet of `GesturePlay`) keys
+on the stage's `data-game` and gives each game a scene behind it (1 a violet game-show stage, 2 a sunset, 3 a
+pond, 4 dark wooden planks, 5 sunny yellow polka dots, 6 a chalkboard in a wooden frame), the frame's colour
+and, while the camera is on, a scrim over the picture: the scene's colours at the top and bottom edges, clear
+in the middle where the player sees themselves. The scrim is the stage's first element on purpose:
+`VisionService`'s video is prepended before it, so it lies between the picture and the game. A game's own
+palette (its cards, its accents) is in its stylesheet, and every game marks the shared meanings with the
+`--play-*` tokens of `styles.css`: `--play-ok` green with a ✓ stamp, `--play-bad` red with a ✗ stamp,
+`--play-charge` gold for "hold to confirm" (rings, dwell, the hand cursor), dark `--play-ink` on the light
+cards that carry answers. Game stylesheets do not use the app's `--qt-*` colours (the font, radius and
+transition tokens are fine). The fruit game's answer boxes show their fruit's icon besides its colour, so a
+red-green colour-blind player can match them by shape.
+
 **MediaPipe loading.** `@mediapipe/tasks-vision` is pinned to `1.1.0` (exact, no range) and imported with a
 dynamic `import()` inside `VisionService.loadRuntime` (the rest of the file only imports its *types*), so it
 becomes a lazy chunk fetched when a player turns the camera on. The WASM runtime is not bundled: an `assets`
@@ -269,7 +289,7 @@ cử chỉ export is covered in `file-export.service.spec.ts`. None of them runs
 
 ### Giao bài (assignments)
 
-A teacher gives a finished Quiz cử chỉ job to students, who play it by link with no account; the rules
+A teacher gives a finished Game job to students, who play it by link with no account; the rules
 (snapshot, code, player token, result and ranking contract, closing) are in
 [../AGENTS.md](../AGENTS.md#giao-bài-assignments). This section is the client's half. The shapes of the API
 are `src/models/assignment.ts` (`Assignment`, `AssignmentDetail`, `RankedPlayer`, `SharedQuiz`, `NewAssignment`,
@@ -316,7 +336,7 @@ routes added for this (see above for their guards).
 | Topbar link | Về bảng quiz, Mở quiz khác | Về lịch sử AI | none | Về bảng xếp hạng |
 | Progress key | the quiz's hash | the quiz's hash | `asg:<CODE>:<playerId>` | the quiz's hash, never written |
 | Time mode | the player's setting | the player's setting | the teacher's, fixed | the teacher's, fixed |
-| Map | locks, reset | locks, reset | locks, no reset | every stage open, no reset |
+| Map | locks, reset | locks, reset | locks (or all open, by the teacher's `stageLock`), no reset | every stage open, no reset |
 | Before a stage | | | the closed check | |
 | Finished run | recorded locally | recorded locally | recorded locally, reported | nothing recorded or sent |
 
@@ -354,6 +374,11 @@ routes added for this (see above for their guards).
   text instead of the radios), `allowReset` (false hides "Chơi lại từ đầu": a student's results are the
   teacher's), `allOpen`, and a content projection above its summary. `GestureStageResult`: `saveState` and
   `preview`.
+
+- **The stage lock.** An assignment's `stageLock` (`sequential` | `open`, `StageLock` in `models/assignment.ts`) reaches
+  the page with the time mode (`assignmentStageLock`). `allStagesOpen` is true in a preview or when it is `open`,
+  and then the map's `allOpen`, `openIntro`, `guardSharedStage` and `hasNext` skip `GestureProgressService.isUnlocked`.
+  Passing is still recorded and reported either way. `AssignDialog` offers it as a radio under the time mode.
 
 **Teacher components** (`src/components/assignments/`, all with their own spec):
 - `AssignDialog` (`assign-dialog/`, `app-assign-dialog`: input `job`, `[(open)]`, output `created`) is mounted by
@@ -414,10 +439,13 @@ overlays (modals, confirms, dropdowns, notifications) that render outside any co
   `--qt-font-han` is the font stack of the gesture quiz's hanzi: Latin UI fonts first (they have no CJK
   glyphs, so Vietnamese and pinyin keep a readable face), then the Kai (handwriting-style) faces, so only
   the hanzi fall through to a Kai font. Use it on text that shows Chinese characters instead of naming
-  a CJK font.
+  a CJK font. The `--play-*` tokens are the colours the gesture quiz's six games share (see
+  [the look of the play area](#gesture-quiz-play)).
 - Component stylesheets hold only layout and sizing. Don't restyle library colors there or reach
   for `::ng-deep` without `:host` (that leaks globally); add or change a global override instead,
-  and use `nzType`/`nzSize` (e.g. `nzType="primary"` for the main action) rather than CSS.
+  and use `nzType`/`nzSize` (e.g. `nzType="primary"` for the main action) rather than CSS. The one
+  exception is the gesture quiz's stage: `play-themes.css` and the six games' stylesheets own its
+  colours (they style no library component).
 - Read https://ng.ant.design/llms-full.txt and understand NG-ZORRO components. Use this knowledge when writing code with NG-ZORRO
 `provideNzI18n(en_US)` is set in `app.config.ts` despite most user-facing
 notification strings in the codebase being written in Vietnamese directly at the call site (not via

@@ -1,9 +1,12 @@
-/* The host is a size container so everything scales with the stage (cqw / cqh / cqmin), from a phone to a projector. */
+/* The host is a size container so everything scales with the stage (cqw / cqh / cqmin), from a phone to a projector.
+   The sunset is painted behind it (play-themes.css), so the host stays transparent. */
 :host {
   display: block;
   position: absolute;
   inset: 0;
   container-type: size;
+  /* Sunset-tinted shadow for everything that floats over the scene. */
+  --sunset-shadow: 0 8px 20px rgba(80, 20, 60, 0.3);
 }
 
 .frame {
@@ -20,10 +23,10 @@
   align-self: center;
   max-width: 94%;
   padding: 1cqh 3cqw;
-  background: rgba(255, 255, 255, 0.92);
-  border: var(--qt-border-width) solid var(--qt-border);
+  background: #fff;
+  border: 3px solid rgba(255, 255, 255, 0.9);
   border-radius: var(--qt-radius-lg);
-  box-shadow: var(--qt-card-shadow);
+  box-shadow: var(--sunset-shadow);
 }
 
 .question p {
@@ -32,7 +35,7 @@
   font-size: clamp(15px, 4.4cqmin, 34px);
   font-weight: 700;
   line-height: 1.3;
-  color: var(--qt-text);
+  color: var(--play-ink);
 }
 
 /* Left card, the hold ring in the middle (camera only), right card. */
@@ -49,7 +52,10 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* White face, framed in its side's colour. --band is the height of the header band (.chip), so the word
+   below it keeps its place at every stage size. */
 .card {
+  --band: calc(clamp(11px, 2.6cqmin, 18px) * 1.5 + 1cqh);
   grid-row: 1;
   position: relative;
   display: flex;
@@ -59,61 +65,66 @@
   gap: 0.5cqh;
   height: min(100%, 62cqh);
   min-height: 0;
-  padding: 5cqh 1.5cqw 3cqh;
+  padding: calc(var(--band) + 1cqh) 1.5cqw 2.5cqh;
   overflow: hidden;
   font: inherit;
-  color: var(--qt-text);
+  color: var(--play-ink);
   cursor: pointer;
-  border: var(--qt-border-width) solid var(--qt-border);
+  background: #fff;
+  border: 5px solid var(--side);
   border-radius: var(--qt-radius-lg);
-  box-shadow: var(--qt-card-shadow);
+  box-shadow: var(--sunset-shadow);
   transition:
     transform var(--qt-transition),
     border-color var(--qt-transition),
     box-shadow var(--qt-transition);
 }
 
-/* Pink card on the left, blue on the right: the same two colours as the meter's zones. */
+/* Orange on the left, violet on the right: the sunset's two ends, a pair that colour-blind players can
+   also tell apart, and the same two colours as the meter's zones. */
 .card.left {
+  --side: #ea580c;
   grid-column: 1;
-  background: linear-gradient(145deg, #fff, color-mix(in srgb, var(--qt-pink) 32%, white));
 }
 
 .card.right {
+  --side: #7c3aed;
   grid-column: 3;
-  background: linear-gradient(145deg, #fff, color-mix(in srgb, var(--qt-blue) 38%, white));
 }
 
 .frame:not(.cam) .card.right {
   grid-column: 2;
 }
 
-.frame:not(.locked) .card:hover {
-  border-color: var(--qt-focus);
-  box-shadow: var(--qt-lift-shadow);
+.frame:not(.locked) .card:not(.active, .picked):hover {
+  transform: translateY(-0.6cqh);
+  box-shadow: 0 12px 26px rgba(80, 20, 60, 0.4);
 }
 
-.card.active {
-  border-color: var(--qt-focus);
+/* Held (or chosen, until the answer is shown): gold, the same "hold to confirm" colour as the charge bar. */
+.card.active,
+.card.picked {
   box-shadow:
-    var(--qt-focus-shadow),
-    var(--qt-card-shadow);
+    0 0 0 4px var(--play-charge),
+    0 0 22px var(--play-charge-glow),
+    var(--sunset-shadow);
   transform: translateY(-1cqh) scale(1.03);
 }
 
-.card.picked {
-  border-color: var(--qt-focus);
-}
-
+/* The answer is shown: both cards settle to the same size, whichever one was held. */
 .card.correct {
-  background: var(--qt-gradient);
-  border-color: var(--qt-focus);
+  background: color-mix(in srgb, var(--play-ok) 22%, white);
+  border-color: var(--play-ok);
+  box-shadow: var(--sunset-shadow);
+  transform: none;
   animation: pop 0.45s ease;
 }
 
 .card.wrong {
-  color: var(--qt-error);
-  border-color: var(--qt-error);
+  background: color-mix(in srgb, var(--play-bad) 14%, white);
+  border-color: var(--play-bad);
+  box-shadow: var(--sunset-shadow);
+  transform: none;
   animation: shake 0.35s ease;
 }
 
@@ -121,18 +132,25 @@
   cursor: default;
 }
 
+/* The key and the side's name, as a band across the card's top. */
 .chip {
   position: absolute;
-  top: 1.4cqh;
-  left: 50%;
-  display: inline-flex;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  transform: translateX(-50%);
+  height: var(--band);
+  transform: none;
   font-size: clamp(11px, 2.6cqmin, 18px);
   font-weight: 800;
+  line-height: 1;
   white-space: nowrap;
-  color: var(--qt-text-muted);
+  color: #fff;
+  background: var(--side);
+  border-radius: calc(var(--qt-radius-lg) - 5px) calc(var(--qt-radius-lg) - 5px) 0 0;
 }
 
 kbd {
@@ -140,8 +158,9 @@ kbd {
   padding: 0 0.3em;
   font: inherit;
   text-align: center;
-  background: #fff;
-  border: 1px solid var(--qt-border);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 6px;
 }
 
@@ -166,19 +185,30 @@ kbd {
 
 .note {
   font-size: clamp(12px, 3.4cqmin, 26px);
-  color: var(--qt-text-muted);
+  color: var(--play-ink-muted);
 }
 
+/* A round stamp: green with a check on the right card, red with a cross on a wrong pick. */
 .mark {
   position: absolute;
   right: 1.5cqw;
   bottom: 1.5cqh;
-  font-size: clamp(22px, 6cqmin, 48px);
+  display: grid;
+  place-items: center;
+  width: clamp(28px, 7.5cqmin, 56px);
+  height: clamp(28px, 7.5cqmin, 56px);
+  box-sizing: border-box;
+  font-size: clamp(16px, 4.2cqmin, 32px);
   line-height: 1;
+  color: #fff;
+  background: var(--play-ok);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
 }
 
 .card.wrong .mark {
-  color: var(--qt-error);
+  background: var(--play-bad);
 }
 
 /* The hold's progress along the card's bottom edge, for stages too small for the ring. */
@@ -188,7 +218,7 @@ kbd {
   bottom: 0;
   height: 0.9cqh;
   min-height: 5px;
-  background: var(--qt-gradient);
+  background: var(--play-charge);
 }
 
 .middle {
@@ -200,6 +230,7 @@ kbd {
   pointer-events: none;
 }
 
+/* The hold ring is the sun: it fills with gold on the sun painted behind it. */
 .ring {
   width: min(100%, 54cqh);
   aspect-ratio: 1;
@@ -213,14 +244,14 @@ kbd {
 }
 
 .ring-track {
-  stroke: rgba(255, 255, 255, 0.7);
+  stroke: rgba(255, 255, 255, 0.55);
 }
 
 .ring-fill {
   stroke: url(#head-tilt-ring);
   stroke-linecap: round;
   stroke-dasharray: 603.19;
-  filter: drop-shadow(0 0 4px rgba(255, 142, 203, 0.7));
+  filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.9));
   transition: stroke-dashoffset 0.06s linear;
 }
 
@@ -233,6 +264,7 @@ kbd {
   min-height: clamp(56px, 14cqh, 92px);
 }
 
+/* Near-opaque: with the camera on, what lies behind is an arbitrary picture, not the sunset. */
 .status {
   display: flex;
   flex-direction: column;
@@ -241,10 +273,10 @@ kbd {
   max-width: 100%;
   margin: 0;
   padding: 6px 16px 8px;
-  background: rgba(255, 255, 255, 0.92);
-  border: var(--qt-border-width) solid var(--qt-border);
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid rgba(255, 255, 255, 0.9);
   border-radius: var(--qt-radius-lg);
-  box-shadow: var(--qt-card-shadow);
+  box-shadow: var(--sunset-shadow);
 }
 
 .hint {
@@ -252,11 +284,11 @@ kbd {
   font-size: clamp(12px, 2.6cqmin, 18px);
   font-weight: 700;
   text-align: center;
-  color: var(--qt-text);
+  color: var(--play-ink);
 }
 
 .hint.warn {
-  color: var(--qt-error);
+  color: var(--play-bad-dark);
 }
 
 .meter {
@@ -265,21 +297,18 @@ kbd {
   gap: 10px;
   width: min(260px, 60cqw);
   font-weight: 800;
-  color: var(--qt-text-muted);
+  color: var(--play-ink-muted);
 }
 
+/* The panel behind it is white too, so a faint outline keeps the white middle zone readable as part of the bar. */
 .meter .track {
   position: relative;
   flex: 1;
   height: 8px;
-  background: linear-gradient(
-    90deg,
-    var(--qt-pink) 0 35%,
-    #fff 35% 65%,
-    var(--qt-blue) 65%
-  );
-  border: 1px solid var(--qt-border);
+  background: linear-gradient(90deg, #ea580c 0 35%, #fff 35% 65%, #7c3aed 65%);
+  border: 1px solid #fff;
   border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(31, 41, 55, 0.2);
 }
 
 .meter .track::before {
@@ -289,7 +318,7 @@ kbd {
   top: -4px;
   width: 2px;
   height: 14px;
-  background: var(--qt-text-muted);
+  background: var(--play-ink-muted);
   opacity: 0.5;
 }
 
@@ -300,9 +329,11 @@ kbd {
   height: 16px;
   margin: -8px 0 0 -8px;
   background: #fff;
-  border: 3px solid var(--qt-focus);
+  border: 3px solid var(--play-charge);
   border-radius: 50%;
-  box-shadow: var(--qt-focus-shadow);
+  box-shadow:
+    0 0 8px var(--play-charge-glow),
+    0 1px 3px rgba(0, 0, 0, 0.3);
   transition: left 0.08s;
 }
 

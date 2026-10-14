@@ -20,7 +20,7 @@
       <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
       <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
       <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
-      <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Quiz cử chỉ"></nz-option>
+      <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Game"></nz-option>
     </nz-select>
     <nz-select class="filter-select" nzAllowClear nzPlaceHolder="Giáo trình" [ngModel]="courseType()"
                (ngModelChange)="setCourseType($event ?? null)">
@@ -49,7 +49,7 @@
 
   <nz-table #jobsTable nzSize="small" class="jobs-table" [nzData]="filtered()" [nzLoading]="!loaded()"
             [nzPageSize]="pageSize" [nzShowPagination]="filtered().length > pageSize"
-            [nzNoResult]="isFiltering() ? 'Không có kết quả nào khớp.' : 'Chưa có lần tạo nào. Gửi yêu cầu ở trên, kết quả sẽ hiện ở đây.'">
+            [nzNoResult]="isFiltering() ? 'Không có kết quả nào khớp.' : 'Chưa có lần tạo nào. Gửi yêu cầu ở mục AI › Tạo quiz, kết quả sẽ hiện ở đây.'">
     <thead>
       <tr>
         <th>Tiêu đề</th>
@@ -58,7 +58,7 @@
         <th>Nền tảng</th>
         <th>Lúc gửi</th>
         <th>Trạng thái</th>
-        <th></th>
+        <th class="actions-col"></th>
       </tr>
     </thead>
     <tbody>
@@ -87,7 +87,7 @@
             @if (job.status !== 'running') {
               <button nz-button nzType="default" nzSize="small" type="button" aria-label="Thao tác" title="Thao tác"
                       nz-dropdown [nzDropdownMenu]="jobMenu" nzTrigger="click" nzPlacement="bottomRight">
-                <nz-icon nzType="more" nzTheme="outline"/>
+                <nz-icon nzType="control" nzTheme="outline"/>
               </button>
               <nz-dropdown-menu #jobMenu="nzDropdownMenu">
                 <ul nz-menu class="action-menu">

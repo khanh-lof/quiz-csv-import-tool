@@ -51,7 +51,7 @@ describe('FileExportService Wayground export', () => {
   });
 });
 
-describe('FileExportService Quiz cử chỉ export', () => {
+describe('FileExportService Game export', () => {
   const rows = '1,你好是什么意思?,Xin chào,,,,\n2,"我叫___,你呢?",Lan,Mai,Hoa,,Điền tên';
   let service: FileExportService;
   let blobs: Blob[];
@@ -73,10 +73,10 @@ describe('FileExportService Quiz cử chỉ export', () => {
   });
 
   it('downloads a .csv that starts with the gesture quiz header, then the rows', async () => {
-    const exported = service.exportFileFromCsvContent('HSK3-Bai5-Quiz-cử-chỉ.csv', rows, ExportType.GestureQuiz);
+    const exported = service.exportFileFromCsvContent('HSK3-Bai5-Game.csv', rows, ExportType.GestureQuiz);
 
-    expect(exported).toEqual({fileName: 'HSK3-Bai5-Quiz-cử-chỉ.csv'});
-    expect(downloadNames).toEqual(['HSK3-Bai5-Quiz-cử-chỉ.csv']);
+    expect(exported).toEqual({fileName: 'HSK3-Bai5-Game.csv'});
+    expect(downloadNames).toEqual(['HSK3-Bai5-Game.csv']);
     expect(blobs.length).toBe(1);
     expect(blobs[0].type).toBe('text/csv;charset=utf-8');
     expect(await blobs[0].text()).toBe(`${GESTURE_QUIZ_COLUMNS.join(',')}\n${rows}`);
@@ -97,13 +97,13 @@ describe('FileExportService Quiz cử chỉ export', () => {
   });
 
   it('names the platform', () => {
-    expect(FileExportService.platformName(ExportType.GestureQuiz)).toBe('Quiz cử chỉ');
+    expect(FileExportService.platformName(ExportType.GestureQuiz)).toBe('Game');
     expect(FileExportService.platformName(ExportType.Wayground)).toBe('Wayground');
   });
 
   it('names the file with dashes in place of spaces, in the label and the platform', () => {
-    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.GestureQuiz)).toBe('HSK3-Bai5-Quiz-cử-chỉ.csv');
-    expect(FileExportService.buildFileName(' Boya  Bai 2 ', ExportType.GestureQuiz)).toBe('Boya-Bai-2-Quiz-cử-chỉ.csv');
+    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.GestureQuiz)).toBe('HSK3-Bai5-Game.csv');
+    expect(FileExportService.buildFileName(' Boya  Bai 2 ', ExportType.GestureQuiz)).toBe('Boya-Bai-2-Game.csv');
   });
 
   it('keeps the file names of the other platforms', () => {

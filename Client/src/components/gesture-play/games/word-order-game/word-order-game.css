@@ -9,7 +9,6 @@
   --u: min(1cqw, 1.7778cqh);
   --tile-h: calc(var(--u) * 10);
   --gap: calc(var(--u) * 1.6);
-  --ok: #52c41a;
 }
 
 .board {
@@ -18,17 +17,22 @@
   display: flex;
   flex-direction: column;
   gap: var(--gap);
-  padding: calc(var(--u) * 2);
+  /* Clear of the stage's wooden frame (14px, drawn over the edge by play-themes.css). */
+  padding: max(20px, calc(var(--u) * 2));
   overflow: hidden;
   font-size: max(14px, calc(var(--u) * 2.6));
-  color: var(--qt-text);
+  /* The board is a chalkboard: text on it is chalk, and the wooden tiles set their own ink. */
+  color: #fff;
 }
 
+/* A panel is see-through, so it reads the same on the chalkboard and on the camera picture. Its resting
+   shadow is a variable so that the gold ring of a hovered target is added to it, not put in its place. */
 .card {
-  background: rgba(255, 255, 255, 0.92);
-  border: var(--qt-border-width) solid var(--qt-border);
+  --lift: 0 6px 16px rgba(0, 0, 0, 0.25);
+  background: rgba(12, 40, 28, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.22);
   border-radius: var(--qt-radius-lg);
-  box-shadow: var(--qt-lift-shadow);
+  box-shadow: var(--lift);
 }
 
 .top {
@@ -49,13 +53,15 @@
 
 .label {
   font-size: max(11px, calc(var(--u) * 1.8));
-  color: var(--qt-text-muted);
+  color: #fde68a;
 }
 
 .meaning {
   font-size: max(16px, calc(var(--u) * 3.6));
   font-weight: 600;
   line-height: 1.25;
+  color: #fff;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.35);
 }
 
 /* Everything the player can pick is a "target": a pool tile, a placed tile, or the undo card. */
@@ -76,7 +82,7 @@
   inset: calc(var(--u) * -1);
   padding: calc(var(--u) * 0.8);
   border-radius: calc(var(--qt-radius-lg) + var(--u));
-  background: conic-gradient(var(--qt-blue) calc(var(--dwell, 0) * 360deg), transparent 0);
+  background: conic-gradient(var(--play-charge) calc(var(--dwell, 0) * 360deg), transparent 0);
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
@@ -88,15 +94,20 @@
   pointer-events: none;
 }
 
+/* The gold ring goes around the target's own shadow (--lift, set by .card and .tile). */
 .target.hot {
-  border-color: var(--qt-focus);
-  box-shadow: var(--qt-focus-shadow);
+  box-shadow:
+    0 0 0 3px var(--play-charge),
+    0 0 18px var(--play-charge-glow),
+    var(--lift);
 }
 
 @media (hover: hover) {
   .target:hover {
-    border-color: var(--qt-focus);
-    box-shadow: var(--qt-focus-shadow);
+    box-shadow:
+      0 0 0 3px var(--play-charge),
+      0 0 18px var(--play-charge-glow),
+      var(--lift);
   }
 }
 
@@ -106,14 +117,20 @@
   justify-content: center;
   gap: calc(var(--u) * 0.8);
   flex: none;
-  width: calc(var(--u) * 17);
+  /* The label stays on one line however wide the stage is, so the width is only a minimum. */
+  width: auto;
+  min-width: calc(var(--u) * 17);
+  padding-inline: calc(var(--u) * 2);
   font-size: max(16px, calc(var(--u) * 3.4));
   font-weight: 600;
-  color: var(--qt-text);
+  white-space: nowrap;
+  color: #fff;
+  /* Chalked on, like a button drawn on the board. */
+  border: 2px dashed rgba(255, 255, 255, 0.75);
 }
 
 .undo.off {
-  opacity: 0.55;
+  opacity: 0.45;
   cursor: default;
 }
 
@@ -125,8 +142,8 @@
   gap: var(--gap);
   min-height: calc(var(--tile-h) + var(--u) * 2.4);
   padding: calc(var(--u) * 1.2);
-  background: rgba(255, 255, 255, 0.85);
-  border: var(--qt-border-width) dashed var(--qt-border);
+  background: rgba(12, 40, 28, 0.45);
+  border: 2px dashed rgba(255, 255, 255, 0.55);
   border-radius: var(--qt-radius-lg);
   transition:
     border-color var(--qt-transition),
@@ -134,13 +151,50 @@
 }
 
 .line.right {
-  background: rgba(246, 255, 237, 0.95);
-  border-color: var(--ok);
+  background: rgba(34, 197, 94, 0.22);
+  border-color: var(--play-ok);
 }
 
 .line.wrong {
-  background: rgba(255, 241, 240, 0.95);
-  border-color: var(--qt-error);
+  background: rgba(239, 68, 68, 0.2);
+  border-color: var(--play-bad);
+}
+
+/* The verdict is also a stamp on the line's top-right corner, so it does not rest on colour alone. */
+.line.right,
+.line.wrong {
+  position: relative;
+}
+
+.line.right::after,
+.line.wrong::after {
+  position: absolute;
+  top: calc(var(--u) * -1.5);
+  right: calc(var(--u) * 2);
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: max(24px, calc(var(--u) * 3.4));
+  height: max(24px, calc(var(--u) * 3.4));
+  font-family: system-ui, sans-serif;
+  font-size: max(14px, calc(var(--u) * 2));
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+.line.right::after {
+  content: '✓';
+  background: var(--play-ok);
+}
+
+.line.wrong::after {
+  content: '✗';
+  background: var(--play-bad);
 }
 
 .tile,
@@ -151,7 +205,11 @@
   border-radius: var(--qt-radius-lg);
 }
 
+/* A wooden block, like a Scrabble tile: a pale face with a darker edge underneath. */
 .tile {
+  --lift:
+    0 calc(var(--u) * 0.6) 0 #a66f35,
+    0 calc(var(--u) * 1) calc(var(--u) * 1.6) rgba(0, 0, 0, 0.4);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -161,14 +219,14 @@
   font-size: max(22px, calc(var(--u) * 5.2));
   line-height: 1;
   white-space: nowrap;
-  color: var(--qt-text);
-  background: rgba(255, 255, 255, 0.95);
-  border: var(--qt-border-width) solid var(--qt-border);
-  box-shadow: var(--qt-lift-shadow);
+  color: #3b2412;
+  background: linear-gradient(180deg, #fbe7c0, #e8c48a);
+  border: 2px solid #c99a5b;
+  box-shadow: var(--lift);
 }
 
 .tile.placed {
-  background: var(--qt-gradient-soft);
+  background: linear-gradient(180deg, #fff3d6, #f5d9a4);
 }
 
 .tile.gone {
@@ -178,12 +236,12 @@
 .tile kbd {
   font-family: inherit;
   font-size: max(11px, calc(var(--u) * 1.8));
-  color: var(--qt-text-muted);
+  color: #7c5a3a;
 }
 
 .slot {
-  border: var(--qt-border-width) dashed var(--qt-border);
-  background: rgba(255, 255, 255, 0.45);
+  border: 2px dashed rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .pool {
@@ -207,6 +265,8 @@
   font-family: var(--qt-font-han);
   font-size: max(22px, calc(var(--u) * 6));
   line-height: 1.2;
+  color: #fff;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.35);
 }
 
 .hint {
@@ -215,8 +275,8 @@
   padding: calc(var(--u) * 0.6) calc(var(--u) * 2);
   font-size: max(12px, calc(var(--u) * 2.1));
   text-align: center;
-  color: var(--qt-text-muted);
-  background: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(12, 40, 28, 0.6);
   border-radius: 999px;
 }
 
@@ -255,8 +315,8 @@
   background: rgba(255, 255, 255, 0.35);
   border: calc(var(--u) * 0.5) solid #fff;
   box-shadow:
-    0 0 0 2px var(--qt-pink),
-    var(--qt-lift-shadow);
+    0 0 0 2px var(--play-charge),
+    0 0 14px var(--play-charge-glow);
   transition:
     transform 0.12s,
     background 0.12s;
@@ -265,13 +325,13 @@
 /* The fingers are closed: the ring shrinks like a press. */
 .cursor.pinched .ring {
   transform: scale(0.7);
-  background: rgba(255, 142, 203, 0.6);
+  background: rgba(250, 204, 21, 0.6);
 }
 
 .cursor .progress {
   inset: calc(var(--u) * -0.9);
   padding: calc(var(--u) * 0.7);
-  background: conic-gradient(var(--qt-blue) calc(var(--dwell, 0) * 360deg), transparent 0);
+  background: conic-gradient(var(--play-charge) calc(var(--dwell, 0) * 360deg), transparent 0);
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
@@ -288,5 +348,5 @@
   width: calc(var(--u) * 1.2);
   height: calc(var(--u) * 1.2);
   margin: calc(var(--u) * -0.6) 0 0 calc(var(--u) * -0.6);
-  background: var(--qt-pink);
+  background: var(--play-charge);
 }

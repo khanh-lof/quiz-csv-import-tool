@@ -9,10 +9,6 @@
   </nz-card>
 } @else if (detail(); as d) {
   <nz-card class="head-card">
-    <a class="back-link" routerLink="/assignments">
-      <nz-icon nzType="arrow-left" nzTheme="outline"/>
-      Bài đã giao
-    </a>
     <div class="title-row">
       <h2 class="title">{{ d.title }}</h2>
       @if (d.label) {
@@ -22,6 +18,7 @@
     </div>
     <p class="meta">
       <span>Thời gian mỗi câu: {{ timeModeLabels[d.timeMode] }}</span>
+      <span>Các màn: {{ stageLockLabels[d.stageLock] }}</span>
       <span>Giao lúc {{ formatStamp(d.createdAt) }}</span>
       <span>{{ d.players.length }} học sinh</span>
     </p>

@@ -6,7 +6,7 @@ import { TimeMode } from './gesture-settings.service';
 const TRUE_FALSE_STAGE = 1;
 const WORD_ORDER_STAGE = 6;
 const EXTRA_TIME_FACTOR = 1.5;
-const QUIZ_FILE_SUFFIX = /-Quiz-cử-chỉ$/i;
+const QUIZ_FILE_SUFFIX = /-(?:Game|Quiz-cử-chỉ)$/i;
 
 // A question ready to play: the view a game shows, plus what the page needs to judge the answer (the
 // games never see these).
@@ -112,9 +112,9 @@ export function timeLimitFor(stageSeconds: number, mode: TimeMode): number | nul
 }
 
 // The quiz's name from the file's: no extension, and without the suffix the app puts on the files it
-// downloads ("HSK3-Bai5-Quiz-cử-chỉ.csv" is the quiz "HSK3-Bai5"). Normalized first, because a file
+// downloads ("HSK3-Bai5-Game.csv" is the quiz "HSK3-Bai5"). Normalized first, because a file
 // system may keep the accents as separate marks.
 export function titleFromFileName(fileName: string): string {
   const base = fileName.normalize('NFC').replace(/\.[^./\\]+$/, '').replace(QUIZ_FILE_SUFFIX, '').trim();
-  return base || 'Quiz cử chỉ';
+  return base || 'Game';
 }

@@ -163,8 +163,8 @@ describe('timeLimitFor', () => {
 
 describe('titleFromFileName', () => {
   it('drops the extension and the suffix of a downloaded file', () => {
-    expect(titleFromFileName('HSK3-Bai5-Quiz-cử-chỉ.csv')).toBe('HSK3-Bai5');
-    expect(titleFromFileName('Boya-Bai-2-Quiz-cử-chỉ.CSV')).toBe('Boya-Bai-2');
+    expect(titleFromFileName('HSK3-Bai5-Game.csv')).toBe('HSK3-Bai5');
+    expect(titleFromFileName('Boya-Bai-2-Game.CSV')).toBe('Boya-Bai-2');
   });
 
   it('matches the suffix when the accents are separate marks', () => {
@@ -178,7 +178,7 @@ describe('titleFromFileName', () => {
   });
 
   it('falls back to a name when nothing is left', () => {
-    expect(titleFromFileName('-Quiz-cử-chỉ.csv')).toBe('Quiz cử chỉ');
-    expect(titleFromFileName('.csv')).toBe('Quiz cử chỉ');
+    expect(titleFromFileName('-Game.csv')).toBe('Game');
+    expect(titleFromFileName('.csv')).toBe('Game');
   });
 });

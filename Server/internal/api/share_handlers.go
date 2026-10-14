@@ -42,7 +42,8 @@ func (s *Server) getShared(w http.ResponseWriter, r *http.Request) {
 		"title":    a.Title,
 		"label":    a.Label,
 		"csv":      a.CSV,
-		"timeMode": a.TimeMode,
+		"timeMode":  a.TimeMode,
+		"stageLock": stageLockOf(a),
 		"closesAt": utcPtr(a.ClosesAt),
 	})
 }

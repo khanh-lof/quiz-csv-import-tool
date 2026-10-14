@@ -58,14 +58,14 @@ export class FileExportService {
       case ExportType.Wayground:
         return 'Wayground';
       case ExportType.GestureQuiz:
-        return 'Quiz cử chỉ';
+        return 'Game';
       default:
         return 'Quiz';
     }
   }
 
   // A download name that says what the file is, e.g. "HSK3-Bai5-Gimkit.csv". Characters a file system
-  // rejects are dropped and spaces become dashes, in the platform's name too ("HSK3-Bai5-Quiz-cử-chỉ.csv").
+  // rejects are dropped and spaces become dashes, in the platform's name too ("HSK3-Bai5-Game.csv").
   public static buildFileName(label: string, exportType: ExportType): string {
     const safeLabel = label.replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '-') || 'QuizTool';
     const platform = FileExportService.platformName(exportType).replace(/\s+/g, '-');

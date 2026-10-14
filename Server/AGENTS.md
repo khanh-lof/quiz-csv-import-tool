@@ -85,7 +85,7 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   the CSV included) after failing any job running past `LLM_TIMEOUT_SECONDS` + 1 min as abandoned (and
   refunding its call). `isCreative=true` switches to the creative prompt and requires `exportType`,
   `courseType`, `lessonNumber`, plus `level` (HSK/YCT) or `courseName` (`Other`), and for GestureQuiz the
-  optional `gestureStages` and `questionsPerStage` (see [Choosing the games](../AGENTS.md#the-gesture-quiz-quiz-cử-chỉ)) — parsed by
+  optional `gestureStages` and `questionsPerStage` (see [Choosing the games](../AGENTS.md#the-gesture-quiz-game)) — parsed by
   `csvgen.ParseCreativeOptions` (400 with the message on failure). `lessonNumber` must be 1 or more (400
   `Invalid or missing lessonNumber parameter.`), and for a textbook with embedded lessons (below) at most its
   lesson count: 400 `Lesson must be 1 to <M> for <title>.`, e.g. `Lesson must be 1 to 15 for 《新HSK教程2》.` Images are optional only in
@@ -119,7 +119,7 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   for results, the `X-Player-Token` header. The order of checks, which decides the status when several
   things are wrong: the code is trimmed and upper-cased and looked up (404 `Assignment not found`) in all
   three. `getShared` then answers 410 `Assignment closed` unless `OpenAt(now)`, else `{title, label, csv,
-  timeMode, closesAt}`, with `no-store` on every answer, errors included, since a close must show at once.
+  timeMode, stageLock, closesAt}`, with `no-store` on every answer, errors included, since a close must show at once.
   `joinShared` refuses a closed assignment (410) before it reads the body, then `cleanPlayerName` (400
   `Invalid name.`: trimmed, whitespace runs folded, 1–40 runes, no control characters), then the 300-player cap
   (409 `Assignment is full`), then `CreatePlayer` (409 `Name taken` on `ErrDuplicate`); it mints a token of 32
@@ -177,7 +177,7 @@ cookie.
 - Prompts live in `prompts/*.txt` (`go:embed`); CRLF from a Windows checkout is normalized at use.
   `creative_system.txt` is the long Chinese-teacher prompt shared by every platform, and a platform's
   `exportTypeMessages` case sends its column line and, as a message of its own, `wayground_template.txt` for
-  Wayground or what `buildGestureQuizMessage` builds for GestureQuiz. The Quiz cử chỉ message holds the whole format: the stages the teacher chose, which row shape each
+  Wayground or what `buildGestureQuizMessage` builds for GestureQuiz. The Game message holds the whole format: the stages the teacher chose, which row shape each
   one takes, how to classify a question by its real difficulty into a stage, exactly `QuestionsPerStage` rows
   per stage grouped by stage, and a Vietnamese Explanation on every row. It is built from two files:
   `gesture_quiz_template.txt`, a `text/template` (`missingkey=error`) with the framing and its variants (one
@@ -187,7 +187,7 @@ cookie.
   5 each) it reads like the original one-file prompt apart from the counts. The message
   replaces the usual "mixture of difficulty" (two sentences in `creative_system.txt` step aside when
   a template defines stages or its own ordering format). The client plays those rows, so see the stage table in
-  [../AGENTS.md](../AGENTS.md#the-gesture-quiz-quiz-cử-chỉ) before changing the template.
+  [../AGENTS.md](../AGENTS.md#the-gesture-quiz-game) before changing the template.
 - **Textbook lessons** (`textbooks.go`, `textbooks/<book>/lesson-NN.md`, embedded with `go:embed textbooks`).
   For four books the teacher need not send photos, nor leave the model to rebuild the lesson from memory:
   the curated document of the lesson is sent as a **LESSON MATERIAL** message. The books are the hand-kept
@@ -257,7 +257,7 @@ rate-limit `roundStart` (for refunds) and timestamps. `Complete`/`Fail` only tou
 Assignments (`internal/store/assignments*.go`): `store.Assignments` is implemented by `MongoAssignments` and
 `MemoryAssignments` (tests), and holds two kinds of document. An `Assignment` (collection
 `MONGODB_ASSIGNMENTS_COLLECTION`, `_id` a random hex id) is the snapshot of a job: owner `username`, `jobId`,
-`title`, the raw `csv`, `label`, `timeMode` (`standard`/`extra`/`unlimited`), `stageCounts` (stage → number of
+`title`, the raw `csv`, `label`, `timeMode` (`standard`/`extra`/`unlimited`), `stageLock` (`sequential`/`open`; empty on old documents, read as `sequential` by `stageLockOf`), `stageCounts` (stage → number of
 questions), `createdAt`, the public `code`, and two optional times, `closesAt` (scheduled) and `closedAt` (by
 hand), left out of the document when unset. It is copied rather than referenced so deleting a job, or the
 newest-30 prune, cannot break a live link. `OpenAt(now)` is "`closedAt` unset and `closesAt` unset or ahead";

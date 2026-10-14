@@ -23,7 +23,7 @@ function local(y: number, mo: number, d: number, h = 0, mi = 0): string {
 
 function assignment(overrides: Partial<Assignment> = {}): Assignment {
   return {
-    id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: '', timeMode: 'standard',
+    id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: '', timeMode: 'standard', stageLock: 'sequential',
     stageCounts: {'1': 5, '2': 5}, createdAt: local(2026, 10, 14, 8), closesAt: null, closedAt: null,
     open: true, playerCount: 0, ...overrides,
   };

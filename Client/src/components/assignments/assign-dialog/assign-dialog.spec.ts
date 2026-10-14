@@ -21,7 +21,7 @@ function job(overrides: Partial<AiJob> = {}): AiJob {
 
 function assignment(overrides: Partial<Assignment> = {}): Assignment {
   return {
-    id: 'asg-1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'Quiz HSK 1 bài 3', label: '', timeMode: 'standard',
+    id: 'asg-1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'Quiz HSK 1 bài 3', label: '', timeMode: 'standard', stageLock: 'sequential',
     stageCounts: {'1': 5, '2': 5, '3': 5, '4': 5, '5': 5, '6': 5}, createdAt: '2026-10-14T00:00:00Z', closesAt: null,
     closedAt: null, open: true, playerCount: 0, ...overrides,
   };
@@ -106,6 +106,21 @@ describe('AssignDialog', () => {
     expect(button('Giao bài').disabled).toBeFalse();
   });
 
+  it('sends the open stage lock when the teacher picks it', async () => {
+    await show();
+    const radio = Array.from(dialog()!.querySelectorAll<HTMLInputElement>('input[type=radio]'))
+      .find(input => input.closest('label')?.textContent?.includes('Mở tất cả'));
+    radio!.click();
+    await settle();
+
+    button('Giao bài').click();
+    await settle();
+    const request = http.expectOne(URL);
+    expect(request.request.body.stageLock).toBe('open');
+    request.flush(assignment({stageLock: 'open'}), {status: 201, statusText: 'Created'});
+    await settle();
+  });
+
   it('creates the assignment, then shows its link, QR code and the ways on', async () => {
     await show();
     await typeLabel('  Lớp 3A ');
@@ -119,6 +134,7 @@ describe('AssignDialog', () => {
       label: 'Lớp 3A',
       closesAt: null,
       timeMode: 'standard',
+      stageLock: 'sequential',
       stageCounts: {'1': 5, '2': 5, '3': 5, '4': 5, '5': 5, '6': 5},
     });
     expect(button('Giao bài').classList).toContain('ant-btn-loading');

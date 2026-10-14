@@ -29,6 +29,12 @@
   white-space: nowrap;
 }
 
+/* An auto-layout column given 1% of the width shrinks to its content: just the button. */
+.actions-col {
+  width: 1%;
+  white-space: nowrap;
+}
+
 .reopen-help {
   margin: 0 0 12px;
 }

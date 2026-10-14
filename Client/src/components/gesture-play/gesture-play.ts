@@ -28,7 +28,7 @@ import { Choice, Reveal, StageGameBase, VisionFrame, VisionKind } from '../../ga
 import { passMark, STAGES, stageDef, stagePosition } from '../../game/stages';
 import { VisionService } from '../../game/vision.service';
 import { AiJob } from '../../models/ai-job';
-import { formatClose, PlayerIdentity } from '../../models/assignment';
+import { formatClose, PlayerIdentity, StageLock } from '../../models/assignment';
 import { ExportType } from '../../models/export-type';
 import { GestureQuiz, parseGestureQuiz, questionCount } from '../../models/gesture-quiz';
 import { AiCsvService } from '../../services/ai-csv.service';
@@ -141,7 +141,7 @@ const STAND_TIP: Record<VisionKind, string> = {
   ],
   templateUrl: './gesture-play.html',
   changeDetection: ChangeDetectionStrategy.Eager,
-  styleUrl: './gesture-play.css'
+  styleUrls: ['./gesture-play.css', './play-themes.css']
 })
 export class GesturePlay implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
@@ -186,7 +186,7 @@ export class GesturePlay implements OnInit, OnDestroy {
   });
   // What the topbar names: the quiz and, for a shared one, its class label after it.
   protected readonly heading = computed(() => {
-    const title = this.quiz()?.title ?? 'Quiz cử chỉ';
+    const title = this.quiz()?.title ?? 'Game';
     const label = this.shared()?.label;
     return label ? `${title} · ${label}` : title;
   });
@@ -205,6 +205,8 @@ export class GesturePlay implements OnInit, OnDestroy {
   });
   // The teacher's time mode, which replaces the player's own setting for an assignment.
   protected readonly assignmentTimeMode = signal<TimeMode | null>(null);
+  // The teacher's stage lock: `open` lets the student play any stage from the start.
+  protected readonly assignmentStageLock = signal<StageLock | null>(null);
   // Why a quiz could not be opened: shown on the load screen, or in the error card for the other modes.
   protected readonly problem = signal('');
   protected readonly errorLink = signal<PageLink | null>(null);
@@ -217,6 +219,10 @@ export class GesturePlay implements OnInit, OnDestroy {
 
   protected readonly settings = this.settingsService.settings;
   protected readonly effectiveTimeMode = computed(() => this.assignmentTimeMode() ?? this.settings().timeMode);
+  // Every stage with questions can be opened, passed or not: the teacher's preview, or an assignment whose
+  // teacher chose the open lock.
+  protected readonly allStagesOpen = computed(() =>
+    this.mode() === 'preview' || this.assignmentStageLock() === 'open');
 
   // The stage being played, by its number (1-6): the identity of its game, as in the CSV and the progress.
   protected readonly stage = signal(1);
@@ -389,6 +395,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       this.player.set(null);
       this.shared.set(null);
       this.assignmentTimeMode.set(null);
+      this.assignmentStageLock.set(null);
       this.errorLink.set(null);
       this.checking.set(false);
       this.joining.set(false);
@@ -442,7 +449,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     } else if (job.status !== 'done') {
       this.fail('Lần tạo này không thành công nên chưa có quiz để chơi.');
     } else if (job.exportType !== ExportType.GestureQuiz) {
-      this.fail('Đây không phải quiz cử chỉ. Hãy chọn nền tảng "Quiz cử chỉ" khi nhờ AI tạo.');
+      this.fail('Đây không phải game. Hãy chọn nền tảng "Game" khi nhờ AI tạo.');
     } else {
       this.openCsv(this.aiCsvService.extractCsvContent(job.csv), job.title);
     }
@@ -484,7 +491,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     const quiz = parseGestureQuiz(rows, title);
     if (questionCount(quiz) === 0) {
       const none = {
-        local: 'Không tìm thấy câu hỏi hợp lệ trong quiz này. Hãy dùng file Quiz cử chỉ do AI tạo (tab "Tạo bằng AI").',
+        local: 'Không tìm thấy câu hỏi hợp lệ trong quiz này. Hãy dùng file Game do AI tạo (mục "AI › Tạo quiz").',
         shared: 'Bài này chưa có câu hỏi nào chơi được. Hãy báo thầy cô.',
         preview: 'Không tìm thấy câu hỏi hợp lệ trong bài này.',
       };
@@ -516,6 +523,7 @@ export class GesturePlay implements OnInit, OnDestroy {
         this.baseQuiz.set(quiz);
         this.shared.set({ label: shared.label, closesAt: shared.closesAt });
         this.assignmentTimeMode.set(shared.timeMode);
+        this.assignmentStageLock.set(shared.stageLock);
         const identity = this.sharedPlay.identity(this.shareCode());
         if (identity) {
           this.player.set(identity);
@@ -535,6 +543,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.watch(this.assignmentService.get(id), {
       next: detail => {
         this.assignmentTimeMode.set(detail.timeMode);
+        this.assignmentStageLock.set(detail.stageLock);
         this.shared.set({ label: detail.label, closesAt: detail.closesAt });
         this.openCsv(this.aiCsvService.extractCsvContent(detail.csv), detail.title);
       },
@@ -648,7 +657,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
     const quiz = this.quiz();
     // A preview opens every stage, whatever was passed.
-    const open = this.mode() === 'preview' || (quiz !== null && this.progress.isUnlocked(quiz, stage));
+    const open = this.allStagesOpen() || (quiz !== null && this.progress.isUnlocked(quiz, stage));
     if (!quiz || !quiz.stages.has(stage) || !open) {
       return;
     }
@@ -676,7 +685,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       this.player.set(identity);
     }
     const quiz = this.quiz();
-    if (!quiz?.stages.has(stage) || !this.progress.isUnlocked(quiz, stage)) {
+    if (!quiz?.stages.has(stage) || !(this.allStagesOpen() || this.progress.isUnlocked(quiz, stage))) {
       return;
     }
     this.checking.set(true);
@@ -871,7 +880,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       passed,
       bestStreak: this.bestStreak,
       missed: this.missed,
-      hasNext: (preview || passed) && this.nextStageWithQuestions(stage) !== null,
+      hasNext: (this.allStagesOpen() || passed) && this.nextStageWithQuestions(stage) !== null,
     });
     this.reveal.set(null);
     this.audio.play(passed ? 'finish' : 'wrong');

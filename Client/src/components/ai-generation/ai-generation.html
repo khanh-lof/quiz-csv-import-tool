@@ -3,18 +3,17 @@
 <nz-layout class="ai-layout" [attr.inert]="isGenerating() ? '' : null">
   <app-usage-guide>
     <ol>
-      <li>Thêm ảnh bài học: kéo thả vào khung, dán (Ctrl+V) hoặc bấm <b>Thêm ảnh</b>. Chụp rõ phần từ vựng.</li>
+      <li>Thêm ảnh bài học (kéo thả, dán Ctrl+V hoặc bấm <b>Thêm ảnh</b>).</li>
       <li>Chọn chế độ:
         <ul>
-          <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình (HSK thì chọn thêm chuẩn 2.0 hay 3.0), cấp, bài và nền tảng. Với Quiz cử chỉ, chọn thêm các trò chơi (mỗi trò là một màn, từ 1 đến 6 màn) và số câu mỗi màn. Không có ảnh cũng được; nếu giáo trình và cấp bạn chọn đã có sẵn trong QuizTool (dòng gợi ý dưới ô <b>Bài</b> sẽ báo "Dùng giáo trình …"), AI ra câu hỏi từ đúng từ vựng của bài, không cần ảnh. AI chạy trên máy chủ nên bạn có thể đóng trang; xong thì chọn <b>Tải file</b> (với Wayground còn có <b>Tiện ích tự publish</b>, với Quiz cử chỉ còn có <b>Chơi ngay</b> và <b>Giao bài</b>) ở tab <b>Lịch sử AI</b>.</li>
-          <li><b>"Tiếng Việt + pinyin + chữ Hán là gì?"</b>: cần ít nhất 1 ảnh. Khi AI xong, bấm <b>Mở trong bảng</b> ở tab <b>Lịch sử AI</b> để đưa từ vựng vào <b>Tạo thủ công</b>, sửa rồi tải file.</li>
+          <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình, cấp, bài và nền tảng (Game: chọn thêm các màn và số câu mỗi màn). Giáo trình có sẵn trong QuizTool thì không cần ảnh.</li>
+          <li><b>"Tiếng Việt + pinyin + chữ Hán là gì?"</b>: cần ít nhất 1 ảnh.</li>
         </ul>
       </li>
+      <li>AI chạy trên máy chủ nên có thể đóng trang. Khi xong, lấy kết quả ở <b>AI › Lịch sử</b>: <b>Tải file</b>, <b>Mở trong bảng</b>, <b>Tiện ích tự publish</b> (Wayground), <b>Chơi ngay</b> hoặc <b>Giao bài</b> (Game).</li>
     </ol>
-    <p>Tab <b>Lịch sử AI</b> lưu các lần tạo gần đây của bạn: tìm theo từ khóa (cả trong câu hỏi, đáp án), lọc theo trạng thái, chế độ, nền tảng, giáo trình, chuẩn HSK, cấp, bài.</p>
-    <p>Với Wayground, nếu đã cài tiện ích QuizTool cho Chrome, khi AI xong, bấm <b>Tiện ích tự publish</b> ở tab <b>Lịch sử AI</b>: quiz được tạo và publish luôn trên Wayground, rồi link chia sẻ hiện ở đó. Bấm <b>Tải file</b> nếu muốn tự import. <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" target="_blank" rel="noopener">Xem cách cài tiện ích</a>.</p>
-    <p>Quiz cử chỉ không phải import vào đâu: chọn nó ở ô "Tạo quiz cho", rồi chọn những trò chơi bạn muốn (mỗi trò là một màn, chọn từ 1 đến 6 trò, mặc định là cả 6, các màn chơi từ dễ đến khó) và số câu mỗi màn (4 đến 10, mặc định 5). Khi AI xong bấm <b>Chơi ngay</b> ở tab <b>Lịch sử AI</b> để chơi bằng camera ngay trên QuizTool. Hoặc bấm <b>Tải file</b> để giữ quiz, sau này mở lại ở trang Quiz cử chỉ mà không cần đăng nhập.</p>
-    <p>Bấm <b>Giao bài</b> để giao Quiz cử chỉ cho học sinh: bạn nhận một link và mã QR, học sinh mở link, chỉ cần nhập tên là chơi được (không cần tài khoản). Kết quả của từng em hiện ở bảng xếp hạng trong mục <b>Bài đã giao</b>, nơi bạn cũng đóng bài, mở lại hoặc hẹn giờ đóng.</p>
+    <p><b>Giao bài</b>: học sinh mở link, nhập tên là chơi (không cần tài khoản); xem xếp hạng ở <b>Bài đã giao</b>.</p>
+    <p>Tiện ích Wayground: <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" target="_blank" rel="noopener">cách cài</a>.</p>
   </app-usage-guide>
   <nz-content>
     <form class="ai-form" [formGroup]="formGroup" (ngSubmit)="generate()">
@@ -144,7 +143,7 @@
               <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
               <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
               <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
-              <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Quiz cử chỉ (camera)"></nz-option>
+              <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Game (camera)"></nz-option>
             </nz-select>
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.exportType}"/>

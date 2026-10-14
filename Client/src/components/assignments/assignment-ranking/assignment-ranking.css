@@ -12,12 +12,6 @@ nz-card {
   margin-bottom: 16px;
 }
 
-.back-link {
-  display: inline-block;
-  margin-bottom: 8px;
-  color: var(--qt-text-muted);
-}
-
 .title-row {
   display: flex;
   flex-wrap: wrap;

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 QuizTool turns photos of a Chinese (HSK) lesson into a quiz file that can be imported into GimKit,
 Blooket, or Wayground, or into a quiz that QuizTool plays itself as a webcam gesture game
-("Quiz cử chỉ"). A teacher can also hand a Quiz cử chỉ to students as a link ("Giao bài"): they play it
+("Game"). A teacher can also hand a Game to students as a link ("Giao bài"): they play it
 with no account and the teacher watches their ranking. It is one git repo holding two independently built
 and independently deployed projects, plus an optional browser extension:
 
@@ -99,13 +99,13 @@ completely different paths through the system. First, what they share — **AI g
 validates the request, stores a job in MongoDB (`store.Job`, collection `Jobs`, newest 30 kept per user),
 answers `202 {"id"}` and keeps working in the same handler, detached from the client's connection, until
 the model has answered and the result is saved on the job. The client does not wait for the result: the
-`AiGeneration` page shows a "Đã gửi yêu cầu" notice, and the history table on its own "Lịch sử AI" tab (`/ai-history`, `AiJobs`) shows
+`AiGeneration` page shows a "Đã gửi yêu cầu" notice, and the history table on its own page, "AI › Lịch sử" in the side menu (`/ai-history`, `AiJobs`), shows
 the user's jobs from `GET csv/jobs`, which `AiJobService` polls every 3 s while any job runs. A job
 finishing is announced wherever the user is in the app. The result is delivered from the table, not on
 completion: **Formatted** jobs get a "Mở trong bảng" action, **Auto** jobs a "Tải file" action
 and, for a Wayground job, also "Tiện ích tự publish" (the extension; disabled when it is not installed)
-or, for a Quiz cử chỉ job, "Chơi ngay" (played in the app, see
-[the gesture quiz](#the-gesture-quiz-quiz-cử-chỉ)): the user picks the delivery per job once the AI is done. The table's search covers titles, errors and the generated
+or, for a Game job, "Chơi ngay" (played in the app, see
+[the gesture quiz](#the-gesture-quiz-game)): the user picks the delivery per job once the AI is done. The table's search covers titles, errors and the generated
 CSV; its filters are status, mode, platform, course type, HSK standard, level and lesson number (the server
 keeps those on each creative job; jobs from before it did have none and drop out when one is set).
 
@@ -116,12 +116,12 @@ keeps those on each creative job; jobs from before it did have none and drop out
   them and later exports via `FileExportService.exportFile` (client-side builders synthesize the
   distractors).
 - **`Auto`** (sent as `isCreative=true`, alongside `exportType`, `courseType`, `lessonNumber`, and
-  `level`/`courseName` depending on the course, and for Quiz cử chỉ `gestureStages`/`questionsPerStage`, see
-  [the gesture quiz](#the-gesture-quiz-quiz-cử-chỉ)) → server's creative prompt
+  `level`/`courseName` depending on the course, and for Game `gestureStages`/`questionsPerStage`, see
+  [the gesture quiz](#the-gesture-quiz-game)) → server's creative prompt
   (`csvgen.buildCreativeRequest`, `prompts/creative_system.txt`), a long Chinese-teacher prompt that is told the exact
   column layout of the *target platform* via `exportTypeMessages` and asked to
   return **rows without a header** → client never touches the table: on "Tải file" it prepends the header through
-  `CsvBuilderBase.buildFromCsvContent` and downloads (for the Quiz cử chỉ platform the job can instead be
+  `CsvBuilderBase.buildFromCsvContent` and downloads (for the Game platform the job can instead be
   played in the app, its third delivery). **Images are optional in this
   mode.** The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`, another
   by-ordinal enum duplicated on both sides), a `level` that is required for HSK and YCT but optional
@@ -152,7 +152,7 @@ Consequences to keep in mind when changing anything here:
   service is unverified), the client just gets the `202` late and polling still shows the job. A job
   still `running` well past the LLM deadline (its process died) is failed as "interrupted" and its
   call refunded the next time its owner lists jobs.
-- Export output format is per-platform: GimKit, Blooket and Quiz cử chỉ download as `.csv`, Wayground is
+- Export output format is per-platform: GimKit, Blooket and Game download as `.csv`, Wayground is
   converted to `.xlsx` via `xlsx` before download (`FileExportService.download`).
 
 ## Textbook lessons
@@ -210,7 +210,7 @@ and `http://localhost:4200`; Vercel preview URLs are not included) are hand-kept
 sides. Quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in
 `Extension/selectors.js`).
 
-## The gesture quiz (Quiz cử chỉ)
+## The gesture quiz (Game)
 
 `ExportType.GestureQuiz` (ordinal 3 on both sides) is the one platform that is not an import target:
 QuizTool plays the quiz itself, as a game in which the learner answers with body gestures in front of a
@@ -232,7 +232,7 @@ quiz has (a quiz may have only some of the six, see *Choosing the games* below):
 | 1 | Đúng hay sai (`true-false`) | holds a thumb up or down | Correct Answer exactly `Đúng` or `Sai`, no wrong answers |
 | 2 | Nghiêng đầu (`head-tilt`) | tilts or leans the head to the left or right card | Correct Answer + Wrong Answer 1 |
 | 3 | Ếch đớp chữ (`frog-bite`) | moves the head to a lane and opens the mouth to bite | Correct Answer + Wrong Answer 1–2 |
-| 4 | Chém hoa quả (`fruit-slice`) | slashes, with the index fingertip, the fruit whose colour matches the answer | Correct Answer + Wrong Answer 1–2 |
+| 4 | Chém hoa quả (`fruit-slice`) | slashes, with the index fingertip, the fruit whose colour (and icon on the answer box) matches the answer | Correct Answer + Wrong Answer 1–2 |
 | 5 | Giơ ngón tay (`finger-count`) | shows 1–4 fingers (thumb ignored) for the option's number | Correct Answer + Wrong Answer 1–3 |
 | 6 | Xếp câu (`word-order`) | points at word tiles in order, resting on a tile or pinching | Correct Answer = the sentence's chunks in the right order joined by ` / `, no wrong answers |
 
@@ -263,7 +263,7 @@ shows "Màn 1" and "Màn 2" on the map, in the game, on its result and in an ass
 
 **Entry points.** On a finished GestureQuiz job the AI jobs table shows "Chơi ngay", which navigates to
 `/play/<job id>` (login required; the page takes the job from `AiJobService`), and "Tải file", which
-downloads `<title>-Quiz-cử-chỉ.csv` with the header prepended. A downloaded file, or the built-in sample
+downloads `<title>-Game.csv` with the header prepended. A downloaded file, or the built-in sample
 (`Client/src/game/demo-quiz.ts`), is opened on `/play`, which needs no login. The vocabulary table does not
 offer this platform: its rows have no stages. Progress (stages passed, best result per stage) is kept in
 `localStorage` per quiz, keyed by a hash of the questions rather than the title, so a job and the file
@@ -283,7 +283,7 @@ prompt's in [Server/AGENTS.md](Server/AGENTS.md).
 
 ## Giao bài (assignments)
 
-A teacher (any logged-in user) gives a finished Quiz cử chỉ job to students: the AI jobs table's "Giao bài"
+A teacher (any logged-in user) gives a finished Game job to students: the AI jobs table's "Giao bài"
 makes an *assignment*, a link `<origin>/play/s/<code>` that anyone can open. A student types a name, plays the
 six-stage game above, and the browser reports each finished stage run; the teacher sees a ranking on
 `/assignments/<id>`, can close and reopen the assignment, set a closing time, preview it, remove a student and
@@ -361,6 +361,12 @@ open, the result grace) only to show the right screen without a round trip.
   (`TEACHER_ERRORS` in the model, `GesturePlay`'s join messages for `Name taken` and `Assignment is full`);
   the time mode (`standard`, `extra`, `unlimited`) travels by name and is the same `TimeMode` the game's
   settings use. The teacher picks one time mode per assignment, which replaces the student's own setting.
+  The teacher also picks a **stage lock**, `stageLock`: `sequential` (the default, and what an assignment from
+  before the setting reads as) opens each stage once the one before it is passed, `open` lets the student play
+  every stage from the start. It is sent on `POST assignments` (absent means `sequential`, any other value is
+  400 `Invalid stage lock.`, checked right after the time mode), fixed for the assignment's life, and returned
+  by `assignmentView` and `GET share/{code}`. Like every lock it is enforced by the client alone; the server
+  does not check the order of results.
   Adding or renaming a field, status or message means changing both sides and their specs together.
 
 The Client's half is in [Client/AGENTS.md](Client/AGENTS.md#giao-bài-assignments), the Server's (the store, its

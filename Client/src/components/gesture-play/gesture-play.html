@@ -46,18 +46,16 @@
       <section class="card load">
         <app-usage-guide>
           <ol>
-            <li>Quiz cử chỉ do AI tạo: vào tab <b>Tạo bằng AI</b>, chọn "Tạo quiz cho" là <b>Quiz cử chỉ</b>. Khi AI xong, bấm <b>Chơi ngay</b> ở tab <b>Lịch sử AI</b>, hoặc bấm <b>Tải file</b> rồi mở file đó ở đây bằng <b>Mở file quiz</b> (không cần đăng nhập).</li>
-            <li>Một quiz có từ 1 đến 6 màn, mỗi màn là một trò chơi (chọn lúc tạo quiz) và được chơi từ dễ đến khó. Sáu trò chơi: Đúng hay sai (ngón cái), Nghiêng đầu, Ếch đớp chữ (dịch đầu và há miệng), Chém hoa quả (vung ngón trỏ), Giơ ngón tay, Xếp câu (chỉ ngón trỏ vào các mảnh).</li>
-            <li>Đúng từ <b>70%</b> số câu của một màn thì qua màn và mở màn tiếp theo. Chưa đạt thì chơi lại màn đó; tiến độ được nhớ trên máy này.</li>
-            <li>Không có camera cũng chơi được: dùng chuột, cảm ứng hoặc bàn phím (phím 1–4, mũi tên, Backspace; P để tạm dừng, Enter để sang câu tiếp).</li>
+            <li>Tạo Game ở <b>AI › Tạo quiz</b>, rồi bấm <b>Chơi ngay</b> ở <b>AI › Lịch sử</b>, hoặc mở file đã tải bằng <b>Mở file quiz</b>.</li>
+            <li>Mỗi màn là một trò chơi, chơi từ dễ đến khó. Đúng từ <b>70%</b> số câu thì qua màn.</li>
+            <li>Không có camera vẫn chơi được bằng chuột, cảm ứng hoặc bàn phím.</li>
           </ol>
-          <p><b>Camera:</b> hình ảnh chỉ được xử lý ngay trên máy này, không ghi hình và không gửi đi đâu cả. Trình duyệt sẽ hỏi quyền dùng camera khi bạn bật.</p>
-          <p><b>Đứng thế nào?</b> Cách webcam khoảng 0,6–1,2 m, có ánh sáng chiếu vào phía trước (đừng đứng ngược sáng), để tay và mặt nằm trong khung hình.</p>
+          <p><b>Camera:</b> xử lý ngay trên máy, không ghi hình hay gửi đi. Đứng cách 0,6–1,2 m, đủ sáng, để tay và mặt trong khung hình.</p>
         </app-usage-guide>
 
         <div class="load-body">
           <div class="big-emoji" aria-hidden="true">🙌</div>
-          <h2>Quiz cử chỉ</h2>
+          <h2>Game</h2>
           <p class="muted">Chơi quiz từ vựng bằng cử chỉ trước camera: giơ ngón cái, nghiêng đầu, chém hoa quả… Mở file quiz do AI tạo, hoặc thử ngay quiz mẫu.</p>
 
           @if (problem()) {
@@ -83,7 +81,7 @@
       @if (quiz(); as openQuiz) {
         <app-gesture-stage-map [quiz]="openQuiz" [lockedTimeMode]="assignmentTimeMode()"
                                [allowReset]="mode() === 'local' || mode() === 'job'"
-                               [allOpen]="mode() === 'preview'" (start)="openIntro($event)">
+                               [allOpen]="allStagesOpen()" (start)="openIntro($event)">
           @if (mode() === 'shared') {
             <p class="share-line">
               👤 {{ playerName() }} · <a href="#" (click)="switchPlayer($event)">Không phải bạn?</a>
@@ -209,8 +207,11 @@
       }
 
       <!-- The stage is the game's whole area: the camera picture is put under it by the page, and the game
-           fills it (see StageGameBase). Nothing else in the page overlaps it. -->
-      <div #stageBox class="stage" [class.camera-on]="cameraOn()">
+           fills it (see StageGameBase). Nothing else in the page overlaps it. Its scene, frame and, over
+           the camera picture, the scrim are the game's own (play-themes.css). The scrim must stay the first
+           child: the picture is prepended before it, so it lies between the picture and the game. -->
+      <div #stageBox class="stage" [attr.data-game]="def().game" [class.camera-on]="cameraOn()">
+        <div class="scrim" aria-hidden="true"></div>
         @if (view(); as question) {
           @switch (def().game) {
             @case ('true-false') {

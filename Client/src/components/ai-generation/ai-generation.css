@@ -297,7 +297,7 @@
 .output-selection .export-type-select {
   width: 200px;
 }
-/* The Quiz cử chỉ choices under the platform row: the games, the question count and what they make. */
+/* The Game choices under the platform row: the games, the question count and what they make. */
 .gesture-options {
   display: flex;
   flex-direction: column;

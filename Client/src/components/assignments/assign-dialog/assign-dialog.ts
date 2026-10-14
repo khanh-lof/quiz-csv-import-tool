@@ -25,6 +25,8 @@ import {
   Assignment,
   assignmentErrorMessage,
   stageCountsOf,
+  STAGE_LOCK_LABELS,
+  StageLock,
   TIME_MODE_LABELS,
 } from '../../../models/assignment';
 import { GestureQuiz, parseGestureQuiz, questionCount } from '../../../models/gesture-quiz';
@@ -38,7 +40,7 @@ import { ShareLink } from '../share-link/share-link';
 const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
 const MAX_LABEL_LENGTH = 60;
 
-// The dialog that gives a finished Quiz cử chỉ job to students: label, closing time and time mode, then
+// The dialog that gives a finished Game job to students: label, closing time and time mode, then
 // the link, QR code and code of the new assignment. The AI jobs table opens it with `job`; `created` says
 // that an assignment now exists.
 @Component({
@@ -67,9 +69,13 @@ export class AssignDialog {
   protected readonly timeModes = (Object.keys(TIME_MODE_LABELS) as TimeMode[])
     .map(value => ({value, label: TIME_MODE_LABELS[value]}));
 
+  protected readonly stageLocks = (Object.keys(STAGE_LOCK_LABELS) as StageLock[])
+    .map(value => ({value, label: STAGE_LOCK_LABELS[value]}));
+
   protected readonly label = signal('');
   protected readonly deadline = signal<Date | null>(null);
   protected readonly timeMode = signal<TimeMode>('standard');
+  protected readonly stageLock = signal<StageLock>('sequential');
   protected readonly sending = signal(false);
   protected readonly error = signal('');
   // The assignment the dialog made: while it is set, the dialog shows its link instead of the form.
@@ -132,6 +138,7 @@ export class AssignDialog {
       label: this.label().trim(),
       closesAt: this.deadline()?.toISOString() ?? null,
       timeMode: this.timeMode(),
+      stageLock: this.stageLock(),
       stageCounts: stageCountsOf(quiz),
     }).pipe(
       finalize(() => this.sending.set(false)),
@@ -171,6 +178,7 @@ export class AssignDialog {
     this.label.set('');
     this.deadline.set(null);
     this.timeMode.set('standard');
+    this.stageLock.set('sequential');
     this.error.set('');
     this.assignment.set(null);
   }
