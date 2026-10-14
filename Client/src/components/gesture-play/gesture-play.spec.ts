@@ -935,7 +935,7 @@ describe('GesturePlay', () => {
         shared.load.and.returnValue(of(sharedQuiz({ timeMode: 'extra' })));
         openShared(lan);
 
-        expect(text()).toContain('Thời gian mỗi câu: Thêm thời gian (×1.5) (thầy cô đặt)');
+        expect(text()).toContain('Thời gian mỗi câu: Thêm thời gian (×1.5)');
         expect(element().querySelector('nz-radio-group')).toBeNull();
         expect(element().querySelector('.reset-button')).toBeNull();
         // The sound switch is the student's own.
@@ -1229,7 +1229,7 @@ describe('GesturePlay', () => {
       assignments.get.and.returnValue(of(assignmentDetail({ timeMode: 'extra' })));
       openPreview();
 
-      expect(text()).toContain('Thời gian mỗi câu: Thêm thời gian (×1.5) (thầy cô đặt)');
+      expect(text()).toContain('Thời gian mỗi câu: Thêm thời gian (×1.5)');
       expect(element().querySelector('.reset-button')).toBeNull();
       click('.stage-card', 'Màn 1');
       expect(text()).toContain('18 giây mỗi câu');

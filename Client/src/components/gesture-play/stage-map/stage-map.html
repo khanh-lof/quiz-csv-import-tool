@@ -59,7 +59,7 @@
   <div class="settings">
     <div class="setting">
       @if (lockedTimeMode(); as locked) {
-        <span><span class="setting-label">Thời gian mỗi câu:</span> {{ timeModeLabels[locked] }} (thầy cô đặt)</span>
+        <span><span class="setting-label">Thời gian mỗi câu:</span> {{ timeModeLabels[locked] }}</span>
       } @else {
         <span class="setting-label">Thời gian mỗi câu</span>
         <nz-radio-group [ngModel]="settings().timeMode" (ngModelChange)="setTimeMode($event)"

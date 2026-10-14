@@ -34,7 +34,6 @@ describe('ShareJoin', () => {
     expect(root().textContent).toContain('HSK1 bài 1');
     expect(root().textContent).toContain('Lớp 6A');
     expect(root().textContent).toContain('Bài đóng lúc 21:30 14/10');
-    expect(root().textContent).toContain('Dùng tên thật để thầy cô nhận ra bạn nhé.');
   });
 
   it('leaves the label and the closing time out when there are none', () => {

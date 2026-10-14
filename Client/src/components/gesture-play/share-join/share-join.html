@@ -18,7 +18,6 @@
       <p id="player-name-error" class="error text-error" role="alert">{{ error() }}</p>
     }
   </div>
-  <p class="hint">Dùng tên thật để thầy cô nhận ra bạn nhé.</p>
 
   <button nz-button nzType="primary" nzSize="large" type="button" class="join-button"
           [disabled]="trimmed() === '' || busy()" [nzLoading]="busy()" (click)="submit()">

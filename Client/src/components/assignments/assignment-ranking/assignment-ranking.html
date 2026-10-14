@@ -144,11 +144,6 @@
 
   <ng-template #boardExtra>
     <div class="board-extra">
-      @if (stale()) {
-        <span class="stale" role="status">Chưa cập nhật được</span>
-      } @else if (live()) {
-        <span class="live">Tự cập nhật mỗi 5 giây</span>
-      }
       @if (fullscreen()) {
         <button nz-button nzType="default" type="button" (click)="toggleFullscreen()">
           <nz-icon nzType="fullscreen-exit" nzTheme="outline"/>
