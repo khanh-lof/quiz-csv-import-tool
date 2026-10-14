@@ -6,7 +6,7 @@
      HUD above the stage and a feedback bar below it. */
   container-type: size;
   /* The fruit colours belong to the rules of this game (box colour = fruit colour), not to the
-     theme, so they are fixed here instead of coming from the --qt tokens. */
+     scene around it, so they are fixed here and do not change with the theme. */
   --fruit-green: #35c759;
   --fruit-red: #e8454b;
   --fruit-yellow: #ffd426;
@@ -53,7 +53,8 @@
   line-height: 1.16;
   text-align: center;
   border-radius: var(--qt-radius-lg);
-  box-shadow: var(--qt-card-shadow);
+  /* Strong, because the boxes sit on dark wood (the scene is in play-themes.css). */
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
   transition:
     transform var(--qt-transition),
     opacity var(--qt-transition),
@@ -64,14 +65,17 @@
 .fit {
   display: block;
   width: 100%;
+  /* Vietnamese words stay whole and only break when one is wider than the box; hanzi still break
+     between characters. */
   overflow-wrap: anywhere;
-  word-break: break-all;
+  word-break: normal;
 }
 
+/* A cream card with a wooden rim, like a sign nailed to the planks. */
 .question-box {
-  color: var(--qt-text);
-  background: rgba(255, 255, 255, 0.92);
-  border: var(--qt-border-width) solid var(--qt-border);
+  color: #3b2412;
+  background: #fff7e6;
+  border: 3px solid #c08a4a;
 }
 
 .answer {
@@ -103,31 +107,78 @@
   font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.4;
-  color: var(--qt-text);
+  color: var(--play-ink);
   background: rgba(255, 255, 255, 0.7);
   border-radius: var(--qt-radius);
+}
+
+/* The box's fruit, so a player who cannot tell red from green still matches box to fruit by shape. It
+   sits outside the .fit text, which is all that fitText() measures. */
+.fruit-icon {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  /* Big enough to be told apart from the back of a classroom, small enough to leave the text its room. */
+  font-size: clamp(1.1rem, 5cqh, 2rem);
+  line-height: 1;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+}
+
+/* The judged boxes show a stamp in that corner instead (inside the box, which clips what overflows). */
+.answer.correct .fruit-icon,
+.answer.wrong .fruit-icon {
+  display: none;
+}
+
+.answer.correct::after,
+.answer.wrong::after {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: clamp(1.8rem, 6cqh, 2.4rem);
+  height: clamp(1.8rem, 6cqh, 2.4rem);
+  font-family: system-ui, sans-serif;
+  font-size: clamp(1rem, 3.4cqh, 1.4rem);
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.answer.correct::after {
+  content: '✓';
+  background: var(--play-ok);
+}
+
+.answer.wrong::after {
+  content: '✗';
+  background: var(--play-bad);
 }
 
 .answer.picked {
   box-shadow:
     0 0 0 4px #fff,
-    0 0 0 7px var(--qt-focus);
+    0 0 0 7px var(--play-ink);
 }
 
 .answer.correct {
   transform: scale(1.05);
   box-shadow:
     0 0 0 4px #fff,
-    0 0 0 8px var(--qt-pink),
-    0 0 26px 8px rgba(255, 142, 203, 0.55);
+    0 0 0 9px var(--play-ok),
+    0 0 28px 10px rgba(34, 197, 94, 0.55);
 }
 
+/* No fading here: a filter on the box would also wash out its ✗ stamp. The red ring and the stamp say it. */
 .answer.wrong {
-  opacity: 0.85;
-  filter: saturate(0.6);
   box-shadow:
     0 0 0 4px #fff,
-    0 0 0 7px var(--qt-error);
+    0 0 0 8px var(--play-bad);
 }
 
 .answer.dim {
@@ -144,11 +195,11 @@
   padding: 6px 14px;
   margin: 0;
   font-size: 0.9rem;
-  color: var(--qt-text);
+  color: #3b2412;
   text-align: center;
   pointer-events: none;
-  background: rgba(255, 255, 255, 0.88);
-  border: var(--qt-border-width) solid var(--qt-border);
+  background: rgba(255, 247, 230, 0.95);
+  border: 2px solid #c08a4a;
   border-radius: 999px;
   transform: translateX(-50%);
 }

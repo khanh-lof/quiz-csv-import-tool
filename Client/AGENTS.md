@@ -242,6 +242,20 @@ of the neutral pose, status messages) and `face-calibration-panel.ts`; `face-fix
 option; the head-tilt game also ← →; the frog moves with ← ↓ → and bites with Space; the word-order game uses
 digits for tiles and Backspace to undo).
 
+**The look of the play area.** The stage does not follow the app's pink/blue style: each game is its own world,
+saturated enough to survive a classroom projector. `play-themes.css` (a second stylesheet of `GesturePlay`) keys
+on the stage's `data-game` and gives each game a scene behind it (1 a violet game-show stage, 2 a sunset, 3 a
+pond, 4 dark wooden planks, 5 sunny yellow polka dots, 6 a chalkboard in a wooden frame), the frame's colour
+and, while the camera is on, a scrim over the picture: the scene's colours at the top and bottom edges, clear
+in the middle where the player sees themselves. The scrim is the stage's first element on purpose:
+`VisionService`'s video is prepended before it, so it lies between the picture and the game. A game's own
+palette (its cards, its accents) is in its stylesheet, and every game marks the shared meanings with the
+`--play-*` tokens of `styles.css`: `--play-ok` green with a ✓ stamp, `--play-bad` red with a ✗ stamp,
+`--play-charge` gold for "hold to confirm" (rings, dwell, the hand cursor), dark `--play-ink` on the light
+cards that carry answers. Game stylesheets do not use the app's `--qt-*` colours (the font, radius and
+transition tokens are fine). The fruit game's answer boxes show their fruit's icon besides its colour, so a
+red-green colour-blind player can match them by shape.
+
 **MediaPipe loading.** `@mediapipe/tasks-vision` is pinned to `1.1.0` (exact, no range) and imported with a
 dynamic `import()` inside `VisionService.loadRuntime` (the rest of the file only imports its *types*), so it
 becomes a lazy chunk fetched when a player turns the camera on. The WASM runtime is not bundled: an `assets`
@@ -420,10 +434,13 @@ overlays (modals, confirms, dropdowns, notifications) that render outside any co
   `--qt-font-han` is the font stack of the gesture quiz's hanzi: Latin UI fonts first (they have no CJK
   glyphs, so Vietnamese and pinyin keep a readable face), then the Kai (handwriting-style) faces, so only
   the hanzi fall through to a Kai font. Use it on text that shows Chinese characters instead of naming
-  a CJK font.
+  a CJK font. The `--play-*` tokens are the colours the gesture quiz's six games share (see
+  [the look of the play area](#gesture-quiz-play)).
 - Component stylesheets hold only layout and sizing. Don't restyle library colors there or reach
   for `::ng-deep` without `:host` (that leaks globally); add or change a global override instead,
-  and use `nzType`/`nzSize` (e.g. `nzType="primary"` for the main action) rather than CSS.
+  and use `nzType`/`nzSize` (e.g. `nzType="primary"` for the main action) rather than CSS. The one
+  exception is the gesture quiz's stage: `play-themes.css` and the six games' stylesheets own its
+  colours (they style no library component).
 - Read https://ng.ant.design/llms-full.txt and understand NG-ZORRO components. Use this knowledge when writing code with NG-ZORRO
 `provideNzI18n(en_US)` is set in `app.config.ts` despite most user-facing
 notification strings in the codebase being written in Vietnamese directly at the call site (not via

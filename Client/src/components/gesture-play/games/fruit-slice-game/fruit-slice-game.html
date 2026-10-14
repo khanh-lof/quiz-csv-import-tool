@@ -5,6 +5,7 @@
   @for (option of answers(); track $index) {
     <div class="box answer" #answerBox [attr.data-slot]="$index" [class]="states()[$index]">
       <kbd aria-hidden="true">{{ $index + 1 }}</kbd>
+      <span class="fruit-icon" aria-hidden="true">{{ fruitIcons[$index] }}</span>
       <span class="fit">{{ option }}</span>
     </div>
   }

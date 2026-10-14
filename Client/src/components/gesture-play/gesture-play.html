@@ -207,8 +207,11 @@
       }
 
       <!-- The stage is the game's whole area: the camera picture is put under it by the page, and the game
-           fills it (see StageGameBase). Nothing else in the page overlaps it. -->
-      <div #stageBox class="stage" [class.camera-on]="cameraOn()">
+           fills it (see StageGameBase). Nothing else in the page overlaps it. Its scene, frame and, over
+           the camera picture, the scrim are the game's own (play-themes.css). The scrim must stay the first
+           child: the picture is prepended before it, so it lies between the picture and the game. -->
+      <div #stageBox class="stage" [attr.data-game]="def().game" [class.camera-on]="cameraOn()">
+        <div class="scrim" aria-hidden="true"></div>
         @if (view(); as question) {
           @switch (def().game) {
             @case ('true-false') {

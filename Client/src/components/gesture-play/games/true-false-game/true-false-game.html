@@ -6,6 +6,8 @@
       <button
         type="button"
         class="target"
+        [class.yes]="target.index === trueIndex"
+        [class.no]="target.index !== trueIndex"
         [class.charging]="cameraActive() && view().choice === target.index"
         [class.picked]="picked() === target.index"
         [class.correct]="isCorrect(target.index)"

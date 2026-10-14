@@ -1,4 +1,5 @@
-/* The host is a size container so everything scales with the stage (cqw / cqh / cqmin), from a phone to a projector. */
+/* The host is a size container so everything scales with the stage (cqw / cqh / cqmin), from a phone to a projector.
+   The pond is painted behind it (play-themes.css), so the host stays transparent. */
 :host {
   display: block;
   position: absolute;
@@ -6,8 +7,10 @@
   container-type: size;
   /* The frog's size drives the room reserved for it under the lanes. Its green is an illustration colour. */
   --frog: clamp(40px, 17cqh, 120px);
-  --frog-skin: #8fd694;
-  --frog-dark: #5fb572;
+  --frog-skin: #4ade80;
+  --frog-dark: #15803d;
+  /* Dark-teal shadow for everything that floats over the water. */
+  --pond-shadow: 0 8px 18px rgba(4, 52, 44, 0.35);
 }
 
 .frame {
@@ -24,10 +27,10 @@
   align-self: center;
   max-width: 94%;
   padding: 1cqh 3cqw;
-  background: rgba(255, 255, 255, 0.92);
-  border: var(--qt-border-width) solid var(--qt-border);
+  background: #fff;
+  border: 3px solid rgba(255, 255, 255, 0.9);
   border-radius: var(--qt-radius-lg);
-  box-shadow: var(--qt-card-shadow);
+  box-shadow: var(--pond-shadow);
 }
 
 .question p {
@@ -36,7 +39,7 @@
   font-size: clamp(15px, 4.4cqmin, 34px);
   font-weight: 700;
   line-height: 1.3;
-  color: var(--qt-text);
+  color: var(--play-ink);
 }
 
 /* Three columns with no gap, so the frog's left (a third of the width per lane) is a lane's centre. */
@@ -59,7 +62,7 @@
   transition: background var(--qt-transition);
 }
 
-/* The lily pad the frog sits on in this lane. */
+/* The lily pad the frog sits on in this lane: a green pad with a notch cut out and a darker rim below. */
 .lane::after {
   content: '';
   position: absolute;
@@ -68,13 +71,14 @@
   width: calc(var(--frog) * 1.5);
   height: calc(var(--frog) * 0.4);
   transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.85);
-  border: var(--qt-border-width) solid var(--qt-border);
+  background: conic-gradient(from 150deg, transparent 0 22deg, #4ade80 22deg 360deg);
+  border: none;
   border-radius: 50%;
+  box-shadow: inset 0 -4px 0 #16a34a;
 }
 
 .lane.here {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .card {
@@ -89,28 +93,31 @@
   padding: 3.5cqh 1cqw 2cqh;
   overflow: hidden;
   font: inherit;
-  color: var(--qt-text);
+  color: var(--play-ink);
   cursor: pointer;
-  background: linear-gradient(145deg, #fff, color-mix(in srgb, var(--qt-pink) 24%, white));
-  border: var(--qt-border-width) solid var(--qt-border);
+  background: #fffbeb;
+  border: 4px solid #65a30d;
   border-radius: var(--qt-radius-lg);
-  box-shadow: var(--qt-card-shadow);
+  box-shadow: var(--pond-shadow);
   transition:
     transform var(--qt-transition),
     border-color var(--qt-transition),
     box-shadow var(--qt-transition);
 }
 
-.frame:not(.locked) .card:hover {
-  border-color: var(--qt-focus);
-  box-shadow: var(--qt-lift-shadow);
+/* The lane the frog sits in keeps its own (gold) look, so hovering it changes nothing. */
+.frame:not(.locked) .lane:not(.here) .card:hover {
+  transform: translateY(-0.5cqh);
+  box-shadow: 0 12px 24px rgba(4, 52, 44, 0.45);
 }
 
+/* The lane the frog is in: gold, the same "hold to confirm" colour as the other games. */
 .lane.here .card {
-  border-color: var(--qt-focus);
+  border-color: var(--play-charge);
   box-shadow:
-    var(--qt-focus-shadow),
-    var(--qt-card-shadow);
+    0 0 0 4px var(--play-charge),
+    0 0 22px var(--play-charge-glow),
+    var(--pond-shadow);
   transform: translateY(-0.8cqh);
 }
 
@@ -123,14 +130,17 @@
   transform: scale(0.94);
 }
 
-.card.correct {
-  background: var(--qt-gradient);
-  border-color: var(--qt-focus);
+/* Under .lane .card so the answer's colours beat the gold of the frog's own lane. */
+.lane .card.correct {
+  background: color-mix(in srgb, var(--play-ok) 22%, white);
+  border-color: var(--play-ok);
+  box-shadow: var(--pond-shadow);
 }
 
-.card.wrong {
-  color: var(--qt-error);
-  border-color: var(--qt-error);
+.lane .card.wrong {
+  background: color-mix(in srgb, var(--play-bad) 14%, white);
+  border-color: var(--play-bad);
+  box-shadow: var(--pond-shadow);
   animation: shake 0.35s ease;
 }
 
@@ -144,7 +154,7 @@
   left: 1cqw;
   font-size: clamp(11px, 2.4cqmin, 16px);
   font-weight: 800;
-  color: var(--qt-text-muted);
+  color: var(--play-ink-muted);
 }
 
 kbd {
@@ -153,7 +163,7 @@ kbd {
   font: inherit;
   text-align: center;
   background: #fff;
-  border: 1px solid var(--qt-border);
+  border: 1px solid #65a30d;
   border-radius: 6px;
 }
 
@@ -187,19 +197,30 @@ kbd {
 
 .note {
   font-size: clamp(11px, 3cqmin, 22px);
-  color: var(--qt-text-muted);
+  color: #3f6212;
 }
 
+/* A round stamp: green with a check on the right card, red with a cross on a wrong pick. */
 .mark {
   position: absolute;
   right: 1cqw;
   bottom: 1cqh;
-  font-size: clamp(20px, 5cqmin, 40px);
+  display: grid;
+  place-items: center;
+  width: clamp(26px, 6.4cqmin, 48px);
+  height: clamp(26px, 6.4cqmin, 48px);
+  box-sizing: border-box;
+  font-size: clamp(14px, 3.6cqmin, 26px);
   line-height: 1;
+  color: #fff;
+  background: var(--play-ok);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
 }
 
 .card.wrong .mark {
-  color: var(--qt-error);
+  background: var(--play-bad);
 }
 
 /* The space between a lane's card and its pad: a dashed guide, and the tongue when the frog bites. */
@@ -215,7 +236,7 @@ kbd {
   left: 50%;
   top: 4px;
   bottom: 0;
-  border-left: 3px dashed color-mix(in srgb, var(--qt-border) 60%, white);
+  border-left: 3px dashed rgba(255, 255, 255, 0.55);
   transform: translateX(-50%);
 }
 
@@ -226,7 +247,7 @@ kbd {
   bottom: calc(var(--frog) * -0.4);
   z-index: 1;
   width: clamp(8px, 1.6cqw, 16px);
-  background: var(--qt-pink);
+  background: #fb7185;
   border-radius: 999px;
   transform: translateX(-50%) scaleY(0);
   transform-origin: bottom;
@@ -240,7 +261,7 @@ kbd {
   left: 50%;
   width: 220%;
   aspect-ratio: 1;
-  background: var(--qt-pink);
+  background: #fb7185;
   border-radius: 50%;
   transform: translateX(-50%);
 }
@@ -277,7 +298,7 @@ kbd {
 }
 
 .frog-svg .mouth {
-  fill: #b5405f;
+  fill: #9f1239;
   stroke: var(--frog-dark);
   stroke-width: 3;
 }
@@ -291,6 +312,7 @@ kbd {
   min-height: clamp(52px, 13cqh, 88px);
 }
 
+/* Near-opaque: with the camera on, what lies behind is an arbitrary picture, not the pond. */
 .status {
   display: flex;
   flex-direction: column;
@@ -299,10 +321,10 @@ kbd {
   max-width: 100%;
   margin: 0;
   padding: 6px 16px 8px;
-  background: rgba(255, 255, 255, 0.92);
-  border: var(--qt-border-width) solid var(--qt-border);
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid rgba(255, 255, 255, 0.9);
   border-radius: var(--qt-radius-lg);
-  box-shadow: var(--qt-card-shadow);
+  box-shadow: var(--pond-shadow);
 }
 
 .hint {
@@ -310,11 +332,11 @@ kbd {
   font-size: clamp(12px, 2.6cqmin, 18px);
   font-weight: 700;
   text-align: center;
-  color: var(--qt-text);
+  color: var(--play-ink);
 }
 
 .hint.warn {
-  color: var(--qt-error);
+  color: var(--play-bad-dark);
 }
 
 .mouth-meter {
@@ -329,20 +351,21 @@ kbd {
   flex: 1;
   height: 10px;
   overflow: hidden;
-  background: var(--qt-gradient-soft);
-  border: 1px solid var(--qt-border);
+  background: #ccfbf1;
+  border: 1px solid #0f766e;
   border-radius: 999px;
 }
 
 .fill {
   display: block;
   height: 100%;
-  background: var(--qt-blue);
+  background: #14b8a6;
   transition: width 0.06s linear;
 }
 
+/* The mouth is open wide enough to bite: gold, like every "ready" in the games. */
 .fill.open {
-  background: var(--qt-gradient);
+  background: var(--play-charge);
 }
 
 /* Where the mouth counts as open. */
@@ -351,7 +374,7 @@ kbd {
   top: 0;
   bottom: 0;
   width: 2px;
-  background: var(--qt-text-muted);
+  background: var(--play-ink-muted);
   opacity: 0.6;
 }
 
@@ -367,11 +390,13 @@ kbd {
   }
 }
 
+/* The gold ring around the frog's lane swells and fades once a bite counts. */
 @keyframes ready {
   50% {
     box-shadow:
-      0 0 0 5px rgba(136, 170, 255, 0.45),
-      var(--qt-card-shadow);
+      0 0 0 6px rgba(250, 204, 21, 0.55),
+      0 0 22px var(--play-charge-glow),
+      var(--pond-shadow);
   }
 }
 
@@ -392,7 +417,7 @@ kbd {
 
 @media (prefers-reduced-motion: reduce) {
   .card,
-  .card.wrong,
+  .lane .card.wrong,
   .lane,
   .lane.ready .card,
   .fly,

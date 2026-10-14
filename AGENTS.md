@@ -232,7 +232,7 @@ quiz has (a quiz may have only some of the six, see *Choosing the games* below):
 | 1 | Đúng hay sai (`true-false`) | holds a thumb up or down | Correct Answer exactly `Đúng` or `Sai`, no wrong answers |
 | 2 | Nghiêng đầu (`head-tilt`) | tilts or leans the head to the left or right card | Correct Answer + Wrong Answer 1 |
 | 3 | Ếch đớp chữ (`frog-bite`) | moves the head to a lane and opens the mouth to bite | Correct Answer + Wrong Answer 1–2 |
-| 4 | Chém hoa quả (`fruit-slice`) | slashes, with the index fingertip, the fruit whose colour matches the answer | Correct Answer + Wrong Answer 1–2 |
+| 4 | Chém hoa quả (`fruit-slice`) | slashes, with the index fingertip, the fruit whose colour (and icon on the answer box) matches the answer | Correct Answer + Wrong Answer 1–2 |
 | 5 | Giơ ngón tay (`finger-count`) | shows 1–4 fingers (thumb ignored) for the option's number | Correct Answer + Wrong Answer 1–3 |
 | 6 | Xếp câu (`word-order`) | points at word tiles in order, resting on a tile or pinching | Correct Answer = the sentence's chunks in the right order joined by ` / `, no wrong answers |
 

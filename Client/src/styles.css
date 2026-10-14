@@ -36,6 +36,20 @@
   --qt-lift-shadow: 0 4px 12px rgba(255, 150, 170, 0.4);
   --qt-card-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   --qt-transition: 0.25s ease;
+
+  /* The gesture quiz's play area does not follow the app's pink/blue look: each game has its own scene
+     and palette (components/gesture-play/play-themes.css and the games' stylesheets). These are the
+     colours every game shares, so a right answer, a wrong one and "hold to confirm" read the same in all
+     six whatever their own colours: green ✓, red ✗, and a gold that is neither. Text on the games' cards
+     is the dark ink, so hanzi and tone marks stay legible from the back of a classroom. */
+  --play-ok: #22c55e;
+  --play-ok-dark: #15803d;
+  --play-bad: #ef4444;
+  --play-bad-dark: #b91c1c;
+  --play-charge: #facc15;
+  --play-charge-glow: rgba(250, 204, 21, 0.7);
+  --play-ink: #1f2937;
+  --play-ink-muted: #4b5563;
 }
 
 body {

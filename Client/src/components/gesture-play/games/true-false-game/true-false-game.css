@@ -1,33 +1,26 @@
 /* The host fills the stage; its own size is the unit for everything inside (cqmin), so the layout
-   follows the stage and not the window. */
+   follows the stage and not the window. It stays transparent: the game-show scene is the stage's own
+   (play-themes.css). */
 :host {
   display: block;
   position: absolute;
   inset: 0;
   container-type: size;
-  /* The one colour the tokens do not have: the "right answer" green. */
-  --tf-ok: #52c41a;
 }
 
+/* The padding and the gap are wider than the app's, so the marquee's 9px ring is not cut off by the
+   stage's edge or touching the buzzers. */
 .board {
   position: absolute;
   inset: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: clamp(8px, 2cqmin, 18px);
-  padding: clamp(8px, 2cqmin, 20px);
+  gap: clamp(14px, 3cqmin, 26px);
+  padding: clamp(12px, 3cqmin, 26px);
 }
 
-/* Over a moving camera image everything sits on a nearly opaque white card with the pink border. */
-.statement,
-.target,
-.status {
-  background: rgba(255, 255, 255, 0.9);
-  border: var(--qt-border-width) solid var(--qt-border);
-  box-shadow: var(--qt-card-shadow);
-}
-
+/* Over a moving camera image the sign and the status sit on an opaque light panel. */
 .statement {
   flex: 0 1 auto;
   max-height: 40%;
@@ -39,8 +32,14 @@
   font-weight: 600;
   line-height: 1.4;
   text-align: center;
-  color: var(--qt-text);
+  color: var(--play-ink);
+  background: #fffdf5;
   border-radius: var(--qt-radius-lg);
+  /* A marquee sign: gold bulbs' ring, then a dark frame. */
+  box-shadow:
+    0 0 0 5px #fbbf24,
+    0 0 0 9px #7c2d12,
+    0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
 /* The two answers sit at the left and right of the lower half, leaving the middle clear so the
@@ -54,6 +53,8 @@
   gap: clamp(8px, 2cqmin, 20px);
 }
 
+/* Game-show buzzers: green for Đúng, red for Sai, so the colour never has to be read as the verdict
+   (the reveal below marks the right one with a gold ring instead). */
 .target {
   position: relative;
   flex: 0 1 min(38%, 340px);
@@ -67,43 +68,123 @@
   gap: clamp(4px, 1.5cqmin, 12px);
   padding: 8px;
   font: inherit;
-  color: var(--qt-text);
+  color: #fff;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.3);
+  background: var(--face);
+  border: 4px solid rgba(255, 255, 255, 0.9);
   border-radius: var(--qt-radius-lg);
+  /* The raised look: a solid lip underneath, then a soft shadow. */
+  box-shadow:
+    0 8px 0 rgba(0, 0, 0, 0.25),
+    0 12px 24px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   transition: all var(--qt-transition);
 }
 
-.board:not(.locked) .target:hover {
-  border-color: var(--qt-focus);
-  box-shadow: var(--qt-lift-shadow);
+/* --face-dim is --face as `saturate(0.35) brightness(0.9)` would draw it, for a wrong pick. */
+.target.yes {
+  --face: linear-gradient(160deg, #22c55e, #15803d);
+  --face-dim: linear-gradient(160deg, #659978, #41634e);
+}
+
+.target.no {
+  --face: linear-gradient(160deg, #fb7185, #be123c);
+  --face-dim: linear-gradient(160deg, #a3787e, #5e2735);
+}
+
+/* `translate` and not `transform`, so the lift adds to the scale of a card being held. */
+.board:not(.locked) .target:not(.charging):hover {
+  filter: brightness(1.06);
+  translate: 0 -2px;
 }
 
 .board.locked .target {
   cursor: default;
 }
 
+/* The hold: a gold ring and glow around the buzzer, under the lip. */
 .target.charging {
-  border-color: var(--qt-focus);
-  box-shadow: var(--qt-focus-shadow);
+  box-shadow:
+    0 0 0 4px var(--play-charge),
+    0 0 22px var(--play-charge-glow),
+    0 8px 0 rgba(0, 0, 0, 0.25);
   transform: scale(1.03);
 }
 
+/* Answered by a click or a key: the gold border stays until the verdict. */
 .target.picked {
-  border-color: var(--qt-focus);
+  border-color: var(--play-charge);
 }
 
+/* The right buzzer is already green or red, so the verdict is a gold glow ring, a pop and the stamp;
+   a wrong pick loses its colour and shakes. The two states must reset what a held buzzer set. The
+   colour goes out of the face and the contents, not a filter on the whole buzzer, which would also wash
+   the red out of the stamp. */
 .target.correct {
-  border-color: var(--tf-ok);
-  background: color-mix(in srgb, var(--tf-ok) 26%, white);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 0 0 6px var(--play-charge),
+    0 0 32px var(--play-charge-glow),
+    0 8px 0 rgba(0, 0, 0, 0.25);
+  transform: scale(1.04);
+  animation: tf-pop 0.5s ease-out;
 }
 
 .target.wrong {
-  border-color: var(--qt-error);
-  background: color-mix(in srgb, var(--qt-error) 18%, white);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 8px 0 rgba(0, 0, 0, 0.25),
+    0 12px 24px rgba(0, 0, 0, 0.3);
+  transform: none;
+  background: var(--face-dim);
+  animation: tf-shake 0.45s ease-out;
+}
+
+.target.wrong .symbol,
+.target.wrong .label {
+  filter: saturate(0.35) brightness(0.9);
 }
 
 .revealed .target:not(.correct):not(.wrong) {
   opacity: 0.6;
+}
+
+@keyframes tf-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes tf-shake {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  20% {
+    translate: -8px 0;
+  }
+  40% {
+    translate: 7px 0;
+  }
+  60% {
+    translate: -5px 0;
+  }
+  80% {
+    translate: 3px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .target.correct,
+  .target.wrong {
+    animation: none;
+  }
 }
 
 .target kbd {
@@ -112,22 +193,36 @@
   left: 10px;
   font: inherit;
   font-size: 0.8rem;
-  color: var(--qt-text-muted);
+  color: rgba(255, 255, 255, 0.85);
 }
 
+/* The verdict stamp in the buzzer's corner. */
 .mark {
+  --stamp: clamp(28px, 6.5cqmin, 44px);
   position: absolute;
-  top: 4px;
-  right: 12px;
-  font-size: 1.6rem;
+  top: clamp(4px, 1.2cqmin, 10px);
+  right: clamp(6px, 1.5cqmin, 12px);
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: var(--stamp);
+  height: var(--stamp);
+  font-size: calc(var(--stamp) * 0.55);
+  line-height: 1;
+  color: #fff;
+  text-shadow: none;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
 }
 
 .correct .mark {
-  color: var(--tf-ok);
+  background: var(--play-ok);
 }
 
 .wrong .mark {
-  color: var(--qt-error);
+  background: var(--play-bad);
 }
 
 /* The thumb and, around it, the ring that fills while it is held. */
@@ -139,9 +234,12 @@
   aspect-ratio: 1;
 }
 
+/* An emoji takes the label's text shadow as a smear; a drop shadow follows its shape. */
 .emoji {
   font-size: clamp(1.8rem, 12cqmin, 4.5rem);
   line-height: 1;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
 }
 
 .ring {
@@ -159,17 +257,17 @@
 }
 
 .track {
-  stroke: var(--qt-blue);
-  opacity: 0.25;
+  stroke: rgba(255, 255, 255, 0.35);
 }
 
 /* The ring is drawn with pathLength="100", so the dash array is the whole circle and the offset runs
    from 100 (empty) to 0 (full). It only shows on the card being held. */
 .fill {
-  stroke: var(--qt-pink);
+  stroke: var(--play-charge);
   stroke-linecap: round;
   stroke-dasharray: 100;
   opacity: 0;
+  filter: drop-shadow(0 0 4px var(--play-charge-glow));
 }
 
 .charging .fill {
@@ -178,7 +276,7 @@
 
 .label {
   font-size: clamp(1.2rem, 0.8rem + 3cqmin, 2.2rem);
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .status {
@@ -188,12 +286,16 @@
   padding: 6px 18px;
   font-size: clamp(0.9rem, 0.7rem + 1.4cqmin, 1.2rem);
   text-align: center;
-  color: var(--qt-text);
+  color: var(--play-ink);
+  background: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.9);
   border-radius: 999px;
+  box-shadow: var(--qt-card-shadow);
 }
 
 .status.active {
-  background: var(--qt-gradient-soft);
+  background: #fef3c7;
+  border-color: var(--play-charge);
 }
 
 /* Kept in the layout, so the targets do not jump when the verdict arrives. */

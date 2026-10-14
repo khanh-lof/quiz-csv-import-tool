@@ -31,8 +31,8 @@ import type { CalibrationStatus } from './face-common';
       width: min(320px, 80cqw, 100%);
       padding: 8px 14px 10px;
       text-align: center;
-      background: rgba(255, 255, 255, 0.92);
-      border: var(--qt-border-width) solid var(--qt-border);
+      background: #fff;
+      border: 3px solid rgba(255, 255, 255, 0.9);
       border-radius: var(--qt-radius-lg);
       box-shadow: var(--qt-card-shadow);
     }
@@ -40,21 +40,21 @@ import type { CalibrationStatus } from './face-common';
       margin: 0 0 6px;
       font-size: 0.9rem;
       font-weight: 700;
-      color: var(--qt-text);
+      color: var(--play-ink);
     }
     .message.warn {
-      color: var(--qt-error);
+      color: var(--play-bad-dark);
     }
     .bar {
       height: 8px;
       overflow: hidden;
-      background: var(--qt-gradient-soft);
+      background: #e5e7eb;
       border-radius: 999px;
     }
     .bar i {
       display: block;
       height: 100%;
-      background: var(--qt-gradient);
+      background: var(--play-charge);
       border-radius: 999px;
       transition: width 0.1s linear;
     }

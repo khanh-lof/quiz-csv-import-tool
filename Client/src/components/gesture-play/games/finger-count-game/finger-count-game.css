@@ -1,12 +1,11 @@
 /* The host fills the stage; its own size is the unit for everything inside (cqmin), so the layout
-   follows the stage and not the window. */
+   follows the stage and not the window. It stays transparent: the sunny polka-dot scene is the stage's
+   own (play-themes.css). */
 :host {
   display: block;
   position: absolute;
   inset: 0;
   container-type: size;
-  /* The one colour the tokens do not have: the "right answer" green. */
-  --fc-ok: #52c41a;
 }
 
 .board {
@@ -19,15 +18,7 @@
   padding: clamp(8px, 2cqmin, 20px);
 }
 
-/* Over a moving camera image everything sits on a nearly opaque white card with the pink border. */
-.question,
-.card,
-.status {
-  background: rgba(255, 255, 255, 0.9);
-  border: var(--qt-border-width) solid var(--qt-border);
-  box-shadow: var(--qt-card-shadow);
-}
-
+/* Over a moving camera image the question and the status sit on an opaque white panel. */
 .question {
   flex: 0 1 auto;
   max-height: 34%;
@@ -39,8 +30,12 @@
   font-weight: 600;
   line-height: 1.4;
   text-align: center;
-  color: var(--qt-text);
+  color: var(--play-ink);
+  background: #fff;
   border-radius: var(--qt-radius-lg);
+  box-shadow:
+    0 6px 0 #f59e0b,
+    0 10px 24px rgba(120, 60, 0, 0.25);
 }
 
 /* Two by two, and four across once the stage is wide enough for four cards side by side. */
@@ -60,7 +55,10 @@
   }
 }
 
+/* Candy colours, one per number: the colour says how many fingers to show. Red and green are left out
+   on purpose, so a colour is never read as right or wrong. */
 .card {
+  --k: #7c3aed;
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -71,72 +69,131 @@
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  gap: clamp(4px, 1.5cqmin, 12px);
-  padding: clamp(6px, 1.5cqmin, 14px);
+  /* The header band and the text carry the padding, so the band reaches the card's edge. */
+  padding: 0;
   overflow: hidden;
   font: inherit;
-  color: var(--qt-text);
+  color: var(--play-ink);
+  background: #fff;
+  border: 3px solid var(--k);
   border-radius: var(--qt-radius-lg);
+  /* A solid lip in the card's colour, then a soft shadow. */
+  box-shadow:
+    0 6px 0 var(--k),
+    0 10px 24px rgba(120, 60, 0, 0.3);
   cursor: pointer;
   transition: all var(--qt-transition);
 }
 
-.board:not(.locked) .card:hover {
-  border-color: var(--qt-focus);
-  box-shadow: var(--qt-lift-shadow);
+.card[data-n='1'] {
+  --k: #7c3aed;
+}
+
+.card[data-n='2'] {
+  --k: #2563eb;
+}
+
+.card[data-n='3'] {
+  --k: #ea580c;
+}
+
+.card[data-n='4'] {
+  --k: #db2777;
+}
+
+/* `translate` and not `transform`, so the lift adds to the scale of a card being held. */
+.board:not(.locked) .card:not(.charging):hover {
+  translate: 0 -2px;
+  box-shadow:
+    0 8px 0 var(--k),
+    0 14px 28px rgba(120, 60, 0, 0.35);
 }
 
 .board.locked .card {
   cursor: default;
 }
 
-.card.charging {
-  border-color: var(--qt-focus);
-  box-shadow: var(--qt-focus-shadow);
-  transform: scale(1.03);
-}
-
+/* Answered by a click or a key: the gold ring stays until the verdict. Before the hold, which adds its
+   glow when the camera answered. */
 .card.picked {
-  border-color: var(--qt-focus);
+  box-shadow:
+    0 0 0 4px var(--play-charge),
+    0 6px 0 var(--k),
+    0 10px 24px rgba(120, 60, 0, 0.3);
 }
 
+/* The hold: a gold ring and glow around the card, over its lip. */
+.card.charging {
+  box-shadow:
+    0 0 0 4px var(--play-charge),
+    0 0 22px var(--play-charge-glow),
+    0 6px 0 var(--k);
+  transform: scale(1.03);
+  translate: 0 -3px;
+}
+
+/* The verdict keeps the header band's colour and changes the border, the lip and the face. The two
+   states come after the hold and the pick, which they must override. */
 .card.correct {
-  border-color: var(--fc-ok);
-  background: color-mix(in srgb, var(--fc-ok) 26%, white);
+  background: color-mix(in srgb, var(--play-ok) 22%, white);
+  border-color: var(--play-ok);
+  box-shadow:
+    0 6px 0 var(--play-ok),
+    0 10px 24px rgba(120, 60, 0, 0.3);
 }
 
 .card.wrong {
-  border-color: var(--qt-error);
-  background: color-mix(in srgb, var(--qt-error) 18%, white);
+  background: color-mix(in srgb, var(--play-bad) 14%, white);
+  border-color: var(--play-bad);
+  box-shadow:
+    0 6px 0 var(--play-bad),
+    0 10px 24px rgba(120, 60, 0, 0.3);
 }
 
 .revealed .card:not(.correct):not(.wrong) {
   opacity: 0.6;
 }
 
+/* The verdict stamp, in the top-right corner of the header band. */
 .mark {
+  --stamp: clamp(26px, 5.5cqmin, 40px);
   position: absolute;
-  top: 2px;
-  right: 10px;
-  font-size: 1.5rem;
+  top: clamp(4px, 1cqmin, 8px);
+  right: clamp(4px, 1cqmin, 8px);
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: var(--stamp);
+  height: var(--stamp);
+  font-size: calc(var(--stamp) * 0.55);
+  line-height: 1;
+  color: #fff;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
 }
 
 .correct .mark {
-  color: var(--fc-ok);
+  background: var(--play-ok);
 }
 
 .wrong .mark {
-  color: var(--qt-error);
+  background: var(--play-bad);
 }
 
 /* The number, twice: as a hand with that many fingers up, and as the digit inside the ring that
-   fills while the matching hand is held. */
+   fills while the matching hand is held. It is a band across the top of the card, in its colour. */
 .head {
   flex: none;
+  align-self: stretch;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: clamp(6px, 2cqmin, 14px);
+  padding: clamp(4px, 1cqmin, 10px) clamp(6px, 1.5cqmin, 14px);
+  color: #fff;
+  background: var(--k);
 }
 
 .hand {
@@ -145,17 +202,16 @@
 }
 
 .finger {
-  fill: var(--qt-border);
-  opacity: 0.4;
+  fill: #fff;
+  opacity: 0.45;
 }
 
 .finger.up {
-  fill: var(--qt-pink);
   opacity: 1;
 }
 
 .palm {
-  fill: var(--qt-pink);
+  fill: #fff;
 }
 
 .num {
@@ -170,6 +226,7 @@
   font-size: clamp(1.3rem, 6.5cqmin, 2.8rem);
   font-weight: 800;
   line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 .ring {
@@ -187,17 +244,17 @@
 }
 
 .track {
-  stroke: var(--qt-blue);
-  opacity: 0.25;
+  stroke: rgba(255, 255, 255, 0.35);
 }
 
 /* The ring is drawn with pathLength="100", so the dash array is the whole circle and the offset runs
    from 100 (empty) to 0 (full). It only shows on the card being held. */
 .fill {
-  stroke: var(--qt-pink);
+  stroke: var(--play-charge);
   stroke-linecap: round;
   stroke-dasharray: 100;
   opacity: 0;
+  filter: drop-shadow(0 0 3px var(--play-charge-glow));
 }
 
 .charging .fill {
@@ -208,8 +265,10 @@
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
-  align-items: center;
+  /* `safe`: text too long for a small card runs off the bottom, not up over the header band. */
+  align-items: safe center;
   justify-content: center;
+  padding: clamp(4px, 1cqmin, 10px) clamp(6px, 1.5cqmin, 14px) clamp(6px, 1.5cqmin, 14px);
   overflow-wrap: anywhere;
   font-size: clamp(1rem, 0.7rem + 2.4cqmin, 2rem);
   line-height: 1.3;
@@ -234,23 +293,27 @@
   padding: 6px 16px;
   font-size: clamp(0.85rem, 0.65rem + 1.4cqmin, 1.15rem);
   text-align: center;
-  color: var(--qt-text);
+  color: var(--play-ink);
+  background: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.9);
   border-radius: var(--qt-radius-lg);
+  box-shadow: var(--qt-card-shadow);
 }
 
 .badge {
   padding: 2px 12px;
-  color: var(--qt-text-muted);
-  background: var(--qt-gradient-soft);
+  color: var(--play-ink-muted);
+  background: #fef3c7;
   border-radius: 999px;
 }
 
 .badge.seen {
-  color: var(--qt-text);
+  color: var(--play-ink);
+  background: var(--play-charge);
 }
 
 .hint {
-  color: var(--qt-text-muted);
+  color: var(--play-ink-muted);
 }
 
 /* Kept in the layout, so the cards do not jump when the verdict arrives. */
