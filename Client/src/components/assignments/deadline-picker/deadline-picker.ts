@@ -1,21 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, effect, model, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NzInputDirective } from 'ng-zorro-antd/input';
+import { DisabledTimeConfig, NzDatePickerComponent } from 'ng-zorro-antd/date-picker';
+import { NZ_I18N, vi_VN } from 'ng-zorro-antd/i18n';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { formatClose } from '../../../models/assignment';
-import {
-  DeadlinePreset,
-  deadlineFromPreset,
-  fromLocalInputValue,
-  toLocalInputValue,
-} from './deadline-picker-logic';
+import { DeadlinePreset, deadlineFromPreset } from './deadline-picker-logic';
 
 // Chooses when an assignment closes: a preset, or a time of the teacher's own. `value` is the closing time
 // (null for none) and is written every time the choice changes; a value set from outside (a dialog that
 // starts over, or one that edits an existing closing time) is shown as the custom time.
 @Component({
   selector: 'app-deadline-picker',
-  imports: [FormsModule, NzInputDirective, NzRadioComponent, NzRadioGroupComponent],
+  imports: [FormsModule, NzDatePickerComponent, NzRadioComponent, NzRadioGroupComponent],
+  providers: [{provide: NZ_I18N, useValue: vi_VN}],
   templateUrl: './deadline-picker.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './deadline-picker.css',
@@ -24,10 +21,8 @@ export class DeadlinePicker {
   readonly value = model<Date | null>(null);
 
   protected readonly preset = signal<DeadlinePreset>('none');
-  // The text of the datetime-local input, which is '' while the teacher has not completed a time.
-  protected readonly customText = signal('');
-  // The earliest time the input accepts: the moment the custom choice was made.
-  protected readonly minText = signal(toLocalInputValue(new Date()));
+  // The date picker's value, null while the teacher has not picked a time.
+  protected readonly customDate = signal<Date | null>(null);
 
   protected readonly closeText = computed(() => {
     const value = this.value();
@@ -52,11 +47,10 @@ export class DeadlinePicker {
         this.written = value;
         if (value === null) {
           this.preset.set('none');
-          this.customText.set('');
+          this.customDate.set(null);
         } else {
           this.preset.set('custom');
-          this.customText.set(toLocalInputValue(value));
-          this.minText.set(toLocalInputValue(new Date()));
+          this.customDate.set(value);
         }
       });
     });
@@ -64,19 +58,37 @@ export class DeadlinePicker {
 
   protected setPreset(preset: DeadlinePreset): void {
     this.preset.set(preset);
-    if (preset === 'custom') {
-      this.minText.set(toLocalInputValue(new Date()));
-    }
     this.write();
   }
 
-  protected setCustom(text: string): void {
-    this.customText.set(text);
+  protected setCustom(date: Date | null): void {
+    this.customDate.set(date);
     this.write();
   }
+
+  // The picker offers no day before today.
+  protected readonly disabledDate = (day: Date): boolean => {
+    const today = new Date();
+    return day.getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  };
+
+  // On today, nor an hour or minute that has already gone by.
+  protected readonly disabledTime = (current: Date | Date[]): DisabledTimeConfig | undefined => {
+    const day = Array.isArray(current) ? current[0] : current;
+    const now = new Date();
+    if (!day || day.toDateString() !== now.toDateString()) {
+      return undefined;
+    }
+    const range = (end: number) => Array.from({length: end}, (_, i) => i);
+    return {
+      nzDisabledHours: () => range(now.getHours()),
+      nzDisabledMinutes: hour => (hour === now.getHours() ? range(now.getMinutes() + 1) : []),
+      nzDisabledSeconds: () => [],
+    };
+  };
 
   private write(): void {
-    const deadline = deadlineFromPreset(this.preset(), new Date(), fromLocalInputValue(this.customText()));
+    const deadline = deadlineFromPreset(this.preset(), new Date(), this.customDate());
     this.written = deadline;
     this.value.set(deadline);
   }

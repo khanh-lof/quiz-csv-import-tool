@@ -1,4 +1,4 @@
-import { deadlineFromPreset, fromLocalInputValue, toLocalInputValue } from './deadline-picker-logic';
+import { deadlineFromPreset } from './deadline-picker-logic';
 
 describe('deadlineFromPreset', () => {
   const now = new Date(2026, 9, 14, 10, 20, 35, 500);
@@ -36,34 +36,5 @@ describe('deadlineFromPreset', () => {
     const picked = new Date(2026, 9, 20, 8, 0);
     expect(deadlineFromPreset('custom', now, picked)).toBe(picked);
     expect(deadlineFromPreset('custom', now, null)).toBeNull();
-  });
-});
-
-describe('datetime-local values', () => {
-  it('writes the local date and time with zero padding', () => {
-    expect(toLocalInputValue(new Date(2026, 2, 5, 7, 4, 59))).toBe('2026-03-05T07:04');
-    expect(toLocalInputValue(new Date(2026, 11, 31, 23, 59))).toBe('2026-12-31T23:59');
-  });
-
-  it('reads them back as local time', () => {
-    expect(fromLocalInputValue('2026-03-05T07:04')).toEqual(new Date(2026, 2, 5, 7, 4));
-  });
-
-  it('reads a value with seconds', () => {
-    expect(fromLocalInputValue('2026-03-05T07:04:30')).toEqual(new Date(2026, 2, 5, 7, 4, 30));
-  });
-
-  it('round-trips', () => {
-    const date = new Date(2026, 9, 14, 21, 30);
-    expect(fromLocalInputValue(toLocalInputValue(date))).toEqual(date);
-  });
-
-  it('gives null for an empty, incomplete or impossible value', () => {
-    expect(fromLocalInputValue('')).toBeNull();
-    expect(fromLocalInputValue('2026-03-05')).toBeNull();
-    expect(fromLocalInputValue('not a date')).toBeNull();
-    expect(fromLocalInputValue('2026-02-31T10:00')).toBeNull();
-    expect(fromLocalInputValue('2026-13-01T10:00')).toBeNull();
-    expect(fromLocalInputValue('2026-03-05T25:00')).toBeNull();
   });
 });

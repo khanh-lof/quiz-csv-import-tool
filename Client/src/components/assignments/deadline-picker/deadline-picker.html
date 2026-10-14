@@ -6,8 +6,10 @@
 </nz-radio-group>
 
 @if (preset() === 'custom') {
-  <input nz-input class="custom-time" type="datetime-local" aria-label="Giờ đóng bài"
-         [min]="minText()" [ngModel]="customText()" (ngModelChange)="setCustom($event)"/>
+  <nz-date-picker class="custom-time" aria-label="Giờ đóng bài" nzFormat="HH:mm dd/MM/yyyy"
+                  [nzShowTime]="{nzFormat: 'HH:mm'}" [nzShowNow]="false" [nzAllowClear]="false"
+                  nzPlaceHolder="Chọn ngày và giờ" [nzDisabledDate]="disabledDate" [nzDisabledTime]="disabledTime"
+                  [ngModel]="customDate()" (ngModelChange)="setCustom($event)"/>
 }
 
 @if (closeText(); as text) {

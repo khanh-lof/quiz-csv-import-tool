@@ -1,20 +1,24 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { NgModel } from '@angular/forms';
+import { By } from '@angular/platform-browser';
+import { provideNzDateFnsAdapter } from 'ng-zorro-antd/core/time';
+import { NzDatePickerComponent } from 'ng-zorro-antd/date-picker';
 import { DeadlinePicker } from './deadline-picker';
-import { toLocalInputValue } from './deadline-picker-logic';
 
 describe('DeadlinePicker', () => {
   let fixture: ComponentFixture<DeadlinePicker>;
   let picker: DeadlinePicker;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({imports: [DeadlinePicker]}).compileComponents();
+    await TestBed.configureTestingModule({imports: [DeadlinePicker], providers: [provideNzDateFnsAdapter()]}).compileComponents();
     fixture = TestBed.createComponent(DeadlinePicker);
     picker = fixture.componentInstance;
     fixture.detectChanges();
   });
 
   const root = () => fixture.nativeElement as HTMLElement;
-  const customInput = () => root().querySelector<HTMLInputElement>('input[type="datetime-local"]');
+  const datePicker = () => fixture.debugElement.query(By.directive(NzDatePickerComponent));
+  const pick = (date: Date) => datePicker().triggerEventHandler('ngModelChange', date);
 
   async function settle(): Promise<void> {
     fixture.detectChanges();
@@ -32,7 +36,7 @@ describe('DeadlinePicker', () => {
 
     expect(labels).toEqual(['Không hẹn giờ', 'Sau 45 phút', 'Hết hôm nay', 'Chọn giờ…']);
     expect(picker.value()).toBeNull();
-    expect(customInput()).toBeNull();
+    expect(datePicker()).toBeNull();
   });
 
   it('writes the time of the preset that is chosen, and shows it', async () => {
@@ -63,15 +67,14 @@ describe('DeadlinePicker', () => {
     expect(root().textContent).not.toContain('Đóng lúc');
   });
 
-  it('shows a time input for Chọn giờ and writes what is typed there', async () => {
+  it('shows a date picker for Chọn giờ and writes what is picked there', async () => {
     await choose(3);
     expect(picker.value()).toBeNull();
-    expect(customInput()).not.toBeNull();
+    expect(datePicker()).not.toBeNull();
 
     const picked = new Date(Date.now() + 3 * 86_400_000);
     picked.setSeconds(0, 0);
-    customInput()!.value = toLocalInputValue(picked);
-    customInput()!.dispatchEvent(new Event('input'));
+    pick(picked);
     await settle();
 
     expect(picker.value()).toEqual(picked);
@@ -82,8 +85,7 @@ describe('DeadlinePicker', () => {
   it('warns about a time that is already past', async () => {
     await choose(3);
 
-    customInput()!.value = '2020-01-01T08:00';
-    customInput()!.dispatchEvent(new Event('input'));
+    pick(new Date(2020, 0, 1, 8, 0));
     await settle();
 
     expect(picker.value()).toEqual(new Date(2020, 0, 1, 8, 0));
@@ -96,12 +98,12 @@ describe('DeadlinePicker', () => {
     picker.value.set(outside);
     await settle();
 
-    expect(customInput()?.value).toBe(toLocalInputValue(outside));
+    expect(datePicker().injector.get(NgModel).model).toEqual(outside);
 
     picker.value.set(null);
     await settle();
 
-    expect(customInput()).toBeNull();
+    expect(datePicker()).toBeNull();
     expect(root().querySelector<HTMLInputElement>('input[type="radio"]:checked')).toBe(
       root().querySelectorAll<HTMLInputElement>('input[type="radio"]')[0]);
   });

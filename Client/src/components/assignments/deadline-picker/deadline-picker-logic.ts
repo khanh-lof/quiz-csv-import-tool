@@ -27,30 +27,3 @@ export function deadlineFromPreset(preset: DeadlinePreset, now: Date, custom: Da
       return custom;
   }
 }
-
-function pad(value: number, length = 2): string {
-  return String(value).padStart(length, '0');
-}
-
-// The value of an <input type="datetime-local">: the local date and time, 'yyyy-MM-ddTHH:mm'.
-export function toLocalInputValue(date: Date): string {
-  return `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-    + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-const LOCAL_INPUT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
-
-// The Date a datetime-local value stands for, or null when it is empty or not a real date and time
-// (the input gives '' while it is incomplete).
-export function fromLocalInputValue(text: string): Date | null {
-  const match = LOCAL_INPUT.exec(text.trim());
-  if (!match) {
-    return null;
-  }
-  const [year, month, day, hour, minute, second] = match.slice(1).map(part => (part === undefined ? 0 : Number(part)));
-  const date = new Date(year, month - 1, day, hour, minute, second, 0);
-  // new Date rolls 31 February over to March: such a value is not a date the teacher picked.
-  const real = date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
-    && date.getHours() === hour && date.getMinutes() === minute;
-  return real ? date : null;
-}
