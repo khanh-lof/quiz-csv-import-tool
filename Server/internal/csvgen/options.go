@@ -17,9 +17,11 @@ const (
 	GimKit ExportType = iota
 	Blooket
 	Wayground
+	// GestureQuiz is not an import target: QuizTool plays the quiz itself as a webcam gesture game.
+	GestureQuiz
 )
 
-var exportTypeNames = []string{"GimKit", "Blooket", "Wayground"}
+var exportTypeNames = []string{"GimKit", "Blooket", "Wayground", "GestureQuiz"}
 
 // CourseType identifies the course a lesson belongs to. Sent by ordinal; keep in the same order
 // as Client/src/models/course-type.ts.

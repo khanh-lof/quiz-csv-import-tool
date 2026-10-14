@@ -38,6 +38,15 @@ func TestParseCreativeOptions(t *testing.T) {
 		{query: "exportType=Blooket&courseType=yct&level=1&lessonNumber=2", check: func(o Options) bool {
 			return o.ExportType == Blooket && o.CourseType == Yct
 		}},
+		{query: "exportType=3&courseType=0&level=1&lessonNumber=1", check: func(o Options) bool {
+			return o.ExportType == GestureQuiz
+		}},
+		{query: "exportType=gesturequiz&courseType=0&level=1&lessonNumber=1", check: func(o Options) bool {
+			return o.ExportType == GestureQuiz
+		}},
+		{query: "exportType=GestureQuiz&courseType=0&level=1&lessonNumber=1", check: func(o Options) bool {
+			return o.ExportType == GestureQuiz
+		}},
 		{query: "exportType=0&courseType=2&courseName=+Boya+&lessonNumber=4", check: func(o Options) bool {
 			return o.CourseType == Other && o.Level == nil && o.CourseDisplayName() == "Boya"
 		}},
@@ -45,7 +54,7 @@ func TestParseCreativeOptions(t *testing.T) {
 			return o.CourseName == "" // courseName only applies to Other
 		}},
 		{query: "courseType=0&level=1&lessonNumber=1", wantErr: "Invalid or missing exportType parameter."},
-		{query: "exportType=3&courseType=0&level=1&lessonNumber=1", wantErr: "Invalid or missing exportType parameter."},
+		{query: "exportType=4&courseType=0&level=1&lessonNumber=1", wantErr: "Invalid or missing exportType parameter."},
 		{query: "exportType=0&courseType=9&level=1&lessonNumber=1", wantErr: "Invalid or missing courseType parameter."},
 		{query: "exportType=0&courseType=2&lessonNumber=1", wantErr: "Invalid or missing courseName parameter."},
 		{query: "exportType=0&courseType=0&level=x&lessonNumber=1", wantErr: "Invalid level parameter."},
@@ -141,6 +150,24 @@ func TestBuildCreativeRequest(t *testing.T) {
 	parts := withImage.Input[0].Content
 	if last := parts[len(parts)-1]; last.Type != "input_image" || last.ImageURL != "data:image/png;base64,AQI=" {
 		t.Fatalf("unexpected image part %+v", last)
+	}
+
+	// GestureQuiz has no image column either, so it gets no search tool and the plain token budget;
+	// its stage rules arrive as the template message right after the columns.
+	gesture := buildCreativeRequest("m", nil, Options{ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumber: &lesson})
+	if gesture.Tools != nil || gesture.MaxOutputTokens != 10000 {
+		t.Fatalf("unexpected request %+v", gesture)
+	}
+	if len(gesture.Input[0].Content) != 6 {
+		t.Fatalf("want 6 parts and no image, got %+v", gesture.Input[0].Content)
+	}
+	texts = textsOf(t, gesture)
+	if len(texts) != 6 {
+		t.Fatalf("want 6 text parts (intro, 2 GestureQuiz, 3 lesson), got %d: %q", len(texts), texts)
+	}
+	if !strings.HasPrefix(texts[1], "CSV columns: Stage,") || !strings.Contains(texts[2], "GESTURE QUIZ STAGES") ||
+		strings.Contains(texts[2], "\r") || texts[5] != "Lesson number: 5" {
+		t.Fatalf("unexpected text parts %q", texts)
 	}
 }
 

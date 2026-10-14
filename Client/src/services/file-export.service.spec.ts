@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { FileExportService } from './file-export.service';
 import { WaygroundCsvBuilder } from './wayground-csv-builder';
 import { ExportType } from '../models/export-type';
+import { GESTURE_QUIZ_COLUMNS } from '../models/gesture-quiz';
 import { QuestionType } from '../models/question-type';
 
 describe('FileExportService Wayground export', () => {
@@ -47,5 +48,68 @@ describe('FileExportService Wayground export', () => {
     const exported = service.exportFile('Lesson-Gimkit.csv', rows, ExportType.GimKit);
 
     expect(exported).toEqual({fileName: 'Lesson-Gimkit.csv'});
+  });
+});
+
+describe('FileExportService Quiz cử chỉ export', () => {
+  const rows = '1,你好是什么意思?,Xin chào,,,,\n2,"我叫___,你呢?",Lan,Mai,Hoa,,Điền tên';
+  let service: FileExportService;
+  let blobs: Blob[];
+  let downloadNames: string[];
+
+  beforeEach(() => {
+    service = TestBed.inject(FileExportService);
+    blobs = [];
+    downloadNames = [];
+    // Catches what would be downloaded instead of triggering a real download.
+    spyOn(URL, 'createObjectURL').and.callFake((blob: Blob | MediaSource) => {
+      blobs.push(blob as Blob);
+      return 'blob:quiztool-test';
+    });
+    spyOn(URL, 'revokeObjectURL');
+    spyOn(HTMLAnchorElement.prototype, 'click').and.callFake(function (this: HTMLAnchorElement) {
+      downloadNames.push(this.download);
+    });
+  });
+
+  it('downloads a .csv that starts with the gesture quiz header, then the rows', async () => {
+    const exported = service.exportFileFromCsvContent('HSK3-Bai5-Quiz-cử-chỉ.csv', rows, ExportType.GestureQuiz);
+
+    expect(exported).toEqual({fileName: 'HSK3-Bai5-Quiz-cử-chỉ.csv'});
+    expect(downloadNames).toEqual(['HSK3-Bai5-Quiz-cử-chỉ.csv']);
+    expect(blobs.length).toBe(1);
+    expect(blobs[0].type).toBe('text/csv;charset=utf-8');
+    expect(await blobs[0].text()).toBe(`${GESTURE_QUIZ_COLUMNS.join(',')}\n${rows}`);
+  });
+
+  it('does not download when asked not to', () => {
+    const exported = service.exportFileFromCsvContent('Quiz.csv', rows, ExportType.GestureQuiz, false);
+
+    expect(exported).toEqual({fileName: 'Quiz.csv'});
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+  });
+
+  it('cannot be built from the table rows, which have no stages', () => {
+    const tableRows = [{question: '一', answer: '1', questionType: QuestionType.MultipleChoice}];
+
+    expect(() => service.exportFile('Quiz.csv', tableRows, ExportType.GestureQuiz)).toThrowError(/AI/);
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+  });
+
+  it('names the platform', () => {
+    expect(FileExportService.platformName(ExportType.GestureQuiz)).toBe('Quiz cử chỉ');
+    expect(FileExportService.platformName(ExportType.Wayground)).toBe('Wayground');
+  });
+
+  it('names the file with dashes in place of spaces, in the label and the platform', () => {
+    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.GestureQuiz)).toBe('HSK3-Bai5-Quiz-cử-chỉ.csv');
+    expect(FileExportService.buildFileName(' Boya  Bai 2 ', ExportType.GestureQuiz)).toBe('Boya-Bai-2-Quiz-cử-chỉ.csv');
+  });
+
+  it('keeps the file names of the other platforms', () => {
+    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.GimKit)).toBe('HSK3-Bai5-Gimkit.csv');
+    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.Blooket)).toBe('HSK3-Bai5-Blooket.csv');
+    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.Wayground)).toBe('HSK3-Bai5-Wayground.csv');
+    expect(FileExportService.buildFileName('a/b:c', ExportType.GimKit)).toBe('abc-Gimkit.csv');
   });
 });

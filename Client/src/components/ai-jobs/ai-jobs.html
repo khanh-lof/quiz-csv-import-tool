@@ -20,6 +20,7 @@
       <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
       <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
       <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
+      <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Quiz cử chỉ"></nz-option>
     </nz-select>
     <nz-select class="filter-select" nzAllowClear nzPlaceHolder="Giáo trình" [ngModel]="courseType()"
                (ngModelChange)="setCourseType($event ?? null)">
@@ -90,7 +91,15 @@
             }
             @if (job.status === 'done') {
               @if (job.creative) {
-                <button nz-button nzType="primary" nzSize="small" type="button" (click)="exportJob(job, false)">
+                @if (job.exportType === ExportType.GestureQuiz) {
+                  <!-- Played on QuizTool itself, so playing is the main action and the file only keeps the quiz. -->
+                  <button nz-button nzType="primary" nzSize="small" type="button" (click)="play(job)">
+                    <nz-icon nzType="play-circle" nzTheme="outline"/>
+                    Chơi ngay
+                  </button>
+                }
+                <button nz-button [nzType]="job.exportType === ExportType.GestureQuiz ? 'default' : 'primary'" nzSize="small"
+                        type="button" (click)="exportJob(job, false)">
                   <nz-icon nzType="download" nzTheme="outline"/>
                   Tải file
                 </button>

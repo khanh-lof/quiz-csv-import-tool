@@ -169,7 +169,7 @@ Usage and context:
 
 Structure and production:
 
-* Word or sentence ordering: show the shuffled parts in the question and full orderings as options.
+* Word or sentence ordering: show the shuffled parts in the question and full orderings as options, unless the CSV template defines its own format for ordering questions.
 * Production questions where the learner must type the word, when the CSV template supports a typed answer.
 * Short Chinese sentence to correct Vietnamese meaning.
 * Short Vietnamese sentence to correct Chinese sentence.
@@ -199,6 +199,8 @@ Create a reasonable mixture of difficulty:
 * Easy: direct recognition, meaning, pinyin, or simple recall.
 * Medium: context, sentence completion, distinguishing words, or applying vocabulary.
 * Hard: practical situations, short dialogues, sentence ordering, or combining multiple lesson vocabulary items.
+
+When the CSV template defines stages, its stage rules replace this mixture: classify every question by its real difficulty and put it in the matching stage.
 
 Hard questions must still respect the vocabulary restrictions.
 

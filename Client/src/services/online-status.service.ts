@@ -2,6 +2,9 @@ import { inject, Injectable, NgZone, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { BehaviorSubject, fromEvent } from 'rxjs';
 
+// /play and /play/:jobId, with or without a query string or fragment.
+const GESTURE_PLAY_URL = /^\/play(?:[/?#]|$)/;
+
 @Injectable({
   providedIn: 'root'
 })
@@ -55,6 +58,12 @@ export class OnlineStatusService {
 
   private handleOfflineEvent(): void {
     const currentUrl = this.router.url;
+    // The gesture quiz runs entirely in the browser once its page has loaded (the camera, the models and
+    // the questions are all local), so losing the connection mid-game must not throw the player out to the
+    // offline screen. The status itself is still updated by the caller.
+    if (GESTURE_PLAY_URL.test(currentUrl)) {
+      return;
+    }
     if (currentUrl && !currentUrl.includes('/offline')) {
       this.previousUrl = currentUrl;
     }

@@ -299,7 +299,11 @@ app-ai-jobs {
   gap: 2px;
 }
 .output-selection .export-type-select {
-  width: 180px;
+  width: 200px;
+}
+/* A line under the platform row; the form's own gap spaces it. */
+.export-hint {
+  color: var(--qt-text-muted);
 }
 .output-selection .intelligence-selection {
   width: auto;

@@ -1,0 +1,202 @@
+/* The host fills the stage; its own size is the unit for everything inside (cqmin), so the layout
+   follows the stage and not the window. */
+:host {
+  display: block;
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  /* The one colour the tokens do not have: the "right answer" green. */
+  --tf-ok: #52c41a;
+}
+
+.board {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 2cqmin, 18px);
+  padding: clamp(8px, 2cqmin, 20px);
+}
+
+/* Over a moving camera image everything sits on a nearly opaque white card with the pink border. */
+.statement,
+.target,
+.status {
+  background: rgba(255, 255, 255, 0.9);
+  border: var(--qt-border-width) solid var(--qt-border);
+  box-shadow: var(--qt-card-shadow);
+}
+
+.statement {
+  flex: 0 1 auto;
+  max-height: 40%;
+  margin: 0;
+  padding: clamp(8px, 2cqmin, 18px) clamp(12px, 3cqmin, 28px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.05rem, 0.8rem + 2.6cqmin, 2.4rem);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--qt-text);
+  border-radius: var(--qt-radius-lg);
+}
+
+/* The two answers sit at the left and right of the lower half, leaving the middle clear so the
+   player sees their own hand there. */
+.targets {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: clamp(8px, 2cqmin, 20px);
+}
+
+.target {
+  position: relative;
+  flex: 0 1 min(38%, 340px);
+  min-width: 0;
+  height: 100%;
+  max-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(4px, 1.5cqmin, 12px);
+  padding: 8px;
+  font: inherit;
+  color: var(--qt-text);
+  border-radius: var(--qt-radius-lg);
+  cursor: pointer;
+  transition: all var(--qt-transition);
+}
+
+.board:not(.locked) .target:hover {
+  border-color: var(--qt-focus);
+  box-shadow: var(--qt-lift-shadow);
+}
+
+.board.locked .target {
+  cursor: default;
+}
+
+.target.charging {
+  border-color: var(--qt-focus);
+  box-shadow: var(--qt-focus-shadow);
+  transform: scale(1.03);
+}
+
+.target.picked {
+  border-color: var(--qt-focus);
+}
+
+.target.correct {
+  border-color: var(--tf-ok);
+  background: color-mix(in srgb, var(--tf-ok) 26%, white);
+}
+
+.target.wrong {
+  border-color: var(--qt-error);
+  background: color-mix(in srgb, var(--qt-error) 18%, white);
+}
+
+.revealed .target:not(.correct):not(.wrong) {
+  opacity: 0.6;
+}
+
+.target kbd {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--qt-text-muted);
+}
+
+.mark {
+  position: absolute;
+  top: 4px;
+  right: 12px;
+  font-size: 1.6rem;
+}
+
+.correct .mark {
+  color: var(--tf-ok);
+}
+
+.wrong .mark {
+  color: var(--qt-error);
+}
+
+/* The thumb and, around it, the ring that fills while it is held. */
+.symbol {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(56px, 22cqmin, 130px);
+  aspect-ratio: 1;
+}
+
+.emoji {
+  font-size: clamp(1.8rem, 12cqmin, 4.5rem);
+  line-height: 1;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.track,
+.fill {
+  fill: none;
+  stroke-width: 7;
+}
+
+.track {
+  stroke: var(--qt-blue);
+  opacity: 0.25;
+}
+
+/* The ring is drawn with pathLength="100", so the dash array is the whole circle and the offset runs
+   from 100 (empty) to 0 (full). It only shows on the card being held. */
+.fill {
+  stroke: var(--qt-pink);
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  opacity: 0;
+}
+
+.charging .fill {
+  opacity: 1;
+}
+
+.label {
+  font-size: clamp(1.2rem, 0.8rem + 3cqmin, 2.2rem);
+  font-weight: 700;
+}
+
+.status {
+  flex: none;
+  align-self: center;
+  margin: 0;
+  padding: 6px 18px;
+  font-size: clamp(0.9rem, 0.7rem + 1.4cqmin, 1.2rem);
+  text-align: center;
+  color: var(--qt-text);
+  border-radius: 999px;
+}
+
+.status.active {
+  background: var(--qt-gradient-soft);
+}
+
+/* Kept in the layout, so the targets do not jump when the verdict arrives. */
+.status.hidden {
+  visibility: hidden;
+}

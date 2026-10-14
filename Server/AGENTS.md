@@ -19,9 +19,9 @@ Module `quiz-csv-import-tool/server`, laid out as:
 - `internal/auth` — JWT issue/parse, PBKDF2 password hashing, and `Service` (login/refresh/logout).
 - `internal/store` — the `User` document, the `Users` interface, `Mongo` (production) and `Memory`
   (tests) implementations.
-- `internal/csvgen` — creative-mode option parsing, the two prompts (embedded from `prompts/*.txt`),
-  and the OpenAI-compatible client (`/chat/completions` for the formatted mode, `/responses` for the
-  creative mode).
+- `internal/csvgen` — creative-mode option parsing, the two system prompts and the per-platform
+  templates (all embedded from `prompts/*.txt`), and the OpenAI-compatible client
+  (`/chat/completions` for the formatted mode, `/responses` for the creative mode).
 
 ## Commands
 
@@ -103,10 +103,21 @@ cookie.
 
 `csvgen`:
 
-- `ExportType` (`GimKit`/`Blooket`/`Wayground`) and `CourseType` (`Hsk`/`Yct`/`Other`) are passed by
-  **ordinal** and must stay in the same order as `Client/src/models/export-type.ts` and
-  `course-type.ts`. `exportTypeMessages` must describe the same columns as the client's CsvBuilders.
+- `ExportType` (`GimKit`/`Blooket`/`Wayground`/`GestureQuiz`, ordinals 0–3) and `CourseType`
+  (`Hsk`/`Yct`/`Other`) are passed by **ordinal** (the parser also takes the names, case-insensitively)
+  and must stay in the same order as `Client/src/models/export-type.ts` and `course-type.ts`.
+  `exportTypeMessages` must describe the same columns as the client's CsvBuilders, except for
+  `GestureQuiz`, which is not an import target: its columns are the ones the client's own game parser
+  (`parseGestureQuiz`, `Client/src/models/gesture-quiz.ts`) reads, and the two are kept in step by hand.
 - Prompts live in `prompts/*.txt` (`go:embed`); CRLF from a Windows checkout is normalized at use.
+  `creative_system.txt` is the long Chinese-teacher prompt shared by every platform, and a platform's
+  `exportTypeMessages` case sends its column line and, for Wayground and GestureQuiz, a template file
+  (`wayground_template.txt`, `gesture_quiz_template.txt`), each as its own message. The Quiz cử chỉ template
+  holds the whole format: the six stages, which row shape each one takes, how to classify a question by its
+  real difficulty into a stage, 4–5 rows per stage grouped by stage, and a Vietnamese Explanation on every
+  row; it replaces the usual "mixture of difficulty" (two sentences in `creative_system.txt` step aside when
+  a template defines stages or its own ordering format). The client plays those rows, so see the stage table in
+  [../AGENTS.md](../AGENTS.md#the-gesture-quiz-quiz-cử-chỉ) before changing the template.
 - `post` retries transient gateway failures (429, 502/503/504, transport errors), up to 5 attempts
   within the caller's deadline; this is the only retry layer (the client does not re-send) — see `retry.go` and [../AGENTS.md](../AGENTS.md#retrying-ai-requests). Non-2xx answers
   become `*StatusError` (status, gateway `error.code`, `Retry-After`); each attempt's
@@ -115,7 +126,9 @@ cookie.
 - The creative mode uses the Responses API because Wayground requests carry the `web_search` tool:
   the model searches Pexels for the Image Link column and builds `images.pexels.com` URLs from the
   photo IDs it finds (Wikimedia is banned; Wayground cannot load it). Other platforms have no image
-  column and get no tool. An `incomplete` response (output token cap hit) fails the call rather than
+  column and get no tool and the lower output cap (10000 tokens, Wayground's is 16000), `GestureQuiz`
+  included (its quiz is 24–30 text-only rows; `TestBuildCreativeRequest` pins this). An `incomplete`
+  response (output token cap hit) fails the call rather than
   returning cut-off rows. The `OPENAI_BASE_URL` gateway must support `/responses` with `web_search`,
   and requires `max_output_tokens` to be set.
 

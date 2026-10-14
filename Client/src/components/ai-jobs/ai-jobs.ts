@@ -14,6 +14,7 @@ import { NzPopconfirmDirective } from 'ng-zorro-antd/popconfirm';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiJob, AiJobStatus, filterJobs, lessonLabel } from '../../models/ai-job';
 import { ExportType } from '../../models/export-type';
+import { GESTURE_QUIZ_COLUMNS } from '../../models/gesture-quiz';
 import { CourseType } from '../../models/course-type';
 import { HskStandard, hskMaxLevel } from '../../models/hsk-standard';
 import { AiJobService } from '../../services/ai-job.service';
@@ -31,6 +32,7 @@ const CREATIVE_COLUMNS: Record<ExportType, string[]> = {
   [ExportType.Blooket]: ['Question #', 'Question Text', 'Answer 1', 'Answer 2', 'Answer 3', 'Answer 4', 'Time Limit (sec)', 'Correct Answer(s)'],
   [ExportType.Wayground]: ['Question Text', 'Question Type', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'Option 5',
     'Correct Answer', 'Time in seconds', 'Image Link', 'Answer explanation'],
+  [ExportType.GestureQuiz]: GESTURE_QUIZ_COLUMNS,
 };
 
 interface ResultTable {
@@ -176,6 +178,11 @@ export class AiJobs implements OnInit {
     this.router.navigateByUrl('/quiz');
   }
 
+  // A gesture quiz is played on QuizTool itself, straight from its job; the page loads the job by id.
+  protected play(job: AiJob): void {
+    this.router.navigateByUrl('/play/' + job.id);
+  }
+
   // A creative job is already a whole quiz: build the platform's file, then download it, or (Wayground
   // only, the user's choice per job) let the extension publish it.
   protected exportJob(job: AiJob, publish: boolean): void {
@@ -190,6 +197,11 @@ export class AiJobs implements OnInit {
       this.waygroundExtensionService.sendImport(job.title, exported.fileName, exported.xlsx);
       this.notificationService.info('Đang tạo quiz trên Wayground…',
         'Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.', {nzPlacement: 'top'});
+    } else if (exportType === ExportType.GestureQuiz) {
+      // There is nothing to import: the file is played from the Quiz cử chỉ page.
+      this.notificationService.success('Tải xong rồi',
+        `Đã tải file ${exported.fileName}, mở nó ở trang Quiz cử chỉ là chơi được nhaa.`,
+        {nzPlacement: 'top'});
     } else {
       this.notificationService.success('Tải xong rồi',
         `Đã tải file ${exported.fileName}, import vào ${FileExportService.platformName(exportType)} là dùng được nhaa.`,

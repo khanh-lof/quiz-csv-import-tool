@@ -27,6 +27,11 @@
                 "glob": "**/*",
                 "input": "./node_modules/@ant-design/icons-angular/src/inline-svg/",
                 "output": "/assets/"
+              },
+              {
+                "glob": "{vision_wasm_internal,vision_wasm_nosimd_internal}.*",
+                "input": "node_modules/@mediapipe/tasks-vision/wasm",
+                "output": "/mediapipe/wasm"
               }
             ],
             "styles": [

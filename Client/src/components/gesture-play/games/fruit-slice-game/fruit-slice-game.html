@@ -1,0 +1,17 @@
+<div class="top" #top>
+  <div class="box question-box" #questionBox>
+    <span class="fit">{{ question().question }}</span>
+  </div>
+  @for (option of answers(); track $index) {
+    <div class="box answer" #answerBox [attr.data-slot]="$index" [class]="states()[$index]">
+      <kbd aria-hidden="true">{{ $index + 1 }}</kbd>
+      <span class="fit">{{ option }}</span>
+    </div>
+  }
+</div>
+
+<canvas #field class="field" aria-hidden="true" (contextmenu)="$event.preventDefault()"></canvas>
+
+@if (hint()) {
+  <p class="hint">{{ hint() }}</p>
+}

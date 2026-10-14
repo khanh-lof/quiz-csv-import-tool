@@ -1,0 +1,121 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.result {
+  padding: 24px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.92);
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: var(--qt-radius-lg);
+  box-shadow: var(--qt-card-shadow);
+}
+
+/* A pass takes the blue border, so the two outcomes differ at a glance without leaning on red. */
+.result.passed {
+  border-color: var(--qt-focus);
+}
+
+.badge {
+  font-size: 56px;
+  line-height: 1.1;
+}
+
+.verdict {
+  margin: 4px 0 0;
+  font-size: clamp(22px, 4vw, 30px);
+  font-weight: 800;
+}
+
+.stage-name {
+  margin: 4px 0 12px;
+  color: var(--qt-text-muted);
+}
+
+.score {
+  margin: 0;
+  font-size: 18px;
+}
+
+.rule {
+  margin: 4px 0 0;
+  color: var(--qt-text-muted);
+}
+
+.missed {
+  margin: 20px 0 0;
+  text-align: left;
+}
+
+.missed h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.missed ol {
+  margin: 0;
+  padding: 0 0 0 22px;
+}
+
+.missed li {
+  padding: 8px 12px;
+  background: var(--qt-gradient-soft);
+  border-radius: var(--qt-radius);
+}
+
+.missed li + li {
+  margin-top: 8px;
+}
+
+.missed-question {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.missed-answer {
+  margin-top: 2px;
+  font-family: var(--qt-font-han), system-ui, sans-serif;
+}
+
+.missed-explanation {
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--qt-text-muted);
+}
+
+.timed-out {
+  margin-left: 6px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--qt-error);
+  border: 1px solid var(--qt-error);
+  border-radius: 999px;
+}
+
+.perfect,
+.all-done {
+  margin: 16px 0 0;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+@media (max-width: 600px) {
+  .result {
+    padding: 16px;
+  }
+
+  .actions button {
+    flex: 1 1 100%;
+  }
+}

@@ -1,0 +1,61 @@
+<section class="result" [class.passed]="result().passed">
+  <div class="badge" aria-hidden="true">{{ result().passed ? '🎉' : '💪' }}</div>
+  <h2 class="verdict">
+    {{ result().passed ? 'Qua màn ' + result().stage + '!' : 'Chưa qua màn ' + result().stage }}
+  </h2>
+  <p class="stage-name">{{ def().icon }} {{ def().name }}</p>
+
+  <p class="score">
+    Đúng <b>{{ result().correct }}/{{ result().total }}</b> câu · <b>{{ result().points }}</b> điểm
+    @if (result().bestStreak >= 2) {
+      · chuỗi đúng dài nhất <b>{{ result().bestStreak }}</b>
+    }
+  </p>
+  <p class="rule">Cần đúng ít nhất <b>{{ result().passMark }}/{{ result().total }}</b> câu để qua màn.</p>
+
+  @if (result().missed.length > 0) {
+    <div class="missed">
+      <h3>Những câu cần xem lại</h3>
+      <ol>
+        @for (item of result().missed; track $index) {
+          <li>
+            <div class="missed-question">
+              {{ item.question }}
+              @if (item.timedOut) {
+                <span class="timed-out">Hết giờ</span>
+              }
+            </div>
+            <div class="missed-answer">Đáp án: <b>{{ item.answer }}</b></div>
+            @if (item.explanation) {
+              <div class="missed-explanation">{{ item.explanation }}</div>
+            }
+          </li>
+        }
+      </ol>
+    </div>
+  } @else {
+    <p class="perfect">Bạn trả lời đúng hết, không có câu nào cần xem lại.</p>
+  }
+
+  @if (result().passed && !result().hasNext) {
+    <p class="all-done">Bạn đã qua hết các màn của quiz này.</p>
+  }
+
+  <div class="actions">
+    @if (result().passed && result().hasNext) {
+      <button nz-button nzType="primary" nzSize="large" type="button" (click)="nextStage.emit()">
+        Màn tiếp theo
+        <nz-icon nzType="arrow-right" nzTheme="outline"/>
+      </button>
+    }
+    <button nz-button [nzType]="result().passed ? 'default' : 'primary'" nzSize="large" type="button"
+            (click)="retry.emit()">
+      <nz-icon nzType="reload" nzTheme="outline"/>
+      Chơi lại màn
+    </button>
+    <button nz-button [nzType]="result().passed && !result().hasNext ? 'primary' : 'default'" nzSize="large"
+            type="button" (click)="toMap.emit()">
+      Về bản đồ
+    </button>
+  </div>
+</section>

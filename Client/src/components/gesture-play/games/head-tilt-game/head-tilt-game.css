@@ -1,0 +1,348 @@
+/* The host is a size container so everything scales with the stage (cqw / cqh / cqmin), from a phone to a projector. */
+:host {
+  display: block;
+  position: absolute;
+  inset: 0;
+  container-type: size;
+}
+
+.frame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2cqh;
+  padding: 2.5cqh 3cqw;
+  box-sizing: border-box;
+}
+
+.question {
+  align-self: center;
+  max-width: 94%;
+  padding: 1cqh 3cqw;
+  background: rgba(255, 255, 255, 0.92);
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: var(--qt-radius-lg);
+  box-shadow: var(--qt-card-shadow);
+}
+
+.question p {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(15px, 4.4cqmin, 34px);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--qt-text);
+}
+
+/* Left card, the hold ring in the middle (camera only), right card. */
+.arena {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 1fr);
+  gap: 2cqw;
+  align-items: center;
+}
+
+.frame:not(.cam) .arena {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.card {
+  grid-row: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5cqh;
+  height: min(100%, 62cqh);
+  min-height: 0;
+  padding: 5cqh 1.5cqw 3cqh;
+  overflow: hidden;
+  font: inherit;
+  color: var(--qt-text);
+  cursor: pointer;
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: var(--qt-radius-lg);
+  box-shadow: var(--qt-card-shadow);
+  transition:
+    transform var(--qt-transition),
+    border-color var(--qt-transition),
+    box-shadow var(--qt-transition);
+}
+
+/* Pink card on the left, blue on the right: the same two colours as the meter's zones. */
+.card.left {
+  grid-column: 1;
+  background: linear-gradient(145deg, #fff, color-mix(in srgb, var(--qt-pink) 32%, white));
+}
+
+.card.right {
+  grid-column: 3;
+  background: linear-gradient(145deg, #fff, color-mix(in srgb, var(--qt-blue) 38%, white));
+}
+
+.frame:not(.cam) .card.right {
+  grid-column: 2;
+}
+
+.frame:not(.locked) .card:hover {
+  border-color: var(--qt-focus);
+  box-shadow: var(--qt-lift-shadow);
+}
+
+.card.active {
+  border-color: var(--qt-focus);
+  box-shadow:
+    var(--qt-focus-shadow),
+    var(--qt-card-shadow);
+  transform: translateY(-1cqh) scale(1.03);
+}
+
+.card.picked {
+  border-color: var(--qt-focus);
+}
+
+.card.correct {
+  background: var(--qt-gradient);
+  border-color: var(--qt-focus);
+  animation: pop 0.45s ease;
+}
+
+.card.wrong {
+  color: var(--qt-error);
+  border-color: var(--qt-error);
+  animation: shake 0.35s ease;
+}
+
+.frame.locked .card {
+  cursor: default;
+}
+
+.chip {
+  position: absolute;
+  top: 1.4cqh;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transform: translateX(-50%);
+  font-size: clamp(11px, 2.6cqmin, 18px);
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--qt-text-muted);
+}
+
+kbd {
+  min-width: 1.6em;
+  padding: 0 0.3em;
+  font: inherit;
+  text-align: center;
+  background: #fff;
+  border: 1px solid var(--qt-border);
+  border-radius: 6px;
+}
+
+.word {
+  font-family: var(--qt-font-han);
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.word.big {
+  font-size: clamp(26px, 13cqmin, 110px);
+}
+
+.word.mid {
+  font-size: clamp(22px, 9cqmin, 76px);
+}
+
+.word.small {
+  font-size: clamp(16px, 6cqmin, 48px);
+}
+
+.note {
+  font-size: clamp(12px, 3.4cqmin, 26px);
+  color: var(--qt-text-muted);
+}
+
+.mark {
+  position: absolute;
+  right: 1.5cqw;
+  bottom: 1.5cqh;
+  font-size: clamp(22px, 6cqmin, 48px);
+  line-height: 1;
+}
+
+.card.wrong .mark {
+  color: var(--qt-error);
+}
+
+/* The hold's progress along the card's bottom edge, for stages too small for the ring. */
+.charge {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 0.9cqh;
+  min-height: 5px;
+  background: var(--qt-gradient);
+}
+
+.middle {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  pointer-events: none;
+}
+
+.ring {
+  width: min(100%, 54cqh);
+  aspect-ratio: 1;
+  overflow: visible;
+  transform: rotate(-90deg);
+}
+
+.ring circle {
+  fill: none;
+  stroke-width: 8;
+}
+
+.ring-track {
+  stroke: rgba(255, 255, 255, 0.7);
+}
+
+.ring-fill {
+  stroke: url(#head-tilt-ring);
+  stroke-linecap: round;
+  stroke-dasharray: 603.19;
+  filter: drop-shadow(0 0 4px rgba(255, 142, 203, 0.7));
+  transition: stroke-dashoffset 0.06s linear;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5cqh 2cqw;
+  min-height: clamp(56px, 14cqh, 92px);
+}
+
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin: 0;
+  padding: 6px 16px 8px;
+  background: rgba(255, 255, 255, 0.92);
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: var(--qt-radius-lg);
+  box-shadow: var(--qt-card-shadow);
+}
+
+.hint {
+  margin: 0;
+  font-size: clamp(12px, 2.6cqmin, 18px);
+  font-weight: 700;
+  text-align: center;
+  color: var(--qt-text);
+}
+
+.hint.warn {
+  color: var(--qt-error);
+}
+
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(260px, 60cqw);
+  font-weight: 800;
+  color: var(--qt-text-muted);
+}
+
+.meter .track {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--qt-pink) 0 35%,
+    #fff 35% 65%,
+    var(--qt-blue) 65%
+  );
+  border: 1px solid var(--qt-border);
+  border-radius: 999px;
+}
+
+.meter .track::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  width: 2px;
+  height: 14px;
+  background: var(--qt-text-muted);
+  opacity: 0.5;
+}
+
+.meter i {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  background: #fff;
+  border: 3px solid var(--qt-focus);
+  border-radius: 50%;
+  box-shadow: var(--qt-focus-shadow);
+  transition: left 0.08s;
+}
+
+/* Narrow stages (a phone): no ring between the cards, the bar along the active card shows the hold. */
+@container (max-width: 520px) {
+  .frame.cam .arena {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .frame.cam .card.right {
+    grid-column: 2;
+  }
+
+  .middle {
+    display: none;
+  }
+}
+
+@keyframes pop {
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes shake {
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .card.correct,
+  .card.wrong,
+  .ring-fill,
+  .meter i {
+    transition: none;
+    animation: none;
+  }
+}

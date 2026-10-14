@@ -1,0 +1,182 @@
+:host {
+  display: block;
+  position: absolute;
+  inset: 0;
+  /* The top row and the text sizes follow the stage's own size, not the window's: the page puts a
+     HUD above the stage and a feedback bar below it. */
+  container-type: size;
+  /* The fruit colours belong to the rules of this game (box colour = fruit colour), not to the
+     theme, so they are fixed here instead of coming from the --qt tokens. */
+  --fruit-green: #35c759;
+  --fruit-red: #e8454b;
+  --fruit-yellow: #ffd426;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.field {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The canvas takes the whole gesture, so dragging on it never scrolls or zooms the page. */
+  touch-action: none;
+  cursor: crosshair;
+}
+
+/* The row sits over the canvas (so cut pieces and juice never hide the text) but lets pointers
+   through, so a swipe can start or cross it. */
+.top {
+  position: absolute;
+  z-index: 1;
+  top: 12px;
+  right: 12px;
+  left: 12px;
+  display: grid;
+  grid-template-columns: 1.9fr 1fr 1fr 1fr;
+  gap: 12px;
+  height: clamp(64px, 20cqh, 132px);
+  pointer-events: none;
+}
+
+.box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 6px 14px;
+  overflow: hidden;
+  font-family: var(--qt-font-han);
+  font-weight: 700;
+  line-height: 1.16;
+  text-align: center;
+  border-radius: var(--qt-radius-lg);
+  box-shadow: var(--qt-card-shadow);
+  transition:
+    transform var(--qt-transition),
+    opacity var(--qt-transition),
+    box-shadow var(--qt-transition),
+    filter var(--qt-transition);
+}
+
+.fit {
+  display: block;
+  width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.question-box {
+  color: var(--qt-text);
+  background: rgba(255, 255, 255, 0.92);
+  border: var(--qt-border-width) solid var(--qt-border);
+}
+
+.answer {
+  border: 3px solid rgba(255, 255, 255, 0.85);
+}
+
+.answer[data-slot='0'] {
+  color: #04210f;
+  background: var(--fruit-green);
+}
+
+.answer[data-slot='1'] {
+  color: #fff;
+  background: var(--fruit-red);
+}
+
+.answer[data-slot='2'] {
+  color: #2b2000;
+  background: var(--fruit-yellow);
+}
+
+/* The key that answers with this box, for players without a camera or a mouse. */
+.answer kbd {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  padding: 0 6px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--qt-text);
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: var(--qt-radius);
+}
+
+.answer.picked {
+  box-shadow:
+    0 0 0 4px #fff,
+    0 0 0 7px var(--qt-focus);
+}
+
+.answer.correct {
+  transform: scale(1.05);
+  box-shadow:
+    0 0 0 4px #fff,
+    0 0 0 8px var(--qt-pink),
+    0 0 26px 8px rgba(255, 142, 203, 0.55);
+}
+
+.answer.wrong {
+  opacity: 0.85;
+  filter: saturate(0.6);
+  box-shadow:
+    0 0 0 4px #fff,
+    0 0 0 7px var(--qt-error);
+}
+
+.answer.dim {
+  opacity: 0.45;
+  filter: saturate(0.5);
+}
+
+.hint {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  z-index: 1;
+  max-width: calc(100% - 24px);
+  padding: 6px 14px;
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--qt-text);
+  text-align: center;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.88);
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: 999px;
+  transform: translateX(-50%);
+}
+
+/* A narrow stage (a phone) gives the question its own full-width row above the three answers. */
+@container (max-width: 560px) {
+  .top {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    height: auto;
+  }
+
+  .question-box {
+    grid-column: 1 / -1;
+    height: clamp(52px, 14cqh, 84px);
+  }
+
+  .answer {
+    height: clamp(48px, 12cqh, 76px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box {
+    transition: none;
+  }
+
+  .answer.correct {
+    transform: none;
+  }
+}

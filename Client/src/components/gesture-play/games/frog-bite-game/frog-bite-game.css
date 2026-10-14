@@ -1,0 +1,409 @@
+/* The host is a size container so everything scales with the stage (cqw / cqh / cqmin), from a phone to a projector. */
+:host {
+  display: block;
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  /* The frog's size drives the room reserved for it under the lanes. Its green is an illustration colour. */
+  --frog: clamp(40px, 17cqh, 120px);
+  --frog-skin: #8fd694;
+  --frog-dark: #5fb572;
+}
+
+.frame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2cqh;
+  padding: 2.5cqh 3cqw;
+  box-sizing: border-box;
+}
+
+.question {
+  align-self: center;
+  max-width: 94%;
+  padding: 1cqh 3cqw;
+  background: rgba(255, 255, 255, 0.92);
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: var(--qt-radius-lg);
+  box-shadow: var(--qt-card-shadow);
+}
+
+.question p {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(15px, 4.4cqmin, 34px);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--qt-text);
+}
+
+/* Three columns with no gap, so the frog's left (a third of the width per lane) is a lane's centre. */
+.lanes {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-bottom: calc(var(--frog) * 1.05);
+}
+
+.lane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0 1.2cqw;
+  border-radius: var(--qt-radius-lg);
+  transition: background var(--qt-transition);
+}
+
+/* The lily pad the frog sits on in this lane. */
+.lane::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--frog) * -0.95);
+  width: calc(var(--frog) * 1.5);
+  height: calc(var(--frog) * 0.4);
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.85);
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: 50%;
+}
+
+.lane.here {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.card {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5cqh;
+  height: clamp(56px, 30cqh, 220px);
+  padding: 3.5cqh 1cqw 2cqh;
+  overflow: hidden;
+  font: inherit;
+  color: var(--qt-text);
+  cursor: pointer;
+  background: linear-gradient(145deg, #fff, color-mix(in srgb, var(--qt-pink) 24%, white));
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: var(--qt-radius-lg);
+  box-shadow: var(--qt-card-shadow);
+  transition:
+    transform var(--qt-transition),
+    border-color var(--qt-transition),
+    box-shadow var(--qt-transition);
+}
+
+.frame:not(.locked) .card:hover {
+  border-color: var(--qt-focus);
+  box-shadow: var(--qt-lift-shadow);
+}
+
+.lane.here .card {
+  border-color: var(--qt-focus);
+  box-shadow:
+    var(--qt-focus-shadow),
+    var(--qt-card-shadow);
+  transform: translateY(-0.8cqh);
+}
+
+/* The frog has stayed in this lane long enough: a bite counts now. */
+.lane.ready .card {
+  animation: ready 1s ease-in-out infinite;
+}
+
+.lane .card.picked {
+  transform: scale(0.94);
+}
+
+.card.correct {
+  background: var(--qt-gradient);
+  border-color: var(--qt-focus);
+}
+
+.card.wrong {
+  color: var(--qt-error);
+  border-color: var(--qt-error);
+  animation: shake 0.35s ease;
+}
+
+.frame.locked .card {
+  cursor: default;
+}
+
+.chip {
+  position: absolute;
+  top: 1cqh;
+  left: 1cqw;
+  font-size: clamp(11px, 2.4cqmin, 16px);
+  font-weight: 800;
+  color: var(--qt-text-muted);
+}
+
+kbd {
+  min-width: 1.6em;
+  padding: 0 0.3em;
+  font: inherit;
+  text-align: center;
+  background: #fff;
+  border: 1px solid var(--qt-border);
+  border-radius: 6px;
+}
+
+.fly {
+  position: absolute;
+  top: 0.6cqh;
+  right: 1cqw;
+  font-size: clamp(14px, 4cqmin, 28px);
+  line-height: 1;
+  animation: bob 1.6s ease-in-out infinite;
+}
+
+.word {
+  font-family: var(--qt-font-han);
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.word.big {
+  font-size: clamp(22px, 10cqmin, 84px);
+}
+
+.word.mid {
+  font-size: clamp(18px, 7cqmin, 58px);
+}
+
+.word.small {
+  font-size: clamp(14px, 5cqmin, 38px);
+}
+
+.note {
+  font-size: clamp(11px, 3cqmin, 22px);
+  color: var(--qt-text-muted);
+}
+
+.mark {
+  position: absolute;
+  right: 1cqw;
+  bottom: 1cqh;
+  font-size: clamp(20px, 5cqmin, 40px);
+  line-height: 1;
+}
+
+.card.wrong .mark {
+  color: var(--qt-error);
+}
+
+/* The space between a lane's card and its pad: a dashed guide, and the tongue when the frog bites. */
+.track {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.track::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  bottom: 0;
+  border-left: 3px dashed color-mix(in srgb, var(--qt-border) 60%, white);
+  transform: translateX(-50%);
+}
+
+.tongue {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: calc(var(--frog) * -0.4);
+  z-index: 1;
+  width: clamp(8px, 1.6cqw, 16px);
+  background: var(--qt-pink);
+  border-radius: 999px;
+  transform: translateX(-50%) scaleY(0);
+  transform-origin: bottom;
+  animation: lash 0.35s ease-out forwards;
+}
+
+.tongue::after {
+  content: '';
+  position: absolute;
+  top: -0.6em;
+  left: 50%;
+  width: 220%;
+  aspect-ratio: 1;
+  background: var(--qt-pink);
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+
+.frog {
+  position: absolute;
+  bottom: calc(var(--frog) * 0.05);
+  z-index: 2;
+  width: calc(var(--frog) * 1.2);
+  transform: translateX(-50%);
+  pointer-events: none;
+  transition: left 0.2s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.frog-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.frog.bite .frog-svg {
+  animation: gulp 0.35s ease;
+}
+
+.frog-svg .skin {
+  fill: var(--frog-skin);
+  stroke: var(--frog-dark);
+  stroke-width: 3;
+}
+
+.frog-svg .dark {
+  fill: var(--frog-dark);
+}
+
+.frog-svg .mouth {
+  fill: #b5405f;
+  stroke: var(--frog-dark);
+  stroke-width: 3;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5cqh 2cqw;
+  min-height: clamp(52px, 13cqh, 88px);
+}
+
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin: 0;
+  padding: 6px 16px 8px;
+  background: rgba(255, 255, 255, 0.92);
+  border: var(--qt-border-width) solid var(--qt-border);
+  border-radius: var(--qt-radius-lg);
+  box-shadow: var(--qt-card-shadow);
+}
+
+.hint {
+  margin: 0;
+  font-size: clamp(12px, 2.6cqmin, 18px);
+  font-weight: 700;
+  text-align: center;
+  color: var(--qt-text);
+}
+
+.hint.warn {
+  color: var(--qt-error);
+}
+
+.mouth-meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(260px, 60cqw);
+}
+
+.track-bar {
+  position: relative;
+  flex: 1;
+  height: 10px;
+  overflow: hidden;
+  background: var(--qt-gradient-soft);
+  border: 1px solid var(--qt-border);
+  border-radius: 999px;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--qt-blue);
+  transition: width 0.06s linear;
+}
+
+.fill.open {
+  background: var(--qt-gradient);
+}
+
+/* Where the mouth counts as open. */
+.limit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--qt-text-muted);
+  opacity: 0.6;
+}
+
+@keyframes lash {
+  to {
+    transform: translateX(-50%) scaleY(1);
+  }
+}
+
+@keyframes gulp {
+  50% {
+    transform: scale(1.12, 0.92);
+  }
+}
+
+@keyframes ready {
+  50% {
+    box-shadow:
+      0 0 0 5px rgba(136, 170, 255, 0.45),
+      var(--qt-card-shadow);
+  }
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(-4px) rotate(-8deg);
+  }
+}
+
+@keyframes shake {
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .card.wrong,
+  .lane,
+  .lane.ready .card,
+  .fly,
+  .frog,
+  .frog.bite .frog-svg,
+  .fill {
+    transition: none;
+    animation: none;
+  }
+
+  .tongue {
+    animation-duration: 0.01s;
+  }
+}
