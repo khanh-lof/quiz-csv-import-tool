@@ -256,6 +256,56 @@ input.ant-input-sm,
   color: var(--qt-text);
 }
 
+/* ===== Side menu (the workspace frame) ===== */
+
+/* The panel looks like the cards, but squared and open on the left, where it meets the window's edge; the
+   menus inside it are transparent so the panel shows through, and lose the inline menu's right border, which
+   would cut the panel in two. */
+.qt-sidebar {
+  border-radius: 0 12px 12px 0;
+  border: 1px solid rgba(255, 180, 210, 0.4);
+  border-left: none;
+  box-shadow: var(--qt-card-shadow);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+}
+
+.qt-sidebar .ant-menu,
+.qt-sidebar .ant-menu-sub.ant-menu-inline {
+  background: transparent;
+}
+
+.qt-sidebar .ant-menu-inline,
+.qt-sidebar .ant-menu-vertical {
+  border-right: none;
+}
+
+/* ng-zorro marks every open inline group active, which colours its title like a selection: only the group of
+   the page on screen (selected) or under the pointer keeps the colour. */
+.qt-sidebar .ant-menu-submenu-inline.ant-menu-submenu-active:not(.ant-menu-submenu-selected)
+    > .ant-menu-submenu-title:not(:hover) {
+  color: var(--qt-text);
+}
+
+.qt-sidebar .ant-menu-submenu-inline.ant-menu-submenu-active:not(.ant-menu-submenu-selected)
+    > .ant-menu-submenu-title:not(:hover) .ant-menu-submenu-arrow {
+  color: var(--qt-text);
+}
+
+.qt-sidebar .sidebar-foot {
+  border-top: 1px solid rgba(255, 180, 210, 0.4);
+}
+
+/* The breadcrumb above each page of the frame: a bar in the same white panel as the menu and the cards, so it
+   reads as part of the frame rather than loose text over the background. */
+.qt-breadcrumb {
+  border-radius: var(--qt-radius);
+  border: 1px solid rgba(255, 180, 210, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+}
+
 /* ===== Modals and confirms ===== */
 
 .ant-modal-content {

@@ -69,10 +69,16 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
 
 ### Vocabulary table & CSV pipeline
 
-`Workspace` (`src/components/workspace/`) is the shell of the main screens: a horizontal `nz-menu`
-(five `routerLink` items, "Tạo thủ công", "Tạo bằng AI", "Lịch sử AI", "Bài đã giao" and "Quiz cử chỉ", plus the login/logout item;
-the first four are highlighted via `nzMatchRouter`, the last never is because it leaves the frame for
-the full-screen `/play` page, see [Gesture quiz](#gesture-quiz-play)) and the title. The menu navigates between its child routes
+`Workspace` (`src/components/workspace/`) is the shell of the main screens: a collapsible side menu (an
+inline `nz-menu` built from `NAV`: "Quiz thủ công", then the groups "AI" with "Tạo quiz" and "Lịch sử", and
+"Game" with "Chơi quiz cử chỉ" and "Bài đã giao", plus the login/logout item and the collapse switch at its
+foot), a breadcrumb (`breadcrumbFor`, with its spec: group › page, and "Bảng xếp hạng" under "Bài đã giao" on an
+assignment's ranking, which is why that page has no back link) and the title. The pages are highlighted via
+`nzMatchRouter`, "Chơi quiz cử chỉ" never is because it leaves the frame for the full-screen `/play` page (see
+[Gesture quiz](#gesture-quiz-play)). The groups are open whenever the menu is; collapsed, the menu shows only
+icons and the groups become fly-outs. The wide layout remembers the collapse in `localStorage`
+(`workspace-nav-collapsed`); under 768px the menu always starts collapsed and, opened, lies over the page
+until a page is picked. The menu navigates between its child routes
 `/quiz` (`VocabularyTable`), `/ai` (`AiGeneration`, `src/components/ai-generation/`), `/ai-history` (`AiJobs`, below) and the teacher's
 `/assignments` pages (see [Giao bài](#giao-bài-assignments)); `WorkspaceMode` knows all four, and logging out
 on any page but `/quiz`, which all need a login, falls back to `/quiz`. The AI
@@ -98,7 +104,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
    not awaited. `AiJobService` (root service) keeps the user's jobs in a signal (`GET /api/csv/jobs`),
    polling every 3 s while any job runs (`watch(idlePolls)`; stops after N answers without a running job
    or 10 failed ones, and is reset by `AuthService.cleared$` on logout) and announcing each job that
-   finishes. `AiJobs` (`src/components/ai-jobs/`, the page of the "Lịch sử AI" tab, `/ai-history`) is the history table: client-side search
+   finishes. `AiJobs` (`src/components/ai-jobs/`, the page of "AI › Lịch sử" in the menu, `/ai-history`) is the history table: client-side search
    (`filterJobs` in `models/ai-job.ts`: accent- and case-insensitive over title, error and the generated
    CSV) and status/mode/platform/course type/HSK standard/level/lesson filters (the last four match the
    lesson fields the server keeps on creative jobs), a "Thao tác" dropdown (`⋯`) on each finished row, which holds every action of the job: "Xem kết quả" (the result as a table in a popup; Auto jobs' headerless CSV gets the platform's column names, `CREATIVE_COLUMNS` in `ai-jobs.ts`), the delivery actions below, and "Xóa" (confirmed in a modal, because a popconfirm cannot live inside a menu item). A running job has no menu.

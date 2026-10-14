@@ -484,7 +484,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     const quiz = parseGestureQuiz(rows, title);
     if (questionCount(quiz) === 0) {
       const none = {
-        local: 'Không tìm thấy câu hỏi hợp lệ trong quiz này. Hãy dùng file Quiz cử chỉ do AI tạo (tab "Tạo bằng AI").',
+        local: 'Không tìm thấy câu hỏi hợp lệ trong quiz này. Hãy dùng file Quiz cử chỉ do AI tạo (mục "AI › Tạo quiz").',
         shared: 'Bài này chưa có câu hỏi nào chơi được. Hãy báo thầy cô.',
         preview: 'Không tìm thấy câu hỏi hợp lệ trong bài này.',
       };

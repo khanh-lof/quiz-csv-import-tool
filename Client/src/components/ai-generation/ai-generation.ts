@@ -375,7 +375,7 @@ export class AiGeneration {
         // follows the job.
         this.clearAllImages();
         this.notificationService.info('Đã gửi yêu cầu',
-          'AI đang tạo trên máy chủ, bạn có thể làm việc khác hoặc đóng trang. Kết quả sẽ hiện ở tab Lịch sử AI.',
+          'AI đang tạo trên máy chủ, bạn có thể làm việc khác hoặc đóng trang. Kết quả sẽ hiện ở mục AI › Lịch sử.',
           {nzPlacement: 'top'});
         // The first polls can come before the job is visible, so keep polling a little longer than usual.
         this.aiJobService.watch(NEW_JOB_IDLE_POLLS);

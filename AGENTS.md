@@ -99,7 +99,7 @@ completely different paths through the system. First, what they share — **AI g
 validates the request, stores a job in MongoDB (`store.Job`, collection `Jobs`, newest 30 kept per user),
 answers `202 {"id"}` and keeps working in the same handler, detached from the client's connection, until
 the model has answered and the result is saved on the job. The client does not wait for the result: the
-`AiGeneration` page shows a "Đã gửi yêu cầu" notice, and the history table on its own "Lịch sử AI" tab (`/ai-history`, `AiJobs`) shows
+`AiGeneration` page shows a "Đã gửi yêu cầu" notice, and the history table on its own page, "AI › Lịch sử" in the side menu (`/ai-history`, `AiJobs`), shows
 the user's jobs from `GET csv/jobs`, which `AiJobService` polls every 3 s while any job runs. A job
 finishing is announced wherever the user is in the app. The result is delivered from the table, not on
 completion: **Formatted** jobs get a "Mở trong bảng" action, **Auto** jobs a "Tải file" action
