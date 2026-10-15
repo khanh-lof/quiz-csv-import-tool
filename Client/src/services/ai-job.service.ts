@@ -14,14 +14,12 @@ const MAX_FAILED_POLLS = 10;
 // The AI generations of the signed-in user. They run on the server whether or not this page stays
 // open, so the table shows what the server has: `watch` polls while a job is running, and a job
 // finishing while the app is open is announced wherever the user is.
-@Injectable({providedIn: 'root'})
+@Injectable({ providedIn: 'root' })
 export class AiJobService {
-  private readonly endpointUrl = '/api/csv/jobs';
-
   readonly jobs = signal<AiJob[]>([]);
   // False until the first answer arrives, so the table can tell "still loading" from "no jobs yet".
   readonly loaded = signal(false);
-
+  private readonly endpointUrl = '/api/csv/jobs';
   private polling: Subscription | null = null;
   private idlePollsToStop = DEFAULT_IDLE_POLLS;
   private idlePolls = 0;
@@ -34,13 +32,19 @@ export class AiJobService {
     authService.cleared$.subscribe(() => this.reset());
   }
 
+  // The notification renders HTML, and a title is user-chosen text.
+  private static escapeHtml(text: string): string {
+    return text.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+  }
+
+  // Starts polling if it is not already, and keeps it going for at least `idlePolls` answers without a
+
   refresh(): Observable<AiJob[]> {
     return this.http.get<{ jobs: AiJob[] }>(this.endpointUrl).pipe(
       map(body => body.jobs),
       tap(jobs => this.apply(jobs)));
   }
 
-  // Starts polling if it is not already, and keeps it going for at least `idlePolls` answers without a
   // running job. A just-submitted job passes a larger number: its first poll may come before the job is visible.
   watch(idlePolls = DEFAULT_IDLE_POLLS): void {
     this.idlePollsToStop = Math.max(this.idlePollsToStop, idlePolls);
@@ -59,7 +63,7 @@ export class AiJobService {
         this.idlePolls = jobs.some(job => job.status === 'running') ? 0 : this.idlePolls + 1;
         return this.idlePolls < this.idlePollsToStop;
       }),
-    ).subscribe({complete: () => this.idlePollsToStop = DEFAULT_IDLE_POLLS});
+    ).subscribe({ complete: () => this.idlePollsToStop = DEFAULT_IDLE_POLLS });
   }
 
   remove(id: string): Observable<void> {
@@ -91,7 +95,7 @@ export class AiJobService {
     const title = AiJobService.escapeHtml(job.title);
     if (job.status === 'done') {
       this.notificationService.success('AI tạo xong rồi',
-        `"${title}" đã xong, lấy kết quả ở bảng lịch sử nhaa.`, {nzPlacement: 'top'});
+        `"${title}" đã xong, lấy kết quả ở bảng lịch sử nhaa.`, { nzPlacement: 'top' });
       return;
     }
     const reason = job.errorStatus === HttpStatusCode.GatewayTimeout
@@ -100,7 +104,10 @@ export class AiJobService {
         ? 'AI chưa trả lời được. Hãy gửi lại sau ít phút.'
         : AiJobService.escapeHtml(job.errorMessage || 'Không rõ lỗi.');
     this.notificationService.error('AI tạo không được',
-      `"${title}": ${reason} Lượt dùng AI đã được hoàn lại.`, {nzPlacement: 'top', nzDuration: 0});
+      `"${title}": ${reason} Lượt dùng AI đã được hoàn lại.`, {
+        nzPlacement: 'top',
+        nzDuration: 0
+      });
   }
 
   private reset(): void {
@@ -110,10 +117,5 @@ export class AiJobService {
     this.runningIds.clear();
     this.jobs.set([]);
     this.loaded.set(false);
-  }
-
-  // The notification renders HTML, and a title is user-chosen text.
-  private static escapeHtml(text: string): string {
-    return text.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
   }
 }

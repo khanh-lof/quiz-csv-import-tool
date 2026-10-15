@@ -1,13 +1,13 @@
 import {
+  afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
-  ElementRef,
-  HostListener,
-  afterRenderEffect,
   computed,
+  DestroyRef,
   effect,
+  ElementRef,
   forwardRef,
+  HostListener,
   inject,
   linkedSignal,
   signal,
@@ -16,23 +16,23 @@ import {
 } from '@angular/core';
 
 import { GameAudio } from '../../../../game/game-audio';
-import { INDEX_TIP, PinchDetector, PointSmoother, mapToStage } from '../../../../game/gestures';
+import { INDEX_TIP, mapToStage, PinchDetector, PointSmoother } from '../../../../game/gestures';
 import { QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
 import { stageDef } from '../../../../game/stages';
 import { VisionService } from '../../../../game/vision.service';
 import { sentenceOf } from '../../../../models/gesture-quiz';
 import {
-  CompletionTimer,
-  TargetRect,
-  TargetSelector,
-  UNDO_TARGET,
   applyTarget,
+  CompletionTimer,
   hitTest,
   isComplete,
   isValidTarget,
   lineTarget,
   orderOf,
   poolTarget,
+  TargetRect,
+  TargetSelector,
+  UNDO_TARGET,
 } from './word-order-logic';
 
 // A hand that has produced no fingertip for this long is gone: the cursor hides and the smoothing
@@ -50,41 +50,23 @@ const UNIT_ASPECT = 16 / 9;
 @Component({
   selector: 'app-word-order-game',
   standalone: true,
-  providers: [{ provide: StageGameBase, useExisting: forwardRef(() => WordOrderGame) }],
+  providers: [{
+    provide: StageGameBase,
+    useExisting: forwardRef(() => WordOrderGame)
+  }],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './word-order-game.html',
   styleUrl: './word-order-game.css',
 })
 export class WordOrderGame extends StageGameBase {
   readonly visionKind = stageDef(6).vision;
-
-  private readonly vision = inject(VisionService);
-  private readonly audio = inject(GameAudio);
-  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly cursorElement = viewChild<ElementRef<HTMLElement>>('cursor');
-
   protected readonly undoId = UNDO_TARGET;
-
   protected readonly chunks = computed(() => this.question().chunks ?? []);
-
-  // The tiles the player has placed, as positions in `chunks` (not texts, as two tiles may read the
   // same), in the order placed; a new question starts again from none.
   protected readonly line = linkedSignal<QuestionView, number[]>({
     source: this.question,
     computation: () => [],
   });
-
-  // Set once the finished sentence has been reported, so nothing can change it before the verdict
-  // arrives.
-  private readonly submitted = linkedSignal<QuestionView, boolean>({
-    source: this.question,
-    computation: () => false,
-  });
-
-  protected readonly locked = computed(
-    () => this.paused() || this.reveal() !== null || this.submitted(),
-  );
-
   // One entry per chunk: the answer line has a slot for each, filled from the left as tiles are placed.
   protected readonly slots = computed(() => {
     const line = this.line();
@@ -94,25 +76,29 @@ export class WordOrderGame extends StageGameBase {
       text: position < line.length ? chunks[line[position]] : '',
     }));
   });
-
-  // The pool keeps every tile in its own place and only hides the placed ones, so picking one never
   // moves the others under a cursor that is resting still.
   protected readonly pool = computed(() => {
     const line = this.line();
-    return this.chunks().map((text, index) => ({ index, text, placed: line.includes(index) }));
+    return this.chunks().map((text, index) => ({
+      index,
+      text,
+      placed: line.includes(index)
+    }));
   });
-
   protected readonly verdict = computed(() => {
     const reveal = this.reveal();
     return reveal === null ? null : reveal.correct ? 'right' : 'wrong';
   });
 
+  // The tiles the player has placed, as positions in `chunks` (not texts, as two tiles may read the
   protected readonly solution = computed(() => sentenceOf(this.reveal()?.correctOrder ?? []));
 
+  // Set once the finished sentence has been reported, so nothing can change it before the verdict
   protected readonly hovered = signal<string | null>(null);
   protected readonly handVisible = signal(false);
   protected readonly pinched = signal(false);
 
+  // The pool keeps every tile in its own place and only hides the placed ones, so picking one never
   protected readonly hint = computed(() => {
     if (!this.cameraActive()) {
       return 'Bấm các mảnh theo đúng thứ tự câu';
@@ -121,7 +107,18 @@ export class WordOrderGame extends StageGameBase {
       ? 'Chỉ ngón trỏ vào từng mảnh theo thứ tự · giữ yên hoặc chụm ngón để chọn'
       : 'Đưa tay vào khung hình';
   });
-
+  private readonly vision = inject(VisionService);
+  private readonly audio = inject(GameAudio);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly cursorElement = viewChild<ElementRef<HTMLElement>>('cursor');
+  // arrives.
+  private readonly submitted = linkedSignal<QuestionView, boolean>({
+    source: this.question,
+    computation: () => false,
+  });
+  protected readonly locked = computed(
+    () => this.paused() || this.reveal() !== null || this.submitted(),
+  );
   private readonly selector = new TargetSelector();
   private readonly completion = new CompletionTimer();
   // Not reset with the question: the fingers may still be closed from the last pick, and the detector
@@ -131,7 +128,10 @@ export class WordOrderGame extends StageGameBase {
   private smootherSpan = 0;
 
   // Measured from the DOM (host-relative pixels) after every render and resize.
-  private stage = { width: 0, height: 0 };
+  private stage = {
+    width: 0,
+    height: 0
+  };
   private hitPad = 0;
   private rects: TargetRect[] = [];
   private elements = new Map<string, HTMLElement>();
@@ -319,7 +319,10 @@ export class WordOrderGame extends StageGameBase {
     const span = Math.max(width, height);
     if (span !== this.smootherSpan) {
       // The filter's speed term is per unit of the value, so for pixels it scales with the stage size.
-      this.smoother = new PointSmoother({ minCutoff: 1.5, beta: 8 / span });
+      this.smoother = new PointSmoother({
+        minCutoff: 1.5,
+        beta: 8 / span
+      });
       this.smootherSpan = span;
     }
     return this.smoother;
@@ -328,7 +331,10 @@ export class WordOrderGame extends StageGameBase {
   private measure(): void {
     const host = this.host.nativeElement;
     const origin = host.getBoundingClientRect();
-    this.stage = { width: origin.width, height: origin.height };
+    this.stage = {
+      width: origin.width,
+      height: origin.height
+    };
     this.hitPad = (Math.min(origin.width, origin.height * UNIT_ASPECT) / 100) * HIT_PAD_UNITS;
 
     const rects: TargetRect[] = [];
@@ -368,7 +374,10 @@ export class WordOrderGame extends StageGameBase {
   private placeCursor(): void {
     const element = this.cursorElement()?.nativeElement;
     if (element && this.cursor) {
-      const { x, y } = this.cursor;
+      const {
+        x,
+        y
+      } = this.cursor;
       element.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
     }
   }

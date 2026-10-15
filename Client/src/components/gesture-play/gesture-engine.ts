@@ -43,7 +43,12 @@ export function prepareQuestion(question: GestureQuestion): PlayQuestion {
     const order = question.chunks ?? [];
     return {
       source: question,
-      view: { stage, question: question.question, options: [], chunks: shuffleChunks(order) },
+      view: {
+        stage,
+        question: question.question,
+        options: [],
+        chunks: shuffleChunks(order)
+      },
       correctIndex: null,
       correctOrder: order,
     };
@@ -51,7 +56,11 @@ export function prepareQuestion(question: GestureQuestion): PlayQuestion {
   if (stage === TRUE_FALSE_STAGE) {
     return {
       source: question,
-      view: { stage, question: question.question, options: ['Đúng', 'Sai'] },
+      view: {
+        stage,
+        question: question.question,
+        options: ['Đúng', 'Sai']
+      },
       correctIndex: question.correct === 'Đúng' ? 0 : 1,
       correctOrder: null,
     };
@@ -59,7 +68,11 @@ export function prepareQuestion(question: GestureQuestion): PlayQuestion {
   const options = shuffled([question.correct, ...question.wrong]);
   return {
     source: question,
-    view: { stage, question: question.question, options },
+    view: {
+      stage,
+      question: question.question,
+      options
+    },
     correctIndex: options.indexOf(question.correct),
     correctOrder: null,
   };
@@ -80,12 +93,18 @@ export function isCorrectChoice(play: PlayQuestion, choice: Choice): boolean {
 }
 
 export function judge(play: PlayQuestion, choice: Choice): Reveal {
-  return { chosen: choice, correct: isCorrectChoice(play, choice), ...answerOf(play) };
+  return {
+    chosen: choice,
+    correct: isCorrectChoice(play, choice), ...answerOf(play)
+  };
 }
 
 // The verdict when time runs out: nothing was chosen, and the right answer is shown all the same.
 export function timeoutReveal(play: PlayQuestion): Reveal {
-  return { chosen: null, correct: false, ...answerOf(play) };
+  return {
+    chosen: null,
+    correct: false, ...answerOf(play)
+  };
 }
 
 function answerOf(play: PlayQuestion): Pick<Reveal, 'correctIndex' | 'correctOrder'> {

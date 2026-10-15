@@ -1,13 +1,13 @@
 <header class="topbar">
   @if (backLink(); as back) {
-    <a nz-button nzType="default" nzSize="small" class="back-link" [routerLink]="back.url">
-      <nz-icon nzType="arrow-left" nzTheme="outline"/>
+    <a [routerLink]="back.url" class="back-link" nz-button nzSize="small" nzType="default">
+      <nz-icon nzTheme="outline" nzType="arrow-left"/>
       <span class="back-text">{{ back.text }}</span>
     </a>
   }
   <h1 class="title">{{ heading() }}</h1>
   @if (screen() === 'map' && mode() === 'local') {
-    <button nz-button nzType="default" nzSize="small" type="button" (click)="openAnother()">
+    <button (click)="openAnother()" nz-button nzSize="small" nzType="default" type="button">
       Mở quiz khác
     </button>
   }
@@ -17,7 +17,7 @@
   <p class="preview-banner" role="status">👁 Xem thử: mọi màn đều mở, không lưu kết quả.</p>
 }
 
-<main class="content" [class.is-playing]="screen() === 'playing'">
+<main [class.is-playing]="screen() === 'playing'" class="content">
   @switch (screen()) {
     @case ('loading') {
       <section class="card message">
@@ -25,31 +25,30 @@
         <p>{{ checking() ? 'Đang kiểm tra bài…' : starting() ? 'Đang bắt đầu màn…' : 'Đang tải quiz…' }}</p>
       </section>
     }
-
     @case ('error') {
       <section class="card message" role="alert">
-        <div class="big-emoji" aria-hidden="true">😕</div>
+        <div aria-hidden="true" class="big-emoji">😕</div>
         <p>{{ problem() }}</p>
         @if (errorLink(); as link) {
-          <a nz-button nzType="primary" [routerLink]="link.url">{{ link.text }}</a>
+          <a [routerLink]="link.url" nz-button nzType="primary">{{ link.text }}</a>
         }
       </section>
       @if (closedBoard() && assignmentShowBoard() !== false) {
-        <app-student-leaderboard class="closed-board" [code]="boardCode()"/>
+        <app-student-leaderboard [code]="boardCode()" class="closed-board"/>
       }
     }
-
     @case ('join') {
-      <app-share-join [title]="quiz()?.title ?? ''" [label]="shared()?.label ?? ''"
-                      [closesAt]="shared()?.closesAt ?? null" [error]="joinError()" [busy]="joining()"
-                      (join)="joinQuiz($event)"/>
+      <app-share-join (join)="joinQuiz($event)" [busy]="joining()"
+                      [closesAt]="shared()?.closesAt ?? null" [error]="joinError()" [label]="shared()?.label ?? ''"
+                      [title]="quiz()?.title ?? ''"/>
     }
-
     @case ('load') {
       <section class="card load">
         <app-usage-guide>
           <ol>
-            <li>Tạo Game ở <b>AI › Tạo quiz</b> rồi bấm <b>Chơi ngay</b> ở <b>AI › Lịch sử</b>, hoặc <b>Mở file quiz</b> đã tải.</li>
+            <li>Tạo Game ở <b>AI › Tạo quiz</b> rồi bấm <b>Chơi ngay</b> ở <b>AI › Lịch sử</b>, hoặc <b>Mở file quiz</b>
+              đã tải.
+            </li>
             <li>Mỗi màn một trò chơi, từ dễ đến khó. Đúng từ <b>70%</b> số câu là qua màn.</li>
             <li>Không có camera vẫn chơi được bằng chuột, cảm ứng hoặc bàn phím.</li>
           </ol>
@@ -57,7 +56,7 @@
         </app-usage-guide>
 
         <div class="load-body">
-          <div class="big-emoji" aria-hidden="true">🙌</div>
+          <div aria-hidden="true" class="big-emoji">🙌</div>
           <h2>Game</h2>
           <p class="muted">Chơi quiz từ vựng bằng cử chỉ trước camera. Mở file quiz do AI tạo hoặc thử quiz mẫu.</p>
 
@@ -65,37 +64,36 @@
             <p class="problem" role="alert">{{ problem() }}</p>
           }
 
-          <input #fileInput type="file" accept=".csv,text/csv" class="file-input" (change)="onFilePicked($event)"/>
+          <input #fileInput (change)="onFilePicked($event)" accept=".csv,text/csv" class="file-input" type="file"/>
           <div class="load-actions">
-            <button nz-button nzType="primary" nzSize="large" type="button" (click)="fileInput.click()">
-              <nz-icon nzType="folder-open" nzTheme="outline"/>
+            <button (click)="fileInput.click()" nz-button nzSize="large" nzType="primary" type="button">
+              <nz-icon nzTheme="outline" nzType="folder-open"/>
               Mở file quiz
             </button>
-            <button nz-button nzSize="large" type="button" (click)="playDemo()">
-              <nz-icon nzType="play-circle" nzTheme="outline"/>
+            <button (click)="playDemo()" nz-button nzSize="large" type="button">
+              <nz-icon nzTheme="outline" nzType="play-circle"/>
               Chơi thử quiz mẫu
             </button>
           </div>
         </div>
       </section>
     }
-
     @case ('map') {
       @if (quiz(); as openQuiz) {
-        <app-gesture-stage-map [quiz]="openQuiz" [lockedTimeMode]="assignmentTimeMode()"
+        <app-gesture-stage-map (start)="openIntro($event)" [allOpen]="allStagesOpen()"
                                [allowReset]="mode() === 'local' || mode() === 'job'"
-                               [allOpen]="allStagesOpen()" [passPercents]="assignmentPassPercents()"
-                               [attemptsLeft]="attemptsLeftByStage()" (start)="openIntro($event)">
+                               [attemptsLeft]="attemptsLeftByStage()" [lockedTimeMode]="assignmentTimeMode()"
+                               [passPercents]="assignmentPassPercents()" [quiz]="openQuiz">
           @if (mode() === 'shared') {
             <p class="share-line">
-              <button type="button" class="avatar-button" aria-label="Đổi hình đại diện" title="Đổi hình đại diện"
-                      (click)="openAvatarPicker()">
+              <button (click)="openAvatarPicker()" aria-label="Đổi hình đại diện" class="avatar-button" title="Đổi hình đại diện"
+                      type="button">
                 <app-player-avatar [avatar]="playerAvatar()" [name]="playerName()" size="md"/>
-                <span class="avatar-edit" aria-hidden="true">✎</span>
+                <span aria-hidden="true" class="avatar-edit">✎</span>
               </button>
-              <app-marquee-text class="share-name" [text]="playerName()"/>
+              <app-marquee-text [text]="playerName()" class="share-name"/>
               <span aria-hidden="true">·</span>
-              <a href="#" (click)="switchPlayer($event)">Không phải bạn?</a>
+              <a (click)="switchPlayer($event)" href="#">Không phải bạn?</a>
               @if (closeText()) {
                 <span>· Bài đóng lúc {{ closeText() }}</span>
               }
@@ -107,11 +105,10 @@
         }
       }
     }
-
     @case ('intro') {
       <section class="card intro">
         <div class="intro-head">
-          <span class="intro-icon" aria-hidden="true">{{ def().icon }}</span>
+          <span aria-hidden="true" class="intro-icon">{{ def().icon }}</span>
           <div>
             <div class="eyebrow">Màn {{ position() }}</div>
             <h2>{{ def().name }}</h2>
@@ -120,7 +117,8 @@
         <p class="hint">{{ def().hint }}</p>
         <ul class="facts">
           <li>{{ stageQuestionCount() }} câu,
-            {{ stageTimeLimit() === null ? 'không giới hạn thời gian' : stageTimeLimit() + ' giây mỗi câu' }}.</li>
+            {{ stageTimeLimit() === null ? 'không giới hạn thời gian' : stageTimeLimit() + ' giây mỗi câu' }}.
+          </li>
           <li>Đúng ít nhất <b>{{ stagePassMark() }}/{{ stageQuestionCount() }}</b> câu để qua màn.</li>
         </ul>
         <p class="stand"><span aria-hidden="true">🧍</span> {{ standTip() }}</p>
@@ -128,48 +126,50 @@
         <div class="camera-box">
           <div #preview class="preview">
             @if (!cameraOn()) {
-              <span class="preview-text">{{ cameraState() === 'starting' ? 'Đang bật camera…' : 'Camera đang tắt' }}</span>
+              <span
+                class="preview-text">{{ cameraState() === 'starting' ? 'Đang bật camera…' : 'Camera đang tắt' }}</span>
             }
           </div>
           <div class="camera-side">
-            <button nz-button [nzType]="cameraOn() ? 'default' : 'primary'" type="button" (click)="toggleCamera()">
-              <nz-icon nzType="video-camera" nzTheme="outline"/>
+            <button (click)="toggleCamera()" [nzType]="cameraOn() ? 'default' : 'primary'" nz-button type="button">
+              <nz-icon nzTheme="outline" nzType="video-camera"/>
               {{ cameraOn() || cameraState() === 'starting' ? 'Tắt camera' : 'Bật camera' }}
             </button>
             <div class="chips">
-              <span class="chip" [attr.data-tone]="cameraChip().tone">{{ cameraChip().text }}</span>
+              <span [attr.data-tone]="cameraChip().tone" class="chip">{{ cameraChip().text }}</span>
               @if (modelChip(); as chip) {
-                <span class="chip" [attr.data-tone]="chip.tone">{{ chip.text }}</span>
+                <span [attr.data-tone]="chip.tone" class="chip">{{ chip.text }}</span>
               }
             </div>
             @if (cameraNotice(); as notice) {
               <p class="notice" role="alert">{{ notice }}</p>
               @if (modelState() === 'error' && cameraOn()) {
-                <button nz-button nzSize="small" type="button" (click)="retryModel()">Thử tải lại</button>
+                <button (click)="retryModel()" nz-button nzSize="small" type="button">Thử tải lại</button>
               }
             }
-            <p class="privacy"><span aria-hidden="true">🔒</span> Camera chỉ xử lý trên máy này, không ghi hình hay gửi đi.</p>
+            <p class="privacy"><span aria-hidden="true">🔒</span> Camera chỉ xử lý trên máy này, không ghi hình hay gửi
+              đi.</p>
             <p class="muted">Không bật camera: chơi bằng chuột hoặc bàn phím.</p>
           </div>
         </div>
 
         <div class="actions">
-          <button nz-button nzType="primary" nzSize="large" type="button" [nzLoading]="starting()" (click)="begin()">
-            <nz-icon nzType="caret-right" nzTheme="outline"/>
+          <button (click)="begin()" [nzLoading]="starting()" nz-button nzSize="large" nzType="primary" type="button">
+            <nz-icon nzTheme="outline" nzType="caret-right"/>
             Bắt đầu
           </button>
-          <button nz-button nzSize="large" type="button" (click)="backToMap()">Về bản đồ</button>
+          <button (click)="backToMap()" nz-button nzSize="large" type="button">Về bản đồ</button>
         </div>
       </section>
     }
-
     @case ('playing') {
       <div class="hud">
         <span class="pill stage-pill">{{ def().icon }} Màn {{ position() }}</span>
         <span class="pill">Câu {{ index() + 1 }}/{{ totalQuestions() }}</span>
         <span class="pill">⭐ {{ score() }}</span>
         @if (secondsLeft() !== null) {
-          <span class="pill time" [class.warn]="secondsLeft()! <= 5" title="Thời gian còn lại">⏱ {{ secondsLeft() }}s</span>
+          <span [class.warn]="secondsLeft()! <= 5" class="pill time" title="Thời gian còn lại">⏱ {{ secondsLeft() }}
+            s</span>
         } @else {
           <span class="pill time" title="Không giới hạn thời gian">⏱ ∞</span>
         }
@@ -177,37 +177,38 @@
           <span class="pill streak">🔥 Chuỗi đúng {{ streak() }}</span>
         }
         <span class="chips">
-          <span class="chip" [attr.data-tone]="cameraChip().tone">{{ cameraChip().text }}</span>
+          <span [attr.data-tone]="cameraChip().tone" class="chip">{{ cameraChip().text }}</span>
           @if (modelChip(); as chip) {
-            <span class="chip" [attr.data-tone]="chip.tone">{{ chip.text }}</span>
+            <span [attr.data-tone]="chip.tone" class="chip">{{ chip.text }}</span>
           }
           @if (trackingChip(); as chip) {
-            <span class="chip" [attr.data-tone]="chip.tone">{{ chip.text }}</span>
+            <span [attr.data-tone]="chip.tone" class="chip">{{ chip.text }}</span>
           }
         </span>
         <span class="hud-buttons">
-          <button nz-button nzShape="circle" type="button" [attr.aria-label]="paused() ? 'Chơi tiếp' : 'Tạm dừng (P)'"
-                  [title]="pauseLocked() ? 'Không tạm dừng được khi thời gian đang chạy' : paused() ? 'Chơi tiếp (P)' : 'Tạm dừng (P)'"
-                  [disabled]="pauseLocked()" (click)="togglePause()">
+          <button (click)="togglePause()" [attr.aria-label]="paused() ? 'Chơi tiếp' : 'Tạm dừng (P)'" [disabled]="pauseLocked()" [title]="pauseLocked() ? 'Không tạm dừng được khi thời gian đang chạy' : paused() ? 'Chơi tiếp (P)' : 'Tạm dừng (P)'"
+                  nz-button
+                  nzShape="circle" type="button">
             <nz-icon [nzType]="paused() ? 'caret-right' : 'pause'" nzTheme="outline"/>
           </button>
-          <button nz-button nzShape="circle" type="button" [attr.aria-label]="settings().sound ? 'Tắt âm thanh' : 'Bật âm thanh'"
-                  [title]="settings().sound ? 'Tắt âm thanh' : 'Bật âm thanh'" (click)="toggleSound()">
+          <button (click)="toggleSound()" [attr.aria-label]="settings().sound ? 'Tắt âm thanh' : 'Bật âm thanh'" [title]="settings().sound ? 'Tắt âm thanh' : 'Bật âm thanh'"
+                  nz-button
+                  nzShape="circle" type="button">
             <nz-icon [nzType]="settings().sound ? 'sound' : 'audio-muted'" nzTheme="outline"/>
           </button>
-          <button nz-button nzShape="circle" type="button" [nzType]="cameraOn() ? 'primary' : 'default'"
-                  [attr.aria-label]="cameraOn() ? 'Tắt camera' : 'Bật camera'"
-                  [title]="cameraOn() ? 'Tắt camera' : 'Bật camera'" (click)="toggleCamera()">
-            <nz-icon nzType="video-camera" nzTheme="outline"/>
+          <button (click)="toggleCamera()" [attr.aria-label]="cameraOn() ? 'Tắt camera' : 'Bật camera'" [nzType]="cameraOn() ? 'primary' : 'default'" [title]="cameraOn() ? 'Tắt camera' : 'Bật camera'"
+                  nz-button
+                  nzShape="circle" type="button">
+            <nz-icon nzTheme="outline" nzType="video-camera"/>
           </button>
-          <button nz-button nzShape="circle" type="button"
-                  [attr.aria-label]="fullscreen() ? 'Thoát toàn màn hình' : 'Toàn màn hình'"
-                  [title]="fullscreen() ? 'Thoát toàn màn hình' : 'Toàn màn hình'" (click)="toggleFullscreen()">
+          <button (click)="toggleFullscreen()" [attr.aria-label]="fullscreen() ? 'Thoát toàn màn hình' : 'Toàn màn hình'" [title]="fullscreen() ? 'Thoát toàn màn hình' : 'Toàn màn hình'"
+                  nz-button
+                  nzShape="circle" type="button">
             <nz-icon [nzType]="fullscreen() ? 'fullscreen-exit' : 'fullscreen'" nzTheme="outline"/>
           </button>
-          <button nz-button nzShape="circle" type="button" aria-label="Về bản đồ" title="Về bản đồ"
-                  (click)="backToMap()">
-            <nz-icon nzType="appstore" nzTheme="outline"/>
+          <button (click)="backToMap()" aria-label="Về bản đồ" nz-button nzShape="circle" title="Về bản đồ"
+                  type="button">
+            <nz-icon nzTheme="outline" nzType="appstore"/>
           </button>
         </span>
       </div>
@@ -216,7 +217,7 @@
         <p class="notice" role="alert">
           {{ notice }}
           @if (modelState() === 'error' && cameraOn()) {
-            <button nz-button nzSize="small" type="button" (click)="retryModel()">Thử tải lại</button>
+            <button (click)="retryModel()" nz-button nzSize="small" type="button">Thử tải lại</button>
           }
         </p>
       }
@@ -225,33 +226,33 @@
            fills it (see StageGameBase). Nothing else in the page overlaps it. Its scene, frame and, over
            the camera picture, the scrim are the game's own (play-themes.css). The scrim must stay the first
            child: the picture is prepended before it, so it lies between the picture and the game. -->
-      <div #stageBox class="stage" [attr.data-game]="def().game" [class.camera-on]="cameraOn()">
-        <div class="scrim" aria-hidden="true"></div>
+      <div #stageBox [attr.data-game]="def().game" [class.camera-on]="cameraOn()" class="stage">
+        <div aria-hidden="true" class="scrim"></div>
         @if (view(); as question) {
           @switch (def().game) {
             @case ('true-false') {
-              <app-true-false-game [question]="question" [reveal]="reveal()" [paused]="paused()"
-                                   [cameraActive]="cameraActive()" (choose)="onChoose($event)"/>
+              <app-true-false-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
+                                   [question]="question" [reveal]="reveal()"/>
             }
             @case ('head-tilt') {
-              <app-head-tilt-game [question]="question" [reveal]="reveal()" [paused]="paused()"
-                                  [cameraActive]="cameraActive()" (choose)="onChoose($event)"/>
+              <app-head-tilt-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
+                                  [question]="question" [reveal]="reveal()"/>
             }
             @case ('frog-bite') {
-              <app-frog-bite-game [question]="question" [reveal]="reveal()" [paused]="paused()"
-                                  [cameraActive]="cameraActive()" (choose)="onChoose($event)"/>
+              <app-frog-bite-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
+                                  [question]="question" [reveal]="reveal()"/>
             }
             @case ('fruit-slice') {
-              <app-fruit-slice-game [question]="question" [reveal]="reveal()" [paused]="paused()"
-                                    [cameraActive]="cameraActive()" (choose)="onChoose($event)"/>
+              <app-fruit-slice-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
+                                    [question]="question" [reveal]="reveal()"/>
             }
             @case ('finger-count') {
-              <app-finger-count-game [question]="question" [reveal]="reveal()" [paused]="paused()"
-                                     [cameraActive]="cameraActive()" (choose)="onChoose($event)"/>
+              <app-finger-count-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
+                                     [question]="question" [reveal]="reveal()"/>
             }
             @case ('word-order') {
-              <app-word-order-game [question]="question" [reveal]="reveal()" [paused]="paused()"
-                                   [cameraActive]="cameraActive()" (choose)="onChoose($event)"/>
+              <app-word-order-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
+                                   [question]="question" [reveal]="reveal()"/>
             }
           }
         }
@@ -259,8 +260,8 @@
           <div class="pause-overlay">
             <div class="pause-card">
               <h2>Tạm dừng</h2>
-              <button nz-button nzType="primary" nzSize="large" type="button" (click)="togglePause()">
-                <nz-icon nzType="caret-right" nzTheme="outline"/>
+              <button (click)="togglePause()" nz-button nzSize="large" nzType="primary" type="button">
+                <nz-icon nzTheme="outline" nzType="caret-right"/>
                 Chơi tiếp
               </button>
             </div>
@@ -268,8 +269,8 @@
         }
       </div>
 
-      <div class="feedback" [attr.data-kind]="verdict()?.kind ?? (connectionLost() ? 'wrong' : 'hint')" role="status"
-           aria-live="polite">
+      <div [attr.data-kind]="verdict()?.kind ?? (connectionLost() ? 'wrong' : 'hint')" aria-live="polite" class="feedback"
+           role="status">
         @if (verdict(); as judged) {
           <div class="feedback-text">
             <div class="verdict">{{ judged.text }}</div>
@@ -282,15 +283,17 @@
             }
           </div>
           @if (connectionLost()) {
-            <button nz-button nzType="primary" type="button" (click)="retryConnection()">Thử lại</button>
+            <button (click)="retryConnection()" nz-button nzType="primary" type="button">Thử lại</button>
           } @else {
-            <button nz-button nzType="primary" type="button" title="Phím Enter" [nzLoading]="advancing()" (click)="next()">Tiếp →</button>
+            <button (click)="next()" [nzLoading]="advancing()" nz-button nzType="primary" title="Phím Enter"
+                    type="button">Tiếp →
+            </button>
           }
         } @else if (connectionLost()) {
           <div class="feedback-text">
             <div class="connection">Mất kết nối. Hãy kiểm tra mạng rồi bấm Thử lại.</div>
           </div>
-          <button nz-button nzType="primary" type="button" (click)="retryConnection()">Thử lại</button>
+          <button (click)="retryConnection()" nz-button nzType="primary" type="button">Thử lại</button>
         } @else if (answering()) {
           <div class="stage-hint">Đang chờ kết quả…</div>
         } @else {
@@ -298,11 +301,11 @@
         }
       </div>
     }
-
     @case ('result') {
       @if (result(); as run) {
-        <app-gesture-stage-result [result]="run" [saveState]="saveState()" [preview]="mode() === 'preview'"
-                                  [attemptsLeft]="resultAttemptsLeft()" (nextStage)="openNextStage()" (retry)="retryStage()" (toMap)="backToMap()"/>
+        <app-gesture-stage-result (nextStage)="openNextStage()" (retry)="retryStage()" (toMap)="backToMap()"
+                                  [attemptsLeft]="resultAttemptsLeft()" [preview]="mode() === 'preview'"
+                                  [result]="run" [saveState]="saveState()"/>
       }
     }
   }
@@ -310,10 +313,10 @@
 
 @if (mode() === 'shared') {
   <!-- While the change is on its way the dialog cannot be dismissed, or its answer would land in a closed one. -->
-  <nz-modal [nzVisible]="avatarOpen()" (nzVisibleChange)="avatarOpen.set($event)" (nzOnCancel)="closeAvatarPicker()"
-            nzTitle="Đổi hình đại diện" nzOkText="Lưu" nzCancelText="Hủy" [nzOkLoading]="avatarSaving()"
-            [nzCancelDisabled]="avatarSaving()" [nzClosable]="!avatarSaving()" [nzMaskClosable]="!avatarSaving()"
-            [nzKeyboard]="!avatarSaving()" (nzOnOk)="saveAvatar()" nzWidth="min(420px, 95vw)">
+  <nz-modal (nzOnCancel)="closeAvatarPicker()" (nzOnOk)="saveAvatar()" (nzVisibleChange)="avatarOpen.set($event)"
+            [nzCancelDisabled]="avatarSaving()" [nzClosable]="!avatarSaving()" [nzKeyboard]="!avatarSaving()" [nzMaskClosable]="!avatarSaving()"
+            [nzOkLoading]="avatarSaving()" [nzVisible]="avatarOpen()" nzCancelText="Hủy"
+            nzOkText="Lưu" nzTitle="Đổi hình đại diện" nzWidth="min(420px, 95vw)">
     <ng-container *nzModalContent>
       <app-avatar-picker [(value)]="avatarDraft"/>
     </ng-container>

@@ -16,12 +16,30 @@ function iso(offsetMs: number): string {
 
 function player(overrides: Partial<LeaderboardEntry>): LeaderboardEntry {
   return {
-    id: 'p1', name: 'Lan', avatar: 'cat', rank: 1, stagesPassed: 2, correct: 10, possible: 10, attempts: 2,
+    id: 'p1',
+    name: 'Lan',
+    avatar: 'cat',
+    rank: 1,
+    stagesPassed: 2,
+    correct: 10,
+    possible: 10,
+    attempts: 2,
     stages: {
-      '1': {correct: 5, total: 5, passed: true, attempts: 1},
-      '2': {correct: 5, total: 5, passed: true, attempts: 1},
+      '1': {
+        correct: 5,
+        total: 5,
+        passed: true,
+        attempts: 1
+      },
+      '2': {
+        correct: 5,
+        total: 5,
+        passed: true,
+        attempts: 1
+      },
     },
-    joinedAt: new Date(2026, 9, 14, 7, 30).toISOString(), lastPlayedAt: new Date(2026, 9, 14, 8, 5).toISOString(),
+    joinedAt: new Date(2026, 9, 14, 7, 30).toISOString(),
+    lastPlayedAt: new Date(2026, 9, 14, 8, 5).toISOString(),
     reachedAt: iso(-5 * MINUTE),
     ...overrides,
   };
@@ -29,31 +47,100 @@ function player(overrides: Partial<LeaderboardEntry>): LeaderboardEntry {
 
 const LAN = player({});
 const MINH = player({
-  id: 'p2', name: 'Minh', avatar: 'dog', rank: 2, stagesPassed: 1, correct: 7,
-  stages: {'1': {correct: 5, total: 5, passed: true, attempts: 1}, '2': {correct: 2, total: 5, passed: false, attempts: 3}},
+  id: 'p2',
+  name: 'Minh',
+  avatar: 'dog',
+  rank: 2,
+  stagesPassed: 1,
+  correct: 7,
+  stages: {
+    '1': {
+      correct: 5,
+      total: 5,
+      passed: true,
+      attempts: 1
+    },
+    '2': {
+      correct: 2,
+      total: 5,
+      passed: false,
+      attempts: 3
+    }
+  },
 });
 const HOA = player({
-  id: 'p3', name: 'Hoa', avatar: '', rank: null, stagesPassed: 0, correct: 0, attempts: 0, stages: {}, lastPlayedAt: null, reachedAt: null,
+  id: 'p3',
+  name: 'Hoa',
+  avatar: '',
+  rank: null,
+  stagesPassed: 0,
+  correct: 0,
+  attempts: 0,
+  stages: {},
+  lastPlayedAt: null,
+  reachedAt: null,
 });
 // Minh overtakes Lan: the same two students with their places swapped.
-const MINH_FIRST = {...MINH, rank: 1, stagesPassed: 2, correct: 10, stages: LAN.stages};
-const LAN_SECOND = {...LAN, rank: 2, stagesPassed: 1, correct: 7, stages: MINH.stages};
+const MINH_FIRST = {
+  ...MINH,
+  rank: 1,
+  stagesPassed: 2,
+  correct: 10,
+  stages: LAN.stages
+};
+const LAN_SECOND = {
+  ...LAN,
+  rank: 2,
+  stagesPassed: 1,
+  correct: 7,
+  stages: MINH.stages
+};
 
 function detail(overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
   return {
-    id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: 'Lớp 6A', timeMode: 'standard', stageLock: 'sequential',
-    passPercents: {'1': 70, '2': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5, '2': 5}, timeLimits: {'1': 12, '2': 12}, createdAt: iso(-60 * MINUTE), closesAt: null, closedAt: null, open: true,
-    playerCount: 3, csv: '', players: [LAN, MINH, HOA], ...overrides,
+    id: 'a1',
+    code: 'K7M2X9QD4P',
+    jobId: 'job-1',
+    title: 'HSK1 bài 1',
+    label: 'Lớp 6A',
+    timeMode: 'standard',
+    stageLock: 'sequential',
+    passPercents: {
+      '1': 70,
+      '2': 70
+    },
+    maxAttempts: null,
+    showBoard: true,
+    stageCounts: {
+      '1': 5,
+      '2': 5
+    },
+    timeLimits: {
+      '1': 12,
+      '2': 12
+    },
+    createdAt: iso(-60 * MINUTE),
+    closesAt: null,
+    closedAt: null,
+    open: true,
+    playerCount: 3,
+    csv: '',
+    players: [LAN, MINH, HOA], ...overrides,
   };
 }
 
 // The members of the component these specs call directly instead of through a popconfirm or a dialog.
 interface Api {
   closeAssignment(): void;
+
   openDeadline(mode: 'reopen' | 'schedule'): void;
+
   saveDeadline(): void;
+
   removePlayer(player: LeaderboardEntry): void;
+
   downloadLeaderboard(): void;
+
   deadline(): Date | null;
 }
 
@@ -72,8 +159,14 @@ describe('AssignmentLeaderboard', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        {provide: ActivatedRoute, useValue: {paramMap: of(convertToParamMap({id: 'a1'}))}},
-        {provide: NzNotificationService, useValue: notifications},
+        {
+          provide: ActivatedRoute,
+          useValue: { paramMap: of(convertToParamMap({ id: 'a1' })) }
+        },
+        {
+          provide: NzNotificationService,
+          useValue: notifications
+        },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -97,7 +190,10 @@ describe('AssignmentLeaderboard', () => {
     if ('players' in first) {
       request.flush(first);
     } else {
-      request.flush(first.body, {status: first.status, statusText: 'x'});
+      request.flush(first.body, {
+        status: first.status,
+        statusText: 'x'
+      });
     }
     fixture.detectChanges();
   }
@@ -105,6 +201,7 @@ describe('AssignmentLeaderboard', () => {
   // Puts the board in full screen, or takes it out, the way the browser tells the page: `fullscreenElement` is
   // the board while it is on.
   let fullscreenSpy: jasmine.Spy | undefined;
+
   function setFullscreen(on: boolean): void {
     const board = root().querySelector('nz-card.board');
     fullscreenSpy ??= spyOnProperty(document, 'fullscreenElement', 'get');
@@ -132,7 +229,7 @@ describe('AssignmentLeaderboard', () => {
   }
 
   it('shows the header with the quiz, its label, its state and the number of students', fakeAsync(() => {
-    open(detail({closesAt: iso(60 * MINUTE)}));
+    open(detail({ closesAt: iso(60 * MINUTE) }));
 
     expect(root().querySelector('.title')?.textContent).toBe('HSK1 bài 1');
     expect(text()).toContain('Lớp 6A');
@@ -173,8 +270,25 @@ describe('AssignmentLeaderboard', () => {
     }));
 
     it('shows the number in a small circle from the fourth place on, and shares a medal between tied students', fakeAsync(() => {
-      const fourth = player({id: 'p4', name: 'Nam', rank: 4, correct: 3, stagesPassed: 1});
-      open(detail({players: [LAN, {...MINH, rank: 1}, {...HOA, id: 'p5', name: 'Ngọc', rank: 3, correct: 5}, fourth]}));
+      const fourth = player({
+        id: 'p4',
+        name: 'Nam',
+        rank: 4,
+        correct: 3,
+        stagesPassed: 1
+      });
+      open(detail({
+        players: [LAN, {
+          ...MINH,
+          rank: 1
+        }, {
+          ...HOA,
+          id: 'p5',
+          name: 'Ngọc',
+          rank: 3,
+          correct: 5
+        }, fourth]
+      }));
 
       expect(Array.from(root().querySelectorAll('.entries:not(.waiting) .rank')).map(rank => rank.textContent?.trim()))
         .toEqual(['🥇', '🥇', '🥉', '4']);
@@ -197,7 +311,7 @@ describe('AssignmentLeaderboard', () => {
     }));
 
     it('puts the name in a scrolling-when-too-long line, with the whole name as its title', fakeAsync(() => {
-      open(detail({players: [player({name: 'Nguyễn Hoàng Bảo Ngọc Lan Phương Thảo Vy'})]}));
+      open(detail({ players: [player({ name: 'Nguyễn Hoàng Bảo Ngọc Lan Phương Thảo Vy' })] }));
 
       const name = rowOf('p1').querySelector('app-marquee-text');
       expect(name?.getAttribute('title')).toBe('Nguyễn Hoàng Bảo Ngọc Lan Phương Thảo Vy');
@@ -234,7 +348,13 @@ describe('AssignmentLeaderboard', () => {
     }));
 
     it('shows a muted dash for a stage not played yet', fakeAsync(() => {
-      open(detail({players: [player({stagesPassed: 1, correct: 5, stages: {'1': LAN.stages['1']}})]}));
+      open(detail({
+        players: [player({
+          stagesPassed: 1,
+          correct: 5,
+          stages: { '1': LAN.stages['1'] }
+        })]
+      }));
 
       const pips = Array.from(rowOf('p1').querySelectorAll<HTMLElement>('.pip'));
       expect(clean(pips[1])).toBe('🙆 –');
@@ -246,10 +366,28 @@ describe('AssignmentLeaderboard', () => {
 
     it('names and numbers the pips by position among the stages the assignment has', fakeAsync(() => {
       open(detail({
-        stageCounts: {'4': 5, '6': 5},
+        stageCounts: {
+          '4': 5,
+          '6': 5
+        },
         players: [player({
-          stagesPassed: 1, correct: 9, possible: 10,
-          stages: {'4': {correct: 5, total: 5, passed: true, attempts: 1}, '6': {correct: 4, total: 5, passed: false, attempts: 1}},
+          stagesPassed: 1,
+          correct: 9,
+          possible: 10,
+          stages: {
+            '4': {
+              correct: 5,
+              total: 5,
+              passed: true,
+              attempts: 1
+            },
+            '6': {
+              correct: 4,
+              total: 5,
+              passed: false,
+              attempts: 1
+            }
+          },
         })],
       }));
 
@@ -301,7 +439,7 @@ describe('AssignmentLeaderboard', () => {
     }));
 
     it('is not shown when nobody has a place yet', fakeAsync(() => {
-      open(detail({players: [HOA]}));
+      open(detail({ players: [HOA] }));
 
       expect(root().querySelector('app-leaderboard-podium')).toBeNull();
       expect(root().querySelector('ol.entries')).toBeNull();
@@ -342,7 +480,7 @@ describe('AssignmentLeaderboard', () => {
     }));
 
     it('have no section when everybody has a place', fakeAsync(() => {
-      open(detail({players: [LAN, MINH]}));
+      open(detail({ players: [LAN, MINH] }));
 
       expect(root().querySelector('.divider')).toBeNull();
       expect(root().querySelector('ul.waiting')).toBeNull();
@@ -419,7 +557,7 @@ describe('AssignmentLeaderboard', () => {
     it('shows ▲ and the places gained for the student who overtook, and ▼ for the one overtaken', fakeAsync(() => {
       open();
 
-      answer(detail({players: [MINH_FIRST, LAN_SECOND, HOA]}));
+      answer(detail({ players: [MINH_FIRST, LAN_SECOND, HOA] }));
 
       expect(ids()).toEqual(['p2', 'p1', 'p3']);
       const up = rowOf('p2').querySelector<HTMLElement>('.move')!;
@@ -436,33 +574,47 @@ describe('AssignmentLeaderboard', () => {
 
     it('keeps the mark while the students stay put and drops it 30 seconds after the change', fakeAsync(() => {
       open();
-      answer(detail({players: [MINH_FIRST, LAN_SECOND, HOA]}));
+      answer(detail({ players: [MINH_FIRST, LAN_SECOND, HOA] }));
 
       for (let i = 0; i < 5; i++) {
-        answer(detail({players: [MINH_FIRST, LAN_SECOND, HOA]}));
+        answer(detail({ players: [MINH_FIRST, LAN_SECOND, HOA] }));
       }
       // 25 seconds after the change.
       expect(rowOf('p2').querySelector('.move')?.textContent?.trim()).toBe('▲1');
 
-      answer(detail({players: [MINH_FIRST, LAN_SECOND, HOA]}));
+      answer(detail({ players: [MINH_FIRST, LAN_SECOND, HOA] }));
       // 30 seconds after it.
       expect(root().querySelectorAll('.move').length).toBe(0);
       leave();
     }));
 
     it('shows no mark for a student who joined or whose place did not change', fakeAsync(() => {
-      open(detail({players: [LAN, HOA]}));
+      open(detail({ players: [LAN, HOA] }));
 
-      answer(detail({players: [LAN, {...HOA, id: 'p4', name: 'Tú'}, HOA]}));
+      answer(detail({
+        players: [LAN, {
+          ...HOA,
+          id: 'p4',
+          name: 'Tú'
+        }, HOA]
+      }));
 
       expect(root().querySelectorAll('.move').length).toBe(0);
       leave();
     }));
 
     it('has no mark on a student who had no place and has one now', fakeAsync(() => {
-      open(detail({players: [LAN, HOA]}));
+      open(detail({ players: [LAN, HOA] }));
 
-      answer(detail({players: [LAN, {...HOA, rank: 2, stagesPassed: 1, correct: 4, stages: MINH.stages}]}));
+      answer(detail({
+        players: [LAN, {
+          ...HOA,
+          rank: 2,
+          stagesPassed: 1,
+          correct: 4,
+          stages: MINH.stages
+        }]
+      }));
 
       expect(rowOf('p3').querySelector('.move')).toBeNull();
       leave();
@@ -473,7 +625,7 @@ describe('AssignmentLeaderboard', () => {
     it('slides the rows that changed place, and cleans up after itself', fakeAsync(() => {
       open();
 
-      answer(detail({players: [MINH_FIRST, LAN_SECOND, HOA]}));
+      answer(detail({ players: [MINH_FIRST, LAN_SECOND, HOA] }));
 
       expect(rowOf('p1').style.transition).toContain('transform');
       expect(rowOf('p2').style.transition).toContain('transform');
@@ -496,7 +648,12 @@ describe('AssignmentLeaderboard', () => {
     it('does not slide when the order stays', fakeAsync(() => {
       open();
 
-      answer(detail({players: [{...LAN, correct: 9}, MINH, HOA]}));
+      answer(detail({
+        players: [{
+          ...LAN,
+          correct: 9
+        }, MINH, HOA]
+      }));
 
       for (const row of rows()) {
         expect(row.style.transition).toBe('');
@@ -508,11 +665,15 @@ describe('AssignmentLeaderboard', () => {
       // Only this preference is faked: other parts of the page (the library's breakpoints) ask for their own queries.
       const real = window.matchMedia.bind(window);
       spyOn(window, 'matchMedia').and.callFake(query => query === '(prefers-reduced-motion: reduce)'
-        ? {matches: true, addEventListener: () => undefined, removeEventListener: () => undefined} as unknown as MediaQueryList
+        ? {
+          matches: true,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined
+        } as unknown as MediaQueryList
         : real(query));
       open();
 
-      answer(detail({players: [MINH_FIRST, LAN_SECOND, HOA]}));
+      answer(detail({ players: [MINH_FIRST, LAN_SECOND, HOA] }));
 
       expect(ids()).toEqual(['p2', 'p1', 'p3']);
       for (const row of rows()) {
@@ -531,11 +692,32 @@ describe('AssignmentLeaderboard', () => {
 
   it('lists the percentage of each stage by position when they differ', fakeAsync(() => {
     open(detail({
-      stageCounts: {'4': 5, '6': 5},
-      passPercents: {'4': 70, '6': 50},
+      stageCounts: {
+        '4': 5,
+        '6': 5
+      },
+      passPercents: {
+        '4': 70,
+        '6': 50
+      },
       players: [player({
-        stagesPassed: 1, correct: 9, possible: 10,
-        stages: {'4': {correct: 5, total: 5, passed: true, attempts: 1}, '6': {correct: 4, total: 5, passed: true, attempts: 1}},
+        stagesPassed: 1,
+        correct: 9,
+        possible: 10,
+        stages: {
+          '4': {
+            correct: 5,
+            total: 5,
+            passed: true,
+            attempts: 1
+          },
+          '6': {
+            correct: 4,
+            total: 5,
+            passed: true,
+            attempts: 1
+          }
+        },
       })],
     }));
 
@@ -544,7 +726,10 @@ describe('AssignmentLeaderboard', () => {
   }));
 
   it('says in the header how many runs of a stage a student may play when the teacher limited them', fakeAsync(() => {
-    open(detail({stageLock: 'open', maxAttempts: 3}));
+    open(detail({
+      stageLock: 'open',
+      maxAttempts: 3
+    }));
 
     expect(text()).toContain('Giới hạn: 3 lần/màn');
     leave();
@@ -558,7 +743,7 @@ describe('AssignmentLeaderboard', () => {
   }));
 
   it('says in the header that the students do not see the board when the teacher hid it', fakeAsync(() => {
-    open(detail({showBoard: false}));
+    open(detail({ showBoard: false }));
 
     expect(text()).toContain('Học sinh không xem bảng xếp hạng');
     leave();
@@ -572,7 +757,7 @@ describe('AssignmentLeaderboard', () => {
   }));
 
   it('invites the teacher to share the link when nobody has joined, and shows it while the assignment is open', fakeAsync(() => {
-    open(detail({players: []}));
+    open(detail({ players: [] }));
 
     expect(text()).toContain('Chưa có học sinh nào vào bài. Gửi link hoặc cho học sinh quét mã QR nhé.');
     expect(root().querySelector('app-share-link')).not.toBeNull();
@@ -581,7 +766,10 @@ describe('AssignmentLeaderboard', () => {
   }));
 
   it('does not offer the link inline when nobody has joined and the assignment is closed', fakeAsync(() => {
-    open(detail({players: [], closedAt: iso(-60 * MINUTE)}));
+    open(detail({
+      players: [],
+      closedAt: iso(-60 * MINUTE)
+    }));
 
     expect(text()).toContain('Chưa có học sinh nào vào bài.');
     expect(root().querySelector('app-share-link')).toBeNull();
@@ -589,7 +777,10 @@ describe('AssignmentLeaderboard', () => {
   }));
 
   it('says the assignment was not found, with a way back to the list', fakeAsync(() => {
-    open({status: 404, body: 'Assignment not found'});
+    open({
+      status: 404,
+      body: 'Assignment not found'
+    });
 
     expect(text()).toContain('Không tìm thấy bài này');
     expect(root().querySelector('a[href="/assignments"]')).not.toBeNull();
@@ -598,7 +789,10 @@ describe('AssignmentLeaderboard', () => {
   }));
 
   it('says why the first load failed and tries again on its own', fakeAsync(() => {
-    open({status: 0, body: ''});
+    open({
+      status: 0,
+      body: ''
+    });
 
     expect(text()).toContain('Chưa tải được bảng xếp hạng');
     tick(5000);
@@ -615,22 +809,25 @@ describe('AssignmentLeaderboard', () => {
       open();
 
       tick(5000);
-      http.expectOne(ENDPOINT).flush(detail({players: [LAN]}));
+      http.expectOne(ENDPOINT).flush(detail({ players: [LAN] }));
       fixture.detectChanges();
       expect(rows().length).toBe(1);
 
       tick(5000);
-      http.expectOne(ENDPOINT).flush(detail({players: [LAN, MINH]}));
+      http.expectOne(ENDPOINT).flush(detail({ players: [LAN, MINH] }));
       fixture.detectChanges();
       expect(rows().length).toBe(2);
       leave();
     }));
 
     it('keeps asking for the grace period after the assignment closed', fakeAsync(() => {
-      open(detail({closedAt: iso(-2 * MINUTE)}));
+      open(detail({ closedAt: iso(-2 * MINUTE) }));
 
       tick(5000);
-      http.expectOne(ENDPOINT).flush(detail({closedAt: iso(-2 * MINUTE), players: [LAN]}));
+      http.expectOne(ENDPOINT).flush(detail({
+        closedAt: iso(-2 * MINUTE),
+        players: [LAN]
+      }));
       fixture.detectChanges();
 
       expect(rows().length).toBe(1);
@@ -638,7 +835,7 @@ describe('AssignmentLeaderboard', () => {
     }));
 
     it('stops asking once the grace period is over, and the button still refreshes by hand', fakeAsync(() => {
-      open(detail({closedAt: iso(-10 * MINUTE)}));
+      open(detail({ closedAt: iso(-10 * MINUTE) }));
 
       tick(15000);
       http.expectNone(ENDPOINT);
@@ -647,7 +844,10 @@ describe('AssignmentLeaderboard', () => {
         .find(b => b.textContent?.includes('Làm mới')) as HTMLButtonElement;
       button.click();
       tick();
-      http.expectOne(ENDPOINT).flush(detail({closedAt: iso(-10 * MINUTE), players: [LAN]}));
+      http.expectOne(ENDPOINT).flush(detail({
+        closedAt: iso(-10 * MINUTE),
+        players: [LAN]
+      }));
       fixture.detectChanges();
       expect(rows().length).toBe(1);
       leave();
@@ -663,7 +863,7 @@ describe('AssignmentLeaderboard', () => {
 
       visibility.and.returnValue('visible');
       document.dispatchEvent(new Event('visibilitychange'));
-      http.expectOne(ENDPOINT).flush(detail({players: [LAN]}));
+      http.expectOne(ENDPOINT).flush(detail({ players: [LAN] }));
       fixture.detectChanges();
       expect(rows().length).toBe(1);
       leave();
@@ -673,7 +873,10 @@ describe('AssignmentLeaderboard', () => {
       open();
 
       tick(5000);
-      http.expectOne(ENDPOINT).flush('boom', {status: 500, statusText: 'Server Error'});
+      http.expectOne(ENDPOINT).flush('boom', {
+        status: 500,
+        statusText: 'Server Error'
+      });
       fixture.detectChanges();
       expect(rows().length).toBe(3);
       expect(notifications.error).not.toHaveBeenCalled();
@@ -689,7 +892,10 @@ describe('AssignmentLeaderboard', () => {
       open();
 
       tick(5000);
-      http.expectOne(ENDPOINT).flush('Assignment not found', {status: 404, statusText: 'Not Found'});
+      http.expectOne(ENDPOINT).flush('Assignment not found', {
+        status: 404,
+        statusText: 'Not Found'
+      });
       fixture.detectChanges();
 
       expect(text()).toContain('Không tìm thấy bài này');
@@ -704,8 +910,12 @@ describe('AssignmentLeaderboard', () => {
       api().closeAssignment();
       const request = http.expectOne(ENDPOINT);
       expect(request.request.method).toBe('PATCH');
-      expect(request.request.body).toEqual({closed: true});
-      const closed: Assignment = {...detail(), closedAt: iso(0), open: false};
+      expect(request.request.body).toEqual({ closed: true });
+      const closed: Assignment = {
+        ...detail(),
+        closedAt: iso(0),
+        open: false
+      };
       request.flush(closed);
       fixture.detectChanges();
 
@@ -718,15 +928,24 @@ describe('AssignmentLeaderboard', () => {
     }));
 
     it('reopens with no closing time unless one is picked', fakeAsync(() => {
-      open(detail({closedAt: iso(-10 * MINUTE), closesAt: iso(-20 * MINUTE)}));
+      open(detail({
+        closedAt: iso(-10 * MINUTE),
+        closesAt: iso(-20 * MINUTE)
+      }));
 
       api().openDeadline('reopen');
       expect(api().deadline()).toBeNull();
       api().saveDeadline();
       const request = http.expectOne(ENDPOINT);
       expect(request.request.method).toBe('PATCH');
-      expect(request.request.body).toEqual({closed: false, closesAt: null});
-      request.flush({...detail(), open: true});
+      expect(request.request.body).toEqual({
+        closed: false,
+        closesAt: null
+      });
+      request.flush({
+        ...detail(),
+        open: true
+      });
       fixture.detectChanges();
 
       expect(text()).toContain('Đang mở');
@@ -736,7 +955,7 @@ describe('AssignmentLeaderboard', () => {
 
     it('schedules from the closing time it already has', fakeAsync(() => {
       const closesAt = iso(30 * MINUTE);
-      open(detail({closesAt}));
+      open(detail({ closesAt }));
 
       api().openDeadline('schedule');
       expect(api().deadline()?.toISOString()).toBe(closesAt);
@@ -744,8 +963,11 @@ describe('AssignmentLeaderboard', () => {
       (fixture.componentInstance as unknown as { deadline: { set(date: Date): void } }).deadline.set(later);
       api().saveDeadline();
       const request = http.expectOne(ENDPOINT);
-      expect(request.request.body).toEqual({closesAt: later.toISOString()});
-      request.flush({...detail(), closesAt: later.toISOString()});
+      expect(request.request.body).toEqual({ closesAt: later.toISOString() });
+      request.flush({
+        ...detail(),
+        closesAt: later.toISOString()
+      });
       fixture.detectChanges();
 
       expect(text()).toContain('Đang mở · đóng lúc');
@@ -756,7 +978,10 @@ describe('AssignmentLeaderboard', () => {
       open();
 
       api().closeAssignment();
-      http.expectOne(ENDPOINT).flush('Invalid closing time.', {status: 400, statusText: 'Bad Request'});
+      http.expectOne(ENDPOINT).flush('Invalid closing time.', {
+        status: 400,
+        statusText: 'Bad Request'
+      });
       fixture.detectChanges();
 
       expect(notifications.error).toHaveBeenCalledTimes(1);
@@ -771,8 +996,11 @@ describe('AssignmentLeaderboard', () => {
       api().removePlayer(HOA);
       const removal = http.expectOne(`${ENDPOINT}/players/p3`);
       expect(removal.request.method).toBe('DELETE');
-      removal.flush(null, {status: 204, statusText: 'No Content'});
-      http.expectOne(ENDPOINT).flush(detail({players: [LAN, MINH]}));
+      removal.flush(null, {
+        status: 204,
+        statusText: 'No Content'
+      });
+      http.expectOne(ENDPOINT).flush(detail({ players: [LAN, MINH] }));
       fixture.detectChanges();
 
       expect(rows().length).toBe(2);
@@ -808,7 +1036,7 @@ describe('AssignmentLeaderboard', () => {
   it('copies the link of the assignment', fakeAsync(() => {
     open();
     const writeText = jasmine.createSpy('writeText').and.resolveTo();
-    spyOnProperty(navigator, 'clipboard', 'get').and.returnValue({writeText} as unknown as Clipboard);
+    spyOnProperty(navigator, 'clipboard', 'get').and.returnValue({ writeText } as unknown as Clipboard);
 
     const button = Array.from(root().querySelectorAll('button')).find(b => b.textContent?.includes('Sao chép link'))!;
     button.click();

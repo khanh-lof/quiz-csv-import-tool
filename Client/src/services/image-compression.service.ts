@@ -7,10 +7,22 @@ const UPLOAD_BUDGET_BYTES = 4 * 1024 * 1024;
 // Tried in order until the whole batch fits the budget. The first step keeps Chinese characters
 // legible for the vision model; the later ones trade detail for size.
 const STEPS = [
-  { maxDimension: 2048, quality: 0.85 },
-  { maxDimension: 1600, quality: 0.75 },
-  { maxDimension: 1280, quality: 0.7 },
-  { maxDimension: 1024, quality: 0.6 },
+  {
+    maxDimension: 2048,
+    quality: 0.85
+  },
+  {
+    maxDimension: 1600,
+    quality: 0.75
+  },
+  {
+    maxDimension: 1280,
+    quality: 0.7
+  },
+  {
+    maxDimension: 1024,
+    quality: 0.6
+  },
 ];
 
 type Step = typeof STEPS[number];
@@ -19,7 +31,7 @@ type Step = typeof STEPS[number];
 export class UploadTooLargeError extends Error {
 }
 
-@Injectable({providedIn: 'root'})
+@Injectable({ providedIn: 'root' })
 export class ImageCompressionService {
 
   // Downscales and re-encodes the images as JPEG so the whole upload fits under the platform's
@@ -44,7 +56,7 @@ export class ImageCompressionService {
 
   private async decode(file: File): Promise<ImageBitmap | null> {
     try {
-      return await createImageBitmap(file, {imageOrientation: 'from-image'});
+      return await createImageBitmap(file, { imageOrientation: 'from-image' });
     } catch {
       // A format this browser cannot decode (e.g. HEIC outside Safari) is uploaded unchanged.
       return null;
@@ -77,6 +89,9 @@ export class ImageCompressionService {
       return file;
     }
     const name = file.name.replace(/\.[^.]*$/, '') + '.jpg';
-    return new File([blob], name, {type: 'image/jpeg', lastModified: file.lastModified});
+    return new File([blob], name, {
+      type: 'image/jpeg',
+      lastModified: file.lastModified
+    });
   }
 }

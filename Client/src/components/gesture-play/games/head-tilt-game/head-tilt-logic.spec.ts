@@ -1,15 +1,8 @@
 import { mapToStage } from '../../../../game/gestures';
-import { VIDEO_HEIGHT, VIDEO_WIDTH, NEUTRAL, faceFrame, playFrames } from './face-fixture';
 import type { FaceSpec } from './face-fixture';
-import {
-  ChargeCue,
-  HeadTiltReader,
-  TILT_HOLD_MS,
-  meterPercent,
-  sideToIndex,
-  tiltHint,
-} from './head-tilt-logic';
+import { faceFrame, NEUTRAL, playFrames, VIDEO_HEIGHT, VIDEO_WIDTH } from './face-fixture';
 import type { HeadTiltStep } from './head-tilt-logic';
+import { ChargeCue, HeadTiltReader, meterPercent, sideToIndex, TILT_HOLD_MS, tiltHint, } from './head-tilt-logic';
 import type { FacePose } from './face-common';
 
 function play(
@@ -104,13 +97,24 @@ describe('HeadTiltReader', () => {
   });
 
   it('measures against the calibrated neutral, not against zero', () => {
-    const neutral: FacePose = { roll: 6, centerX: 0.45, noseX: 0.45, eyeSpan: 0.2 };
+    const neutral: FacePose = {
+      roll: 6,
+      centerX: 0.45,
+      noseX: 0.45,
+      eyeSpan: 0.2
+    };
     const reader = new HeadTiltReader();
     // Resting exactly in the neutral pose, which is tilted and off-centre on its own.
-    const rest = play(reader, { roll: 6, centerX: 0.45 }, 0, 2000, neutral);
+    const rest = play(reader, {
+      roll: 6,
+      centerX: 0.45
+    }, 0, 2000, neutral);
     expect(selections(rest.results)).toEqual([]);
 
-    const lean = play(reader, { roll: 6 + 14, centerX: 0.45 }, rest.end, 900, neutral);
+    const lean = play(reader, {
+      roll: 6 + 14,
+      centerX: 0.45
+    }, rest.end, 900, neutral);
     expect(selections(lean.results)).toEqual([0]);
   });
 
@@ -162,7 +166,10 @@ describe('HeadTiltReader', () => {
     const reader = new HeadTiltReader();
     const rest = play(reader, {}, 0, 400);
 
-    const crowd = play(reader, { roll: 14, faces: 2 }, rest.end, 2000);
+    const crowd = play(reader, {
+      roll: 14,
+      faces: 2
+    }, rest.end, 2000);
     expect(selections(crowd.results)).toEqual([]);
     expect(crowd.results.every(step => step.invalid)).toBeTrue();
     expect(crowd.results[0].problem).toBe('Chỉ một người trước camera');
@@ -208,15 +215,36 @@ describe('tiltHint', () => {
   };
 
   it('prefers the face problem, then waiting, then the side being held', () => {
-    expect(tiltHint({ ...idle, invalid: true, problem: 'Chưa thấy mặt' })).toBe('Chưa thấy mặt');
-    expect(tiltHint({ ...idle, waiting: true })).toBe('Đưa đầu về giữa một chút');
-    expect(tiltHint({ ...idle, side: 'left', progress: 0.45 })).toBe('Giữ TRÁI · 45%');
-    expect(tiltHint({ ...idle, side: 'right', progress: 0.9 })).toBe('Giữ PHẢI · 90%');
+    expect(tiltHint({
+      ...idle,
+      invalid: true,
+      problem: 'Chưa thấy mặt'
+    })).toBe('Chưa thấy mặt');
+    expect(tiltHint({
+      ...idle,
+      waiting: true
+    })).toBe('Đưa đầu về giữa một chút');
+    expect(tiltHint({
+      ...idle,
+      side: 'left',
+      progress: 0.45
+    })).toBe('Giữ TRÁI · 45%');
+    expect(tiltHint({
+      ...idle,
+      side: 'right',
+      progress: 0.9
+    })).toBe('Giữ PHẢI · 90%');
   });
 
   it('encourages a bigger lean or explains the control', () => {
-    expect(tiltHint({ ...idle, lean: 0.5 })).toBe('Thêm một chút về phía đáp án');
-    expect(tiltHint({ ...idle, lean: -0.5 })).toBe('Thêm một chút về phía đáp án');
+    expect(tiltHint({
+      ...idle,
+      lean: 0.5
+    })).toBe('Thêm một chút về phía đáp án');
+    expect(tiltHint({
+      ...idle,
+      lean: -0.5
+    })).toBe('Thêm một chút về phía đáp án');
     expect(tiltHint(idle)).toBe('Nghiêng hoặc dịch đầu nhẹ để chọn');
   });
 });

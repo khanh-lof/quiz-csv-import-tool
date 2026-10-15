@@ -8,7 +8,7 @@ describe('AvatarPicker', () => {
   let picker: AvatarPicker;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({imports: [AvatarPicker]}).compileComponents();
+    await TestBed.configureTestingModule({ imports: [AvatarPicker] }).compileComponents();
     fixture = TestBed.createComponent(AvatarPicker);
     picker = fixture.componentInstance;
     fixture.detectChanges();
@@ -21,7 +21,11 @@ describe('AvatarPicker', () => {
   const randomButton = () => root().querySelector<HTMLButtonElement>('.actions button')!;
 
   function press(index: number, key: string): KeyboardEvent {
-    const event = new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true});
+    const event = new KeyboardEvent('keydown', {
+      key,
+      bubbles: true,
+      cancelable: true
+    });
     radios()[index].dispatchEvent(event);
     fixture.detectChanges();
     return event;
@@ -229,7 +233,7 @@ class Host {
 
 describe('AvatarPicker with two-way binding', () => {
   it('shows the bound value and writes a choice back', async () => {
-    await TestBed.configureTestingModule({imports: [Host]}).compileComponents();
+    await TestBed.configureTestingModule({ imports: [Host] }).compileComponents();
     const fixture = TestBed.createComponent(Host);
     fixture.detectChanges();
     const radios = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button[role="radio"]'));

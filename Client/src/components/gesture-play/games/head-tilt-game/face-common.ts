@@ -1,9 +1,4 @@
-import {
-  FACE_LEFT_EYE_OUTER,
-  FACE_NOSE_TIP,
-  FACE_RIGHT_EYE_OUTER,
-  eyeRoll,
-} from '../../../../game/gestures';
+import { eyeRoll, FACE_LEFT_EYE_OUTER, FACE_NOSE_TIP, FACE_RIGHT_EYE_OUTER, } from '../../../../game/gestures';
 import type { FaceFrame } from '../../../../game/stage-game';
 
 // What the two face games (head tilt, frog) share: reading the head pose from a FaceFrame, the
@@ -72,6 +67,30 @@ export class FaceCalibrator {
   private since = 0;
   private last: number | null = null;
 
+  private static mean(samples: readonly FacePose[]): FacePose {
+    const n = samples.length;
+    const sum = samples.reduce(
+      (total, s) => ({
+        roll: total.roll + s.roll,
+        centerX: total.centerX + s.centerX,
+        noseX: total.noseX + s.noseX,
+        eyeSpan: total.eyeSpan + s.eyeSpan,
+      }),
+      {
+        roll: 0,
+        centerX: 0,
+        noseX: 0,
+        eyeSpan: 0
+      },
+    );
+    return {
+      roll: sum.roll / n,
+      centerX: sum.centerX / n,
+      noseX: sum.noseX / n,
+      eyeSpan: sum.eyeSpan / n,
+    };
+  }
+
   step(face: FaceFrame, videoW: number, videoH: number, now: number): CalibrationStep {
     const gap = this.last === null ? 0 : now - this.last;
     this.last = now;
@@ -82,7 +101,10 @@ export class FaceCalibrator {
     const pose = readFacePose(face, videoW, videoH);
     if (!pose) {
       this.samples = [];
-      return { status: face.faces > 1 ? 'many-faces' : 'no-face', progress: 0 };
+      return {
+        status: face.faces > 1 ? 'many-faces' : 'no-face',
+        progress: 0
+      };
     }
 
     if (this.samples.length > 0 && this.drifted(pose)) {
@@ -97,17 +119,25 @@ export class FaceCalibrator {
     if (elapsed >= CALIBRATION_MS) {
       const neutral = FaceCalibrator.mean(this.samples);
       this.reset();
-      return { status: 'done', progress: 1, neutral };
+      return {
+        status: 'done',
+        progress: 1,
+        neutral
+      };
     }
-    return { status: 'collecting', progress: elapsed / CALIBRATION_MS };
+    return {
+      status: 'collecting',
+      progress: elapsed / CALIBRATION_MS
+    };
   }
+
+  // Compared with the mean of the samples so far, not with the previous frame, so a slow drift adds
 
   reset(): void {
     this.samples = [];
     this.last = null;
   }
 
-  // Compared with the mean of the samples so far, not with the previous frame, so a slow drift adds
   // up and restarts the second just like a sudden move.
   private drifted(pose: FacePose): boolean {
     const mean = FaceCalibrator.mean(this.samples);
@@ -115,25 +145,6 @@ export class FaceCalibrator {
       Math.abs(pose.roll - mean.roll) > MAX_ROLL_DRIFT_DEG ||
       Math.abs(pose.centerX - mean.centerX) > pose.eyeSpan * MAX_CENTER_DRIFT_SPANS
     );
-  }
-
-  private static mean(samples: readonly FacePose[]): FacePose {
-    const n = samples.length;
-    const sum = samples.reduce(
-      (total, s) => ({
-        roll: total.roll + s.roll,
-        centerX: total.centerX + s.centerX,
-        noseX: total.noseX + s.noseX,
-        eyeSpan: total.eyeSpan + s.eyeSpan,
-      }),
-      { roll: 0, centerX: 0, noseX: 0, eyeSpan: 0 },
-    );
-    return {
-      roll: sum.roll / n,
-      centerX: sum.centerX / n,
-      noseX: sum.noseX / n,
-      eyeSpan: sum.eyeSpan / n,
-    };
   }
 }
 
@@ -161,7 +172,13 @@ export function calibrationMessage(status: CalibrationStatus, progress: number):
 // stays whole.
 export function splitOption(text: string): { main: string; note: string } {
   const match = /^(.*\S)\s*\(([^()]*)\)\s*$/.exec(text);
-  return match ? { main: match[1], note: match[2].trim() } : { main: text, note: '' };
+  return match ? {
+    main: match[1],
+    note: match[2].trim()
+  } : {
+    main: text,
+    note: ''
+  };
 }
 
 // 'big' for a short word, shrinking for longer ones, so a card never overflows.

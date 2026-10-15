@@ -15,7 +15,7 @@ function readStored(): boolean {
 // Whether the leaderboard's long names stay still instead of scrolling. A scrolling name is moving content
 // that lasts more than five seconds, so WCAG 2.2.2 asks for a way to stop it; every `MarqueeText` reads this
 // and the `MarqueePauseButton` changes it. The choice is the user's own and is kept in the browser.
-@Injectable({providedIn: 'root'})
+@Injectable({ providedIn: 'root' })
 export class MarqueeSettings {
   private readonly state = signal(readStored());
 

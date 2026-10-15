@@ -9,13 +9,28 @@ const OLD_PENDING_KEY = 'gesture-shared-pending';
 const CODE = 'K7M2X9QD4P';
 const RUNS_URL = `/api/share/${CODE}/runs`;
 
-const LAN: PlayerIdentity = {playerId: 'p1', token: 'tok-lan', name: 'Lan', avatar: 'cat'};
+const LAN: PlayerIdentity = {
+  playerId: 'p1',
+  token: 'tok-lan',
+  name: 'Lan',
+  avatar: 'cat'
+};
 
 const QUESTION: SharedQuestion = {
-  index: 0, question: '你好', options: ['Xin chào', 'Tạm biệt'], chunks: null, timeLeftMs: 12000, graceMs: 5000,
+  index: 0,
+  question: '你好',
+  options: ['Xin chào', 'Tạm biệt'],
+  chunks: null,
+  timeLeftMs: 12000,
+  graceMs: 5000,
 };
 const VERDICT: SharedVerdict = {
-  correct: true, timedOut: false, correctIndex: 0, answer: 'Xin chào', explanation: '你好 là xin chào.', result: null,
+  correct: true,
+  timedOut: false,
+  correctIndex: 0,
+  answer: 'Xin chào',
+  explanation: '你好 là xin chào.',
+  result: null,
 };
 
 describe('SharedPlayService', () => {
@@ -25,7 +40,7 @@ describe('SharedPlayService', () => {
   beforeEach(() => {
     localStorage.removeItem(IDENTITY_KEY);
     localStorage.removeItem(OLD_PENDING_KEY);
-    TestBed.configureTestingModule({providers: [provideHttpClient(), provideHttpClientTesting()]});
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     service = TestBed.inject(SharedPlayService);
     http = TestBed.inject(HttpTestingController);
   });
@@ -38,7 +53,7 @@ describe('SharedPlayService', () => {
 
   // Gives this device an identity for CODE without going through a join.
   function joined(identity: PlayerIdentity = LAN): void {
-    localStorage.setItem(IDENTITY_KEY, JSON.stringify({[CODE]: identity}));
+    localStorage.setItem(IDENTITY_KEY, JSON.stringify({ [CODE]: identity }));
   }
 
   describe('load', () => {
@@ -48,7 +63,19 @@ describe('SharedPlayService', () => {
 
       const req = http.expectOne(`/api/share/${CODE}`);
       expect(req.request.method).toBe('GET');
-      req.flush({title: 'HSK1 bài 1', label: '6A', timeMode: 'standard', stageLock: 'sequential', passPercents: {'1': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5}, attempts: {}, results: {}, closesAt: null});
+      req.flush({
+        title: 'HSK1 bài 1',
+        label: '6A',
+        timeMode: 'standard',
+        stageLock: 'sequential',
+        passPercents: { '1': 70 },
+        maxAttempts: null,
+        showBoard: true,
+        stageCounts: { '1': 5 },
+        attempts: {},
+        results: {},
+        closesAt: null
+      });
       expect(title).toBe('HSK1 bài 1');
     });
 
@@ -71,9 +98,32 @@ describe('SharedPlayService', () => {
 
       const req = http.expectOne(`/api/share/${CODE.toLowerCase()}`);
       expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
-      req.flush({title: 'HSK1 bài 1', maxAttempts: 3, attempts: {'1': 2, '4': 1}, results: {'1': {correct: 4, total: 5, passed: true}}});
-      expect(attempts).toEqual({'1': 2, '4': 1});
-      expect(results).toEqual({'1': {correct: 4, total: 5, passed: true}});
+      req.flush({
+        title: 'HSK1 bài 1',
+        maxAttempts: 3,
+        attempts: {
+          '1': 2,
+          '4': 1
+        },
+        results: {
+          '1': {
+            correct: 4,
+            total: 5,
+            passed: true
+          }
+        }
+      });
+      expect(attempts).toEqual({
+        '1': 2,
+        '4': 1
+      });
+      expect(results).toEqual({
+        '1': {
+          correct: 4,
+          total: 5,
+          passed: true
+        }
+      });
     });
 
     it('sends no header again once the device forgot the student', () => {
@@ -97,8 +147,11 @@ describe('SharedPlayService', () => {
     it('leaves a 404 and a 410 for the page to read', () => {
       const statuses: number[] = [];
       for (const status of [404, 410]) {
-        service.load(CODE).subscribe({error: (e: HttpErrorResponse) => statuses.push(e.status)});
-        http.expectOne(`/api/share/${CODE}`).flush('x', {status, statusText: 'x'});
+        service.load(CODE).subscribe({ error: (e: HttpErrorResponse) => statuses.push(e.status) });
+        http.expectOne(`/api/share/${CODE}`).flush('x', {
+          status,
+          statusText: 'x'
+        });
       }
       expect(statuses).toEqual([404, 410]);
     });
@@ -111,12 +164,18 @@ describe('SharedPlayService', () => {
 
       const req = http.expectOne(`/api/share/${CODE}/players`);
       expect(req.request.method).toBe('POST');
-      expect(req.request.body).toEqual({name: 'Lan', avatar: 'cat'});
-      req.flush(LAN, {status: 201, statusText: 'Created'});
+      expect(req.request.body).toEqual({
+        name: 'Lan',
+        avatar: 'cat'
+      });
+      req.flush(LAN, {
+        status: 201,
+        statusText: 'Created'
+      });
 
       expect(identity).toEqual(LAN);
       expect(service.identity(CODE)).toEqual(LAN);
-      expect(JSON.parse(localStorage.getItem(IDENTITY_KEY)!)).toEqual({[CODE]: LAN});
+      expect(JSON.parse(localStorage.getItem(IDENTITY_KEY)!)).toEqual({ [CODE]: LAN });
     });
 
     it('sends an empty avatar when none is given, and stores what the server answers', () => {
@@ -124,8 +183,17 @@ describe('SharedPlayService', () => {
       service.join(CODE, 'Lan').subscribe(i => identity = i);
 
       const req = http.expectOne(`/api/share/${CODE}/players`);
-      expect(req.request.body).toEqual({name: 'Lan', avatar: ''});
-      req.flush({...LAN, avatar: ''}, {status: 201, statusText: 'Created'});
+      expect(req.request.body).toEqual({
+        name: 'Lan',
+        avatar: ''
+      });
+      req.flush({
+        ...LAN,
+        avatar: ''
+      }, {
+        status: 201,
+        statusText: 'Created'
+      });
 
       expect(identity?.avatar).toBe('');
       expect(service.identity(CODE)?.avatar).toBe('');
@@ -135,18 +203,31 @@ describe('SharedPlayService', () => {
       let identity: PlayerIdentity | undefined;
       service.join(CODE, 'Lan', 'cat').subscribe(i => identity = i);
 
-      http.expectOne(`/api/share/${CODE}/players`).flush({playerId: 'p1', token: 'tok-lan', name: 'Lan'});
+      http.expectOne(`/api/share/${CODE}/players`).flush({
+        playerId: 'p1',
+        token: 'tok-lan',
+        name: 'Lan'
+      });
 
-      expect(identity).toEqual({...LAN, avatar: ''});
-      expect(service.identity(CODE)).toEqual({...LAN, avatar: ''});
+      expect(identity).toEqual({
+        ...LAN,
+        avatar: ''
+      });
+      expect(service.identity(CODE)).toEqual({
+        ...LAN,
+        avatar: ''
+      });
     });
 
     it('rethrows the failures with their status and body', () => {
       const errors: HttpErrorResponse[] = [];
       for (const [status, body] of [[409, 'Name taken'], [409, 'Assignment is full'], [410, 'Assignment closed'],
         [404, 'Assignment not found'], [400, 'Invalid name.'], [400, 'Invalid avatar.']] as const) {
-        service.join(CODE, 'Lan').subscribe({error: (e: HttpErrorResponse) => errors.push(e)});
-        http.expectOne(`/api/share/${CODE}/players`).flush(body, {status, statusText: 'x'});
+        service.join(CODE, 'Lan').subscribe({ error: (e: HttpErrorResponse) => errors.push(e) });
+        http.expectOne(`/api/share/${CODE}/players`).flush(body, {
+          status,
+          statusText: 'x'
+        });
       }
       expect(errors.map(e => [e.status, e.error])).toEqual([
         [409, 'Name taken'], [409, 'Assignment is full'], [410, 'Assignment closed'],
@@ -159,7 +240,11 @@ describe('SharedPlayService', () => {
       service.join('k7m2x9qd4p', 'Lan').subscribe();
       http.expectOne('/api/share/k7m2x9qd4p/players').flush(LAN);
       service.join('ABCDEFGHJK', 'Minh').subscribe();
-      http.expectOne('/api/share/ABCDEFGHJK/players').flush({playerId: 'p2', token: 'tok-minh', name: 'Minh'});
+      http.expectOne('/api/share/ABCDEFGHJK/players').flush({
+        playerId: 'p2',
+        token: 'tok-minh',
+        name: 'Minh'
+      });
 
       expect(service.identity(CODE)).toEqual(LAN);
       expect(service.identity('abcdefghjk')?.name).toBe('Minh');
@@ -167,7 +252,14 @@ describe('SharedPlayService', () => {
     });
 
     it('forgets only the identity of that code', () => {
-      localStorage.setItem(IDENTITY_KEY, JSON.stringify({[CODE]: LAN, OTHER00000: {playerId: 'p2', token: 't', name: 'Minh'}}));
+      localStorage.setItem(IDENTITY_KEY, JSON.stringify({
+        [CODE]: LAN,
+        OTHER00000: {
+          playerId: 'p2',
+          token: 't',
+          name: 'Minh'
+        }
+      }));
 
       service.forget(CODE.toLowerCase());
 
@@ -178,17 +270,43 @@ describe('SharedPlayService', () => {
 
     it('reads an identity stored before avatars existed as one with no avatar', () => {
       localStorage.setItem(IDENTITY_KEY, JSON.stringify({
-        [CODE]: {playerId: 'p1', token: 'tok-lan', name: 'Lan'},
-        OTHER00000: {playerId: 'p2', token: 'tok-minh', name: 'Minh', avatar: 42},
+        [CODE]: {
+          playerId: 'p1',
+          token: 'tok-lan',
+          name: 'Lan'
+        },
+        OTHER00000: {
+          playerId: 'p2',
+          token: 'tok-minh',
+          name: 'Minh',
+          avatar: 42
+        },
       }));
 
-      expect(service.identity(CODE)).toEqual({playerId: 'p1', token: 'tok-lan', name: 'Lan', avatar: ''});
+      expect(service.identity(CODE)).toEqual({
+        playerId: 'p1',
+        token: 'tok-lan',
+        name: 'Lan',
+        avatar: ''
+      });
       expect(service.identity('OTHER00000')?.avatar).toBe('');
     });
 
     it('drops stored entries that are not identities', () => {
       localStorage.setItem(IDENTITY_KEY, JSON.stringify({
-        [CODE]: LAN, A: {playerId: 1, token: 't', name: 'x'}, B: null, C: {playerId: 'p', token: '', name: 'x'}, D: 'str',
+        [CODE]: LAN,
+        A: {
+          playerId: 1,
+          token: 't',
+          name: 'x'
+        },
+        B: null,
+        C: {
+          playerId: 'p',
+          token: '',
+          name: 'x'
+        },
+        D: 'str',
       }));
 
       expect(service.identity(CODE)).toEqual(LAN);
@@ -222,7 +340,10 @@ describe('SharedPlayService', () => {
     const PLAYER_URL = `/api/share/${CODE}/player`;
 
     function change(avatar = 'dragon'): { identities: PlayerIdentity[]; errors: HttpErrorResponse[] } {
-      const result = {identities: [] as PlayerIdentity[], errors: [] as HttpErrorResponse[]};
+      const result = {
+        identities: [] as PlayerIdentity[],
+        errors: [] as HttpErrorResponse[]
+      };
       service.setAvatar(CODE, avatar).subscribe({
         next: identity => result.identities.push(identity),
         error: (e: HttpErrorResponse) => result.errors.push(e),
@@ -237,28 +358,51 @@ describe('SharedPlayService', () => {
       const req = http.expectOne(PLAYER_URL);
       expect(req.request.method).toBe('PATCH');
       expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
-      expect(req.request.body).toEqual({avatar: 'dragon'});
-      req.flush({playerId: 'p1', name: 'Lan', avatar: 'dragon'});
+      expect(req.request.body).toEqual({ avatar: 'dragon' });
+      req.flush({
+        playerId: 'p1',
+        name: 'Lan',
+        avatar: 'dragon'
+      });
     });
 
     it('emits the identity with the new avatar and stores it on the device', () => {
       joined();
       const result = change('dragon');
 
-      http.expectOne(PLAYER_URL).flush({playerId: 'p1', name: 'Lan', avatar: 'dragon'});
+      http.expectOne(PLAYER_URL).flush({
+        playerId: 'p1',
+        name: 'Lan',
+        avatar: 'dragon'
+      });
 
-      const updated: PlayerIdentity = {...LAN, avatar: 'dragon'};
+      const updated: PlayerIdentity = {
+        ...LAN,
+        avatar: 'dragon'
+      };
       expect(result.identities).toEqual([updated]);
       expect(result.errors).toEqual([]);
       expect(service.identity(CODE)).toEqual(updated);
-      expect(JSON.parse(localStorage.getItem(IDENTITY_KEY)!)).toEqual({[CODE]: updated});
+      expect(JSON.parse(localStorage.getItem(IDENTITY_KEY)!)).toEqual({ [CODE]: updated });
     });
 
     it('finds the identity whatever the case of the code, and leaves the other codes alone', () => {
-      localStorage.setItem(IDENTITY_KEY, JSON.stringify({[CODE]: LAN, OTHER00000: {playerId: 'p2', token: 't2', name: 'Minh', avatar: 'owl'}}));
+      localStorage.setItem(IDENTITY_KEY, JSON.stringify({
+        [CODE]: LAN,
+        OTHER00000: {
+          playerId: 'p2',
+          token: 't2',
+          name: 'Minh',
+          avatar: 'owl'
+        }
+      }));
 
       service.setAvatar(CODE.toLowerCase(), 'fox').subscribe();
-      http.expectOne(`/api/share/${CODE.toLowerCase()}/player`).flush({playerId: 'p1', name: 'Lan', avatar: 'fox'});
+      http.expectOne(`/api/share/${CODE.toLowerCase()}/player`).flush({
+        playerId: 'p1',
+        name: 'Lan',
+        avatar: 'fox'
+      });
 
       expect(service.identity(CODE)?.avatar).toBe('fox');
       expect(service.identity('OTHER00000')?.avatar).toBe('owl');
@@ -278,7 +422,10 @@ describe('SharedPlayService', () => {
       joined();
       const result = change();
 
-      http.expectOne(PLAYER_URL).flush('Unknown player', {status: 403, statusText: 'Forbidden'});
+      http.expectOne(PLAYER_URL).flush('Unknown player', {
+        status: 403,
+        statusText: 'Forbidden'
+      });
 
       expect(result.identities).toEqual([]);
       expect(result.errors.map(e => [e.status, e.error])).toEqual([[403, 'Unknown player']]);
@@ -290,7 +437,10 @@ describe('SharedPlayService', () => {
       for (const [status, body] of [[400, 'Invalid avatar.'], [404, 'Assignment not found'], [410, 'Assignment closed'],
         [500, 'boom']] as const) {
         const result = change();
-        http.expectOne(PLAYER_URL).flush(body, {status, statusText: 'x'});
+        http.expectOne(PLAYER_URL).flush(body, {
+          status,
+          statusText: 'x'
+        });
         expect(result.errors.map(e => [e.status, e.error])).toEqual([[status, body]]);
       }
       expect(service.identity(CODE)).toEqual(LAN);
@@ -300,7 +450,7 @@ describe('SharedPlayService', () => {
       joined();
       const result = change();
 
-      http.expectOne(PLAYER_URL).error(new ProgressEvent('error'), {status: 0});
+      http.expectOne(PLAYER_URL).error(new ProgressEvent('error'), { status: 0 });
 
       expect(result.errors.map(e => e.status)).toEqual([0]);
       expect(service.identity(CODE)).toEqual(LAN);
@@ -309,12 +459,24 @@ describe('SharedPlayService', () => {
     it('does not touch another student the device switched to while the request was out', () => {
       joined();
       const result = change('dragon');
-      const nam: PlayerIdentity = {playerId: 'p2', token: 'tok-nam', name: 'Nam', avatar: 'owl'};
+      const nam: PlayerIdentity = {
+        playerId: 'p2',
+        token: 'tok-nam',
+        name: 'Nam',
+        avatar: 'owl'
+      };
       joined(nam);
 
-      http.expectOne(PLAYER_URL).flush({playerId: 'p1', name: 'Lan', avatar: 'dragon'});
+      http.expectOne(PLAYER_URL).flush({
+        playerId: 'p1',
+        name: 'Lan',
+        avatar: 'dragon'
+      });
 
-      expect(result.identities).toEqual([{...LAN, avatar: 'dragon'}]);
+      expect(result.identities).toEqual([{
+        ...LAN,
+        avatar: 'dragon'
+      }]);
       expect(service.identity(CODE)).toEqual(nam);
     });
 
@@ -325,7 +487,11 @@ describe('SharedPlayService', () => {
       spyOn(Storage.prototype, 'setItem').and.throwError('blocked');
 
       change('dragon');
-      http.expectOne(PLAYER_URL).flush({playerId: 'p1', name: 'Lan', avatar: 'dragon'});
+      http.expectOne(PLAYER_URL).flush({
+        playerId: 'p1',
+        name: 'Lan',
+        avatar: 'dragon'
+      });
 
       expect(service.identity(CODE)?.avatar).toBe('dragon');
     });
@@ -333,9 +499,24 @@ describe('SharedPlayService', () => {
 
   describe('leaderboard', () => {
     const BOARD: StudentBoard = {
-      top: [{rank: 1, name: 'Lan', avatar: 'cat', stagesPassed: 2, correct: 9, you: true}],
-      you: {rank: 1, name: 'Lan', avatar: 'cat', stagesPassed: 2, correct: 9},
-      possible: 10, stageCount: 2, playerCount: 3,
+      top: [{
+        rank: 1,
+        name: 'Lan',
+        avatar: 'cat',
+        stagesPassed: 2,
+        correct: 9,
+        you: true
+      }],
+      you: {
+        rank: 1,
+        name: 'Lan',
+        avatar: 'cat',
+        stagesPassed: 2,
+        correct: 9
+      },
+      possible: 10,
+      stageCount: 2,
+      playerCount: 3,
     };
 
     it('gets the board of the code and returns it', () => {
@@ -353,7 +534,10 @@ describe('SharedPlayService', () => {
 
       const req = http.expectOne(`/api/share/${CODE}/leaderboard`);
       expect(req.request.headers.has('X-Player-Token')).toBeFalse();
-      req.flush({...BOARD, you: null});
+      req.flush({
+        ...BOARD,
+        you: null
+      });
     });
 
     it('sends the stored token so the answer holds the student\'s own row', () => {
@@ -385,9 +569,12 @@ describe('SharedPlayService', () => {
 
     it('leaves a 404 for the caller to read', () => {
       const statuses: number[] = [];
-      service.leaderboard(CODE).subscribe({error: (e: HttpErrorResponse) => statuses.push(e.status)});
+      service.leaderboard(CODE).subscribe({ error: (e: HttpErrorResponse) => statuses.push(e.status) });
 
-      http.expectOne(`/api/share/${CODE}/leaderboard`).flush('Assignment not found', {status: 404, statusText: 'Not Found'});
+      http.expectOne(`/api/share/${CODE}/leaderboard`).flush('Assignment not found', {
+        status: 404,
+        statusText: 'Not Found'
+      });
 
       expect(statuses).toEqual([404]);
     });
@@ -395,7 +582,14 @@ describe('SharedPlayService', () => {
 
   describe('the old queue of results', () => {
     it('is cleared from the device when the service starts, and nothing else is touched', () => {
-      localStorage.setItem(OLD_PENDING_KEY, JSON.stringify([{code: CODE, token: 't', runId: 'r', stage: 1, correct: 1, total: 5}]));
+      localStorage.setItem(OLD_PENDING_KEY, JSON.stringify([{
+        code: CODE,
+        token: 't',
+        runId: 'r',
+        stage: 1,
+        correct: 1,
+        total: 5
+      }]));
       joined();
 
       new SharedPlayService(TestBed.inject(HttpClient));
@@ -416,10 +610,19 @@ describe('SharedPlayService', () => {
   // The server runs a stage itself: the browser starts a run, is dealt one question at a time and sends each
   // answer, and the server judges it.
   describe('startRun', () => {
-    const START: SharedRunStart = {runId: 'run-1', stage: 2, total: 5, attempts: 1, question: QUESTION};
+    const START: SharedRunStart = {
+      runId: 'run-1',
+      stage: 2,
+      total: 5,
+      attempts: 1,
+      question: QUESTION
+    };
 
     function start(stage = 2): { starts: SharedRunStart[]; errors: HttpErrorResponse[] } {
-      const result = {starts: [] as SharedRunStart[], errors: [] as HttpErrorResponse[]};
+      const result = {
+        starts: [] as SharedRunStart[],
+        errors: [] as HttpErrorResponse[]
+      };
       service.startRun(CODE, stage).subscribe({
         next: run => result.starts.push(run),
         error: (e: HttpErrorResponse) => result.errors.push(e),
@@ -434,8 +637,11 @@ describe('SharedPlayService', () => {
       const req = http.expectOne(RUNS_URL);
       expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
-      expect(req.request.body).toEqual({stage: 2});
-      req.flush(START, {status: 201, statusText: 'Created'});
+      expect(req.request.body).toEqual({ stage: 2 });
+      req.flush(START, {
+        status: 201,
+        statusText: 'Created'
+      });
 
       expect(result.starts).toEqual([START]);
     });
@@ -464,7 +670,10 @@ describe('SharedPlayService', () => {
       joined();
       const result = start();
 
-      http.expectOne(RUNS_URL).flush('Unknown player', {status: 403, statusText: 'Forbidden'});
+      http.expectOne(RUNS_URL).flush('Unknown player', {
+        status: 403,
+        statusText: 'Forbidden'
+      });
 
       expect(result.errors.map(e => [e.status, e.error])).toEqual([[403, 'Unknown player']]);
       expect(service.identity(CODE)).toBeNull();
@@ -473,10 +682,18 @@ describe('SharedPlayService', () => {
     it('does not forget another student the device switched to while the request was out', () => {
       joined();
       start();
-      const nam: PlayerIdentity = {playerId: 'p2', token: 'tok-nam', name: 'Nam', avatar: 'owl'};
+      const nam: PlayerIdentity = {
+        playerId: 'p2',
+        token: 'tok-nam',
+        name: 'Nam',
+        avatar: 'owl'
+      };
       joined(nam);
 
-      http.expectOne(RUNS_URL).flush('Unknown player', {status: 403, statusText: 'Forbidden'});
+      http.expectOne(RUNS_URL).flush('Unknown player', {
+        status: 403,
+        statusText: 'Forbidden'
+      });
 
       expect(service.identity(CODE)).toEqual(nam);
     });
@@ -486,7 +703,10 @@ describe('SharedPlayService', () => {
       for (const [status, body] of [[410, 'Assignment closed'], [404, 'Assignment not found'], [400, 'Invalid stage.'],
         [409, 'Stage locked'], [409, 'Replay limit reached']] as const) {
         const result = start();
-        http.expectOne(RUNS_URL).flush(body, {status, statusText: 'x'});
+        http.expectOne(RUNS_URL).flush(body, {
+          status,
+          statusText: 'x'
+        });
         expect(result.errors.map(e => [e.status, e.error])).toEqual([[status, body]]);
       }
       expect(service.identity(CODE)).toEqual(LAN);
@@ -496,13 +716,16 @@ describe('SharedPlayService', () => {
       joined();
 
       const lost = start();
-      http.expectOne(RUNS_URL).error(new ProgressEvent('error'), {status: 0});
+      http.expectOne(RUNS_URL).error(new ProgressEvent('error'), { status: 0 });
       tick(10000);
       http.expectNone(RUNS_URL);
       expect(lost.errors.map(e => e.status)).toEqual([0]);
 
       const failed = start();
-      http.expectOne(RUNS_URL).flush('boom', {status: 500, statusText: 'Server Error'});
+      http.expectOne(RUNS_URL).flush('boom', {
+        status: 500,
+        statusText: 'Server Error'
+      });
       tick(10000);
       http.expectNone(RUNS_URL);
       expect(failed.errors.map(e => e.status)).toEqual([500]);
@@ -513,7 +736,10 @@ describe('SharedPlayService', () => {
     const NEXT_URL = `${RUNS_URL}/run-1/next`;
 
     function next(): { questions: SharedQuestion[]; errors: HttpErrorResponse[] } {
-      const result = {questions: [] as SharedQuestion[], errors: [] as HttpErrorResponse[]};
+      const result = {
+        questions: [] as SharedQuestion[],
+        errors: [] as HttpErrorResponse[]
+      };
       service.nextQuestion(CODE, 'run-1').subscribe({
         next: question => result.questions.push(question),
         error: (e: HttpErrorResponse) => result.errors.push(e),
@@ -529,9 +755,17 @@ describe('SharedPlayService', () => {
       expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
       expect(req.request.body).toBeNull();
-      req.flush({question: {...QUESTION, index: 1}});
+      req.flush({
+        question: {
+          ...QUESTION,
+          index: 1
+        }
+      });
 
-      expect(result.questions).toEqual([{...QUESTION, index: 1}]);
+      expect(result.questions).toEqual([{
+        ...QUESTION,
+        index: 1
+      }]);
     });
 
     it('escapes the run id in the URL', () => {
@@ -541,7 +775,7 @@ describe('SharedPlayService', () => {
 
       const req = http.expectOne(`${RUNS_URL}/a%2Fb%20c/next`);
       expect(req.request.url).toBe(`${RUNS_URL}/a%2Fb%20c/next`);
-      req.flush({question: QUESTION});
+      req.flush({ question: QUESTION });
     });
 
     it('fails with a 403 and sends nothing when this device has not joined', () => {
@@ -555,7 +789,10 @@ describe('SharedPlayService', () => {
       joined();
       const result = next();
 
-      http.expectOne(NEXT_URL).flush('Unknown player', {status: 403, statusText: 'Forbidden'});
+      http.expectOne(NEXT_URL).flush('Unknown player', {
+        status: 403,
+        statusText: 'Forbidden'
+      });
       tick(10000);
 
       http.expectNone(NEXT_URL);
@@ -567,7 +804,10 @@ describe('SharedPlayService', () => {
       joined();
       for (const [status, body] of [[410, 'Assignment closed'], [404, 'Run not found'], [409, 'Run is over']] as const) {
         const result = next();
-        http.expectOne(NEXT_URL).flush(body, {status, statusText: 'x'});
+        http.expectOne(NEXT_URL).flush(body, {
+          status,
+          statusText: 'x'
+        });
         tick(10000);
         http.expectNone(NEXT_URL);
         expect(result.errors.map(e => [e.status, e.error])).toEqual([[status, body]]);
@@ -578,15 +818,18 @@ describe('SharedPlayService', () => {
       joined();
       const result = next();
 
-      http.expectOne(NEXT_URL).error(new ProgressEvent('error'), {status: 0});
+      http.expectOne(NEXT_URL).error(new ProgressEvent('error'), { status: 0 });
       tick(999);
       http.expectNone(NEXT_URL);
       tick(1);
-      http.expectOne(NEXT_URL).flush('boom', {status: 503, statusText: 'Service Unavailable'});
+      http.expectOne(NEXT_URL).flush('boom', {
+        status: 503,
+        statusText: 'Service Unavailable'
+      });
       tick(1999);
       http.expectNone(NEXT_URL);
       tick(1);
-      http.expectOne(NEXT_URL).flush({question: QUESTION});
+      http.expectOne(NEXT_URL).flush({ question: QUESTION });
 
       expect(result.questions).toEqual([QUESTION]);
       expect(result.errors).toEqual([]);
@@ -596,11 +839,14 @@ describe('SharedPlayService', () => {
       joined();
       const result = next();
 
-      http.expectOne(NEXT_URL).error(new ProgressEvent('error'), {status: 0});
+      http.expectOne(NEXT_URL).error(new ProgressEvent('error'), { status: 0 });
       tick(1000);
-      http.expectOne(NEXT_URL).error(new ProgressEvent('error'), {status: 0});
+      http.expectOne(NEXT_URL).error(new ProgressEvent('error'), { status: 0 });
       tick(2000);
-      http.expectOne(NEXT_URL).flush('boom', {status: 500, statusText: 'Server Error'});
+      http.expectOne(NEXT_URL).flush('boom', {
+        status: 500,
+        statusText: 'Server Error'
+      });
       tick(10000);
 
       http.expectNone(NEXT_URL);
@@ -612,8 +858,14 @@ describe('SharedPlayService', () => {
   describe('answer', () => {
     const ANSWERS_URL = `${RUNS_URL}/run-1/answers`;
 
-    function answer(index = 0, choice: number | string[] | null = 1): { verdicts: SharedVerdict[]; errors: HttpErrorResponse[] } {
-      const result = {verdicts: [] as SharedVerdict[], errors: [] as HttpErrorResponse[]};
+    function answer(index = 0, choice: number | string[] | null = 1): {
+      verdicts: SharedVerdict[];
+      errors: HttpErrorResponse[]
+    } {
+      const result = {
+        verdicts: [] as SharedVerdict[],
+        errors: [] as HttpErrorResponse[]
+      };
       service.answer(CODE, 'run-1', index, choice).subscribe({
         next: verdict => result.verdicts.push(verdict),
         error: (e: HttpErrorResponse) => result.errors.push(e),
@@ -628,7 +880,10 @@ describe('SharedPlayService', () => {
       const req = http.expectOne(ANSWERS_URL);
       expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
-      expect(req.request.body).toEqual({index: 3, choice: 1});
+      expect(req.request.body).toEqual({
+        index: 3,
+        choice: 1
+      });
       req.flush(VERDICT);
 
       expect(result.verdicts).toEqual([VERDICT]);
@@ -640,8 +895,15 @@ describe('SharedPlayService', () => {
       answer(1, null);
 
       const req = http.expectOne(ANSWERS_URL);
-      expect(req.request.body).toEqual({index: 1, choice: null});
-      req.flush({...VERDICT, correct: false, timedOut: true});
+      expect(req.request.body).toEqual({
+        index: 1,
+        choice: null
+      });
+      req.flush({
+        ...VERDICT,
+        correct: false,
+        timedOut: true
+      });
     });
 
     it('sends the pieces of a sentence in the order they were picked', () => {
@@ -650,7 +912,10 @@ describe('SharedPlayService', () => {
       answer(0, ['我', '是', '兰']);
 
       const req = http.expectOne(ANSWERS_URL);
-      expect(req.request.body).toEqual({index: 0, choice: ['我', '是', '兰']});
+      expect(req.request.body).toEqual({
+        index: 0,
+        choice: ['我', '是', '兰']
+      });
       req.flush(VERDICT);
     });
 
@@ -665,7 +930,10 @@ describe('SharedPlayService', () => {
       joined();
       const result = answer();
 
-      http.expectOne(ANSWERS_URL).flush('Unknown player', {status: 403, statusText: 'Forbidden'});
+      http.expectOne(ANSWERS_URL).flush('Unknown player', {
+        status: 403,
+        statusText: 'Forbidden'
+      });
 
       expect(result.errors.map(e => [e.status, e.error])).toEqual([[403, 'Unknown player']]);
       expect(service.identity(CODE)).toBeNull();
@@ -675,7 +943,10 @@ describe('SharedPlayService', () => {
       joined();
       for (const [status, body] of [[410, 'Assignment closed'], [404, 'Run not found'], [400, 'Invalid answer.']] as const) {
         const result = answer();
-        http.expectOne(ANSWERS_URL).flush(body, {status, statusText: 'x'});
+        http.expectOne(ANSWERS_URL).flush(body, {
+          status,
+          statusText: 'x'
+        });
         tick(10000);
         http.expectNone(ANSWERS_URL);
         expect(result.errors.map(e => [e.status, e.error])).toEqual([[status, body]]);
@@ -686,11 +957,17 @@ describe('SharedPlayService', () => {
       joined();
       const result = answer(2, 0);
 
-      http.expectOne(ANSWERS_URL).flush('boom', {status: 502, statusText: 'Bad Gateway'});
+      http.expectOne(ANSWERS_URL).flush('boom', {
+        status: 502,
+        statusText: 'Bad Gateway'
+      });
       tick(1000);
       const second = http.expectOne(ANSWERS_URL);
-      expect(second.request.body).toEqual({index: 2, choice: 0});
-      second.error(new ProgressEvent('error'), {status: 0});
+      expect(second.request.body).toEqual({
+        index: 2,
+        choice: 0
+      });
+      second.error(new ProgressEvent('error'), { status: 0 });
       tick(2000);
       http.expectOne(ANSWERS_URL).flush(VERDICT);
 
@@ -702,11 +979,11 @@ describe('SharedPlayService', () => {
       joined();
       const result = answer();
 
-      http.expectOne(ANSWERS_URL).error(new ProgressEvent('error'), {status: 0});
+      http.expectOne(ANSWERS_URL).error(new ProgressEvent('error'), { status: 0 });
       tick(1000);
-      http.expectOne(ANSWERS_URL).error(new ProgressEvent('error'), {status: 0});
+      http.expectOne(ANSWERS_URL).error(new ProgressEvent('error'), { status: 0 });
       tick(2000);
-      http.expectOne(ANSWERS_URL).error(new ProgressEvent('error'), {status: 0});
+      http.expectOne(ANSWERS_URL).error(new ProgressEvent('error'), { status: 0 });
       tick(10000);
 
       http.expectNone(ANSWERS_URL);
@@ -716,9 +993,9 @@ describe('SharedPlayService', () => {
 
     it('does not retry once the subscriber is gone', fakeAsync(() => {
       joined();
-      const subscription = service.answer(CODE, 'run-1', 0, 1).subscribe({error: () => undefined});
+      const subscription = service.answer(CODE, 'run-1', 0, 1).subscribe({ error: () => undefined });
 
-      http.expectOne(ANSWERS_URL).error(new ProgressEvent('error'), {status: 0});
+      http.expectOne(ANSWERS_URL).error(new ProgressEvent('error'), { status: 0 });
       subscription.unsubscribe();
       tick(10000);
 

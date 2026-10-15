@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { QuestionDefinition } from '../models/question-definition';
 import { QuestionType } from '../models/question-type';
 
-@Injectable({providedIn: 'root'})
+@Injectable({ providedIn: 'root' })
 export class CsvImportService {
   parseCsv(content: string): QuestionDefinition[] {
     const normalized = content.replace(/\r\n/g, '\n').trim();

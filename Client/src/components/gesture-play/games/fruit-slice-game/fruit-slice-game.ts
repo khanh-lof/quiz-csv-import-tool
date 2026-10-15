@@ -87,41 +87,26 @@ function isTyping(target: EventTarget | null): boolean {
 @Component({
   selector: 'app-fruit-slice-game',
   standalone: true,
-  providers: [{ provide: StageGameBase, useExisting: forwardRef(() => FruitSliceGame) }],
+  providers: [{
+    provide: StageGameBase,
+    useExisting: forwardRef(() => FruitSliceGame)
+  }],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './fruit-slice-game.html',
   styleUrl: './fruit-slice-game.css'
 })
 export class FruitSliceGame extends StageGameBase {
   readonly visionKind = stageDef(4).vision;
-
-  private readonly vision = inject(VisionService);
-  private readonly audio = inject(GameAudio);
-  private readonly zone = inject(NgZone);
-  private readonly destroyRef = inject(DestroyRef);
-  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
-
-  private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('field');
-  private readonly topRef = viewChild.required<ElementRef<HTMLElement>>('top');
-  private readonly questionBox = viewChild.required<ElementRef<HTMLElement>>('questionBox');
-  private readonly answerBoxes = viewChildren<ElementRef<HTMLElement>>('answerBox');
-
-  // The fruit each answer box stands for (slot 0 watermelon/green, 1 apple/red, 2 lemon/yellow, as in
   // SLOTS), shown in the box so the match does not rest on colour alone.
   protected readonly fruitIcons = ['🍉', '🍎', '🍋'];
-
   // At most one answer per fruit colour; stage 4 always has three.
   protected readonly answers = computed(() => this.question().options.slice(0, SLOTS.length));
   protected readonly slotCount = computed(() => this.answers().length);
-
-  // The slot the player cut for this question. It doubles as the per-question lock: while it is set
   // nothing else can be chosen, and it resets by itself when the next question arrives.
   protected readonly picked = linkedSignal<QuestionView, number | null>({
     source: this.question,
     computation: () => null
   });
-
-  // How each answer box looks: the judged answers show the right one (and the wrong choice), until
   // then the box that was cut is only outlined.
   protected readonly states = computed(() => {
     const reveal = this.reveal();
@@ -136,8 +121,25 @@ export class FruitSliceGame extends StageGameBase {
       return picked === index ? 'picked' : '';
     });
   });
+  private readonly vision = inject(VisionService);
+  private readonly audio = inject(GameAudio);
+  private readonly zone = inject(NgZone);
+  private readonly destroyRef = inject(DestroyRef);
+
+  // The fruit each answer box stands for (slot 0 watermelon/green, 1 apple/red, 2 lemon/yellow, as in
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('field');
+  private readonly topRef = viewChild.required<ElementRef<HTMLElement>>('top');
+
+  // The slot the player cut for this question. It doubles as the per-question lock: while it is set
+  private readonly questionBox = viewChild.required<ElementRef<HTMLElement>>('questionBox');
+
+  // How each answer box looks: the judged answers show the right one (and the wrong choice), until
+  private readonly answerBoxes = viewChildren<ElementRef<HTMLElement>>('answerBox');
 
   // The how-to line at the bottom of the stage. It goes away once it has been understood (the
+  private readonly played = signal(false);
+  private readonly handSeen = signal(false);
   // player has cut a fruit), except that a camera without a hand in view keeps asking for one.
   protected readonly hint = computed(() => {
     if (this.picked() !== null || this.reveal() !== null) {
@@ -151,11 +153,11 @@ export class FruitSliceGame extends StageGameBase {
     }
     return this.played() ? '' : 'Vung ngón trỏ qua quả để chém';
   });
-
-  private readonly played = signal(false);
-  private readonly handSeen = signal(false);
   // The stage size, as a signal only so that the text boxes are re-fitted when it changes.
-  private readonly size = signal({ width: 0, height: 0 });
+  private readonly size = signal({
+    width: 0,
+    height: 0
+  });
 
   private readonly field = new FruitField();
   private readonly cursor = new HandCursor();
@@ -163,7 +165,11 @@ export class FruitSliceGame extends StageGameBase {
     pointer: [],
     hand: []
   };
-  private readonly stroke: Stroke = { id: null, last: null, length: 0 };
+  private readonly stroke: Stroke = {
+    id: null,
+    last: null,
+    length: 0
+  };
   private ctx: CanvasRenderingContext2D | null = null;
   private dpr = 1;
 
@@ -233,7 +239,10 @@ export class FruitSliceGame extends StageGameBase {
       }
       return;
     }
-    const { width, height } = this.field.metrics;
+    const {
+      width,
+      height
+    } = this.field.metrics;
     const video = this.vision.videoSize();
     const at = mapToStage(tip.x, tip.y, video.width, video.height, width, height);
     const step = this.cursor.point(at.x, at.y, now, width, height);
@@ -241,7 +250,11 @@ export class FruitSliceGame extends StageGameBase {
       this.trails.hand.length = 0;
     }
     if (step.trail) {
-      this.trails.hand.push({ x: this.cursor.x, y: this.cursor.y, t: now });
+      this.trails.hand.push({
+        x: this.cursor.x,
+        y: this.cursor.y,
+        t: now
+      });
     }
     this.handSeen.set(true);
     if (step.slash) {
@@ -323,7 +336,10 @@ export class FruitSliceGame extends StageGameBase {
   }
 
   private render(ctx: CanvasRenderingContext2D, now: number): void {
-    const { width, height } = this.field.metrics;
+    const {
+      width,
+      height
+    } = this.field.metrics;
     const side = Math.min(width, height);
     ctx.clearRect(0, 0, width, height);
     drawField(ctx, this.field);
@@ -394,7 +410,10 @@ export class FruitSliceGame extends StageGameBase {
     this.field.resize(width, height, Math.max(60, topBottom - hostTop + 8));
     if (resized) {
       this.clearStrokes();
-      this.size.set({ width, height });
+      this.size.set({
+        width,
+        height
+      });
     }
   }
 
@@ -414,11 +433,17 @@ export class FruitSliceGame extends StageGameBase {
       // A pointer that has already ended cannot be captured; the stroke still works on the canvas.
     }
     const rect = canvas.getBoundingClientRect();
-    const start = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    const start = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top
+    };
     this.stroke.last = start;
     this.stroke.length = 0;
     this.trails.pointer.length = 0;
-    this.trails.pointer.push({ ...start, t: performance.now() });
+    this.trails.pointer.push({
+      ...start,
+      t: performance.now()
+    });
     event.preventDefault();
   }
 
@@ -432,16 +457,27 @@ export class FruitSliceGame extends StageGameBase {
     const samples =
       typeof event.getCoalescedEvents === 'function' ? event.getCoalescedEvents() : [];
     for (const sample of samples.length ? samples : [event]) {
-      const to = { x: sample.clientX - rect.left, y: sample.clientY - rect.top };
+      const to = {
+        x: sample.clientX - rect.left,
+        y: sample.clientY - rect.top
+      };
       const from = this.stroke.last;
       const moved = Math.hypot(to.x - from.x, to.y - from.y);
       if (moved < 0.5) {
         continue;
       }
       this.stroke.length += moved;
-      this.trails.pointer.push({ ...to, t: performance.now() });
+      this.trails.pointer.push({
+        ...to,
+        t: performance.now()
+      });
       if (this.stroke.length >= MIN_STROKE_PX) {
-        this.slash({ ax: from.x, ay: from.y, bx: to.x, by: to.y });
+        this.slash({
+          ax: from.x,
+          ay: from.y,
+          bx: to.x,
+          by: to.y
+        });
       }
       this.stroke.last = to;
     }
@@ -466,7 +502,10 @@ export class FruitSliceGame extends StageGameBase {
       const span = box.querySelector<HTMLElement>('.fit');
       if (span) {
         const start = Math.min(box.clientHeight * 0.62, box.clientWidth * 0.7, 84);
-        fitted.push({ span, size: fitSize(box, span, start) });
+        fitted.push({
+          span,
+          size: fitSize(box, span, start)
+        });
       }
     }
     const smallest = Math.min(...fitted.map(item => item.size));

@@ -6,14 +6,10 @@ import { NzPopconfirmDirective } from 'ng-zorro-antd/popconfirm';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { NzSwitchComponent } from 'ng-zorro-antd/switch';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
-import { DEFAULT_PASS_PERCENT, STAGES, StageDef, stagePosition } from '../../../game/stages';
+import { DEFAULT_PASS_PERCENT, StageDef, stagePosition, STAGES } from '../../../game/stages';
 import { passPercentOf, TIME_MODE_LABELS } from '../../../models/assignment';
 import { GestureQuiz, questionCount } from '../../../models/gesture-quiz';
-import {
-  GestureProgressService,
-  POINTS_PER_CORRECT,
-  StageBest,
-} from '../../../services/gesture-progress.service';
+import { GestureProgressService, POINTS_PER_CORRECT, StageBest, } from '../../../services/gesture-progress.service';
 import { GestureSettingsService, TimeMode } from '../gesture-settings.service';
 
 // 'used' is an open stage whose runs are all spent (the teacher's replay limit).
@@ -72,13 +68,23 @@ export class GestureStageMap {
   readonly attemptsLeft = input<Record<string, number> | null>(null);
 
   readonly start = output<number>();
-
-  private readonly progress = inject(GestureProgressService);
-  private readonly settingsService = inject(GestureSettingsService);
-
-  protected readonly settings = this.settingsService.settings;
   protected readonly total = computed(() => questionCount(this.quiz()));
-
+  // The one percentage every stage shares (the summary can then say it), or null when the stages differ.
+  protected readonly commonPercent = computed(() => {
+    const percents = new Set(this.cards().map(card => card.percent));
+    return percents.size === 1 ? [...percents][0] : null;
+  });
+  protected readonly defaultPercent = DEFAULT_PASS_PERCENT;
+  // Every stage of the quiz is passed: the quiz is finished.
+  protected readonly allPassed = computed(() => {
+    const cards = this.cards();
+    return cards.length > 0 && cards.every(card => card.status === 'passed');
+  });
+  protected readonly totalScore = computed(() =>
+    this.cards().reduce((sum, card) => sum + (card.best?.correct ?? 0) * POINTS_PER_CORRECT, 0));
+  protected readonly pointsPerCorrect = POINTS_PER_CORRECT;
+  protected readonly timeModeLabels = TIME_MODE_LABELS;
+  private readonly progress = inject(GestureProgressService);
   protected readonly cards = computed<StageCard[]>(() => {
     const quiz = this.quiz();
     return STAGES.filter(def => quiz.stages.has(def.stage)).map(def => {
@@ -100,26 +106,8 @@ export class GestureStageMap {
       };
     });
   });
-
-  // The one percentage every stage shares (the summary can then say it), or null when the stages differ.
-  protected readonly commonPercent = computed(() => {
-    const percents = new Set(this.cards().map(card => card.percent));
-    return percents.size === 1 ? [...percents][0] : null;
-  });
-
-  protected readonly defaultPercent = DEFAULT_PASS_PERCENT;
-
-  // Every stage of the quiz is passed: the quiz is finished.
-  protected readonly allPassed = computed(() => {
-    const cards = this.cards();
-    return cards.length > 0 && cards.every(card => card.status === 'passed');
-  });
-
-  protected readonly totalScore = computed(() =>
-    this.cards().reduce((sum, card) => sum + (card.best?.correct ?? 0) * POINTS_PER_CORRECT, 0));
-
-  protected readonly pointsPerCorrect = POINTS_PER_CORRECT;
-  protected readonly timeModeLabels = TIME_MODE_LABELS;
+  private readonly settingsService = inject(GestureSettingsService);
+  protected readonly settings = this.settingsService.settings;
 
   protected setTimeMode(mode: TimeMode): void {
     this.settingsService.update({ timeMode: mode });

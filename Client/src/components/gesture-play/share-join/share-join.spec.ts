@@ -7,7 +7,7 @@ describe('ShareJoin', () => {
   let joined: JoinRequest[];
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({imports: [ShareJoin]}).compileComponents();
+    await TestBed.configureTestingModule({ imports: [ShareJoin] }).compileComponents();
     fixture = TestBed.createComponent(ShareJoin);
     fixture.componentRef.setInput('title', 'HSK1 bài 1');
     joined = [];
@@ -66,21 +66,30 @@ describe('ShareJoin', () => {
 
     button().click();
 
-    expect(joined).toEqual([{name: 'Lan', avatar: idOf(picked()[0])}]);
+    expect(joined).toEqual([{
+      name: 'Lan',
+      avatar: idOf(picked()[0])
+    }]);
   });
 
   it('emits the name on Enter', async () => {
     await type('Lan');
 
-    input().dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}));
+    input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
 
-    expect(joined).toEqual([{name: 'Lan', avatar: idOf(picked()[0])}]);
+    expect(joined).toEqual([{
+      name: 'Lan',
+      avatar: idOf(picked()[0])
+    }]);
   });
 
   it('does not take an Enter that ends an input-method composition', async () => {
     await type('Lan');
 
-    input().dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', isComposing: true}));
+    input().dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter',
+      isComposing: true
+    }));
 
     expect(joined).toEqual([]);
   });
@@ -92,7 +101,7 @@ describe('ShareJoin', () => {
 
     expect(button().disabled).toBeTrue();
     expect(button().classList).toContain('ant-btn-loading');
-    input().dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}));
+    input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     expect(joined).toEqual([]);
   });
 
@@ -150,7 +159,10 @@ describe('ShareJoin', () => {
 
       button().click();
 
-      expect(joined).toEqual([{name: 'Lan', avatar: idOf(other)}]);
+      expect(joined).toEqual([{
+        name: 'Lan',
+        avatar: idOf(other)
+      }]);
     });
   });
 });

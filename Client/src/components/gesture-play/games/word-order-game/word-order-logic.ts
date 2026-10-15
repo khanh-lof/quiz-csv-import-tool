@@ -51,8 +51,14 @@ export function parseTarget(id: string): TargetAction | null {
   }
   const number = Number(match[2]);
   return match[1] === 'pool'
-    ? { kind: 'place', index: number }
-    : { kind: 'remove', position: number };
+    ? {
+      kind: 'place',
+      index: number
+    }
+    : {
+      kind: 'remove',
+      position: number
+    };
 }
 
 // The answer line is the chunk indexes in the order the player placed them. Indexes, not texts: a
@@ -225,13 +231,13 @@ export class TargetSelector {
   private last: number | null = null;
 
   constructor({
-    dwellMs = DWELL_MS,
-    cooldownMs = COOLDOWN_MS,
-    graceMs = LEAVE_GRACE_MS,
-    settleMs = PINCH_SETTLE_MS,
-    memoryMs = PINCH_MEMORY_MS,
-    maxGapMs = MAX_STEP_GAP_MS,
-  }: SelectorOptions = {}) {
+                dwellMs = DWELL_MS,
+                cooldownMs = COOLDOWN_MS,
+                graceMs = LEAVE_GRACE_MS,
+                settleMs = PINCH_SETTLE_MS,
+                memoryMs = PINCH_MEMORY_MS,
+                maxGapMs = MAX_STEP_GAP_MS,
+              }: SelectorOptions = {}) {
     this.dwellMs = dwellMs;
     this.cooldownMs = cooldownMs;
     this.graceMs = graceMs;
@@ -240,7 +246,12 @@ export class TargetSelector {
     this.maxGapMs = maxGapMs;
   }
 
-  step({ hover, pinchDown = false, pinched = false, now }: SelectorInput): SelectorStep {
+  step({
+         hover,
+         pinchDown = false,
+         pinched = false,
+         now
+       }: SelectorInput): SelectorStep {
     if (this.last !== null && (now < this.last || now - this.last > this.maxGapMs)) {
       this.reset();
     }
@@ -365,7 +376,10 @@ export class TargetSelector {
       return;
     }
     if (this.resting !== null) {
-      this.left = { id: this.resting, at: now };
+      this.left = {
+        id: this.resting,
+        at: now
+      };
     }
     this.resting = hover;
     this.restingSince = now;
@@ -402,7 +416,8 @@ export class CompletionTimer {
   private since: number | null = null;
   private fired = false;
 
-  constructor(private readonly delayMs = COMPLETE_DELAY_MS) {}
+  constructor(private readonly delayMs = COMPLETE_DELAY_MS) {
+  }
 
   // True on the one step where the delay has passed.
   step(complete: boolean, now: number): boolean {

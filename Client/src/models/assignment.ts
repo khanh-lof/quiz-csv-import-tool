@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TimeMode } from '../components/gesture-play/gesture-settings.service';
-import { DEFAULT_PASS_PERCENT, STAGES, stagePosition } from '../game/stages';
+import { DEFAULT_PASS_PERCENT, stagePosition, STAGES } from '../game/stages';
 import { Utils } from '../utils';
 import { GestureQuestion, GestureQuiz } from './gesture-quiz';
 
@@ -239,10 +239,21 @@ export function placeholderQuiz(title: string, key: string, stageCounts: Record<
     const count = stageCounts[String(stage)];
     if (Number.isInteger(count) && count > 0) {
       stages.set(stage, Array.from({ length: count }, (): GestureQuestion =>
-        ({ stage, question: '', correct: '', wrong: [], explanation: '' })));
+        ({
+          stage,
+          question: '',
+          correct: '',
+          wrong: [],
+          explanation: ''
+        })));
     }
   }
-  return { title, key, stages, skipped: 0 };
+  return {
+    title,
+    key,
+    stages,
+    skipped: 0
+  };
 }
 
 // Same rule as the server's Assignment.OpenAt: not closed by hand and not past its closing time. The

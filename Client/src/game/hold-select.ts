@@ -87,7 +87,10 @@ export class HoldSelector {
 
   step(choice: number | null, now: number): HoldSelectorStep {
     const step = this.gate.step(choice, now);
-    return { ...step, cue: this.cues.step(step.choice, step.progress) };
+    return {
+      ...step,
+      cue: this.cues.step(step.choice, step.progress)
+    };
   }
 
   lock(): void {

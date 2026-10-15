@@ -15,15 +15,15 @@ import { VisionService } from '../../../../game/vision.service';
 import { HoldSelector, isPlainKey, ringOffset } from '../../../../game/hold-select';
 import {
   FINGER_HOLD_MS,
-  FingerReader,
-  FingerView,
-  IDLE_FINGER_VIEW,
-  MAX_FINGERS,
   fingerBadge,
   fingerChoice,
   fingerKeyIndex,
+  FingerReader,
   fingerStatus,
+  FingerView,
   hasHanzi,
+  IDLE_FINGER_VIEW,
+  MAX_FINGERS,
   sameFingerView,
 } from './finger-count-logic';
 
@@ -32,7 +32,10 @@ import {
 @Component({
   selector: 'app-finger-count-game',
   standalone: true,
-  providers: [{ provide: StageGameBase, useExisting: forwardRef(() => FingerCountGame) }],
+  providers: [{
+    provide: StageGameBase,
+    useExisting: forwardRef(() => FingerCountGame)
+  }],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './finger-count-game.html',
   styleUrl: './finger-count-game.css',
@@ -42,32 +45,30 @@ export class FingerCountGame extends StageGameBase {
 
   // The four fingers of the pictogram on each card.
   protected readonly fingers = Array.from({ length: MAX_FINGERS }, (_, finger) => finger);
-
-  private readonly audio = inject(GameAudio);
-  private readonly vision = inject(VisionService);
-  private readonly reader = new FingerReader();
-  private readonly selector = new HoldSelector(FINGER_HOLD_MS);
-  // The question the gate was last locked for, see `onFrame`.
-  private lockedFor: QuestionView | null = null;
-
-  // The option the player answered with for this question, by gesture, click or key, so that a second
   // input cannot answer twice.
   protected readonly picked = linkedSignal<QuestionView, number | null>({
     source: this.question,
     computation: () => null,
   });
-
-  // What the camera side shows: the finger count, the charging card and its progress. Back to idle on
   // every question.
   protected readonly view = linkedSignal<QuestionView, FingerView>({
     source: this.question,
     computation: () => IDLE_FINGER_VIEW,
     equal: sameFingerView,
   });
-
   protected readonly locked = computed(() => this.paused() || this.reveal() !== null);
   protected readonly badge = computed(() => fingerBadge(this.view().count));
   protected readonly status = computed(() => fingerStatus(this.view()));
+
+  // The option the player answered with for this question, by gesture, click or key, so that a second
+  private readonly audio = inject(GameAudio);
+
+  // What the camera side shows: the finger count, the charging card and its progress. Back to idle on
+  private readonly vision = inject(VisionService);
+  private readonly reader = new FingerReader();
+  private readonly selector = new HoldSelector(FINGER_HOLD_MS);
+  // The question the gate was last locked for, see `onFrame`.
+  private lockedFor: QuestionView | null = null;
 
   @HostListener('document:keydown', ['$event'])
   onKey(event: KeyboardEvent): void {
@@ -90,7 +91,10 @@ export class FingerCountGame extends StageGameBase {
       this.selector.lock();
     }
 
-    const { width, height } = this.vision.videoSize();
+    const {
+      width,
+      height
+    } = this.vision.videoSize();
     const count = this.reader.read(frame.hand, width > 0 && height > 0 ? width / height : 1);
     const step = this.selector.step(fingerChoice(count, question.options.length), now);
     if (step.cue) {
@@ -99,7 +103,12 @@ export class FingerCountGame extends StageGameBase {
     if (step.selected !== undefined) {
       this.answer(step.selected, true);
     } else {
-      this.view.set({ armed: step.armed, choice: step.choice, progress: step.progress, count });
+      this.view.set({
+        armed: step.armed,
+        choice: step.choice,
+        progress: step.progress,
+        count
+      });
     }
   }
 
@@ -136,7 +145,12 @@ export class FingerCountGame extends StageGameBase {
     this.picked.set(index);
     this.view.set(
       byCamera
-        ? { armed: false, choice: index, progress: 1, count: index + 1 }
+        ? {
+          armed: false,
+          choice: index,
+          progress: 1,
+          count: index + 1
+        }
         : IDLE_FINGER_VIEW,
     );
     this.choose.emit(index);

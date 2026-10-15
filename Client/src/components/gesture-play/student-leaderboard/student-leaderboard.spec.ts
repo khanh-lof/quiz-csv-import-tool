@@ -9,17 +9,33 @@ const CODE = 'ABC123DEF4';
 const PAUSE_KEY = 'leaderboard-marquee-paused';
 
 function entry(rank: number | null, name: string, overrides: Partial<StudentBoardEntry> = {}): StudentBoardEntry {
-  return { rank, name, avatar: 'cat', stagesPassed: 2, correct: 8, you: false, ...overrides };
+  return {
+    rank,
+    name,
+    avatar: 'cat',
+    stagesPassed: 2,
+    correct: 8,
+    you: false, ...overrides
+  };
 }
 
 const TOP = [entry(1, 'Lan'), entry(2, 'Minh'), entry(3, 'Hoa'), entry(4, 'Nam'), entry(5, 'Vy')];
 
 function board(overrides: Partial<StudentBoard> = {}): StudentBoard {
-  return { top: TOP, you: null, possible: 30, stageCount: 6, playerCount: 12, ...overrides };
+  return {
+    top: TOP,
+    you: null,
+    possible: 30,
+    stageCount: 6,
+    playerCount: 12, ...overrides
+  };
 }
 
 const httpError = (status: number, body?: string) =>
-  throwError(() => new HttpErrorResponse({ status, error: body ?? null }));
+  throwError(() => new HttpErrorResponse({
+    status,
+    error: body ?? null
+  }));
 
 describe('StudentLeaderboard', () => {
   let fixture: ComponentFixture<StudentLeaderboard>;
@@ -33,7 +49,10 @@ describe('StudentLeaderboard', () => {
     shared.leaderboard.and.callFake(() => of(board()));
     TestBed.configureTestingModule({
       imports: [StudentLeaderboard],
-      providers: [{ provide: SharedPlayService, useValue: shared }],
+      providers: [{
+        provide: SharedPlayService,
+        useValue: shared
+      }],
     });
   });
 
@@ -95,7 +114,13 @@ describe('StudentLeaderboard', () => {
 
   it('shows a player\'s avatar, and the stages and answers out of what is possible', fakeAsync(() => {
     shared.leaderboard.and.returnValue(of(board({
-      top: [entry(1, 'Lan', { avatar: 'dragon', stagesPassed: 4, correct: 21 })], stageCount: 5, possible: 25,
+      top: [entry(1, 'Lan', {
+        avatar: 'dragon',
+        stagesPassed: 4,
+        correct: 21
+      })],
+      stageCount: 5,
+      possible: 25,
     })));
     open();
 
@@ -133,7 +158,12 @@ describe('StudentLeaderboard', () => {
     }));
 
     it('comes after a "⋯" when it is outside the top', fakeAsync(() => {
-      shared.leaderboard.and.returnValue(of(board({ you: entry(9, 'Cúc', { stagesPassed: 1, correct: 4 }) })));
+      shared.leaderboard.and.returnValue(of(board({
+        you: entry(9, 'Cúc', {
+          stagesPassed: 1,
+          correct: 4
+        })
+      })));
       open();
 
       expect(rows().length).toBe(6);
@@ -150,7 +180,12 @@ describe('StudentLeaderboard', () => {
     }));
 
     it('is a muted line when the student has no result yet', fakeAsync(() => {
-      shared.leaderboard.and.returnValue(of(board({ you: entry(null, 'Cúc', { stagesPassed: 0, correct: 0 }) })));
+      shared.leaderboard.and.returnValue(of(board({
+        you: entry(null, 'Cúc', {
+          stagesPassed: 0,
+          correct: 0
+        })
+      })));
       open();
 
       expect(clean(root())).toContain('Bạn chưa có kết quả, chơi màn đầu tiên nhé!');
@@ -369,7 +404,10 @@ describe('StudentLeaderboard', () => {
       fixture.componentRef.setInput('refreshKey', 1);
       fixture.detectChanges();
 
-      newer.error(new HttpErrorResponse({ status: 404, error: 'Board hidden' }));
+      newer.error(new HttpErrorResponse({
+        status: 404,
+        error: 'Board hidden'
+      }));
       older.next(board());
       fixture.detectChanges();
 

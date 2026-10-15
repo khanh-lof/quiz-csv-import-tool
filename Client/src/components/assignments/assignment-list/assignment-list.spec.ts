@@ -10,8 +10,22 @@ const URL = '/api/assignments';
 
 function assignment(id: string, overrides: Partial<Assignment> = {}): Assignment {
   return {
-    id, code: 'K7M2X9QD4P', jobId: 'job-1', title: `Quiz ${id}`, label: '', timeMode: 'standard', stageLock: 'sequential',
-    passPercents: {'1': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5}, timeLimits: {'1': 12}, createdAt: '2026-10-14T01:30:00Z', closesAt: null, closedAt: null, open: true,
+    id,
+    code: 'K7M2X9QD4P',
+    jobId: 'job-1',
+    title: `Quiz ${id}`,
+    label: '',
+    timeMode: 'standard',
+    stageLock: 'sequential',
+    passPercents: { '1': 70 },
+    maxAttempts: null,
+    showBoard: true,
+    stageCounts: { '1': 5 },
+    timeLimits: { '1': 12 },
+    createdAt: '2026-10-14T01:30:00Z',
+    closesAt: null,
+    closedAt: null,
+    open: true,
     playerCount: 0, ...overrides,
   };
 }
@@ -29,7 +43,10 @@ describe('AssignmentList', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        {provide: NzNotificationService, useValue: notifications},
+        {
+          provide: NzNotificationService,
+          useValue: notifications
+        },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -46,6 +63,7 @@ describe('AssignmentList', () => {
   // The table also has a measuring row and, when empty, a placeholder row: only the assignments' own rows count.
   const rows = (): HTMLElement[] =>
     Array.from(root().querySelectorAll<HTMLElement>('td.assignment-title')).map(cell => cell.closest('tr')!);
+
   // The actions live in a dropdown that renders in an overlay outside the row: open the row's, then look there.
   async function menuItem(row: HTMLElement, label: string): Promise<HTMLElement> {
     row.querySelector<HTMLButtonElement>('button[aria-label="Thao tác"]')!.click();
@@ -70,15 +88,23 @@ describe('AssignmentList', () => {
   async function load(...list: Assignment[]): Promise<void> {
     fixture = TestBed.createComponent(AssignmentList);
     fixture.detectChanges();
-    http.expectOne(URL).flush({assignments: list});
+    http.expectOne(URL).flush({ assignments: list });
     await settle();
   }
 
   it('lists the assignments with their label, status, student count and ways to act', async () => {
     const soon = new Date(Date.now() + 3_600_000).toISOString();
     await load(
-      assignment('a', {label: 'Lớp 3A', playerCount: 12, closesAt: soon}),
-      assignment('b', {closedAt: '2026-10-14T02:00:00Z', open: false, playerCount: 3}));
+      assignment('a', {
+        label: 'Lớp 3A',
+        playerCount: 12,
+        closesAt: soon
+      }),
+      assignment('b', {
+        closedAt: '2026-10-14T02:00:00Z',
+        open: false,
+        playerCount: 3
+      }));
 
     const [first, second] = rows();
     expect(rows().length).toBe(2);
@@ -102,7 +128,10 @@ describe('AssignmentList', () => {
   it('tells the teacher when the list could not be loaded', async () => {
     fixture = TestBed.createComponent(AssignmentList);
     fixture.detectChanges();
-    http.expectOne(URL).flush('boom', {status: 500, statusText: 'Server Error'});
+    http.expectOne(URL).flush('boom', {
+      status: 500,
+      statusText: 'Server Error'
+    });
     await settle();
 
     expect(notifications.error).toHaveBeenCalledTimes(1);
@@ -110,7 +139,11 @@ describe('AssignmentList', () => {
   });
 
   it('reopens a closed assignment with no closing time, keeping the student count', async () => {
-    await load(assignment('b', {closedAt: '2026-10-14T02:00:00Z', open: false, playerCount: 3}));
+    await load(assignment('b', {
+      closedAt: '2026-10-14T02:00:00Z',
+      open: false,
+      playerCount: 3
+    }));
 
     (await menuItem(rows()[0], 'Mở lại')).click();
     await settle();
@@ -121,8 +154,11 @@ describe('AssignmentList', () => {
 
     const request = http.expectOne(`${URL}/b`);
     expect(request.request.method).toBe('PATCH');
-    expect(request.request.body).toEqual({closed: false, closesAt: null});
-    request.flush(assignment('b', {playerCount: 0}));
+    expect(request.request.body).toEqual({
+      closed: false,
+      closesAt: null
+    });
+    request.flush(assignment('b', { playerCount: 0 }));
     await settle();
 
     expect(rows()[0].textContent).toContain('Đang mở');
@@ -131,13 +167,19 @@ describe('AssignmentList', () => {
   });
 
   it('keeps the reopen dialog open and says why when the server refuses', async () => {
-    await load(assignment('b', {closedAt: '2026-10-14T02:00:00Z', open: false}));
+    await load(assignment('b', {
+      closedAt: '2026-10-14T02:00:00Z',
+      open: false
+    }));
 
     (await menuItem(rows()[0], 'Mở lại')).click();
     await settle();
     document.body.querySelector<HTMLButtonElement>('.ant-modal-footer .ant-btn-primary')!.click();
     await settle();
-    http.expectOne(`${URL}/b`).flush('Assignment not found', {status: 404, statusText: 'Not Found'});
+    http.expectOne(`${URL}/b`).flush('Assignment not found', {
+      status: 404,
+      statusText: 'Not Found'
+    });
     await settle();
 
     expect(notifications.error).toHaveBeenCalledTimes(1);

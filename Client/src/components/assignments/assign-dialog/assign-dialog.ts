@@ -22,7 +22,14 @@ import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { NzSwitchComponent } from 'ng-zorro-antd/switch';
-import { DEFAULT_PASS_PERCENT, MAX_PASS_PERCENT, MIN_PASS_PERCENT, passMark, STAGES, stagePosition } from '../../../game/stages';
+import {
+  DEFAULT_PASS_PERCENT,
+  MAX_PASS_PERCENT,
+  MIN_PASS_PERCENT,
+  passMark,
+  stagePosition,
+  STAGES
+} from '../../../game/stages';
 import { AiJob } from '../../../models/ai-job';
 import {
   Assignment,
@@ -108,54 +115,36 @@ export class AssignDialog {
   protected readonly defaultPercent = DEFAULT_PASS_PERCENT;
   protected readonly minAttemptsLimit = MIN_ATTEMPTS_LIMIT;
   protected readonly maxAttemptsLimit = MAX_ATTEMPTS_LIMIT;
-  protected readonly formatPercent = (value: number | string): string => `${value}%`;
-  protected readonly parsePercent = (value: string): number => Number(value.replace(PERCENT_SUFFIX, ''));
   protected readonly timeModes = (Object.keys(TIME_MODE_LABELS) as TimeMode[])
-    .map(value => ({value, label: TIME_MODE_LABELS[value]}));
-
+    .map(value => ({
+      value,
+      label: TIME_MODE_LABELS[value]
+    }));
   protected readonly stageLocks = (Object.keys(STAGE_LOCK_LABELS) as StageLock[])
-    .map(value => ({value, label: STAGE_LOCK_LABELS[value]}));
-
+    .map(value => ({
+      value,
+      label: STAGE_LOCK_LABELS[value]
+    }));
   protected readonly label = signal('');
   protected readonly deadline = signal<Date | null>(null);
   protected readonly timeMode = signal<TimeMode>('standard');
   protected readonly stageLock = signal<StageLock>('sequential');
   // Whether the students see the board (the top five and their own place); on by default.
   protected readonly showBoard = signal(true);
-  // The percentage typed for each stage ("1" to "6"); a stage not in it has the default.
-  private readonly passInputs = signal<Record<string, number | null>>({});
-  // The replay limit per stage: whether the teacher set one, and the number typed (null while the box is
   // empty). It only exists with the `open` stage lock, see `maxAttemptsSent`.
   protected readonly limitAttempts = signal(false);
   protected readonly attemptsInput = signal<number | null>(DEFAULT_ATTEMPTS_LIMIT);
   protected readonly sending = signal(false);
+  // The replay limit per stage: whether the teacher set one, and the number typed (null while the box is
   protected readonly error = signal('');
   // The assignment the dialog made: while it is set, the dialog shows its link instead of the form.
   protected readonly assignment = signal<Assignment | null>(null);
-
-  private readonly assignmentService = inject(AssignmentService);
-  private readonly aiCsvService = inject(AiCsvService);
-  private readonly csvImportService = inject(CsvImportService);
-  private readonly router = inject(Router);
-  private readonly destroyRef = inject(DestroyRef);
-
-  // The job's quiz read the way the game reads it, so the dialog counts and checks what students will play.
-  protected readonly quiz = computed<GestureQuiz | null>(() => {
-    const job = this.job();
-    if (!job) {
-      return null;
-    }
-    const text = this.aiCsvService.extractCsvContent(job.csv);
-    const rows = this.csvImportService.parseCsvRows(text.startsWith(BYTE_ORDER_MARK) ? text.slice(1) : text);
-    return parseGestureQuiz(rows, job.title);
-  });
-  // By id, so a refreshed copy of the same job (the table's polling replaces its objects) does not wipe the form.
-  private readonly jobId = computed(() => this.job()?.id ?? null);
   protected readonly questions = computed(() => {
     const quiz = this.quiz();
     return quiz ? questionCount(quiz) : 0;
   });
-
+  // The percentage typed for each stage ("1" to "6"); a stage not in it has the default.
+  private readonly passInputs = signal<Record<string, number | null>>({});
   // A row for each stage the quiz has, so the teacher sets the pass mark only of the games students will play.
   protected readonly passRows = computed<PassRow[]>(() => {
     const quiz = this.quiz();
@@ -179,6 +168,23 @@ export class AssignDialog {
       };
     });
   });
+  private readonly assignmentService = inject(AssignmentService);
+  private readonly aiCsvService = inject(AiCsvService);
+  private readonly csvImportService = inject(CsvImportService);
+  // The job's quiz read the way the game reads it, so the dialog counts and checks what students will play.
+  protected readonly quiz = computed<GestureQuiz | null>(() => {
+    const job = this.job();
+    if (!job) {
+      return null;
+    }
+    const text = this.aiCsvService.extractCsvContent(job.csv);
+    const rows = this.csvImportService.parseCsvRows(text.startsWith(BYTE_ORDER_MARK) ? text.slice(1) : text);
+    return parseGestureQuiz(rows, job.title);
+  });
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+  // By id, so a refreshed copy of the same job (the table's polling replaces its objects) does not wipe the form.
+  private readonly jobId = computed(() => this.job()?.id ?? null);
 
   constructor() {
     // Opening the dialog, or opening it for another job, starts over with a fresh form: what was typed for
@@ -191,6 +197,10 @@ export class AssignDialog {
     });
   }
 
+  protected readonly formatPercent = (value: number | string): string => `${value}%`;
+
+  protected readonly parsePercent = (value: string): number => Number(value.replace(PERCENT_SUFFIX, ''));
+
   // Evaluated on every check rather than cached: a closing time is valid only until it comes.
   protected deadlinePassed(): boolean {
     const deadline = this.deadline();
@@ -199,7 +209,10 @@ export class AssignDialog {
 
   // An empty box (null) is read as the default when it matters, not rewritten while the teacher types.
   protected setPercent(stage: number, value: number | null): void {
-    this.passInputs.update(inputs => ({...inputs, [String(stage)]: value}));
+    this.passInputs.update(inputs => ({
+      ...inputs,
+      [String(stage)]: value
+    }));
   }
 
   protected canSubmit(): boolean {
@@ -241,15 +254,6 @@ export class AssignDialog {
     return this.stageLock() === 'open' && this.limitAttempts() ? effectiveAttempts(this.attemptsInput()) : null;
   }
 
-  // The complete map the server wants: the percentage of every stage the quiz has, whole and in range.
-  private passPercents(): Record<string, number> {
-    const percents: Record<string, number> = {};
-    for (const row of this.passRows()) {
-      percents[String(row.stage)] = row.percent;
-    }
-    return percents;
-  }
-
   // The quiz as its owner plays it, which is how it will look to the students (less the saving).
   protected tryJob(): void {
     const job = this.job();
@@ -270,6 +274,15 @@ export class AssignDialog {
 
   protected close(): void {
     this.open.set(false);
+  }
+
+  // The complete map the server wants: the percentage of every stage the quiz has, whole and in range.
+  private passPercents(): Record<string, number> {
+    const percents: Record<string, number> = {};
+    for (const row of this.passRows()) {
+      percents[String(row.stage)] = row.percent;
+    }
+    return percents;
   }
 
   private reset(): void {

@@ -15,7 +15,7 @@ export interface SubmittedJob {
 // Starting a generation only uploads the request. The server retries the LLM gateway's transient
 // failures itself while it works on the job, so there is no client-side retry: a failed job is shown
 // as failed and the user submits again.
-@Injectable({providedIn: 'root'})
+@Injectable({ providedIn: 'root' })
 export class AiCsvService {
   private readonly endpointUrl = '/api/csv/jobs';
 
@@ -55,20 +55,12 @@ export class AiCsvService {
       }
     }
 
-    return this.httpClient.post<SubmittedJob>(this.endpointUrl, this.buildBody(imageFiles), {params});
+    return this.httpClient.post<SubmittedJob>(this.endpointUrl, this.buildBody(imageFiles), { params });
   }
 
   submitFormatted(imageFiles: File[], title: string): Observable<SubmittedJob> {
     return this.httpClient.post<SubmittedJob>(this.endpointUrl, this.buildBody(imageFiles),
-      {params: new HttpParams().set('title', title)});
-  }
-
-  private buildBody(imageFiles: File[]): FormData {
-    const formData = new FormData();
-    imageFiles.forEach(file => {
-      formData.append('images', file, file.name);
-    });
-    return formData;
+      { params: new HttpParams().set('title', title) });
   }
 
   extractCsvContent(rawText: string): string {
@@ -88,6 +80,14 @@ export class AiCsvService {
     }
 
     return trimmed;
+  }
+
+  private buildBody(imageFiles: File[]): FormData {
+    const formData = new FormData();
+    imageFiles.forEach(file => {
+      formData.append('images', file, file.name);
+    });
+    return formData;
   }
 
 }

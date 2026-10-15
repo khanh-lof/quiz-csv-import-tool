@@ -1,15 +1,15 @@
-<div class="grid" role="radiogroup" aria-label="Hình đại diện">
+<div aria-label="Hình đại diện" class="grid" role="radiogroup">
   @for (avatar of avatars; track avatar.id; let i = $index) {
-    <button #cell type="button" role="radio" class="cell" [class.is-selected]="avatar.id === value()"
-            [attr.aria-checked]="avatar.id === value()" [attr.aria-label]="avatar.name" [attr.title]="avatar.name"
-            [tabindex]="avatar.id === tabbable() ? 0 : -1" (click)="select(avatar.id)" (keydown)="onKeydown($event, i)">
+    <button #cell (click)="select(avatar.id)" (keydown)="onKeydown($event, i)" [attr.aria-checked]="avatar.id === value()" [attr.aria-label]="avatar.name"
+            [attr.title]="avatar.name" [class.is-selected]="avatar.id === value()" [tabindex]="avatar.id === tabbable() ? 0 : -1"
+            class="cell" role="radio" type="button">
       <app-player-avatar [avatar]="avatar.id" [name]="avatar.name" size="md"/>
       @if (avatar.id === value()) {
-        <span class="check" aria-hidden="true">✓</span>
+        <span aria-hidden="true" class="check">✓</span>
       }
     </button>
   }
 </div>
 <div class="actions">
-  <button nz-button nzType="default" nzSize="small" type="button" (click)="random()">🎲 Ngẫu nhiên</button>
+  <button (click)="random()" nz-button nzSize="small" nzType="default" type="button">🎲 Ngẫu nhiên</button>
 </div>

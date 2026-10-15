@@ -1,9 +1,7 @@
+import type { SelectorStep } from './word-order-logic';
 import {
-  CompletionTimer,
-  TargetRect,
-  TargetSelector,
-  UNDO_TARGET,
   applyTarget,
+  CompletionTimer,
   hitTest,
   isComplete,
   isValidTarget,
@@ -13,9 +11,11 @@ import {
   placeTile,
   poolTarget,
   removeTileAt,
+  TargetRect,
+  TargetSelector,
+  UNDO_TARGET,
   undoLast,
 } from './word-order-logic';
-import type { SelectorStep } from './word-order-logic';
 
 describe('answer line', () => {
   // Two tiles read 的, so tiles have to be told apart by position.
@@ -70,8 +70,14 @@ describe('answer line', () => {
 
 describe('targets', () => {
   it('parses the three kinds and rejects the rest', () => {
-    expect(parseTarget('pool:3')).toEqual({ kind: 'place', index: 3 });
-    expect(parseTarget('line:0')).toEqual({ kind: 'remove', position: 0 });
+    expect(parseTarget('pool:3')).toEqual({
+      kind: 'place',
+      index: 3
+    });
+    expect(parseTarget('line:0')).toEqual({
+      kind: 'remove',
+      position: 0
+    });
     expect(parseTarget(UNDO_TARGET)).toEqual({ kind: 'undo' });
     expect(parseTarget('pool:')).toBeNull();
     expect(parseTarget('tile:1')).toBeNull();
@@ -102,8 +108,20 @@ describe('targets', () => {
 
 describe('hitTest', () => {
   const rects: TargetRect[] = [
-    { id: 'a', x: 100, y: 100, width: 100, height: 80 },
-    { id: 'b', x: 220, y: 100, width: 100, height: 80 },
+    {
+      id: 'a',
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 80
+    },
+    {
+      id: 'b',
+      x: 220,
+      y: 100,
+      width: 100,
+      height: 80
+    },
   ];
 
   it('finds the target the point is inside', () => {
@@ -131,8 +149,20 @@ describe('hitTest', () => {
 
   it('prefers a target the point is inside over a nearer centre outside', () => {
     const big: TargetRect[] = [
-      { id: 'wide', x: 0, y: 0, width: 400, height: 100 },
-      { id: 'small', x: 410, y: 20, width: 20, height: 20 },
+      {
+        id: 'wide',
+        x: 0,
+        y: 0,
+        width: 400,
+        height: 100
+      },
+      {
+        id: 'small',
+        x: 410,
+        y: 20,
+        width: 20,
+        height: 20
+      },
     ];
     expect(hitTest(395, 30, big, 30)).toBe('wide');
   });
@@ -152,7 +182,10 @@ function run(
 ): SelectorStep[] {
   const steps: SelectorStep[] = [];
   for (let now = from; now <= to; now += 50) {
-    steps.push(selector.step({ hover, now, ...extra }));
+    steps.push(selector.step({
+      hover,
+      now, ...extra
+    }));
   }
   return steps;
 }
@@ -171,7 +204,10 @@ describe('TargetSelector dwell', () => {
     expect(steps[7].progress).toBeCloseTo(350 / 700);
     expect(steps[13].progress).toBeCloseTo(650 / 700);
 
-    const last = selector.step({ hover: 'pool:0', now: 700 });
+    const last = selector.step({
+      hover: 'pool:0',
+      now: 700
+    });
     expect(last.picked).toBe('pool:0');
     expect(last.via).toBe('dwell');
     expect(last.target).toBeNull();
@@ -196,15 +232,24 @@ describe('TargetSelector dwell', () => {
     const back = run(selector, 'pool:0', 750, 1400);
     expect(picks(back)).toEqual([]);
     expect(back[0].started).toBeTrue();
-    expect(selector.step({ hover: 'pool:0', now: 1450 }).picked).toBe('pool:0');
+    expect(selector.step({
+      hover: 'pool:0',
+      now: 1450
+    }).picked).toBe('pool:0');
   });
 
   it('keeps the hover through a slip shorter than the grace', () => {
     const selector = new TargetSelector();
     run(selector, 'pool:0', 0, 300);
-    const slip = selector.step({ hover: null, now: 350 });
+    const slip = selector.step({
+      hover: null,
+      now: 350
+    });
     expect(slip.target).toBe('pool:0');
-    const back = selector.step({ hover: 'pool:0', now: 400 });
+    const back = selector.step({
+      hover: 'pool:0',
+      now: 400
+    });
     expect(back.started).toBeFalse();
     expect(back.progress).toBeCloseTo(400 / 700);
   });
@@ -213,15 +258,24 @@ describe('TargetSelector dwell', () => {
     const selector = new TargetSelector();
     run(selector, 'pool:0', 0, 650);
     // The dwell would complete at 700, but the cursor is off the target on that step.
-    const slip = selector.step({ hover: null, now: 700 });
+    const slip = selector.step({
+      hover: null,
+      now: 700
+    });
     expect(slip.picked).toBeNull();
-    expect(selector.step({ hover: 'pool:0', now: 750 }).picked).toBe('pool:0');
+    expect(selector.step({
+      hover: 'pool:0',
+      now: 750
+    }).picked).toBe('pool:0');
   });
 
   it('restarts at once on another target', () => {
     const selector = new TargetSelector();
     run(selector, 'pool:0', 0, 400);
-    const move = selector.step({ hover: 'pool:1', now: 450 });
+    const move = selector.step({
+      hover: 'pool:1',
+      now: 450
+    });
     expect(move.target).toBe('pool:1');
     expect(move.started).toBeTrue();
     expect(move.progress).toBe(0);
@@ -230,7 +284,10 @@ describe('TargetSelector dwell', () => {
   it('highlights a hover even while it is not dwelling', () => {
     const selector = new TargetSelector();
     run(selector, 'undo', 0, 700);
-    const cooling = selector.step({ hover: 'undo', now: 750 });
+    const cooling = selector.step({
+      hover: 'undo',
+      now: 750
+    });
     expect(cooling.hovered).toBe('undo');
     expect(cooling.target).toBeNull();
   });
@@ -240,7 +297,10 @@ describe('TargetSelector cooldown', () => {
   it('does not dwell on the picked target again during the cooldown', () => {
     const selector = new TargetSelector();
     run(selector, 'undo', 0, 650);
-    expect(selector.step({ hover: 'undo', now: 700 }).picked).toBe('undo');
+    expect(selector.step({
+      hover: 'undo',
+      now: 700
+    }).picked).toBe('undo');
     const cooling = run(selector, 'undo', 750, 1050);
     expect(cooling.every(step => step.target === null && step.picked === null)).toBeTrue();
   });
@@ -248,9 +308,15 @@ describe('TargetSelector cooldown', () => {
   it('offers the target again after the cooldown, with a fresh ring', () => {
     const selector = new TargetSelector();
     run(selector, 'undo', 0, 650);
-    selector.step({ hover: 'undo', now: 700 });
+    selector.step({
+      hover: 'undo',
+      now: 700
+    });
     run(selector, 'undo', 750, 1050);
-    const again = selector.step({ hover: 'undo', now: 1100 });
+    const again = selector.step({
+      hover: 'undo',
+      now: 1100
+    });
     expect(again.target).toBe('undo');
     expect(again.started).toBeTrue();
     expect(again.progress).toBe(0);
@@ -267,8 +333,14 @@ describe('TargetSelector cooldown', () => {
   it('lets the cursor go straight to another target during the cooldown', () => {
     const selector = new TargetSelector();
     run(selector, 'line:0', 0, 650);
-    selector.step({ hover: 'line:0', now: 700 });
-    const next = selector.step({ hover: 'pool:2', now: 750 });
+    selector.step({
+      hover: 'line:0',
+      now: 700
+    });
+    const next = selector.step({
+      hover: 'pool:2',
+      now: 750
+    });
     expect(next.target).toBe('pool:2');
     expect(next.started).toBeTrue();
   });
@@ -276,19 +348,34 @@ describe('TargetSelector cooldown', () => {
   it('ends the cooldown once the cursor has left the target', () => {
     const selector = new TargetSelector();
     run(selector, 'undo', 0, 650);
-    selector.step({ hover: 'undo', now: 700 });
+    selector.step({
+      hover: 'undo',
+      now: 700
+    });
     run(selector, null, 750, 900);
     // Back on it 200 ms after the pick, well inside the 400 ms cooldown, but it was left.
-    const back = selector.step({ hover: 'undo', now: 950 });
+    const back = selector.step({
+      hover: 'undo',
+      now: 950
+    });
     expect(back.target).toBe('undo');
   });
 
   it('does not count a one-frame slip as leaving', () => {
     const selector = new TargetSelector();
     run(selector, 'undo', 0, 650);
-    selector.step({ hover: 'undo', now: 700 });
-    selector.step({ hover: null, now: 750 });
-    const back = selector.step({ hover: 'undo', now: 800 });
+    selector.step({
+      hover: 'undo',
+      now: 700
+    });
+    selector.step({
+      hover: null,
+      now: 750
+    });
+    const back = selector.step({
+      hover: 'undo',
+      now: 800
+    });
     expect(back.target).toBeNull();
   });
 });
@@ -297,7 +384,12 @@ describe('TargetSelector pinch', () => {
   it('picks the hovered target at once', () => {
     const selector = new TargetSelector();
     run(selector, 'pool:1', 0, 300);
-    const step = selector.step({ hover: 'pool:1', pinchDown: true, pinched: true, now: 350 });
+    const step = selector.step({
+      hover: 'pool:1',
+      pinchDown: true,
+      pinched: true,
+      now: 350
+    });
     expect(step.picked).toBe('pool:1');
     expect(step.via).toBe('pinch');
     expect(step.target).toBeNull();
@@ -306,7 +398,12 @@ describe('TargetSelector pinch', () => {
   it('does nothing without a target', () => {
     const selector = new TargetSelector();
     run(selector, null, 0, 300);
-    const step = selector.step({ hover: null, pinchDown: true, pinched: true, now: 350 });
+    const step = selector.step({
+      hover: null,
+      pinchDown: true,
+      pinched: true,
+      now: 350
+    });
     expect(step.picked).toBeNull();
   });
 
@@ -314,16 +411,32 @@ describe('TargetSelector pinch', () => {
     const selector = new TargetSelector();
     run(selector, 'pool:1', 0, 300);
     // The cursor slips to pool:2 as the fingers close; the pinch is reported 50 ms later.
-    selector.step({ hover: 'pool:2', now: 350 });
-    const step = selector.step({ hover: 'pool:2', pinchDown: true, pinched: true, now: 400 });
+    selector.step({
+      hover: 'pool:2',
+      now: 350
+    });
+    const step = selector.step({
+      hover: 'pool:2',
+      pinchDown: true,
+      pinched: true,
+      now: 400
+    });
     expect(step.picked).toBe('pool:1');
   });
 
   it('picks the target it was resting on when the fingertip drifts off everything', () => {
     const selector = new TargetSelector();
     run(selector, 'pool:1', 0, 300);
-    selector.step({ hover: null, now: 350 });
-    const step = selector.step({ hover: null, pinchDown: true, pinched: true, now: 400 });
+    selector.step({
+      hover: null,
+      now: 350
+    });
+    const step = selector.step({
+      hover: null,
+      pinchDown: true,
+      pinched: true,
+      now: 400
+    });
     expect(step.picked).toBe('pool:1');
   });
 
@@ -331,7 +444,12 @@ describe('TargetSelector pinch', () => {
     const selector = new TargetSelector();
     run(selector, 'pool:1', 0, 300);
     run(selector, null, 350, 800);
-    const step = selector.step({ hover: null, pinchDown: true, pinched: true, now: 850 });
+    const step = selector.step({
+      hover: null,
+      pinchDown: true,
+      pinched: true,
+      now: 850
+    });
     expect(step.picked).toBeNull();
   });
 
@@ -339,15 +457,28 @@ describe('TargetSelector pinch', () => {
     const selector = new TargetSelector();
     run(selector, 'pool:1', 0, 300);
     run(selector, 'pool:2', 350, 600);
-    const step = selector.step({ hover: 'pool:2', pinchDown: true, pinched: true, now: 650 });
+    const step = selector.step({
+      hover: 'pool:2',
+      pinchDown: true,
+      pinched: true,
+      now: 650
+    });
     expect(step.picked).toBe('pool:2');
   });
 
   it('is not held back by the cooldown of an earlier dwell pick', () => {
     const selector = new TargetSelector();
     run(selector, 'undo', 0, 650);
-    selector.step({ hover: 'undo', now: 700 });
-    const step = selector.step({ hover: 'undo', pinchDown: true, pinched: true, now: 800 });
+    selector.step({
+      hover: 'undo',
+      now: 700
+    });
+    const step = selector.step({
+      hover: 'undo',
+      pinchDown: true,
+      pinched: true,
+      now: 800
+    });
     expect(step.picked).toBe('undo');
   });
 
@@ -356,16 +487,27 @@ describe('TargetSelector pinch', () => {
     const steps = run(selector, 'pool:2', 0, 1500, { pinched: true });
     expect(steps.every(step => step.target === null && step.picked === null)).toBeTrue();
     // Once released the dwell begins as usual.
-    expect(selector.step({ hover: 'pool:2', now: 1550 }).started).toBeTrue();
+    expect(selector.step({
+      hover: 'pool:2',
+      now: 1550
+    }).started).toBeTrue();
   });
 
   it('does not dwell on a target just picked by pinch until it is left or the cooldown ends', () => {
     const selector = new TargetSelector();
     run(selector, 'pool:1', 0, 300);
-    selector.step({ hover: 'pool:1', pinchDown: true, pinched: true, now: 350 });
+    selector.step({
+      hover: 'pool:1',
+      pinchDown: true,
+      pinched: true,
+      now: 350
+    });
     const released = run(selector, 'pool:1', 400, 700);
     expect(released.every(step => step.target === null)).toBeTrue();
-    expect(selector.step({ hover: 'pool:1', now: 750 }).target).toBe('pool:1');
+    expect(selector.step({
+      hover: 'pool:1',
+      now: 750
+    }).target).toBe('pool:1');
   });
 });
 
@@ -373,24 +515,41 @@ describe('TargetSelector reset', () => {
   it('clears the dwell, the cooldown and the pinch memory', () => {
     const selector = new TargetSelector();
     run(selector, 'undo', 0, 650);
-    selector.step({ hover: 'undo', now: 700 });
+    selector.step({
+      hover: 'undo',
+      now: 700
+    });
     selector.reset();
-    const fresh = selector.step({ hover: 'undo', now: 750 });
+    const fresh = selector.step({
+      hover: 'undo',
+      now: 750
+    });
     expect(fresh.target).toBe('undo');
     expect(fresh.started).toBeTrue();
 
     selector.reset();
     run(selector, 'pool:1', 800, 1000);
-    selector.step({ hover: null, now: 1050 });
+    selector.step({
+      hover: null,
+      now: 1050
+    });
     selector.reset();
-    const step = selector.step({ hover: null, pinchDown: true, pinched: true, now: 1100 });
+    const step = selector.step({
+      hover: null,
+      pinchDown: true,
+      pinched: true,
+      now: 1100
+    });
     expect(step.picked).toBeNull();
   });
 
   it('treats a long pause between steps as a reset, not as hover time', () => {
     const selector = new TargetSelector();
     run(selector, 'pool:0', 0, 300);
-    const after = selector.step({ hover: 'pool:0', now: 5000 });
+    const after = selector.step({
+      hover: 'pool:0',
+      now: 5000
+    });
     expect(after.picked).toBeNull();
     expect(after.started).toBeTrue();
     expect(after.progress).toBe(0);

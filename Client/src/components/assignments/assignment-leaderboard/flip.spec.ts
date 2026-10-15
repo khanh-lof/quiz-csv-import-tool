@@ -69,7 +69,7 @@ describe('flip', () => {
       moveAToTheEnd();
       playFlip(container, before, 5000);
 
-      row('a').dispatchEvent(new TransitionEvent('transitionend', {propertyName: 'transform'}));
+      row('a').dispatchEvent(new TransitionEvent('transitionend', { propertyName: 'transform' }));
 
       expect(row('a').style.transform).toBe('');
       expect(row('a').style.transition).toBe('');
@@ -82,7 +82,7 @@ describe('flip', () => {
       moveAToTheEnd();
       playFlip(container, before, 5000);
 
-      row('a').dispatchEvent(new TransitionEvent('transitionend', {propertyName: 'background-color'}));
+      row('a').dispatchEvent(new TransitionEvent('transitionend', { propertyName: 'background-color' }));
 
       expect(row('a').style.transition).toContain('transform');
     });
@@ -141,14 +141,14 @@ describe('flip', () => {
 
   describe('prefersReducedMotion', () => {
     it('follows the media query', () => {
-      spyOn(window, 'matchMedia').and.returnValue({matches: true} as MediaQueryList);
+      spyOn(window, 'matchMedia').and.returnValue({ matches: true } as MediaQueryList);
 
       expect(prefersReducedMotion()).toBeTrue();
       expect(window.matchMedia).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)');
     });
 
     it('is false when the visitor has no such preference', () => {
-      spyOn(window, 'matchMedia').and.returnValue({matches: false} as MediaQueryList);
+      spyOn(window, 'matchMedia').and.returnValue({ matches: false } as MediaQueryList);
 
       expect(prefersReducedMotion()).toBeFalse();
     });

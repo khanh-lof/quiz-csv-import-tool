@@ -41,8 +41,13 @@ describe('AiGeneration', () => {
     localStorage.removeItem(SETTINGS_STORAGE_KEY);
   });
 
-  function fill(values: {courseType: CourseType; hskStandard?: HskStandard; level: number; lessonNumber: number}): void {
-    page.formGroup.patchValue({exportType: ExportType.Wayground, ...values});
+  function fill(values: {
+    courseType: CourseType;
+    hskStandard?: HskStandard;
+    level: number;
+    lessonNumber: number
+  }): void {
+    page.formGroup.patchValue({ exportType: ExportType.Wayground, ...values });
     fixture.detectChanges();
   }
 
@@ -54,7 +59,12 @@ describe('AiGeneration', () => {
   });
 
   it('caps the lesson at the textbook\'s lesson count and says the book is used', () => {
-    fill({courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 3, lessonNumber: 18});
+    fill({
+      courseType: CourseType.Hsk,
+      hskStandard: HskStandard.V3,
+      level: 3,
+      lessonNumber: 18
+    });
 
     expect(page.maxLesson).toBe(18);
     expect(page.formGroup.valid).toBeTrue();
@@ -63,31 +73,45 @@ describe('AiGeneration', () => {
   });
 
   it('refuses a lesson past the textbook\'s, such as lesson 18 after switching to level 1', () => {
-    fill({courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 3, lessonNumber: 18});
-    page.formGroup.patchValue({level: 1});
+    fill({
+      courseType: CourseType.Hsk,
+      hskStandard: HskStandard.V3,
+      level: 3,
+      lessonNumber: 18
+    });
+    page.formGroup.patchValue({ level: 1 });
 
     expect(page.maxLesson).toBe(15);
     expect(lessonErrors()?.['max']).toBeTruthy();
     expect(page.formGroup.invalid).toBeTrue();
 
-    page.formGroup.patchValue({lessonNumber: 15});
+    page.formGroup.patchValue({ lessonNumber: 15 });
     expect(lessonErrors()).toBeNull();
     expect(page.formGroup.valid).toBeTrue();
   });
 
   it('refuses it too when the standard changes to one without a book', () => {
-    fill({courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 3, lessonNumber: 18});
+    fill({
+      courseType: CourseType.Hsk,
+      hskStandard: HskStandard.V3,
+      level: 3,
+      lessonNumber: 18
+    });
     expect(page.formGroup.valid).toBeTrue();
 
     // HSK 2.0 has no textbook: the limit goes back to 100 and the error goes away.
-    page.formGroup.patchValue({hskStandard: HskStandard.V2});
+    page.formGroup.patchValue({ hskStandard: HskStandard.V2 });
     expect(page.textbook).toBeUndefined();
     expect(page.maxLesson).toBe(100);
     expect(lessonErrors()).toBeNull();
   });
 
   it('keeps the old limit of 100 and the plain hint for a course without a book', () => {
-    fill({courseType: CourseType.Yct, level: 5, lessonNumber: 40});
+    fill({
+      courseType: CourseType.Yct,
+      level: 5,
+      lessonNumber: 40
+    });
 
     expect(page.maxLesson).toBe(100);
     expect(page.formGroup.valid).toBeTrue();
@@ -95,7 +119,11 @@ describe('AiGeneration', () => {
   });
 
   it('applies the YCT book\'s lesson count', () => {
-    fill({courseType: CourseType.Yct, level: 6, lessonNumber: 16});
+    fill({
+      courseType: CourseType.Yct,
+      level: 6,
+      lessonNumber: 16
+    });
 
     expect(page.maxLesson).toBe(15);
     expect(lessonErrors()?.['max']).toBeTruthy();

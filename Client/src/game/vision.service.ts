@@ -66,7 +66,11 @@ export interface FaceResultLike {
 export function toHandFrame(result: HandResultLike | null | undefined): HandFrame {
   const landmarks = result?.landmarks?.[0];
   if (!landmarks || landmarks.length === 0) {
-    return { landmarks: null, gesture: null, gestureScore: 0 };
+    return {
+      landmarks: null,
+      gesture: null,
+      gestureScore: 0
+    };
   }
   let top: CategoryLike | null = null;
   for (const category of result?.gestures?.[0] ?? []) {
@@ -86,13 +90,21 @@ export function toHandFrame(result: HandResultLike | null | undefined): HandFram
 export function toFaceFrame(result: FaceResultLike | null | undefined): FaceFrame {
   const landmarks = result?.faceLandmarks?.[0];
   if (!result || !landmarks) {
-    return { faces: 0, landmarks: null, blendshapes: {} };
+    return {
+      faces: 0,
+      landmarks: null,
+      blendshapes: {}
+    };
   }
   const blendshapes: Record<string, number> = {};
   for (const category of result.faceBlendshapes?.[0]?.categories ?? []) {
     blendshapes[category.categoryName] = category.score;
   }
-  return { faces: result.faceLandmarks.length, landmarks: landmarks as Point3[], blendshapes };
+  return {
+    faces: result.faceLandmarks.length,
+    landmarks: landmarks as Point3[],
+    blendshapes
+  };
 }
 
 // The camera and the two MediaPipe models, shared by the gesture page and every game. The page owns
@@ -106,8 +118,8 @@ export class VisionService {
   readonly video: HTMLVideoElement = VisionService.createVideo();
 
   private readonly cameraStateSignal = signal<CameraState>('off');
-  private readonly cameraMessageSignal = signal('');
   readonly cameraState: Signal<CameraState> = this.cameraStateSignal.asReadonly();
+  private readonly cameraMessageSignal = signal('');
   readonly cameraMessage: Signal<string> = this.cameraMessageSignal.asReadonly();
 
   private readonly states = {
@@ -135,26 +147,54 @@ export class VisionService {
   };
   private runtime: Promise<{ vision: MediaPipe; fileset: WasmFileset }> | null = null;
 
-  private readonly lastVideoTime: Record<VisionKind, number> = { hand: -1, face: -1 };
-  private readonly lastDetectAt: Record<VisionKind, number> = { hand: -Infinity, face: -Infinity };
+  private readonly lastVideoTime: Record<VisionKind, number> = {
+    hand: -1,
+    face: -1
+  };
+  private readonly lastDetectAt: Record<VisionKind, number> = {
+    hand: -Infinity,
+    face: -Infinity
+  };
   // Per model and never reset: a model instance demands strictly increasing timestamps for its
   // whole life, across camera restarts too.
-  private readonly lastTimestamp: Record<VisionKind, number> = { hand: -1, face: -1 };
-  private readonly failures: Record<VisionKind, number> = { hand: 0, face: 0 };
+  private readonly lastTimestamp: Record<VisionKind, number> = {
+    hand: -1,
+    face: -1
+  };
+  private readonly failures: Record<VisionKind, number> = {
+    hand: 0,
+    face: 0
+  };
+
+  private static createVideo(): HTMLVideoElement {
+    const video = document.createElement('video');
+    video.playsInline = true;
+    video.muted = true;
+    video.autoplay = true;
+    video.className = 'qt-camera-video';
+    return video;
+  }
 
   modelState(kind: VisionKind): Signal<ModelState> {
     return this.readonlyStates[kind];
   }
 
+  // Never throws: every failure ends in a camera state and a message, because the quiz is still
+
   // The stream's intrinsic size, which the games need to map landmarks onto the cropped preview.
   videoSize(): { width: number; height: number } {
     if (this.cameraStateSignal() !== 'on') {
-      return { width: 0, height: 0 };
+      return {
+        width: 0,
+        height: 0
+      };
     }
-    return { width: this.video.videoWidth, height: this.video.videoHeight };
+    return {
+      width: this.video.videoWidth,
+      height: this.video.videoHeight
+    };
   }
 
-  // Never throws: every failure ends in a camera state and a message, because the quiz is still
   // playable with the mouse.
   startCamera(): Promise<void> {
     if (this.cameraStateSignal() === 'on') {
@@ -172,6 +212,10 @@ export class VisionService {
     return run;
   }
 
+  // Loads and creates the model for `kind` (once per session). Safe to call before the camera
+  // starts, so the download runs in parallel with the permission prompt. Rejects on failure or
+  // timeout; a later call retries, and picks up a load that is still running instead of starting
+
   stopCamera(): void {
     // Invalidates a start that is still waiting for the permission prompt or for the first frame.
     this.generation++;
@@ -181,9 +225,9 @@ export class VisionService {
     this.cameraMessageSignal.set('');
   }
 
-  // Loads and creates the model for `kind` (once per session). Safe to call before the camera
-  // starts, so the download runs in parallel with the permission prompt. Rejects on failure or
-  // timeout; a later call retries, and picks up a load that is still running instead of starting
+  // The latest result for `kind`, or null when there is nothing new to report (camera off, model
+  // not ready, no new video frame, or called again too soon). "Nothing in view" is a frame with
+
   // a second one.
   ensureModel(kind: VisionKind): Promise<void> {
     if (this.recognizers[kind]) {
@@ -210,8 +254,6 @@ export class VisionService {
     });
   }
 
-  // The latest result for `kind`, or null when there is nothing new to report (camera off, model
-  // not ready, no new video frame, or called again too soon). "Nothing in view" is a frame with
   // `landmarks: null`, so a null return never means "no hand".
   detect(kind: VisionKind, now: number): VisionFrame | null {
     if (this.cameraStateSignal() !== 'on' || this.states[kind]() !== 'ready') {
@@ -234,11 +276,20 @@ export class VisionService {
     this.lastTimestamp[kind] = timestamp;
     try {
       let frame: VisionFrame | null = null;
-      const { hand, face } = this.recognizers;
+      const {
+        hand,
+        face
+      } = this.recognizers;
       if (kind === 'hand' && hand) {
-        frame = { kind: 'hand', hand: toHandFrame(hand.recognizeForVideo(video, timestamp)) };
+        frame = {
+          kind: 'hand',
+          hand: toHandFrame(hand.recognizeForVideo(video, timestamp))
+        };
       } else if (kind === 'face' && face) {
-        frame = { kind: 'face', face: toFaceFrame(face.detectForVideo(video, timestamp)) };
+        frame = {
+          kind: 'face',
+          face: toFaceFrame(face.detectForVideo(video, timestamp))
+        };
       }
       this.failures[kind] = 0;
       return frame;
@@ -248,15 +299,6 @@ export class VisionService {
       }
       return null;
     }
-  }
-
-  private static createVideo(): HTMLVideoElement {
-    const video = document.createElement('video');
-    video.playsInline = true;
-    video.muted = true;
-    video.autoplay = true;
-    video.className = 'qt-camera-video';
-    return video;
   }
 
   private async openCamera(generation: number): Promise<void> {
@@ -270,7 +312,11 @@ export class VisionService {
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
         audio: false,
       });
     } catch (error) {
@@ -355,11 +401,17 @@ export class VisionService {
   // slow download that finishes late still ends as 'ready' for the next call.
   private createModel(kind: VisionKind): Promise<void> {
     const load = (async () => {
-      const { vision, fileset } = await this.loadRuntime();
+      const {
+        vision,
+        fileset
+      } = await this.loadRuntime();
       if (kind === 'hand') {
         this.recognizers.hand = await this.withGpuFallback(delegate =>
           vision.GestureRecognizer.createFromOptions(fileset, {
-            baseOptions: { modelAssetPath: HAND_MODEL, delegate },
+            baseOptions: {
+              modelAssetPath: HAND_MODEL,
+              delegate
+            },
             runningMode: 'VIDEO',
             numHands: 1,
             minHandDetectionConfidence: 0.5,
@@ -370,7 +422,10 @@ export class VisionService {
       } else {
         this.recognizers.face = await this.withGpuFallback(delegate =>
           vision.FaceLandmarker.createFromOptions(fileset, {
-            baseOptions: { modelAssetPath: FACE_MODEL, delegate },
+            baseOptions: {
+              modelAssetPath: FACE_MODEL,
+              delegate
+            },
             runningMode: 'VIDEO',
             // Two, so the page can tell the player when a second face is in view.
             numFaces: 2,
@@ -396,7 +451,10 @@ export class VisionService {
     this.runtime ??= (async () => {
       const vision = await import('@mediapipe/tasks-vision');
       const fileset = await vision.FilesetResolver.forVisionTasks(WASM_PATH);
-      return { vision, fileset };
+      return {
+        vision,
+        fileset
+      };
     })().catch(error => {
       this.runtime = null;
       throw error;

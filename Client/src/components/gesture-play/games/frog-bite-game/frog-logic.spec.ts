@@ -1,20 +1,14 @@
 import type { FacePose } from '../head-tilt-game/face-common';
-import {
-  NEUTRAL,
-  VIDEO_HEIGHT,
-  VIDEO_WIDTH,
-  faceFrame,
-  playFrames,
-} from '../head-tilt-game/face-fixture';
 import type { FaceSpec } from '../head-tilt-game/face-fixture';
+import { faceFrame, NEUTRAL, playFrames, VIDEO_HEIGHT, VIDEO_WIDTH, } from '../head-tilt-game/face-fixture';
 import {
+  frogHint,
   FrogReader,
   FrogStep,
   LANE_ENTER_SPANS,
   LANE_LEAVE_SPANS,
   LANE_STABLE_MS,
   LaneTracker,
-  frogHint,
   nextLane,
   screenShift,
 } from './frog-logic';
@@ -35,9 +29,20 @@ function play(reader: FrogReader, spec: FaceSpec, from: number, durationMs: numb
 
 // One bite at `noseX`: the mouth open for 150 ms, then closed again.
 function bite(reader: FrogReader, noseX: number, from: number) {
-  const open = play(reader, { noseX, centerX: noseX, jawOpen: 0.7 }, from, 150);
-  const closed = play(reader, { noseX, centerX: noseX, jawOpen: 0.05 }, open.end, 100);
-  return { results: [...open.results, ...closed.results], end: closed.end };
+  const open = play(reader, {
+    noseX,
+    centerX: noseX,
+    jawOpen: 0.7
+  }, from, 150);
+  const closed = play(reader, {
+    noseX,
+    centerX: noseX,
+    jawOpen: 0.05
+  }, open.end, 100);
+  return {
+    results: [...open.results, ...closed.results],
+    end: closed.end
+  };
 }
 
 function selections(steps: FrogStep[]): number[] {
@@ -91,35 +96,60 @@ describe('nextLane', () => {
 describe('LaneTracker', () => {
   it('counts how long the frog has been in its lane and starts over when it moves', () => {
     const tracker = new LaneTracker();
-    expect(tracker.update(0, 1000)).toEqual({ lane: 1, changed: false, stableMs: 0 });
+    expect(tracker.update(0, 1000)).toEqual({
+      lane: 1,
+      changed: false,
+      stableMs: 0
+    });
     expect(tracker.update(0.1, 1250).stableMs).toBe(250);
 
     const moved = tracker.update(0.7, 1300);
-    expect(moved).toEqual({ lane: 2, changed: true, stableMs: 0 });
-    expect(tracker.update(0.6, 1700)).toEqual({ lane: 2, changed: false, stableMs: 400 });
+    expect(moved).toEqual({
+      lane: 2,
+      changed: true,
+      stableMs: 0
+    });
+    expect(tracker.update(0.6, 1700)).toEqual({
+      lane: 2,
+      changed: false,
+      stableMs: 400
+    });
   });
 
   it('goes back to the middle lane when reset', () => {
     const tracker = new LaneTracker();
     tracker.update(0.7, 0);
     tracker.reset();
-    expect(tracker.update(0, 500)).toEqual({ lane: 1, changed: false, stableMs: 0 });
+    expect(tracker.update(0, 500)).toEqual({
+      lane: 1,
+      changed: false,
+      stableMs: 0
+    });
   });
 });
 
 describe('FrogReader', () => {
   it('follows the head: right on the screen is the third lane, left the first', () => {
     const reader = new FrogReader();
-    const right = play(reader, { noseX: noseAt(0.75), centerX: noseAt(0.75) }, 0, 200);
+    const right = play(reader, {
+      noseX: noseAt(0.75),
+      centerX: noseAt(0.75)
+    }, 0, 200);
     expect(right.results[right.results.length - 1].lane).toBe(2);
 
-    const left = play(reader, { noseX: noseAt(-0.75), centerX: noseAt(-0.75) }, right.end, 200);
+    const left = play(reader, {
+      noseX: noseAt(-0.75),
+      centerX: noseAt(-0.75)
+    }, right.end, 200);
     expect(left.results[left.results.length - 1].lane).toBe(0);
   });
 
   it('bites option 2 after resting on the right lane and snapping the mouth shut', () => {
     const reader = new FrogReader();
-    const rest = play(reader, { noseX: noseAt(0.75), jawOpen: 0.05 }, 0, 400);
+    const rest = play(reader, {
+      noseX: noseAt(0.75),
+      jawOpen: 0.05
+    }, 0, 400);
     const snap = bite(reader, noseAt(0.75), rest.end);
 
     expect(selections(rest.results)).toEqual([]);
@@ -128,7 +158,10 @@ describe('FrogReader', () => {
 
   it('bites the first lane on the left and the middle one at rest', () => {
     const left = new FrogReader();
-    const leftRest = play(left, { noseX: noseAt(-0.75), jawOpen: 0.05 }, 0, 400);
+    const leftRest = play(left, {
+      noseX: noseAt(-0.75),
+      jawOpen: 0.05
+    }, 0, 400);
     expect(selections(bite(left, noseAt(-0.75), leftRest.end).results)).toEqual([0]);
 
     const middle = new FrogReader();
@@ -149,8 +182,14 @@ describe('FrogReader', () => {
     const reader = new FrogReader();
     play(reader, { jawOpen: 0.05 }, 0, 400);
     // Open the mouth on arrival, keep it open past LANE_STABLE_MS, then close.
-    const open = play(reader, { noseX: noseAt(0.75), jawOpen: 0.7 }, 450, LANE_STABLE_MS + 100);
-    const closed = play(reader, { noseX: noseAt(0.75), jawOpen: 0.05 }, open.end, 100);
+    const open = play(reader, {
+      noseX: noseAt(0.75),
+      jawOpen: 0.7
+    }, 450, LANE_STABLE_MS + 100);
+    const closed = play(reader, {
+      noseX: noseAt(0.75),
+      jawOpen: 0.05
+    }, open.end, 100);
     expect(selections(closed.results)).toEqual([2]);
   });
 
@@ -194,10 +233,21 @@ describe('FrogReader', () => {
 
   it('selects nothing and reports why while the face count is not one', () => {
     const reader = new FrogReader();
-    const rest = play(reader, { noseX: noseAt(0.75), jawOpen: 0.05 }, 0, 400);
+    const rest = play(reader, {
+      noseX: noseAt(0.75),
+      jawOpen: 0.05
+    }, 0, 400);
 
-    const crowd = play(reader, { noseX: noseAt(0.75), jawOpen: 0.7, faces: 2 }, rest.end, 300);
-    const closed = play(reader, { noseX: noseAt(0.75), jawOpen: 0.05, faces: 2 }, crowd.end, 200);
+    const crowd = play(reader, {
+      noseX: noseAt(0.75),
+      jawOpen: 0.7,
+      faces: 2
+    }, rest.end, 300);
+    const closed = play(reader, {
+      noseX: noseAt(0.75),
+      jawOpen: 0.05,
+      faces: 2
+    }, crowd.end, 200);
     expect(selections([...crowd.results, ...closed.results])).toEqual([]);
     expect(crowd.results.every(step => step.invalid)).toBeTrue();
     expect(crowd.results[0].problem).toBe('Chỉ một người trước camera');
@@ -233,7 +283,10 @@ describe('FrogReader', () => {
 
   it('reads a missing jawOpen blendshape as a closed mouth', () => {
     const reader = new FrogReader();
-    const frame = { ...faceFrame(), blendshapes: {} };
+    const frame = {
+      ...faceFrame(),
+      blendshapes: {}
+    };
     const step = reader.step(frame, VIDEO_WIDTH, VIDEO_HEIGHT, NEUTRAL, 0);
     expect(step.jawOpen).toBe(0);
     expect(step.invalid).toBeFalse();
@@ -257,11 +310,27 @@ describe('frogHint', () => {
   };
 
   it('says what to do next', () => {
-    expect(frogHint({ ...base, problem: 'Chưa thấy mặt', invalid: true })).toBe('Chưa thấy mặt');
-    expect(frogHint({ ...base, mouthOpen: true })).toBe('Khép miệng lại để đớp!');
-    expect(frogHint({ ...base, waitingForClosedMouth: true })).toBe('Ngậm miệng lại một chút');
-    expect(frogHint({ ...base, stable: false })).toBe('Dịch đầu sang làn đáp án');
-    expect(frogHint({ ...base, lane: 2 })).toBe('Há rồi khép miệng để đớp');
+    expect(frogHint({
+      ...base,
+      problem: 'Chưa thấy mặt',
+      invalid: true
+    })).toBe('Chưa thấy mặt');
+    expect(frogHint({
+      ...base,
+      mouthOpen: true
+    })).toBe('Khép miệng lại để đớp!');
+    expect(frogHint({
+      ...base,
+      waitingForClosedMouth: true
+    })).toBe('Ngậm miệng lại một chút');
+    expect(frogHint({
+      ...base,
+      stable: false
+    })).toBe('Dịch đầu sang làn đáp án');
+    expect(frogHint({
+      ...base,
+      lane: 2
+    })).toBe('Há rồi khép miệng để đớp');
     expect(frogHint(base)).toContain('Dịch đầu sang làn đáp án');
     expect(frogHint(base)).toContain('há rồi khép miệng');
   });

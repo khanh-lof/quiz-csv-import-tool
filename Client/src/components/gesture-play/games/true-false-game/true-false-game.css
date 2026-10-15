@@ -36,10 +36,9 @@
   background: #fffdf5;
   border-radius: var(--qt-radius-lg);
   /* A marquee sign: gold bulbs' ring, then a dark frame. */
-  box-shadow:
-    0 0 0 5px #fbbf24,
-    0 0 0 9px #7c2d12,
-    0 10px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 5px #fbbf24,
+  0 0 0 9px #7c2d12,
+  0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
 /* The two answers sit at the left and right of the lower half, leaving the middle clear so the
@@ -74,9 +73,8 @@
   border: 4px solid rgba(255, 255, 255, 0.9);
   border-radius: var(--qt-radius-lg);
   /* The raised look: a solid lip underneath, then a soft shadow. */
-  box-shadow:
-    0 8px 0 rgba(0, 0, 0, 0.25),
-    0 12px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.25),
+  0 12px 24px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   transition: all var(--qt-transition);
 }
@@ -104,10 +102,9 @@
 
 /* The hold: a gold ring and glow around the buzzer, under the lip. */
 .target.charging {
-  box-shadow:
-    0 0 0 4px var(--play-charge),
-    0 0 22px var(--play-charge-glow),
-    0 8px 0 rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 0 4px var(--play-charge),
+  0 0 22px var(--play-charge-glow),
+  0 8px 0 rgba(0, 0, 0, 0.25);
   transform: scale(1.03);
 }
 
@@ -122,19 +119,17 @@
    the red out of the stamp. */
 .target.correct {
   border-color: rgba(255, 255, 255, 0.9);
-  box-shadow:
-    0 0 0 6px var(--play-charge),
-    0 0 32px var(--play-charge-glow),
-    0 8px 0 rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 0 6px var(--play-charge),
+  0 0 32px var(--play-charge-glow),
+  0 8px 0 rgba(0, 0, 0, 0.25);
   transform: scale(1.04);
   animation: tf-pop 0.5s ease-out;
 }
 
 .target.wrong {
   border-color: rgba(255, 255, 255, 0.9);
-  box-shadow:
-    0 8px 0 rgba(0, 0, 0, 0.25),
-    0 12px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.25),
+  0 12px 24px rgba(0, 0, 0, 0.3);
   transform: none;
   background: var(--face-dim);
   animation: tf-shake 0.45s ease-out;

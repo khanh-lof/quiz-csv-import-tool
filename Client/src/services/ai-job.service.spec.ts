@@ -11,9 +11,23 @@ const POLL_MS = 3000;
 
 function job(id: string, status: AiJob['status'], overrides: Partial<AiJob> = {}): AiJob {
   return {
-    id, status, title: `Job ${id}`, creative: true, exportType: 0, intelligence: 1, imageCount: 0, courseType: null, courseName: '', hskStandard: null,
-    level: null, lessonNumber: null, csv: '',
-    errorStatus: 0, errorMessage: '', createdAt: '2026-10-13T00:00:00Z', finishedAt: null, ...overrides,
+    id,
+    status,
+    title: `Job ${id}`,
+    creative: true,
+    exportType: 0,
+    intelligence: 1,
+    imageCount: 0,
+    courseType: null,
+    courseName: '',
+    hskStandard: null,
+    level: null,
+    lessonNumber: null,
+    csv: '',
+    errorStatus: 0,
+    errorMessage: '',
+    createdAt: '2026-10-13T00:00:00Z',
+    finishedAt: null, ...overrides,
   };
 }
 
@@ -26,7 +40,10 @@ describe('AiJobService', () => {
   beforeEach(() => {
     notifications = jasmine.createSpyObj('NzNotificationService', ['success', 'error']);
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), {provide: NzNotificationService, useValue: notifications}],
+      providers: [provideHttpClient(), provideHttpClientTesting(), {
+        provide: NzNotificationService,
+        useValue: notifications
+      }],
     });
     service = TestBed.inject(AiJobService);
     http = TestBed.inject(HttpTestingController);
@@ -36,7 +53,7 @@ describe('AiJobService', () => {
   afterEach(() => http.verify());
 
   function answer(...jobs: AiJob[]): void {
-    http.expectOne(URL).flush({jobs});
+    http.expectOne(URL).flush({ jobs });
   }
 
   it('polls while a job runs, announces it finishing, then stops', fakeAsync(() => {
@@ -48,7 +65,7 @@ describe('AiJobService', () => {
     expect(notifications.success).not.toHaveBeenCalled();
 
     tick(POLL_MS);
-    answer(job('a', 'done', {csv: 'x,y'}));
+    answer(job('a', 'done', { csv: 'x,y' }));
     expect(notifications.success).toHaveBeenCalledTimes(1);
     expect(service.jobs()[0].status).toBe('done');
 
@@ -58,7 +75,7 @@ describe('AiJobService', () => {
   it('does not announce jobs that were already finished when first seen', fakeAsync(() => {
     service.watch();
     tick(0);
-    answer(job('old', 'done'), job('bad', 'failed', {errorStatus: 504}));
+    answer(job('old', 'done'), job('bad', 'failed', { errorStatus: 504 }));
 
     expect(notifications.success).not.toHaveBeenCalled();
     expect(notifications.error).not.toHaveBeenCalled();
@@ -69,7 +86,10 @@ describe('AiJobService', () => {
     tick(0);
     answer(job('a', 'running'));
     tick(POLL_MS);
-    answer(job('a', 'failed', {errorStatus: 504, errorMessage: 'AI generation timed out.'}));
+    answer(job('a', 'failed', {
+      errorStatus: 504,
+      errorMessage: 'AI generation timed out.'
+    }));
 
     expect(notifications.error).toHaveBeenCalledTimes(1);
     expect(notifications.error.calls.mostRecent().args[1]).toContain('quá lâu');
@@ -105,7 +125,10 @@ describe('AiJobService', () => {
   it('survives a failed poll and keeps going', fakeAsync(() => {
     service.watch();
     tick(0);
-    http.expectOne(URL).flush('', {status: 500, statusText: 'Error'});
+    http.expectOne(URL).flush('', {
+      status: 500,
+      statusText: 'Error'
+    });
     tick(POLL_MS);
     answer(job('a', 'running'));
     tick(POLL_MS);
@@ -130,12 +153,18 @@ describe('AiJobService', () => {
     answer(job('a', 'done'), job('b', 'done'));
 
     service.remove('a').subscribe();
-    http.expectOne(`${URL}/a`).flush(null, {status: 204, statusText: 'No Content'});
+    http.expectOne(`${URL}/a`).flush(null, {
+      status: 204,
+      statusText: 'No Content'
+    });
     expect(service.jobs().map(j => j.id)).toEqual(['b']);
 
     let failed = false;
-    service.remove('b').subscribe({error: () => failed = true});
-    http.expectOne(`${URL}/b`).flush('Job not found', {status: 404, statusText: 'Not Found'});
+    service.remove('b').subscribe({ error: () => failed = true });
+    http.expectOne(`${URL}/b`).flush('Job not found', {
+      status: 404,
+      statusText: 'Not Found'
+    });
     expect(service.jobs()).toEqual([]);
     expect(failed).toBeFalse();
   });
@@ -145,8 +174,11 @@ describe('AiJobService', () => {
     answer(job('a', 'done'));
 
     let failed = false;
-    service.remove('a').subscribe({error: () => failed = true});
-    http.expectOne(`${URL}/a`).flush('', {status: 500, statusText: 'Error'});
+    service.remove('a').subscribe({ error: () => failed = true });
+    http.expectOne(`${URL}/a`).flush('', {
+      status: 500,
+      statusText: 'Error'
+    });
 
     expect(failed).toBeTrue();
     expect(service.jobs().length).toBe(1);

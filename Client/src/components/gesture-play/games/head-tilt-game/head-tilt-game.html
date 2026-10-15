@@ -1,4 +1,4 @@
-<div class="frame" [class.cam]="cameraActive()" [class.locked]="locked()">
+<div [class.cam]="cameraActive()" [class.locked]="locked()" class="frame">
   <div class="question">
     <p>{{ question().question }}</p>
   </div>
@@ -6,20 +6,20 @@
   <div class="arena">
     @for (card of cards(); track card.index) {
       <button
-        type="button"
-        class="card"
-        [class.left]="card.index === 0"
-        [class.right]="card.index === 1"
+        (click)="pick(card.index)"
         [class.active]="activeSide() === card.index"
-        [class.picked]="picked() === card.index"
         [class.correct]="isCorrect(card.index)"
+        [class.left]="card.index === 0"
+        [class.picked]="picked() === card.index"
+        [class.right]="card.index === 1"
         [class.wrong]="isWrong(card.index)"
-        (click)="pick(card.index)">
+        class="card"
+        type="button">
         <span class="chip">
           <kbd>{{ card.index === 0 ? '←' : '→' }}</kbd>
           {{ card.index === 0 ? 'Trái' : 'Phải' }}
         </span>
-        <span class="word" [class]="card.size">{{ card.main }}</span>
+        <span [class]="card.size" class="word">{{ card.main }}</span>
         @if (card.note) {
           <span class="note">{{ card.note }}</span>
         }
@@ -29,27 +29,27 @@
           <b class="mark">✗</b>
         }
         @if (activeSide() === card.index) {
-          <i class="charge" [style.width.%]="progress() * 100"></i>
+          <i [style.width.%]="progress() * 100" class="charge"></i>
         }
       </button>
     }
 
     @if (cameraActive()) {
-      <div class="middle" aria-hidden="true">
+      <div aria-hidden="true" class="middle">
         <svg class="ring" viewBox="0 0 200 200">
           <defs>
-            <linearGradient id="head-tilt-ring" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#fde047" />
-              <stop offset="1" stop-color="#f59e0b" />
+            <linearGradient id="head-tilt-ring" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stop-color="#fde047"/>
+              <stop offset="1" stop-color="#f59e0b"/>
             </linearGradient>
           </defs>
-          <circle class="ring-track" cx="100" cy="100" r="96" />
+          <circle class="ring-track" cx="100" cy="100" r="96"/>
           <circle
+            [attr.stroke-dashoffset]="ringOffset()"
             class="ring-fill"
             cx="100"
             cy="100"
-            r="96"
-            [attr.stroke-dashoffset]="ringOffset()" />
+            r="96"/>
         </svg>
       </div>
     }
@@ -59,19 +59,19 @@
     @if (cameraActive()) {
       @if (ready()) {
         <div class="status" role="status">
-          <div class="meter" aria-hidden="true">
+          <div aria-hidden="true" class="meter">
             <span>←</span>
             <div class="track"><i [style.left.%]="meterLeft()"></i></div>
             <span>→</span>
           </div>
-          <p class="hint" [class.warn]="problem()">{{ hintText() }}</p>
+          <p [class.warn]="problem()" class="hint">{{ hintText() }}</p>
         </div>
       }
       <app-face-calibration
+        (recalibrate)="recalibrate()"
         [calibrating]="!ready()"
-        [status]="calibrationStatus()"
         [progress]="calibrationProgress()"
-        (recalibrate)="recalibrate()" />
+        [status]="calibrationStatus()"/>
     } @else {
       <p class="status hint">Bấm vào đáp án hoặc nhấn phím ← / → (hay 1 / 2)</p>
     }

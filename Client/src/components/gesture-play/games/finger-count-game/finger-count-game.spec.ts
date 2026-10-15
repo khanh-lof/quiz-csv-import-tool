@@ -13,21 +13,45 @@ const QUESTION: QuestionView = {
 
 // An upright hand with the first `extended` of the four long fingers up and the rest folded.
 function hand(extended: number): HandFrame {
-  const landmarks: Point3[] = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
-  landmarks[0] = { x: 0.5, y: 0.9, z: 0 };
+  const landmarks: Point3[] = Array.from({ length: 21 }, () => ({
+    x: 0.5,
+    y: 0.5,
+    z: 0
+  }));
+  landmarks[0] = {
+    x: 0.5,
+    y: 0.9,
+    z: 0
+  };
   [
     [8, 6, 0.42],
     [12, 10, 0.48],
     [16, 14, 0.54],
     [20, 18, 0.6],
   ].forEach(([tip, pip, x], finger) => {
-    landmarks[pip] = { x, y: 0.5, z: 0 };
-    landmarks[tip] = { x, y: finger < extended ? 0.28 : 0.6, z: 0 };
+    landmarks[pip] = {
+      x,
+      y: 0.5,
+      z: 0
+    };
+    landmarks[tip] = {
+      x,
+      y: finger < extended ? 0.28 : 0.6,
+      z: 0
+    };
   });
-  return { landmarks, gesture: null, gestureScore: 0 };
+  return {
+    landmarks,
+    gesture: null,
+    gestureScore: 0
+  };
 }
 
-const NO_HAND: HandFrame = { landmarks: null, gesture: null, gestureScore: 0 };
+const NO_HAND: HandFrame = {
+  landmarks: null,
+  gesture: null,
+  gestureScore: 0
+};
 
 describe('FingerCountGame', () => {
   let fixture: ComponentFixture<FingerCountGame>;
@@ -38,14 +62,20 @@ describe('FingerCountGame', () => {
   const root = (): HTMLElement => fixture.nativeElement;
   const cards = (): HTMLElement[] => Array.from(root().querySelectorAll<HTMLElement>('.card'));
   const press = (key: string, init: KeyboardEventInit = {}) =>
-    document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }));
+    document.dispatchEvent(new KeyboardEvent('keydown', {
+      key,
+      bubbles: true, ...init
+    }));
   const setInput = (name: string, value: unknown) => {
     fixture.componentRef.setInput(name, value);
     fixture.detectChanges();
   };
   const show = (frame: HandFrame, from: number, to: number) => {
     for (let at = from; at <= to; at += 33) {
-      game.onFrame({ kind: 'hand', hand: frame }, at);
+      game.onFrame({
+        kind: 'hand',
+        hand: frame
+      }, at);
     }
     fixture.detectChanges();
   };
@@ -56,8 +86,19 @@ describe('FingerCountGame', () => {
     await TestBed.configureTestingModule({
       imports: [FingerCountGame],
       providers: [
-        { provide: GameAudio, useValue: audio },
-        { provide: VisionService, useValue: { videoSize: () => ({ width: 640, height: 480 }) } },
+        {
+          provide: GameAudio,
+          useValue: audio
+        },
+        {
+          provide: VisionService,
+          useValue: {
+            videoSize: () => ({
+              width: 640,
+              height: 480
+            })
+          }
+        },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(FingerCountGame);
@@ -128,7 +169,10 @@ describe('FingerCountGame', () => {
     press('ArrowLeft');
     const input = document.createElement('input');
     document.body.appendChild(input);
-    input.dispatchEvent(new KeyboardEvent('keydown', { key: '3', bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', {
+      key: '3',
+      bubbles: true
+    }));
     input.remove();
     expect(chosen).toEqual([]);
   });
@@ -144,7 +188,11 @@ describe('FingerCountGame', () => {
   });
 
   it('ignores everything once the verdict is shown', () => {
-    reveal({ chosen: 0, correct: true, correctIndex: 0 });
+    reveal({
+      chosen: 0,
+      correct: true,
+      correctIndex: 0
+    });
     cards()[1].click();
     press('2');
     show(hand(3), 0, 3000);
@@ -153,7 +201,11 @@ describe('FingerCountGame', () => {
 
   it('highlights the right card, and the chosen one when it was wrong', () => {
     cards()[1].click();
-    reveal({ chosen: 1, correct: false, correctIndex: 3 });
+    reveal({
+      chosen: 1,
+      correct: false,
+      correctIndex: 3
+    });
     expect(cards()[3].classList).toContain('correct');
     expect(cards()[3].querySelector('.mark')?.textContent).toBe('✓');
     expect(cards()[1].classList).toContain('wrong');
@@ -161,7 +213,11 @@ describe('FingerCountGame', () => {
   });
 
   it('only highlights the right card when the time ran out', () => {
-    reveal({ chosen: null, correct: false, correctIndex: 2 });
+    reveal({
+      chosen: null,
+      correct: false,
+      correctIndex: 2
+    });
     expect(cards()[2].classList).toContain('correct');
     expect(root().querySelectorAll('.wrong').length).toBe(0);
   });
@@ -221,7 +277,10 @@ describe('FingerCountGame', () => {
           [hand(fingers), 333, 1500],
         ] as const) {
           for (let at = from; at <= to; at += 33) {
-            fresh.componentInstance.onFrame({ kind: 'hand', hand: frame }, at);
+            fresh.componentInstance.onFrame({
+              kind: 'hand',
+              hand: frame
+            }, at);
           }
         }
         expect(answers).withContext(`${fingers} fingers`).toEqual([fingers - 1]);
@@ -258,7 +317,10 @@ describe('FingerCountGame', () => {
 
       // The next question: the player is still showing two fingers.
       setInput('reveal', null);
-      setInput('question', { ...QUESTION, question: 'Câu tiếp.' });
+      setInput('question', {
+        ...QUESTION,
+        question: 'Câu tiếp.'
+      });
       show(hand(2), 1600, 3500);
       expect(chosen).toEqual([1]);
       expect(hint()).toBe('Nắm tay lại rồi chọn câu tiếp');
@@ -279,7 +341,14 @@ describe('FingerCountGame', () => {
     it('ignores frames from the face task', () => {
       show(hand(0), 0, 300);
       for (let at = 333; at <= 1500; at += 33) {
-        game.onFrame({ kind: 'face', face: { faces: 0, landmarks: null, blendshapes: {} } }, at);
+        game.onFrame({
+          kind: 'face',
+          face: {
+            faces: 0,
+            landmarks: null,
+            blendshapes: {}
+          }
+        }, at);
       }
       expect(chosen).toEqual([]);
     });

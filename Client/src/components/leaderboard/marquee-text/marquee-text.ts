@@ -39,21 +39,18 @@ export const MARQUEE_MOVING_SHARE = 0.88;
 })
 export class MarqueeText {
   readonly text = input.required<string>();
-
+  protected readonly duration = computed(() =>
+    Math.round((this.distance() / MARQUEE_SPEED_PX_PER_S / MARQUEE_MOVING_SHARE) * 100) / 100);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly destroyRef = inject(DestroyRef);
   private readonly settings = inject(MarqueeSettings);
-
   // Whether the text is wider than the box, and the text's own width as last measured.
   private readonly overflowing = signal(false);
   private readonly textWidth = signal(0);
-  private readonly reducedMotion = signal(false);
-
-  protected readonly scrolling = computed(() => this.overflowing() && !this.settings.paused() && !this.reducedMotion());
   // How far the track moves per loop: one copy of the text and the gap after it.
   protected readonly distance = computed(() => this.textWidth() + MARQUEE_GAP_PX);
-  protected readonly duration = computed(() =>
-    Math.round((this.distance() / MARQUEE_SPEED_PX_PER_S / MARQUEE_MOVING_SHARE) * 100) / 100);
+  private readonly reducedMotion = signal(false);
+  protected readonly scrolling = computed(() => this.overflowing() && !this.settings.paused() && !this.reducedMotion());
 
   constructor() {
     // Measure after the first render and after every render that follows a change of the text.

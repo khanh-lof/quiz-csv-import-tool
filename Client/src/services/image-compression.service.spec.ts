@@ -13,7 +13,7 @@ async function noiseImage(width: number, height: number, name = 'photo.png'): Pr
   }
   context.putImageData(pixels, 0, 0);
   const blob = await new Promise<Blob>(resolve => canvas.toBlob(b => resolve(b!), 'image/png'));
-  return new File([blob], name, {type: 'image/png'});
+  return new File([blob], name, { type: 'image/png' });
 }
 
 describe('ImageCompressionService', () => {
@@ -38,19 +38,19 @@ describe('ImageCompressionService', () => {
   });
 
   it('keeps a small image that re-encoding would not shrink', async () => {
-    const tiny = new File([await (await noiseImage(8, 8)).arrayBuffer()], 'tiny.png', {type: 'image/png'});
+    const tiny = new File([await (await noiseImage(8, 8)).arrayBuffer()], 'tiny.png', { type: 'image/png' });
     const [result] = await service.compressForUpload([tiny]);
     expect(result).toBe(tiny);
   });
 
   it('uploads an undecodable file unchanged', async () => {
-    const heic = new File([new Uint8Array(100)], 'photo.heic', {type: 'image/heic'});
+    const heic = new File([new Uint8Array(100)], 'photo.heic', { type: 'image/heic' });
     const [result] = await service.compressForUpload([heic]);
     expect(result).toBe(heic);
   });
 
   it('rejects a batch that cannot fit even at the smallest size', async () => {
-    const files = await Promise.all(Array.from({length: 12}, (_, i) => noiseImage(1500, 1500, `${i}.png`)));
+    const files = await Promise.all(Array.from({ length: 12 }, (_, i) => noiseImage(1500, 1500, `${i}.png`)));
     await expectAsync(service.compressForUpload(files)).toBeRejectedWithError(UploadTooLargeError);
   });
 });

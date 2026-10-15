@@ -3,14 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GameAudio } from '../../../../game/game-audio';
 import { Choice, QuestionView, Reveal } from '../../../../game/stage-game';
 import { VisionService } from '../../../../game/vision.service';
-import {
-  FaceSpec,
-  NEUTRAL,
-  VIDEO_HEIGHT,
-  VIDEO_WIDTH,
-  faceFrame,
-  playFrames,
-} from '../head-tilt-game/face-fixture';
+import { faceFrame, FaceSpec, NEUTRAL, playFrames, VIDEO_HEIGHT, VIDEO_WIDTH, } from '../head-tilt-game/face-fixture';
 import { FrogBiteGame } from './frog-bite-game';
 
 const QUESTION: QuestionView = {
@@ -18,7 +11,10 @@ const QUESTION: QuestionView = {
   question: 'Từ nào có nghĩa là nước?',
   options: ['茶 (chá)', '水 (shuǐ)', '喝 (hē)'],
 };
-const NEXT_QUESTION: QuestionView = { ...QUESTION, question: 'Từ nào có nghĩa là uống?' };
+const NEXT_QUESTION: QuestionView = {
+  ...QUESTION,
+  question: 'Từ nào có nghĩa là uống?'
+};
 
 // Nose x for a head 0.75 eye spans toward the screen's right / left of the neutral one (the image is
 // unmirrored, so the screen's right is a smaller x).
@@ -35,10 +31,18 @@ describe('FrogBiteGame', () => {
     play = jasmine.createSpy('play');
     TestBed.configureTestingModule({
       providers: [
-        { provide: GameAudio, useValue: { play } },
+        {
+          provide: GameAudio,
+          useValue: { play }
+        },
         {
           provide: VisionService,
-          useValue: { videoSize: () => ({ width: VIDEO_WIDTH, height: VIDEO_HEIGHT }) },
+          useValue: {
+            videoSize: () => ({
+              width: VIDEO_WIDTH,
+              height: VIDEO_HEIGHT
+            })
+          },
         },
       ],
     });
@@ -67,7 +71,10 @@ describe('FrogBiteGame', () => {
 
   function frames(spec: FaceSpec, from: number, durationMs: number): number {
     return playFrames(
-      now => game.onFrame({ kind: 'face', face: faceFrame(spec) }, now),
+      now => game.onFrame({
+        kind: 'face',
+        face: faceFrame(spec)
+      }, now),
       from,
       durationMs,
     ).end;
@@ -75,13 +82,28 @@ describe('FrogBiteGame', () => {
 
   // The head at `noseX` for `restMs`, then the mouth open for 150 ms and shut again.
   function biteAt(noseX: number, from: number, restMs = 400): number {
-    const settled = frames({ noseX, centerX: noseX, jawOpen: 0.05 }, from, restMs);
-    const open = frames({ noseX, centerX: noseX, jawOpen: 0.7 }, settled, 150);
-    return frames({ noseX, centerX: noseX, jawOpen: 0.05 }, open, 100);
+    const settled = frames({
+      noseX,
+      centerX: noseX,
+      jawOpen: 0.05
+    }, from, restMs);
+    const open = frames({
+      noseX,
+      centerX: noseX,
+      jawOpen: 0.7
+    }, settled, 150);
+    return frames({
+      noseX,
+      centerX: noseX,
+      jawOpen: 0.05
+    }, open, 100);
   }
 
   function key(init: KeyboardEventInit, target: EventTarget = document): void {
-    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    const event = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true, ...init
+    });
     target.dispatchEvent(event);
   }
 
@@ -147,7 +169,10 @@ describe('FrogBiteGame', () => {
 
     it('ignores other keys, modifier keys and typing in an input', () => {
       key({ key: '4' });
-      key({ key: '1', ctrlKey: true });
+      key({
+        key: '1',
+        ctrlKey: true
+      });
       const input = document.createElement('input');
       document.body.appendChild(input);
       key({ key: '2' }, input);
@@ -163,14 +188,22 @@ describe('FrogBiteGame', () => {
       expect(chosen).toEqual([]);
 
       set('paused', false);
-      set('reveal', { chosen: 0, correct: false, correctIndex: 1 } satisfies Reveal);
+      set('reveal', {
+        chosen: 0,
+        correct: false,
+        correctIndex: 1
+      } satisfies Reveal);
       cards()[2].click();
       key({ key: '3' });
       expect(chosen).toEqual([]);
     });
 
     it('marks the correct lane and the wrong one that was chosen', () => {
-      set('reveal', { chosen: 2, correct: false, correctIndex: 1 } satisfies Reveal);
+      set('reveal', {
+        chosen: 2,
+        correct: false,
+        correctIndex: 1
+      } satisfies Reveal);
       expect(cards()[1].classList).toContain('correct');
       expect(cards()[1].textContent).toContain('✓');
       expect(cards()[2].classList).toContain('wrong');
@@ -215,11 +248,17 @@ describe('FrogBiteGame', () => {
 
     it('moves the frog with the head: right on the screen is the right lane', () => {
       let now = calibrated();
-      now = frames({ noseX: RIGHT, centerX: RIGHT }, now + 33, 400);
+      now = frames({
+        noseX: RIGHT,
+        centerX: RIGHT
+      }, now + 33, 400);
       expect(frogLeft()).toBeCloseTo((2.5 / 3) * 100, 3);
       expect(play).toHaveBeenCalledWith('select');
 
-      now = frames({ noseX: LEFT, centerX: LEFT }, now, 400);
+      now = frames({
+        noseX: LEFT,
+        centerX: LEFT
+      }, now, 400);
       expect(frogLeft()).toBeCloseTo((0.5 / 3) * 100, 3);
     });
 
@@ -253,8 +292,16 @@ describe('FrogBiteGame', () => {
 
       set('question', NEXT_QUESTION);
       // The mouth is still open when the question appears, and shuts: that is not a bite.
-      now = frames({ noseX: RIGHT, centerX: RIGHT, jawOpen: 0.7 }, now, 400);
-      now = frames({ noseX: RIGHT, centerX: RIGHT, jawOpen: 0.05 }, now, 200);
+      now = frames({
+        noseX: RIGHT,
+        centerX: RIGHT,
+        jawOpen: 0.7
+      }, now, 400);
+      now = frames({
+        noseX: RIGHT,
+        centerX: RIGHT,
+        jawOpen: 0.05
+      }, now, 200);
       expect(chosen).toEqual([2]);
 
       biteAt(RIGHT, now, 100);
@@ -270,7 +317,11 @@ describe('FrogBiteGame', () => {
     it('ignores the head while the answer is revealed', () => {
       let now = calibrated();
       now = frames({ jawOpen: 0.05 }, now + 33, 400);
-      set('reveal', { chosen: null, correct: false, correctIndex: 1 } satisfies Reveal);
+      set('reveal', {
+        chosen: null,
+        correct: false,
+        correctIndex: 1
+      } satisfies Reveal);
       biteAt(RIGHT, now);
       expect(chosen).toEqual([]);
     });
@@ -278,7 +329,11 @@ describe('FrogBiteGame', () => {
     it('chooses nothing with two faces in view and says so', () => {
       let now = calibrated();
       now = frames({ jawOpen: 0.05 }, now + 33, 400);
-      frames({ noseX: RIGHT, jawOpen: 0.7, faces: 2 }, now, 600);
+      frames({
+        noseX: RIGHT,
+        jawOpen: 0.7,
+        faces: 2
+      }, now, 600);
       fixture.detectChanges();
 
       expect(chosen).toEqual([]);

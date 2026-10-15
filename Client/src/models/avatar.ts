@@ -43,7 +43,10 @@ const ANIMALS: readonly (readonly [string, string, string])[] = [
 ];
 
 export const AVATARS: readonly AvatarDef[] = ANIMALS.map(([id, emoji, name], i) => ({
-  id, emoji, name, color: TONES[i % TONES.length],
+  id,
+  emoji,
+  name,
+  color: TONES[i % TONES.length],
 }));
 
 // The avatar with this id, or undefined for an empty or unknown one (a student who joined before avatars

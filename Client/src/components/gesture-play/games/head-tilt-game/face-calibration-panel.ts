@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 
-import { calibrationMessage } from './face-common';
 import type { CalibrationStatus } from './face-common';
+import { calibrationMessage } from './face-common';
 
 // The calibration prompt shared by the two face games: while the player's neutral pose is being
 // measured it shows what the camera needs (look straight, one face, come closer) with a bar for the

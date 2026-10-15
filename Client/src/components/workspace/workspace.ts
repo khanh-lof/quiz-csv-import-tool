@@ -1,11 +1,11 @@
 import {
-  Component,
-  DestroyRef,
-  inject,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
+  Component,
   computed,
+  DestroyRef,
   effect,
+  inject,
   signal,
   untracked,
   viewChildren
@@ -34,7 +34,7 @@ export interface NavPage {
 }
 
 // A top-level entry of the menu: a page of its own, or a group of pages shown as an inline submenu.
-export type NavEntry = NavPage | {label: string; icon: string; pages: NavPage[]};
+export type NavEntry = NavPage | { label: string; icon: string; pages: NavPage[] };
 
 export interface Crumb {
   label: string;
@@ -44,29 +44,43 @@ export interface Crumb {
 
 export const NAV: NavEntry[] = [
   {
-    route: '/quiz', label: 'Quiz thủ công', icon: 'table',
+    route: '/quiz',
+    label: 'Quiz thủ công',
+    icon: 'table',
     hint: 'Tự nhập câu hỏi và đáp án vào bảng, rồi tải file quiz. Không cần đăng nhập.'
   },
   {
-    label: 'AI', icon: 'robot', pages: [
+    label: 'AI',
+    icon: 'robot',
+    pages: [
       {
-        route: '/ai', label: 'Tạo quiz', icon: 'thunderbolt',
+        route: '/ai',
+        label: 'Tạo quiz',
+        icon: 'thunderbolt',
         hint: 'Gửi ảnh bài học (hoặc chỉ chọn bài) để AI soạn câu hỏi giúp. Cần đăng nhập.'
       },
       {
-        route: '/ai-history', label: 'Lịch sử', icon: 'history',
+        route: '/ai-history',
+        label: 'Lịch sử',
+        icon: 'history',
         hint: 'Các lần tạo bằng AI: xem trạng thái, tải file, chơi ngay hoặc giao bài. Cần đăng nhập.'
       }
     ]
   },
   {
-    label: 'Game', icon: 'camera', pages: [
+    label: 'Game',
+    icon: 'camera',
+    pages: [
       {
-        route: '/play', label: 'Chơi game', icon: 'play-circle',
+        route: '/play',
+        label: 'Chơi game',
+        icon: 'play-circle',
         hint: 'Chơi quiz do AI tạo bằng cử chỉ trước camera, hoặc thử quiz mẫu.'
       },
       {
-        route: '/assignments', label: 'Bài đã giao', icon: 'trophy',
+        route: '/assignments',
+        label: 'Bài đã giao',
+        icon: 'trophy',
         hint: 'Các game đã giao cho học sinh: link, mã QR và bảng xếp hạng. Cần đăng nhập.'
       }
     ]
@@ -81,11 +95,14 @@ export function breadcrumbFor(url: string): Crumb[] {
     const pages = 'pages' in entry ? entry.pages : [entry];
     const page = pages.find(p => path === p.route || path.startsWith(p.route + '/'));
     if (!page) continue;
-    const trail: Crumb[] = 'pages' in entry ? [{label: entry.label}] : [];
+    const trail: Crumb[] = 'pages' in entry ? [{ label: entry.label }] : [];
     if (path === page.route) {
-      return [...trail, {label: page.label}];
+      return [...trail, { label: page.label }];
     }
-    return [...trail, {label: page.label, link: page.route}, {label: 'Bảng xếp hạng'}];
+    return [...trail, {
+      label: page.label,
+      link: page.route
+    }, { label: 'Bảng xếp hạng' }];
   }
   return [];
 }
@@ -116,20 +133,18 @@ const NARROW_QUERY = '(max-width: 767px)';
   styleUrl: './workspace.css'
 })
 export class Workspace {
+  protected readonly nav = NAV;
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly notificationService = inject(NzNotificationService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly cdr = inject(ChangeDetectorRef);
-
-  protected readonly nav = NAV;
-
   private readonly url = toSignal(
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd),
       map(() => this.router.url)
     ),
-    {initialValue: this.router.url}
+    { initialValue: this.router.url }
   );
 
   protected readonly mode = computed(() => this.modeOf(this.url()));
@@ -158,7 +173,7 @@ export class Workspace {
     this.cdr.detectChanges();
   }
 
-  protected isGroup(entry: NavEntry): entry is Extract<NavEntry, {pages: NavPage[]}> {
+  protected isGroup(entry: NavEntry): entry is Extract<NavEntry, { pages: NavPage[] }> {
     return 'pages' in entry;
   }
 
@@ -192,6 +207,27 @@ export class Workspace {
     }
   }
 
+  protected isLoggedIn(): boolean {
+    return this.authService.hasAccessToken();
+  }
+
+  protected login(): void {
+    this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
+  }
+
+  protected logout(): void {
+    this.authService.logout().pipe(
+      catchError(() => of(null)),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(() => {
+      this.notificationService.success('Đã đăng xuất', 'Hẹn gặp lại nhaa.', { nzPlacement: 'top' });
+      // The AI and assignment pages need a login, so fall back to the table that works anonymously.
+      if (this.mode() !== '/quiz') {
+        this.router.navigateByUrl('/quiz');
+      }
+    });
+  }
+
   private storedCollapsed(): boolean {
     try {
       return localStorage.getItem(COLLAPSED_STORAGE_KEY) === 'true';
@@ -205,26 +241,5 @@ export class Workspace {
       return '/ai-history';
     }
     return url.startsWith('/ai') ? '/ai' : url.startsWith('/assignments') ? '/assignments' : '/quiz';
-  }
-
-  protected isLoggedIn(): boolean {
-    return this.authService.hasAccessToken();
-  }
-
-  protected login(): void {
-    this.router.navigate(['/login'], {queryParams: {returnUrl: this.router.url}});
-  }
-
-  protected logout(): void {
-    this.authService.logout().pipe(
-      catchError(() => of(null)),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe(() => {
-      this.notificationService.success('Đã đăng xuất', 'Hẹn gặp lại nhaa.', {nzPlacement: 'top'});
-      // The AI and assignment pages need a login, so fall back to the table that works anonymously.
-      if (this.mode() !== '/quiz') {
-        this.router.navigateByUrl('/quiz');
-      }
-    });
   }
 }

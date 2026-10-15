@@ -18,7 +18,7 @@
      Latin UI fonts come first, and they have no CJK glyphs, so Vietnamese and pinyin keep a readable face
      and the browser falls back to the Kai faces only for the hanzi themselves (KaiTi's own Latin is poor). */
   --qt-font-han: 'Segoe UI', 'Helvetica Neue', Roboto, Arial, 'KaiTi', '楷体', 'STKaiti', 'Kaiti SC',
-    'Noto Serif CJK SC', 'Songti SC', serif;
+  'Noto Serif CJK SC', 'Songti SC', serif;
 
   --qt-gradient: linear-gradient(90deg, var(--qt-pink), var(--qt-blue));
   --qt-gradient-header: linear-gradient(90deg, #ffb7d4, #b7cfff);
@@ -191,16 +191,19 @@ input.ant-input:where(:not(.ant-input-lg, .ant-input-sm)),
 .ant-input-number:where(:not(.ant-input-number-lg, .ant-input-number-sm)) {
   height: 32px;
 }
+
 input.ant-input-lg,
 .ant-input-affix-wrapper-lg,
 .ant-input-number-lg {
   height: 40px;
 }
+
 input.ant-input-sm,
 .ant-input-affix-wrapper-sm,
 .ant-input-number-sm {
   height: 24px;
 }
+
 .ant-input-number .ant-input-number-input-wrap,
 .ant-input-number .ant-input-number-input {
   height: 100%;
@@ -306,12 +309,12 @@ input.ant-input-sm,
 /* ng-zorro marks every open inline group active, which colours its title like a selection: only the group of
    the page on screen (selected) or under the pointer keeps the colour. */
 .qt-sidebar .ant-menu-submenu-inline.ant-menu-submenu-active:not(.ant-menu-submenu-selected)
-    > .ant-menu-submenu-title:not(:hover) {
+> .ant-menu-submenu-title:not(:hover) {
   color: var(--qt-text);
 }
 
 .qt-sidebar .ant-menu-submenu-inline.ant-menu-submenu-active:not(.ant-menu-submenu-selected)
-    > .ant-menu-submenu-title:not(:hover) .ant-menu-submenu-arrow {
+> .ant-menu-submenu-title:not(:hover) .ant-menu-submenu-arrow {
   color: var(--qt-text);
 }
 

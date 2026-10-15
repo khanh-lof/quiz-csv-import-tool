@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GameAudio } from '../../../../game/game-audio';
 import { Choice, QuestionView, Reveal } from '../../../../game/stage-game';
 import { VisionService } from '../../../../game/vision.service';
-import { FaceSpec, VIDEO_HEIGHT, VIDEO_WIDTH, faceFrame, playFrames } from './face-fixture';
+import { faceFrame, FaceSpec, playFrames, VIDEO_HEIGHT, VIDEO_WIDTH } from './face-fixture';
 import { HeadTiltGame } from './head-tilt-game';
 
 const QUESTION: QuestionView = {
@@ -11,7 +11,10 @@ const QUESTION: QuestionView = {
   question: 'Từ nào có nghĩa là nước?',
   options: ['水 (shuǐ)', '茶 (chá)'],
 };
-const NEXT_QUESTION: QuestionView = { ...QUESTION, question: 'Từ nào có nghĩa là trà?' };
+const NEXT_QUESTION: QuestionView = {
+  ...QUESTION,
+  question: 'Từ nào có nghĩa là trà?'
+};
 
 describe('HeadTiltGame', () => {
   let fixture: ComponentFixture<HeadTiltGame>;
@@ -23,10 +26,18 @@ describe('HeadTiltGame', () => {
     play = jasmine.createSpy('play');
     TestBed.configureTestingModule({
       providers: [
-        { provide: GameAudio, useValue: { play } },
+        {
+          provide: GameAudio,
+          useValue: { play }
+        },
         {
           provide: VisionService,
-          useValue: { videoSize: () => ({ width: VIDEO_WIDTH, height: VIDEO_HEIGHT }) },
+          useValue: {
+            videoSize: () => ({
+              width: VIDEO_WIDTH,
+              height: VIDEO_HEIGHT
+            })
+          },
         },
       ],
     });
@@ -49,14 +60,20 @@ describe('HeadTiltGame', () => {
 
   function frames(spec: FaceSpec, from: number, durationMs: number): number {
     return playFrames(
-      now => game.onFrame({ kind: 'face', face: faceFrame(spec) }, now),
+      now => game.onFrame({
+        kind: 'face',
+        face: faceFrame(spec)
+      }, now),
       from,
       durationMs,
     ).end;
   }
 
   function key(init: KeyboardEventInit, target: EventTarget = document): void {
-    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    const event = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true, ...init
+    });
     target.dispatchEvent(event);
   }
 
@@ -102,7 +119,10 @@ describe('HeadTiltGame', () => {
 
     it('ignores other keys, modifier keys and typing in an input', () => {
       key({ key: '3' });
-      key({ key: '1', ctrlKey: true });
+      key({
+        key: '1',
+        ctrlKey: true
+      });
       const input = document.createElement('input');
       document.body.appendChild(input);
       key({ key: '1' }, input);
@@ -117,14 +137,22 @@ describe('HeadTiltGame', () => {
       expect(chosen).toEqual([]);
 
       set('paused', false);
-      set('reveal', { chosen: 1, correct: false, correctIndex: 0 } satisfies Reveal);
+      set('reveal', {
+        chosen: 1,
+        correct: false,
+        correctIndex: 0
+      } satisfies Reveal);
       cards()[0].click();
       key({ key: '2' });
       expect(chosen).toEqual([]);
     });
 
     it('marks the correct card and the wrong one that was chosen', () => {
-      set('reveal', { chosen: 1, correct: false, correctIndex: 0 } satisfies Reveal);
+      set('reveal', {
+        chosen: 1,
+        correct: false,
+        correctIndex: 0
+      } satisfies Reveal);
       expect(cards()[0].classList).toContain('correct');
       expect(cards()[0].textContent).toContain('✓');
       expect(cards()[1].classList).toContain('wrong');
@@ -220,7 +248,11 @@ describe('HeadTiltGame', () => {
     it('ignores the head while the answer is revealed', () => {
       let now = calibrated();
       now = frames({}, now + 33, 400);
-      set('reveal', { chosen: null, correct: false, correctIndex: 1 } satisfies Reveal);
+      set('reveal', {
+        chosen: null,
+        correct: false,
+        correctIndex: 1
+      } satisfies Reveal);
       frames({ roll: 14 }, now, 1500);
       expect(chosen).toEqual([]);
     });
@@ -228,7 +260,10 @@ describe('HeadTiltGame', () => {
     it('chooses nothing with two faces in view and says so', () => {
       let now = calibrated();
       now = frames({}, now + 33, 400);
-      frames({ roll: 14, faces: 2 }, now, 1500);
+      frames({
+        roll: 14,
+        faces: 2
+      }, now, 1500);
       fixture.detectChanges();
 
       expect(chosen).toEqual([]);

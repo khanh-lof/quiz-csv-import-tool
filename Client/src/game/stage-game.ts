@@ -85,9 +85,11 @@ export abstract class StageGameBase {
   // Called with the latest MediaPipe result for `visionKind` from the page's requestAnimationFrame
   // loop, which runs outside the Angular zone: a game that shows a value in its template must write it
   // to a signal, and `now` is a performance.now() timestamp in ms.
-  onFrame(_frame: VisionFrame, _now: number): void {}
+  onFrame(_frame: VisionFrame, _now: number): void {
+  }
 
   // Called on every animation frame (`dt` in seconds since the previous one) by canvas-drawn games for
   // their own simulation and drawing. Games that only react to frames can leave it alone.
-  tick(_dt: number, _now: number): void {}
+  tick(_dt: number, _now: number): void {
+  }
 }

@@ -113,11 +113,11 @@ export class AssignmentList implements OnInit {
   protected async copyLink(assignment: Assignment): Promise<void> {
     try {
       await navigator.clipboard.writeText(shareUrl(assignment.code));
-      this.notificationService.success('Đã sao chép link', 'Gửi link này cho học sinh nhaa.', {nzPlacement: 'top'});
+      this.notificationService.success('Đã sao chép link', 'Gửi link này cho học sinh nhaa.', { nzPlacement: 'top' });
     } catch {
       // No clipboard access (an insecure page, or the browser said no): the QR popup shows the link to copy by hand.
       this.notificationService.warning('Chưa sao chép được',
-        'Link hiện trong hộp mã QR, bạn sao chép ở đó nhé.', {nzPlacement: 'top'});
+        'Link hiện trong hộp mã QR, bạn sao chép ở đó nhé.', { nzPlacement: 'top' });
       this.showQr(assignment);
     }
   }
@@ -139,22 +139,14 @@ export class AssignmentList implements OnInit {
     });
   }
 
-  private closeAssignment(assignment: Assignment): void {
-    this.assignmentService.update(assignment.id, {closed: true}).pipe(
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe({
-      next: updated => this.replace(updated),
-      error: err => this.fail('Không đóng được bài', err),
-    });
-  }
-
-  // Reopening asks for a new closing time first: the old one may be past, and the server refuses a reopen
   // that would close at once.
   protected askReopen(assignment: Assignment): void {
     this.reopening.set(assignment);
     this.reopenDeadline.set(null);
     this.reopenOpen.set(true);
   }
+
+  // Reopening asks for a new closing time first: the old one may be past, and the server refuses a reopen
 
   protected reopenDeadlinePassed(): boolean {
     const deadline = this.reopenDeadline();
@@ -196,6 +188,15 @@ export class AssignmentList implements OnInit {
     });
   }
 
+  private closeAssignment(assignment: Assignment): void {
+    this.assignmentService.update(assignment.id, { closed: true }).pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: updated => this.replace(updated),
+      error: err => this.fail('Không đóng được bài', err),
+    });
+  }
+
   private remove(assignment: Assignment): void {
     this.assignmentService.remove(assignment.id).pipe(
       takeUntilDestroyed(this.destroyRef),
@@ -210,10 +211,13 @@ export class AssignmentList implements OnInit {
   private replace(updated: Assignment): void {
     this.now.set(new Date());
     this.assignments.update(list => list.map(item =>
-      item.id === updated.id ? {...updated, playerCount: item.playerCount} : item));
+      item.id === updated.id ? {
+        ...updated,
+        playerCount: item.playerCount
+      } : item));
   }
 
   private fail(title: string, err: unknown): void {
-    this.notificationService.error(title, assignmentErrorMessage(err), {nzPlacement: 'top'});
+    this.notificationService.error(title, assignmentErrorMessage(err), { nzPlacement: 'top' });
   }
 }

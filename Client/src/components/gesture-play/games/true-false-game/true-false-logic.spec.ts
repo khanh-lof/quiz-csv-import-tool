@@ -2,26 +2,38 @@ import type { HandFrame, Point3 } from '../../../../game/stage-game';
 import { HoldSelector } from '../../../../game/hold-select';
 import {
   IDLE_THUMB_VIEW,
+  sameThumbView,
   THUMB_HOLD_MS,
   THUMB_TARGETS,
-  ThumbReader,
-  ThumbView,
-  sameThumbView,
   thumbKeyIndex,
+  ThumbReader,
   thumbStatus,
+  ThumbView,
 } from './true-false-logic';
 
-const HAND: Point3[] = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
+const HAND: Point3[] = Array.from({ length: 21 }, () => ({
+  x: 0.5,
+  y: 0.5,
+  z: 0
+}));
 
 function frame(
   gesture: string | null,
   gestureScore = 0.9,
   landmarks: Point3[] | null = HAND,
 ): HandFrame {
-  return { landmarks, gesture, gestureScore };
+  return {
+    landmarks,
+    gesture,
+    gestureScore
+  };
 }
 
-const NO_HAND: HandFrame = { landmarks: null, gesture: null, gestureScore: 0 };
+const NO_HAND: HandFrame = {
+  landmarks: null,
+  gesture: null,
+  gestureScore: 0
+};
 
 describe('ThumbReader', () => {
   it('reads thumb up as 0 and thumb down as 1', () => {
@@ -91,7 +103,10 @@ describe('true/false decision per frame', () => {
     const reader = new ThumbReader();
     const selector = new HoldSelector(THUMB_HOLD_MS);
     return frames.map(
-      ({ at, frame: handFrame }) => selector.step(reader.read(handFrame), at).selected,
+      ({
+         at,
+         frame: handFrame
+       }) => selector.step(reader.read(handFrame), at).selected,
     );
   }
 
@@ -102,7 +117,10 @@ describe('true/false decision per frame', () => {
   ): Array<{ at: number; frame: HandFrame }> {
     const out: Array<{ at: number; frame: HandFrame }> = [];
     for (let at = from; at <= to; at += 33) {
-      out.push({ at, frame });
+      out.push({
+        at,
+        frame
+      });
     }
     return out;
   }
@@ -137,13 +155,20 @@ describe('thumbStatus', () => {
 
   it('shows the charging side and the progress in percent', () => {
     const charging = (choice: number, progress: number) =>
-      thumbStatus(view({ armed: true, choice, progress }));
+      thumbStatus(view({
+        armed: true,
+        choice,
+        progress
+      }));
     expect(charging(0, 0.6)).toBe('Đang chọn Đúng… 60%');
     expect(charging(1, 0.333)).toBe('Đang chọn Sai… 33%');
   });
 
   it('asks the player to lower the hand while a thumb is up and the gate is not armed', () => {
-    expect(thumbStatus(view({ armed: false, shown: 0 }))).toBe('Hạ tay xuống rồi chọn câu tiếp');
+    expect(thumbStatus(view({
+      armed: false,
+      shown: 0
+    }))).toBe('Hạ tay xuống rồi chọn câu tiếp');
   });
 
   it('shows the instruction when there is nothing to choose', () => {
@@ -179,9 +204,21 @@ describe('targets and view', () => {
 
   it('compares views by what is shown', () => {
     expect(sameThumbView(IDLE_THUMB_VIEW, { ...IDLE_THUMB_VIEW })).toBeTrue();
-    expect(sameThumbView(IDLE_THUMB_VIEW, { ...IDLE_THUMB_VIEW, shown: 1 })).toBeFalse();
-    const half = { ...IDLE_THUMB_VIEW, progress: 0.5 };
-    expect(sameThumbView(half, { ...half, progress: 0.51 })).toBeTrue();
-    expect(sameThumbView(half, { ...half, progress: 0.6 })).toBeFalse();
+    expect(sameThumbView(IDLE_THUMB_VIEW, {
+      ...IDLE_THUMB_VIEW,
+      shown: 1
+    })).toBeFalse();
+    const half = {
+      ...IDLE_THUMB_VIEW,
+      progress: 0.5
+    };
+    expect(sameThumbView(half, {
+      ...half,
+      progress: 0.51
+    })).toBeTrue();
+    expect(sameThumbView(half, {
+      ...half,
+      progress: 0.6
+    })).toBeFalse();
   });
 });

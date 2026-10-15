@@ -17,8 +17,8 @@ describe('FileExportService Wayground export', () => {
 
   it('builds an .xlsx whose first row is the Wayground header', () => {
     const csv = TestBed.inject(WaygroundCsvBuilder).buildFromCsvContent('你好,Multiple Choice,xin chào,tạm biệt,,,,1,,,');
-    const workbook = XLSX.read(FileExportService.buildXlsx(csv), {type: 'array'});
-    const rows = XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+    const workbook = XLSX.read(FileExportService.buildXlsx(csv), { type: 'array' });
+    const rows = XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
 
     expect(rows[0].slice(0, 3)).toEqual(['Question Text', 'Question Type', 'Option 1']);
     expect(rows[2][0]).toBe('你好');
@@ -26,7 +26,11 @@ describe('FileExportService Wayground export', () => {
 
   it('returns the downloaded .xlsx name and bytes', () => {
     const rows = ['一', '二', '三', '四', '五'].map((question, i) =>
-      ({question, answer: `${i + 1}`, questionType: QuestionType.MultipleChoice}));
+      ({
+        question,
+        answer: `${i + 1}`,
+        questionType: QuestionType.MultipleChoice
+      }));
     const exported = service.exportFile('Lesson-Wayground.csv', rows, ExportType.Wayground);
 
     expect(exported?.fileName).toBe('Lesson-Wayground.xlsx');
@@ -35,7 +39,11 @@ describe('FileExportService Wayground export', () => {
 
   it('builds the .xlsx without downloading it when asked', () => {
     const rows = ['一', '二', '三', '四', '五'].map((question, i) =>
-      ({question, answer: `${i + 1}`, questionType: QuestionType.MultipleChoice}));
+      ({
+        question,
+        answer: `${i + 1}`,
+        questionType: QuestionType.MultipleChoice
+      }));
     const exported = service.exportFile('Lesson-Wayground.csv', rows, ExportType.Wayground, false);
 
     expect(exported?.xlsx?.length).toBeGreaterThan(0);
@@ -44,10 +52,14 @@ describe('FileExportService Wayground export', () => {
 
   it('returns no bytes for a CSV platform', () => {
     const rows = ['一', '二', '三', '四', '五'].map((question, i) =>
-      ({question, answer: `${i + 1}`, questionType: QuestionType.MultipleChoice}));
+      ({
+        question,
+        answer: `${i + 1}`,
+        questionType: QuestionType.MultipleChoice
+      }));
     const exported = service.exportFile('Lesson-Gimkit.csv', rows, ExportType.GimKit);
 
-    expect(exported).toEqual({fileName: 'Lesson-Gimkit.csv'});
+    expect(exported).toEqual({ fileName: 'Lesson-Gimkit.csv' });
   });
 });
 
@@ -75,7 +87,7 @@ describe('FileExportService Game export', () => {
   it('downloads a .csv that starts with the gesture quiz header, then the rows', async () => {
     const exported = service.exportFileFromCsvContent('HSK3-Bai5-Game.csv', rows, ExportType.GestureQuiz);
 
-    expect(exported).toEqual({fileName: 'HSK3-Bai5-Game.csv'});
+    expect(exported).toEqual({ fileName: 'HSK3-Bai5-Game.csv' });
     expect(downloadNames).toEqual(['HSK3-Bai5-Game.csv']);
     expect(blobs.length).toBe(1);
     expect(blobs[0].type).toBe('text/csv;charset=utf-8');
@@ -85,12 +97,16 @@ describe('FileExportService Game export', () => {
   it('does not download when asked not to', () => {
     const exported = service.exportFileFromCsvContent('Quiz.csv', rows, ExportType.GestureQuiz, false);
 
-    expect(exported).toEqual({fileName: 'Quiz.csv'});
+    expect(exported).toEqual({ fileName: 'Quiz.csv' });
     expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
   });
 
   it('cannot be built from the table rows, which have no stages', () => {
-    const tableRows = [{question: '一', answer: '1', questionType: QuestionType.MultipleChoice}];
+    const tableRows = [{
+      question: '一',
+      answer: '1',
+      questionType: QuestionType.MultipleChoice
+    }];
 
     expect(() => service.exportFile('Quiz.csv', tableRows, ExportType.GestureQuiz)).toThrowError(/AI/);
     expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();

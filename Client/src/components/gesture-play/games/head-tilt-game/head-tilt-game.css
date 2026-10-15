@@ -74,10 +74,9 @@
   border: 5px solid var(--side);
   border-radius: var(--qt-radius-lg);
   box-shadow: var(--sunset-shadow);
-  transition:
-    transform var(--qt-transition),
-    border-color var(--qt-transition),
-    box-shadow var(--qt-transition);
+  transition: transform var(--qt-transition),
+  border-color var(--qt-transition),
+  box-shadow var(--qt-transition);
 }
 
 /* Orange on the left, violet on the right: the sunset's two ends, a pair that colour-blind players can
@@ -104,10 +103,9 @@
 /* Held (or chosen, until the answer is shown): gold, the same "hold to confirm" colour as the charge bar. */
 .card.active,
 .card.picked {
-  box-shadow:
-    0 0 0 4px var(--play-charge),
-    0 0 22px var(--play-charge-glow),
-    var(--sunset-shadow);
+  box-shadow: 0 0 0 4px var(--play-charge),
+  0 0 22px var(--play-charge-glow),
+  var(--sunset-shadow);
   transform: translateY(-1cqh) scale(1.03);
 }
 
@@ -331,9 +329,8 @@ kbd {
   background: #fff;
   border: 3px solid var(--play-charge);
   border-radius: 50%;
-  box-shadow:
-    0 0 8px var(--play-charge-glow),
-    0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 8px var(--play-charge-glow),
+  0 1px 3px rgba(0, 0, 0, 0.3);
   transition: left 0.08s;
 }
 

@@ -67,7 +67,7 @@ export function lessonLabel(job: AiJob): string {
   }
   const course = job.courseType === CourseType.Hsk ? `HSK ${job.hskStandard === HskStandard.V3 ? '3.0' : '2.0'}`
     : job.courseType === CourseType.Yct ? 'YCT'
-    : (job.courseName || 'Khác');
+      : (job.courseName || 'Khác');
   return [course, job.level === null ? null : `cấp ${job.level}`, job.lessonNumber === null ? null : `bài ${job.lessonNumber}`]
     .filter(part => part !== null).join(' · ');
 }

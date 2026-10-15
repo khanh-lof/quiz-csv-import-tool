@@ -15,12 +15,10 @@ import { MarqueeSettings } from '../marquee-settings.service';
 })
 export class MarqueePauseButton {
   readonly compact = input(false);
-
-  private readonly settings = inject(MarqueeSettings);
-
-  protected readonly paused = this.settings.paused;
   // What a click does, not the state: running names offer to stop, stopped ones to start.
   protected readonly label = computed(() => (this.paused() ? 'Cho chữ chạy' : 'Dừng chữ chạy'));
+  private readonly settings = inject(MarqueeSettings);
+  protected readonly paused = this.settings.paused;
 
   protected toggle(): void {
     this.settings.toggle();

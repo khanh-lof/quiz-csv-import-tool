@@ -1,6 +1,6 @@
 import { countExtendedFingers } from '../../../../game/gestures';
 import type { HandFrame } from '../../../../game/stage-game';
-import { HoldView, StableReading, sameProgress } from '../../../../game/hold-select';
+import { HoldView, sameProgress, StableReading } from '../../../../game/hold-select';
 
 // The long fingers (index to pinky) are counted, so 1..4 map to the four options and a fist is
 // neutral. The finger count is a steadier reading than the thumb gestures, but it flickers while the

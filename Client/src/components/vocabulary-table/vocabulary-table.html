@@ -6,19 +6,21 @@
       <li>Nhập câu hỏi và đáp án, bấm <b>+</b> để thêm dòng (cần ít nhất {{ minRows }} câu; dòng trống bị bỏ qua).</li>
       <li>Bấm <b>Tải file</b> rồi import vào nền tảng. Bảng tự lưu trên trình duyệt này.</li>
     </ol>
-    <p>Wayground: có thể dùng <b>Tiện ích tự publish</b> (<a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" target="_blank" rel="noopener">cách cài</a>).</p>
+    <p>Wayground: có thể dùng <b>Tiện ích tự publish</b> (<a
+      href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
+      target="_blank">cách cài</a>).</p>
   </app-usage-guide>
   <nz-content>
-    <form [formGroup]="formGroup" (ngSubmit)="exportFile()">
+    <form (ngSubmit)="exportFile()" [formGroup]="formGroup">
       <div class="header-toolbar">
 
         <!-- LEFT BUTTON -->
         <div class="left-buttons">
-          <button nz-button nzShape="circle" nzType="primary" type="button" (click)="addRow()">
-            <nz-icon nzType="plus" nzTheme="outline"/>
+          <button (click)="addRow()" nz-button nzShape="circle" nzType="primary" type="button">
+            <nz-icon nzTheme="outline" nzType="plus"/>
           </button>
-          <button nz-button nzType="default" type="button" (click)="confirmDeleteAllRows()">
-            <nz-icon nzType="delete" nzTheme="outline"/>
+          <button (click)="confirmDeleteAllRows()" nz-button nzType="default" type="button">
+            <nz-icon nzTheme="outline" nzType="delete"/>
             Xóa tất cả
           </button>
         </div>
@@ -27,7 +29,7 @@
         <div class="right-buttons">
 
           <!-- Select page template -->
-          <nz-select formControlName="exportType" nzSize="large" nzPlaceHolder="Tạo quiz cho">
+          <nz-select formControlName="exportType" nzPlaceHolder="Tạo quiz cho" nzSize="large">
             <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
             <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
             <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
@@ -35,9 +37,10 @@
           @if (formGroup.get('exportType')?.value === ExportType.Wayground) {
             <!-- Without the extension only the download is possible; the disabled option says why. -->
             <nz-radio-group [formControl]="waygroundDelivery" nzButtonStyle="solid" nzSize="large">
-              <label nz-radio-button [nzValue]="WaygroundDelivery.Download">Tải file</label>
-              <label nz-radio-button [nzValue]="WaygroundDelivery.Extension" [nzDisabled]="!extensionInstalled"
-                     [title]="extensionInstalled ? '' : 'Chưa cài tiện ích QuizTool cho Chrome'">Tiện ích tự publish</label>
+              <label [nzValue]="WaygroundDelivery.Download" nz-radio-button>Tải file</label>
+              <label [nzDisabled]="!extensionInstalled" [nzValue]="WaygroundDelivery.Extension" [title]="extensionInstalled ? '' : 'Chưa cài tiện ích QuizTool cho Chrome'"
+                     nz-radio-button>Tiện ích tự
+                publish</label>
             </nz-radio-group>
           }
           <!-- Always shown: clicking it explains what is still missing (template, rows) instead of the
@@ -55,23 +58,23 @@
           <!--        <nz-icon nzType="file-text" nzTheme="outline"/>-->
           <!--        Nhập từ file csv-->
           <!--      </button>-->
-          <input #fileInput type="file" accept=".csv,text/csv" style="display: none" (change)="importFromCsv($event)"/>
+          <input #fileInput (change)="importFromCsv($event)" accept=".csv,text/csv" style="display: none" type="file"/>
         </div>
 
       </div>
 
-      <nz-table #tableWord [nzData]="listOfData" nzBordered [nzShowPagination]="false" [nzFrontPagination]="false"
+      <nz-table #tableWord [nzData]="listOfData" [nzFrontPagination]="false" [nzScroll]="{x: '100%'}" [nzShowPagination]="false"
 
-                [nzScroll]="{x: '100%'}">
+                nzBordered>
         <thead>
         <tr>
           <th nzWidth="50%">Câu hỏi</th>
           <th nzWidth="30%">Đáp án</th>
           @if (formGroup.get('exportType')?.value === ExportType.Wayground) {
-            <th style="text-align: center" nzWidth="15%"></th>
+            <th nzWidth="15%" style="text-align: center"></th>
           }
           @if (tableWord.data.length > minRows) {
-            <th style="text-align: center" nzWidth="5%"></th>
+            <th nzWidth="5%" style="text-align: center"></th>
           }
         </tr>
         </thead>
@@ -80,14 +83,15 @@
           @for (item of tableWord.data; track item; let i = $index) {
             <tr [formGroup]="item">
               <td class="cell-flex">
-                <textarea nz-input [formControl]="item.controls.question" #rowSourceInputs cdkTextareaAutosize></textarea>
+                <textarea #rowSourceInputs [formControl]="item.controls.question" cdkTextareaAutosize
+                          nz-input></textarea>
                 <ng-container
                   *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: 'Trùng câu hỏi nàa', $implicit: item.controls.question}"/>
                 <ng-container
                   *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: item.controls.question}"/>
               </td>
               <td class="cell-flex">
-                <textarea nz-input [formControl]="item.controls.answer" #rowSourceInputs cdkTextareaAutosize></textarea>
+                <textarea #rowSourceInputs [formControl]="item.controls.answer" cdkTextareaAutosize nz-input></textarea>
                 <ng-container
                   *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: 'Trùng đáp án nàa', $implicit: item.controls.answer}"/>
                 <ng-container
@@ -103,8 +107,8 @@
               }
               @if (tableWord.data.length > minRows) {
                 <td style="text-align: center">
-                  <button nz-button nzShape="circle" nzType="default" (click)="deleteRow(i)" type="button">
-                    <nz-icon nzType="delete" nzTheme="outline"/>
+                  <button (click)="deleteRow(i)" nz-button nzShape="circle" nzType="default" type="button">
+                    <nz-icon nzTheme="outline" nzType="delete"/>
                   </button>
                 </td>
               }
@@ -113,7 +117,7 @@
         </tbody>
       </nz-table>
 
-      <ng-template let-formControl let-message="message" let-errorKey="errorKey" #errorMessage>
+      <ng-template #errorMessage let-errorKey="errorKey" let-formControl let-message="message">
         @if (formControl.hasError(errorKey) && formControl.dirty) {
           <small class="text-error">{{ message }}</small>
         }

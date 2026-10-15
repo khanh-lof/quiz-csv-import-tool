@@ -25,7 +25,10 @@ export class Utils {
   public static addError(control: AbstractControl, errorKey: string) {
     const current = control.errors ?? {};
     if (!current[errorKey]) {
-      control.setErrors({...current, [errorKey]: true});
+      control.setErrors({
+        ...current,
+        [errorKey]: true
+      });
     }
   };
 

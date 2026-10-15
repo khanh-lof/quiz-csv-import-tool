@@ -10,21 +10,48 @@ const GESTURE_PLAY_URL = /^\/play(?:[/?#]|$)/;
   providedIn: 'root'
 })
 export class OnlineStatusService {
+  readonly isOnline = signal<boolean>(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
   private router = inject(Router);
   private ngZone = inject(NgZone);
-
   private readonly onlineSubject = new BehaviorSubject<boolean>(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
   readonly isOnline$ = this.onlineSubject.asObservable();
-  readonly isOnline = signal<boolean>(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
-
   private previousUrl: string = '/';
 
   constructor() {
     this.initListeners();
+  }
+
+  navigateToReturnUrl(): void {
+    const targetUrl =
+      this.previousUrl && this.previousUrl !== '/offline' && this.previousUrl !== '/'
+        ? this.previousUrl
+        : '/quiz';
+    this.router.navigateByUrl(targetUrl);
+  }
+
+  async checkConnection(): Promise<boolean> {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      this.updateStatus(false);
+      return false;
+    }
+
+    try {
+      const response = await fetch(`/logo.ico?_t=${Date.now()}`, {
+        method: 'HEAD',
+        cache: 'no-store'
+      });
+      const isOnline = response.ok || response.status < 500;
+      this.updateStatus(isOnline);
+      return isOnline;
+    } catch {
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : false;
+      this.updateStatus(isOnline);
+      return isOnline;
+    }
   }
 
   private initListeners(): void {
@@ -74,35 +101,6 @@ export class OnlineStatusService {
   private handleOnlineEvent(): void {
     if (this.router.url.includes('/offline')) {
       this.navigateToReturnUrl();
-    }
-  }
-
-  navigateToReturnUrl(): void {
-    const targetUrl =
-      this.previousUrl && this.previousUrl !== '/offline' && this.previousUrl !== '/'
-        ? this.previousUrl
-        : '/quiz';
-    this.router.navigateByUrl(targetUrl);
-  }
-
-  async checkConnection(): Promise<boolean> {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      this.updateStatus(false);
-      return false;
-    }
-
-    try {
-      const response = await fetch(`/logo.ico?_t=${Date.now()}`, {
-        method: 'HEAD',
-        cache: 'no-store'
-      });
-      const isOnline = response.ok || response.status < 500;
-      this.updateStatus(isOnline);
-      return isOnline;
-    } catch {
-      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : false;
-      this.updateStatus(isOnline);
-      return isOnline;
     }
   }
 }

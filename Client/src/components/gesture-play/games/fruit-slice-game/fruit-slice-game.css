@@ -55,11 +55,10 @@
   border-radius: var(--qt-radius-lg);
   /* Strong, because the boxes sit on dark wood (the scene is in play-themes.css). */
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
-  transition:
-    transform var(--qt-transition),
-    opacity var(--qt-transition),
-    box-shadow var(--qt-transition),
-    filter var(--qt-transition);
+  transition: transform var(--qt-transition),
+  opacity var(--qt-transition),
+  box-shadow var(--qt-transition),
+  filter var(--qt-transition);
 }
 
 .fit {
@@ -161,24 +160,21 @@
 }
 
 .answer.picked {
-  box-shadow:
-    0 0 0 4px #fff,
-    0 0 0 7px var(--play-ink);
+  box-shadow: 0 0 0 4px #fff,
+  0 0 0 7px var(--play-ink);
 }
 
 .answer.correct {
   transform: scale(1.05);
-  box-shadow:
-    0 0 0 4px #fff,
-    0 0 0 9px var(--play-ok),
-    0 0 28px 10px rgba(34, 197, 94, 0.55);
+  box-shadow: 0 0 0 4px #fff,
+  0 0 0 9px var(--play-ok),
+  0 0 28px 10px rgba(34, 197, 94, 0.55);
 }
 
 /* No fading here: a filter on the box would also wash out its ✗ stamp. The red ring and the stamp say it. */
 .answer.wrong {
-  box-shadow:
-    0 0 0 4px #fff,
-    0 0 0 8px var(--play-bad);
+  box-shadow: 0 0 0 4px #fff,
+  0 0 0 8px var(--play-bad);
 }
 
 .answer.dim {

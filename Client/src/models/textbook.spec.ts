@@ -1,12 +1,15 @@
 import { CourseType } from './course-type';
 import { HskStandard } from './hsk-standard';
-import { TEXTBOOKS, textbookFor } from './textbook';
+import { textbookFor, TEXTBOOKS } from './textbook';
 
 describe('textbookFor', () => {
   it('finds the HSK 3.0 books by level', () => {
     expect(textbookFor(CourseType.Hsk, HskStandard.V3, 1)?.lessons).toBe(15);
     expect(textbookFor(CourseType.Hsk, HskStandard.V3, 2)?.lessons).toBe(15);
-    expect(textbookFor(CourseType.Hsk, HskStandard.V3, 3)).toEqual(jasmine.objectContaining({lessons: 18, title: '《新HSK教程3》'}));
+    expect(textbookFor(CourseType.Hsk, HskStandard.V3, 3)).toEqual(jasmine.objectContaining({
+      lessons: 18,
+      title: '《新HSK教程3》'
+    }));
   });
 
   it('finds the YCT book whatever the HSK standard says', () => {

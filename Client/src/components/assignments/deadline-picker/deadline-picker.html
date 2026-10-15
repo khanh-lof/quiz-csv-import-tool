@@ -1,4 +1,4 @@
-<nz-radio-group class="presets" [ngModel]="preset()" (ngModelChange)="setPreset($event)" nzButtonStyle="solid">
+<nz-radio-group (ngModelChange)="setPreset($event)" [ngModel]="preset()" class="presets" nzButtonStyle="solid">
   <label nz-radio-button nzValue="none">Không hẹn giờ</label>
   <label nz-radio-button nzValue="45m">Sau 45 phút</label>
   <label nz-radio-button nzValue="today">Hết hôm nay</label>
@@ -6,14 +6,14 @@
 </nz-radio-group>
 
 @if (preset() === 'custom') {
-  <nz-date-picker class="custom-time" aria-label="Giờ đóng bài" nzFormat="HH:mm dd/MM/yyyy"
-                  [nzShowTime]="{nzFormat: 'HH:mm'}" [nzShowNow]="false" [nzAllowClear]="false"
-                  nzPlaceHolder="Chọn ngày và giờ" [nzDisabledDate]="disabledDate" [nzDisabledTime]="disabledTime"
-                  [ngModel]="customDate()" (ngModelChange)="setCustom($event)"/>
+  <nz-date-picker (ngModelChange)="setCustom($event)" [ngModel]="customDate()" [nzAllowClear]="false"
+                  [nzDisabledDate]="disabledDate" [nzDisabledTime]="disabledTime" [nzShowNow]="false"
+                  [nzShowTime]="{nzFormat: 'HH:mm'}" aria-label="Giờ đóng bài" class="custom-time"
+                  nzFormat="HH:mm dd/MM/yyyy" nzPlaceHolder="Chọn ngày và giờ"/>
 }
 
 @if (closeText(); as text) {
-  <p class="close-text" [class.text-error]="inThePast()">
+  <p [class.text-error]="inThePast()" class="close-text">
     {{ text }}{{ inThePast() ? '. Giờ này đã qua, hãy chọn giờ khác.' : '' }}
   </p>
 } @else if (preset() === 'none') {

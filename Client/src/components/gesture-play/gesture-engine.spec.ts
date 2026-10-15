@@ -11,7 +11,13 @@ import {
 } from './gesture-engine';
 
 function question(stage: number, overrides: Partial<GestureQuestion> = {}): GestureQuestion {
-  return { stage, question: 'Q', correct: 'Đúng', wrong: [], explanation: 'Vì sao', ...overrides };
+  return {
+    stage,
+    question: 'Q',
+    correct: 'Đúng',
+    wrong: [],
+    explanation: 'Vì sao', ...overrides
+  };
 }
 
 describe('prepareQuestion', () => {
@@ -27,7 +33,10 @@ describe('prepareQuestion', () => {
 
   it('mixes the right answer in with the wrong ones and remembers where it went', () => {
     for (let run = 0; run < 30; run += 1) {
-      const play = prepareQuestion(question(4, { correct: 'A', wrong: ['B', 'C'] }));
+      const play = prepareQuestion(question(4, {
+        correct: 'A',
+        wrong: ['B', 'C']
+      }));
 
       expect([...play.view.options].sort()).toEqual(['A', 'B', 'C']);
       expect(play.view.options[play.correctIndex!]).toBe('A');
@@ -38,14 +47,20 @@ describe('prepareQuestion', () => {
   it('actually shuffles the options', () => {
     const positions = new Set<number>();
     for (let run = 0; run < 100; run += 1) {
-      positions.add(prepareQuestion(question(5, { correct: 'A', wrong: ['B', 'C', 'D'] })).correctIndex!);
+      positions.add(prepareQuestion(question(5, {
+        correct: 'A',
+        wrong: ['B', 'C', 'D']
+      })).correctIndex!);
     }
 
     expect(positions.size).toBeGreaterThan(1);
   });
 
   it('gives the sentence stage no options and shuffled pieces', () => {
-    const play = prepareQuestion(question(6, { correct: '我 / 喝 / 茶', chunks: ['我', '喝', '茶'] }));
+    const play = prepareQuestion(question(6, {
+      correct: '我 / 喝 / 茶',
+      chunks: ['我', '喝', '茶']
+    }));
 
     expect(play.view.options).toEqual([]);
     expect([...play.view.chunks!].sort()).toEqual(['喝', '我', '茶']);
@@ -92,13 +107,24 @@ describe('shuffleChunks', () => {
 
 describe('judging', () => {
   it('compares an option stage by index', () => {
-    const play = prepareQuestion(question(2, { correct: 'A', wrong: ['B'] }));
+    const play = prepareQuestion(question(2, {
+      correct: 'A',
+      wrong: ['B']
+    }));
     const right = play.correctIndex!;
 
     expect(isCorrectChoice(play, right)).toBeTrue();
     expect(isCorrectChoice(play, 1 - right)).toBeFalse();
-    expect(judge(play, right)).toEqual({ chosen: right, correct: true, correctIndex: right });
-    expect(judge(play, 1 - right)).toEqual({ chosen: 1 - right, correct: false, correctIndex: right });
+    expect(judge(play, right)).toEqual({
+      chosen: right,
+      correct: true,
+      correctIndex: right
+    });
+    expect(judge(play, 1 - right)).toEqual({
+      chosen: 1 - right,
+      correct: false,
+      correctIndex: right
+    });
   });
 
   it('treats index 0 as a real choice', () => {
@@ -127,7 +153,10 @@ describe('judging', () => {
   });
 
   it('counts a choice of the wrong kind as wrong', () => {
-    const options = prepareQuestion(question(2, { correct: 'A', wrong: ['B'] }));
+    const options = prepareQuestion(question(2, {
+      correct: 'A',
+      wrong: ['B']
+    }));
     const sentence = prepareQuestion(question(6, { chunks: ['a', 'b'] }));
 
     expect(isCorrectChoice(options, ['A'])).toBeFalse();
@@ -135,17 +164,31 @@ describe('judging', () => {
   });
 
   it('reveals the right answer when time runs out', () => {
-    const options = prepareQuestion(question(3, { correct: 'A', wrong: ['B', 'C'] }));
+    const options = prepareQuestion(question(3, {
+      correct: 'A',
+      wrong: ['B', 'C']
+    }));
     const sentence = prepareQuestion(question(6, { chunks: ['a', 'b'] }));
 
-    expect(timeoutReveal(options)).toEqual({ chosen: null, correct: false, correctIndex: options.correctIndex! });
-    expect(timeoutReveal(sentence)).toEqual({ chosen: null, correct: false, correctOrder: ['a', 'b'] });
+    expect(timeoutReveal(options)).toEqual({
+      chosen: null,
+      correct: false,
+      correctIndex: options.correctIndex!
+    });
+    expect(timeoutReveal(sentence)).toEqual({
+      chosen: null,
+      correct: false,
+      correctOrder: ['a', 'b']
+    });
   });
 });
 
 describe('correctAnswerText', () => {
   it('shows the option, or the sentence run together', () => {
-    expect(correctAnswerText(prepareQuestion(question(2, { correct: '水 (shuǐ)', wrong: ['茶'] })))).toBe(
+    expect(correctAnswerText(prepareQuestion(question(2, {
+      correct: '水 (shuǐ)',
+      wrong: ['茶']
+    })))).toBe(
       '水 (shuǐ)',
     );
     expect(correctAnswerText(prepareQuestion(question(6, { chunks: ['我', '喝', '茶'] })))).toBe('我喝茶');

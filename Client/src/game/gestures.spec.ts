@@ -1,27 +1,31 @@
+import type { TiltStep } from './gestures';
 import {
   BiteDetector,
-  HoldGate,
-  OneEuroFilter,
-  PinchDetector,
-  PointSmoother,
-  TiltGate,
   countExtendedFingers,
   dist2d,
   eyeRoll,
   headSignal,
+  HoldGate,
   mapToStage,
   mirrorX,
+  OneEuroFilter,
+  PinchDetector,
   pinchRatio,
+  PointSmoother,
   segHit,
   thumbChoice,
+  TiltGate,
 } from './gestures';
-import type { TiltStep } from './gestures';
 import type { HandFrame, Point3 } from './stage-game';
 
 // A hand of 21 points with the landmarks the detectors read set explicitly. The wrist is at the
 // bottom, the fingers point up (smaller y), like a hand held up to the camera.
 function blankHand(): Point3[] {
-  return Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
+  return Array.from({ length: 21 }, () => ({
+    x: 0.5,
+    y: 0.5,
+    z: 0
+  }));
 }
 
 // Index, middle, ring, pinky: [tip, pip, x]. PIPs sit at y = 0.5, a quarter of the frame above the
@@ -35,11 +39,23 @@ const FINGER_COLUMNS: ReadonlyArray<readonly [number, number, number]> = [
 
 function upright(extended: boolean[]): Point3[] {
   const hand = blankHand();
-  hand[0] = { x: 0.5, y: 0.9, z: 0 };
+  hand[0] = {
+    x: 0.5,
+    y: 0.9,
+    z: 0
+  };
   FINGER_COLUMNS.forEach(([tip, pip, x], i) => {
-    hand[pip] = { x, y: 0.5, z: 0 };
+    hand[pip] = {
+      x,
+      y: 0.5,
+      z: 0
+    };
     // Extended: the tip is far above the joint. Curled: it is folded back down toward the palm.
-    hand[tip] = { x, y: extended[i] ? 0.28 : 0.6, z: 0 };
+    hand[tip] = {
+      x,
+      y: extended[i] ? 0.28 : 0.6,
+      z: 0
+    };
   });
   return hand;
 }
@@ -47,10 +63,26 @@ function upright(extended: boolean[]): Point3[] {
 // A hand whose thumb and index tips are `gap` apart, with a wrist-to-knuckle size of 0.3.
 function pinching(gap: number): Point3[] {
   const hand = blankHand();
-  hand[0] = { x: 0.5, y: 0.9, z: 0 };
-  hand[9] = { x: 0.5, y: 0.6, z: 0 };
-  hand[4] = { x: 0.4, y: 0.4, z: 0 };
-  hand[8] = { x: 0.4 + gap, y: 0.4, z: 0 };
+  hand[0] = {
+    x: 0.5,
+    y: 0.9,
+    z: 0
+  };
+  hand[9] = {
+    x: 0.5,
+    y: 0.6,
+    z: 0
+  };
+  hand[4] = {
+    x: 0.4,
+    y: 0.4,
+    z: 0
+  };
+  hand[8] = {
+    x: 0.4 + gap,
+    y: 0.4,
+    z: 0
+  };
   return hand;
 }
 
@@ -89,14 +121,29 @@ describe('mapping and distances', () => {
   });
 
   it('stretches over the stage while the video has no size yet', () => {
-    expect(mapToStage(0.25, 0.5, 0, 0, 800, 600)).toEqual({ x: 600, y: 300 });
+    expect(mapToStage(0.25, 0.5, 0, 0, 800, 600)).toEqual({
+      x: 600,
+      y: 300
+    });
   });
 
   it('scales x by the aspect so distances are isotropic', () => {
-    const a = { x: 0, y: 0 };
-    expect(dist2d(a, { x: 0.1, y: 0 })).toBeCloseTo(0.1);
-    expect(dist2d(a, { x: 0.1, y: 0 }, 2)).toBeCloseTo(0.2);
-    expect(dist2d(a, { x: 0.3, y: 0.4 })).toBeCloseTo(0.5);
+    const a = {
+      x: 0,
+      y: 0
+    };
+    expect(dist2d(a, {
+      x: 0.1,
+      y: 0
+    })).toBeCloseTo(0.1);
+    expect(dist2d(a, {
+      x: 0.1,
+      y: 0
+    }, 2)).toBeCloseTo(0.2);
+    expect(dist2d(a, {
+      x: 0.3,
+      y: 0.4
+    })).toBeCloseTo(0.5);
   });
 });
 
@@ -140,14 +187,20 @@ describe('OneEuroFilter', () => {
   });
 
   it('smooths a point on both axes and starts over after reset', () => {
-    const smoother = new PointSmoother({ minCutoff: 1, beta: 0 });
+    const smoother = new PointSmoother({
+      minCutoff: 1,
+      beta: 0
+    });
     smoother.filter(0, 0, 0);
     const p = smoother.filter(1, 1, 33);
     expect(p.x).toBeGreaterThan(0);
     expect(p.x).toBeLessThan(1);
     expect(p.y).toBeCloseTo(p.x);
     smoother.reset();
-    expect(smoother.filter(0.4, 0.6, 500)).toEqual({ x: 0.4, y: 0.6 });
+    expect(smoother.filter(0.4, 0.6, 500)).toEqual({
+      x: 0.4,
+      y: 0.6
+    });
   });
 });
 
@@ -191,7 +244,11 @@ describe('HoldGate', () => {
 
   it('reports hold progress and selects when the hold completes', () => {
     arm(0);
-    expect(gate.step(1, 300)).toEqual({ armed: true, choice: 1, progress: 0 });
+    expect(gate.step(1, 300)).toEqual({
+      armed: true,
+      choice: 1,
+      progress: 0
+    });
     expect(gate.step(1, 550).progress).toBeCloseTo(0.5);
     const done = gate.step(1, 800);
     expect(done.selected).toBe(1);
@@ -257,7 +314,11 @@ describe('HoldGate', () => {
     gate.step(1, 300);
     gate.step(1, 600);
     gate.step(null, 650);
-    expect(gate.step(null, 820)).toEqual({ armed: true, choice: null, progress: 0 });
+    expect(gate.step(null, 820)).toEqual({
+      armed: true,
+      choice: null,
+      progress: 0
+    });
     // A new hold starts from scratch.
     expect(gate.step(1, 900).progress).toBe(0);
     expect(gate.step(1, 1150).progress).toBeCloseTo(0.5);
@@ -286,16 +347,40 @@ describe('HoldGate', () => {
 
 describe('eyeRoll and headSignal', () => {
   it('is zero for level eyes and ignores which eye is first', () => {
-    expect(eyeRoll({ x: 0.4, y: 0.5 }, { x: 0.6, y: 0.5 }, 640, 480)).toBeCloseTo(0);
-    expect(eyeRoll({ x: 0.6, y: 0.5 }, { x: 0.4, y: 0.5 }, 640, 480)).toBeCloseTo(0);
+    expect(eyeRoll({
+      x: 0.4,
+      y: 0.5
+    }, {
+      x: 0.6,
+      y: 0.5
+    }, 640, 480)).toBeCloseTo(0);
+    expect(eyeRoll({
+      x: 0.6,
+      y: 0.5
+    }, {
+      x: 0.4,
+      y: 0.5
+    }, 640, 480)).toBeCloseTo(0);
   });
 
   it('measures the angle in pixels, not in normalized units', () => {
     // dx = 0.2 * 800 = 160 px, dy = 0.2 * 400 = 80 px
-    expect(eyeRoll({ x: 0.4, y: 0.4 }, { x: 0.6, y: 0.6 }, 800, 400)).toBeCloseTo(
+    expect(eyeRoll({
+      x: 0.4,
+      y: 0.4
+    }, {
+      x: 0.6,
+      y: 0.6
+    }, 800, 400)).toBeCloseTo(
       (Math.atan(0.5) * 180) / Math.PI,
     );
-    expect(eyeRoll({ x: 0.6, y: 0.6 }, { x: 0.4, y: 0.4 }, 800, 400)).toBeCloseTo(
+    expect(eyeRoll({
+      x: 0.6,
+      y: 0.6
+    }, {
+      x: 0.4,
+      y: 0.4
+    }, 800, 400)).toBeCloseTo(
       (Math.atan(0.5) * 180) / Math.PI,
     );
   });
@@ -401,7 +486,11 @@ describe('TiltGate', () => {
 
   it('is invalid and resets when there is not exactly one face', () => {
     hold(0, 0, 250);
-    expect(gate.step(0, 0, 300)).toEqual({ progress: 0, side: null, invalid: true });
+    expect(gate.step(0, 0, 300)).toEqual({
+      progress: 0,
+      side: null,
+      invalid: true
+    });
     expect(gate.step(0, 2, 350).invalid).toBeTrue();
     expect(gate.step(NaN, 1, 400).invalid).toBeTrue();
     expect(gate.step(0, 1, 450).waiting).toBeTrue();
@@ -422,7 +511,10 @@ describe('TiltGate', () => {
     hold(0, 0, 250);
     const steps: TiltStep[] = [];
     for (let t = 300; t <= 700; t += 50) {
-      steps.push(gate.step(20, 1, t, { threshold: 15, hold: 200 }));
+      steps.push(gate.step(20, 1, t, {
+        threshold: 15,
+        hold: 200
+      }));
     }
     expect(steps.find(s => s.selected)?.selected).toBe('left');
   });
@@ -455,7 +547,11 @@ describe('countExtendedFingers', () => {
   it('keeps a finger that is only slightly farther than its joint from counting', () => {
     const hand = upright([false, false, false, false]);
     // Wrist to PIP is 0.4; a tip at 0.42 is farther but under the 1.1 ratio (0.44).
-    hand[8] = { x: 0.42, y: 0.48, z: 0 };
+    hand[8] = {
+      x: 0.42,
+      y: 0.48,
+      z: 0
+    };
     expect(countExtendedFingers(hand)).toBe(0);
     expect(countExtendedFingers(hand, 1, 1.0)).toBe(1);
   });
@@ -489,7 +585,10 @@ describe('pinchRatio and PinchDetector', () => {
 
   it('reports a press only after the pinch has lasted the debounce time', () => {
     expect(detector.step(pinching(0.05), 0)).toEqual(
-      jasmine.objectContaining({ pinched: false, changed: null }),
+      jasmine.objectContaining({
+        pinched: false,
+        changed: null
+      }),
     );
     expect(detector.step(pinching(0.05), 40).pinched).toBeFalse();
     const down = detector.step(pinching(0.05), 100);
@@ -546,7 +645,11 @@ describe('pinchRatio and PinchDetector', () => {
   });
 
   it('reports no ratio for a lost hand while nothing is pinched', () => {
-    expect(detector.step(null, 0)).toEqual({ pinched: false, changed: null, ratio: Infinity });
+    expect(detector.step(null, 0)).toEqual({
+      pinched: false,
+      changed: null,
+      ratio: Infinity
+    });
   });
 });
 
@@ -558,10 +661,22 @@ describe('BiteDetector', () => {
   });
 
   it('bites once when the mouth closes after having been open', () => {
-    expect(detector.step(0.05, 0)).toEqual({ open: false, bite: false });
-    expect(detector.step(0.6, 33)).toEqual({ open: true, bite: false });
-    expect(detector.step(0.7, 100)).toEqual({ open: true, bite: false });
-    expect(detector.step(0.1, 160)).toEqual({ open: false, bite: true });
+    expect(detector.step(0.05, 0)).toEqual({
+      open: false,
+      bite: false
+    });
+    expect(detector.step(0.6, 33)).toEqual({
+      open: true,
+      bite: false
+    });
+    expect(detector.step(0.7, 100)).toEqual({
+      open: true,
+      bite: false
+    });
+    expect(detector.step(0.1, 160)).toEqual({
+      open: false,
+      bite: true
+    });
     expect(detector.step(0.05, 200).bite).toBeFalse();
     expect(detector.step(0.05, 233).bite).toBeFalse();
   });
@@ -574,7 +689,10 @@ describe('BiteDetector', () => {
   it('keeps the mouth open and silent inside the hysteresis band', () => {
     detector.step(0.6, 0);
     for (let t = 50; t <= 500; t += 50) {
-      expect(detector.step(0.3, t)).toEqual({ open: true, bite: false });
+      expect(detector.step(0.3, t)).toEqual({
+        open: true,
+        bite: false
+      });
     }
     expect(detector.step(0.15, 550).bite).toBeTrue();
   });
@@ -600,7 +718,11 @@ describe('BiteDetector', () => {
 
 describe('thumbChoice', () => {
   function frame(gesture: string | null, gestureScore: number): HandFrame {
-    return { landmarks: blankHand(), gesture, gestureScore };
+    return {
+      landmarks: blankHand(),
+      gesture,
+      gestureScore
+    };
   }
 
   it('maps thumb up to the first option and thumb down to the second', () => {
@@ -617,7 +739,11 @@ describe('thumbChoice', () => {
     expect(thumbChoice(frame('Open_Palm', 0.99))).toBeNull();
     expect(thumbChoice(frame('Victory', 0.99))).toBeNull();
     expect(thumbChoice(frame(null, 0))).toBeNull();
-    expect(thumbChoice({ landmarks: null, gesture: null, gestureScore: 0 })).toBeNull();
+    expect(thumbChoice({
+      landmarks: null,
+      gesture: null,
+      gestureScore: 0
+    })).toBeNull();
   });
 });
 

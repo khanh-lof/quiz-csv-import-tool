@@ -1,11 +1,11 @@
 <div class="share">
-  <nz-qrcode class="qr" nzType="svg" [nzValue]="url()" [nzSize]="qrSize()"/>
+  <nz-qrcode [nzSize]="qrSize()" [nzValue]="url()" class="qr" nzType="svg"/>
   <div class="details">
     <p class="code">Mã bài: <span class="code-text">{{ code() }}</span></p>
     <div class="link-row">
-      <input #linkInput nz-input readonly class="link" aria-label="Link bài" [value]="url()" (focus)="selectLink()"/>
-      <button nz-button nzType="primary" type="button" (click)="copy()">
-        <nz-icon nzType="copy" nzTheme="outline"/>
+      <input #linkInput (focus)="selectLink()" [value]="url()" aria-label="Link bài" class="link" nz-input readonly/>
+      <button (click)="copy()" nz-button nzType="primary" type="button">
+        <nz-icon nzTheme="outline" nzType="copy"/>
         Sao chép link
       </button>
     </div>

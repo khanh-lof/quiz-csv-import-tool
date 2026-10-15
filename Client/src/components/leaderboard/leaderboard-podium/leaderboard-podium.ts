@@ -7,7 +7,11 @@ import { medal } from '../../assignments/assignment-leaderboard/assignment-leade
 // Players on a step are drawn as overlapping avatars, up to this many; the rest are a "+N" chip.
 const MAX_AVATARS = 3;
 
-const RING_OF_RANK = {1: 'gold', 2: 'silver', 3: 'bronze'} as const satisfies Record<number, AvatarRing>;
+const RING_OF_RANK = {
+  1: 'gold',
+  2: 'silver',
+  3: 'bronze'
+} as const satisfies Record<number, AvatarRing>;
 
 // A step as the template draws it.
 interface StepView {
@@ -46,7 +50,10 @@ export class LeaderboardPodium {
 
   protected readonly steps = computed((): StepView[] => podiumSteps(this.entries()).map(step => {
     // Players on one step share a rank, so they share what the rank was won with.
-    const {stagesPassed, correct} = step.entries[0];
+    const {
+      stagesPassed,
+      correct
+    } = step.entries[0];
     return {
       rank: step.rank,
       column: step.column,

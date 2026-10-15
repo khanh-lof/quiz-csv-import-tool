@@ -4,7 +4,7 @@ import { DisabledTimeConfig, NzDatePickerComponent } from 'ng-zorro-antd/date-pi
 import { NZ_I18N, vi_VN } from 'ng-zorro-antd/i18n';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { formatClose } from '../../../models/assignment';
-import { DeadlinePreset, deadlineFromPreset } from './deadline-picker-logic';
+import { deadlineFromPreset, DeadlinePreset } from './deadline-picker-logic';
 
 // Chooses when an assignment closes: a preset, or a time of the teacher's own. `value` is the closing time
 // (null for none) and is written every time the choice changes; a value set from outside (a dialog that
@@ -12,7 +12,10 @@ import { DeadlinePreset, deadlineFromPreset } from './deadline-picker-logic';
 @Component({
   selector: 'app-deadline-picker',
   imports: [FormsModule, NzDatePickerComponent, NzRadioComponent, NzRadioGroupComponent],
-  providers: [{provide: NZ_I18N, useValue: vi_VN}],
+  providers: [{
+    provide: NZ_I18N,
+    useValue: vi_VN
+  }],
   templateUrl: './deadline-picker.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './deadline-picker.css',
@@ -79,7 +82,7 @@ export class DeadlinePicker {
     if (!day || day.toDateString() !== now.toDateString()) {
       return undefined;
     }
-    const range = (end: number) => Array.from({length: end}, (_, i) => i);
+    const range = (end: number) => Array.from({ length: end }, (_, i) => i);
     return {
       nzDisabledHours: () => range(now.getHours()),
       nzDisabledMinutes: hour => (hour === now.getHours() ? range(now.getMinutes() + 1) : []),

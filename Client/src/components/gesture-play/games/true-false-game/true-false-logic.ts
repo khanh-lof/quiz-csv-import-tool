@@ -1,6 +1,6 @@
 import { thumbChoice } from '../../../../game/gestures';
 import type { HandFrame } from '../../../../game/stage-game';
-import { HoldView, StableReading, sameProgress } from '../../../../game/hold-select';
+import { HoldView, sameProgress, StableReading } from '../../../../game/hold-select';
 
 // MediaPipe's gesture score a thumb has to reach, and how long the thumb is held to answer. The
 // recognizer is steady, so a short hold is enough, but long enough that a thumb passing through on the
@@ -24,8 +24,18 @@ export interface ThumbTarget {
 
 // In screen order: Đúng on the left, Sai on the right, whatever the camera mirroring.
 export const THUMB_TARGETS: readonly ThumbTarget[] = [
-  { index: TRUE_INDEX, emoji: '👍', label: 'Đúng', keys: '1 · ←' },
-  { index: FALSE_INDEX, emoji: '👎', label: 'Sai', keys: '2 · →' },
+  {
+    index: TRUE_INDEX,
+    emoji: '👍',
+    label: 'Đúng',
+    keys: '1 · ←'
+  },
+  {
+    index: FALSE_INDEX,
+    emoji: '👎',
+    label: 'Sai',
+    keys: '2 · →'
+  },
 ];
 
 // Turns the camera's hand frames into the choice the hold gate watches: 0 for thumb up, 1 for thumb
@@ -49,7 +59,12 @@ export interface ThumbView extends HoldView {
   shown: 0 | 1 | null;
 }
 
-export const IDLE_THUMB_VIEW: ThumbView = { armed: false, choice: null, progress: 0, shown: null };
+export const IDLE_THUMB_VIEW: ThumbView = {
+  armed: false,
+  choice: null,
+  progress: 0,
+  shown: null
+};
 
 export function sameThumbView(a: ThumbView, b: ThumbView): boolean {
   return (

@@ -16,14 +16,7 @@ import { FaceFrame, QuestionView, StageGameBase, VisionFrame } from '../../../..
 import { stageDef } from '../../../../game/stages';
 import { VisionService } from '../../../../game/vision.service';
 import { FaceCalibrationPanel } from './face-calibration-panel';
-import {
-  CalibrationStatus,
-  FaceCalibrator,
-  FacePose,
-  isTypingTarget,
-  splitOption,
-  wordSize,
-} from './face-common';
+import { CalibrationStatus, FaceCalibrator, FacePose, isTypingTarget, splitOption, wordSize, } from './face-common';
 import { HeadTiltReader, meterPercent, sideToIndex, tiltHint } from './head-tilt-logic';
 
 // The circumference of the hold ring (r = 96 in a 200 x 200 viewBox).
@@ -36,52 +29,58 @@ const IDLE_HINT = 'Nghiêng hoặc dịch đầu nhẹ để chọn';
 @Component({
   selector: 'app-head-tilt-game',
   imports: [FaceCalibrationPanel],
-  providers: [{ provide: StageGameBase, useExisting: forwardRef(() => HeadTiltGame) }],
+  providers: [{
+    provide: StageGameBase,
+    useExisting: forwardRef(() => HeadTiltGame)
+  }],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './head-tilt-game.html',
   styleUrl: './head-tilt-game.css',
 })
 export class HeadTiltGame extends StageGameBase {
   readonly visionKind = stageDef(2).vision;
+  // twice.
+  protected readonly picked = linkedSignal<QuestionView, number | null>({
+    source: this.question,
+    computation: () => null,
+  });
+  protected readonly locked = computed(() => this.paused() || this.reveal() !== null);
+  // Option 0 is the left card and option 1 the right one, in the order the page shuffled them.
+  protected readonly cards = computed(() =>
+    [0, 1].map(index => {
+      const {
+        main,
+        note
+      } = splitOption(this.question().options[index] ?? '');
+      return {
+        index,
+        main,
+        note,
+        size: wordSize(main)
+      };
+    }),
+  );
+  protected readonly calibrationStatus = signal<CalibrationStatus>('collecting');
+  protected readonly calibrationProgress = signal(0);
+  // Which card is charging, and how far (0..1 of the hold).
+  protected readonly activeSide = signal<0 | 1 | null>(null);
 
+  // The option the player chose for this question (by click, key or head), so nothing can answer
+  protected readonly progress = signal(0);
+  protected readonly lean = signal(0);
+  protected readonly hint = signal(IDLE_HINT);
+  protected readonly problem = signal(false);
+  protected readonly meterLeft = computed(() => meterPercent(this.lean()));
+  protected readonly ringOffset = computed(() => RING_LENGTH * (1 - this.progress()));
+  protected readonly hintText = computed(() =>
+    this.reveal() !== null ? 'Đưa đầu về giữa để chuẩn bị câu tiếp' : this.hint(),
+  );
   private readonly vision = inject(VisionService);
   private readonly audio = inject(GameAudio);
   private readonly calibrator = new FaceCalibrator();
   private readonly reader = new HeadTiltReader();
   private neutral: FacePose | null = null;
   private currentQuestion: QuestionView | null = null;
-
-  // The option the player chose for this question (by click, key or head), so nothing can answer
-  // twice.
-  protected readonly picked = linkedSignal<QuestionView, number | null>({
-    source: this.question,
-    computation: () => null,
-  });
-
-  protected readonly locked = computed(() => this.paused() || this.reveal() !== null);
-
-  // Option 0 is the left card and option 1 the right one, in the order the page shuffled them.
-  protected readonly cards = computed(() =>
-    [0, 1].map(index => {
-      const { main, note } = splitOption(this.question().options[index] ?? '');
-      return { index, main, note, size: wordSize(main) };
-    }),
-  );
-
-  protected readonly calibrationStatus = signal<CalibrationStatus>('collecting');
-  protected readonly calibrationProgress = signal(0);
-  // Which card is charging, and how far (0..1 of the hold).
-  protected readonly activeSide = signal<0 | 1 | null>(null);
-  protected readonly progress = signal(0);
-  protected readonly lean = signal(0);
-  protected readonly hint = signal(IDLE_HINT);
-  protected readonly problem = signal(false);
-
-  protected readonly meterLeft = computed(() => meterPercent(this.lean()));
-  protected readonly ringOffset = computed(() => RING_LENGTH * (1 - this.progress()));
-  protected readonly hintText = computed(() =>
-    this.reveal() !== null ? 'Đưa đầu về giữa để chuẩn bị câu tiếp' : this.hint(),
-  );
 
   constructor() {
     super();
@@ -107,7 +106,10 @@ export class HeadTiltGame extends StageGameBase {
       return;
     }
     this.syncQuestion();
-    const { width, height } = this.vision.videoSize();
+    const {
+      width,
+      height
+    } = this.vision.videoSize();
     if (!this.ready()) {
       this.calibrate(frame.face, width, height, now);
       return;

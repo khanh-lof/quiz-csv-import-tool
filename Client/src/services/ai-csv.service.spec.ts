@@ -16,7 +16,7 @@ describe('AiCsvService', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({providers: [provideHttpClient(), provideHttpClientTesting()]});
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     service = TestBed.inject(AiCsvService);
     http = TestBed.inject(HttpTestingController);
   });
@@ -31,16 +31,23 @@ describe('AiCsvService', () => {
     expect(req.request.method).toBe('POST');
     expect(req.request.params.get('title')).toBe('Từ ảnh');
     expect(req.request.params.has('isCreative')).toBeFalse();
-    req.flush({id: 'abc'});
+    req.flush({ id: 'abc' });
 
     expect(result).toBe('abc');
   });
 
   it('sends the lesson of a creative job as query parameters', () => {
     service.submitCreative([], {
-      courseType: CourseType.Hsk, courseName: 'ignored', hskStandard: HskStandard.V3, level: 4, lessonNumber: 5,
-      AIMode: AIGenerationMode.Auto, exportType: ExportType.Wayground, intelligence: 2,
-      gestureStages: [1, 3], questionsPerStage: 7,
+      courseType: CourseType.Hsk,
+      courseName: 'ignored',
+      hskStandard: HskStandard.V3,
+      level: 4,
+      lessonNumber: 5,
+      AIMode: AIGenerationMode.Auto,
+      exportType: ExportType.Wayground,
+      intelligence: 2,
+      gestureStages: [1, 3],
+      questionsPerStage: 7,
     }, 'HSK3.0-4-Bai5').subscribe();
 
     const params = http.expectOne(r => r.url === URL).request.params;
@@ -57,8 +64,16 @@ describe('AiCsvService', () => {
 
   describe('the gesture quiz options', () => {
     const request = (exportType: ExportType, gestureStages: number[] | null, questionsPerStage: number | null) => ({
-      courseType: CourseType.Hsk, courseName: null, hskStandard: HskStandard.V2, level: 2, lessonNumber: 3,
-      AIMode: AIGenerationMode.Auto, exportType, intelligence: 1, gestureStages, questionsPerStage,
+      courseType: CourseType.Hsk,
+      courseName: null,
+      hskStandard: HskStandard.V2,
+      level: 2,
+      lessonNumber: 3,
+      AIMode: AIGenerationMode.Auto,
+      exportType,
+      intelligence: 1,
+      gestureStages,
+      questionsPerStage,
     });
 
     it('sends the chosen games in ascending order and the question count for a Game', () => {
@@ -116,9 +131,12 @@ describe('AiCsvService', () => {
   for (const status of [400, 401, 403, 413, 500, 502, 503, 504]) {
     it(`does not re-send after ${status}`, () => {
       let got: number | undefined;
-      service.submitFormatted([], 'x').subscribe({error: err => got = err.status});
+      service.submitFormatted([], 'x').subscribe({ error: err => got = err.status });
 
-      http.expectOne(r => r.url === URL).flush('error', {status, statusText: 'Error'});
+      http.expectOne(r => r.url === URL).flush('error', {
+        status,
+        statusText: 'Error'
+      });
 
       expect(got).toBe(status);
     });

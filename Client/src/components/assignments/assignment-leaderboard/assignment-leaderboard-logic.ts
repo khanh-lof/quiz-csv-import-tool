@@ -57,7 +57,10 @@ export function stageCell(player: LeaderboardEntry, stage: string | number): { t
   if (!score) {
     return null;
   }
-  return {text: `${score.correct}/${score.total}${score.passed ? ' ✓' : ''}`, passed: score.passed};
+  return {
+    text: `${score.correct}/${score.total}${score.passed ? ' ✓' : ''}`,
+    passed: score.passed
+  };
 }
 
 // The part of a stage column a pip needs: its key (the stage's number), its position among the assignment's
@@ -84,7 +87,13 @@ export function stagePip(player: LeaderboardEntry, stage: PipStage): StagePip {
   const cell = stageCell(player, stage.key);
   const head = `Màn ${stage.position} · ${stage.name}`;
   if (cell === null) {
-    return {key: stage.key, icon: stage.icon, text: '–', state: 'none', title: `${head}: chưa chơi`};
+    return {
+      key: stage.key,
+      icon: stage.icon,
+      text: '–',
+      state: 'none',
+      title: `${head}: chưa chơi`
+    };
   }
   const attempts = player.stages[stage.key].attempts;
   return {
@@ -133,7 +142,10 @@ export function rankMoves(
     }
     const was = before.get(player.id);
     if (was !== undefined && was !== null && was !== player.rank) {
-      moves.set(player.id, {delta: was - player.rank, at: now});
+      moves.set(player.id, {
+        delta: was - player.rank,
+        at: now
+      });
       continue;
     }
     const kept = previousMoves.get(player.id);
@@ -158,8 +170,16 @@ export function moveMark(move: RankMove | undefined, now: number, showMs = MOVE_
   }
   const places = Math.abs(move.delta);
   return move.delta > 0
-    ? {text: `▲${places}`, label: `Lên ${places} hạng`, up: true}
-    : {text: `▼${places}`, label: `Xuống ${places} hạng`, up: false};
+    ? {
+      text: `▲${places}`,
+      label: `Lên ${places} hạng`,
+      up: true
+    }
+    : {
+      text: `▼${places}`,
+      label: `Xuống ${places} hạng`,
+      up: false
+    };
 }
 
 // Whether two answers list the students in a different order (or different students): the rows then move,

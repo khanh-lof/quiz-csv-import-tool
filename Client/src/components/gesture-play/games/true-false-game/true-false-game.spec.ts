@@ -10,10 +10,26 @@ const QUESTION: QuestionView = {
   options: ['Đúng', 'Sai'],
 };
 
-const HAND = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
-const THUMB_UP: HandFrame = { landmarks: HAND, gesture: 'Thumb_Up', gestureScore: 0.9 };
-const THUMB_DOWN: HandFrame = { landmarks: HAND, gesture: 'Thumb_Down', gestureScore: 0.9 };
-const NO_HAND: HandFrame = { landmarks: null, gesture: null, gestureScore: 0 };
+const HAND = Array.from({ length: 21 }, () => ({
+  x: 0.5,
+  y: 0.5,
+  z: 0
+}));
+const THUMB_UP: HandFrame = {
+  landmarks: HAND,
+  gesture: 'Thumb_Up',
+  gestureScore: 0.9
+};
+const THUMB_DOWN: HandFrame = {
+  landmarks: HAND,
+  gesture: 'Thumb_Down',
+  gestureScore: 0.9
+};
+const NO_HAND: HandFrame = {
+  landmarks: null,
+  gesture: null,
+  gestureScore: 0
+};
 
 describe('TrueFalseGame', () => {
   let fixture: ComponentFixture<TrueFalseGame>;
@@ -24,14 +40,20 @@ describe('TrueFalseGame', () => {
   const root = (): HTMLElement => fixture.nativeElement;
   const targets = (): HTMLElement[] => Array.from(root().querySelectorAll<HTMLElement>('.target'));
   const press = (key: string, init: KeyboardEventInit = {}) =>
-    document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }));
+    document.dispatchEvent(new KeyboardEvent('keydown', {
+      key,
+      bubbles: true, ...init
+    }));
   const setInput = (name: string, value: unknown) => {
     fixture.componentRef.setInput(name, value);
     fixture.detectChanges();
   };
   const show = (hand: HandFrame, from: number, to: number) => {
     for (let at = from; at <= to; at += 33) {
-      game.onFrame({ kind: 'hand', hand }, at);
+      game.onFrame({
+        kind: 'hand',
+        hand
+      }, at);
     }
     fixture.detectChanges();
   };
@@ -41,7 +63,10 @@ describe('TrueFalseGame', () => {
     audio = jasmine.createSpyObj<GameAudio>('GameAudio', ['play']);
     await TestBed.configureTestingModule({
       imports: [TrueFalseGame],
-      providers: [{ provide: GameAudio, useValue: audio }],
+      providers: [{
+        provide: GameAudio,
+        useValue: audio
+      }],
     }).compileComponents();
     fixture = TestBed.createComponent(TrueFalseGame);
     game = fixture.componentInstance;
@@ -95,7 +120,10 @@ describe('TrueFalseGame', () => {
     press('Enter');
     const input = document.createElement('input');
     document.body.appendChild(input);
-    input.dispatchEvent(new KeyboardEvent('keydown', { key: '1', bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', {
+      key: '1',
+      bubbles: true
+    }));
     input.remove();
     expect(chosen).toEqual([]);
   });
@@ -111,7 +139,11 @@ describe('TrueFalseGame', () => {
   });
 
   it('ignores everything once the verdict is shown', () => {
-    reveal({ chosen: 0, correct: true, correctIndex: 0 });
+    reveal({
+      chosen: 0,
+      correct: true,
+      correctIndex: 0
+    });
     targets()[1].click();
     press('2');
     show(THUMB_DOWN, 0, 3000);
@@ -120,7 +152,11 @@ describe('TrueFalseGame', () => {
 
   it('highlights the right target, and the chosen one when it was wrong', () => {
     targets()[0].click();
-    reveal({ chosen: 0, correct: false, correctIndex: 1 });
+    reveal({
+      chosen: 0,
+      correct: false,
+      correctIndex: 1
+    });
     expect(targets()[1].classList).toContain('correct');
     expect(targets()[1].querySelector('.mark')?.textContent).toBe('✓');
     expect(targets()[0].classList).toContain('wrong');
@@ -128,7 +164,11 @@ describe('TrueFalseGame', () => {
   });
 
   it('only highlights the right target when the time ran out', () => {
-    reveal({ chosen: null, correct: false, correctIndex: 0 });
+    reveal({
+      chosen: null,
+      correct: false,
+      correctIndex: 0
+    });
     expect(targets()[0].classList).toContain('correct');
     expect(root().querySelectorAll('.wrong').length).toBe(0);
   });
@@ -191,7 +231,10 @@ describe('TrueFalseGame', () => {
 
       // The next question: the player is still showing the old thumb.
       setInput('reveal', null);
-      setInput('question', { ...QUESTION, question: 'Câu tiếp.' });
+      setInput('question', {
+        ...QUESTION,
+        question: 'Câu tiếp.'
+      });
       show(THUMB_UP, 1600, 3500);
       expect(chosen).toEqual([0]);
       expect(root().querySelector('.status')?.textContent).toContain('Hạ tay xuống');
@@ -212,7 +255,14 @@ describe('TrueFalseGame', () => {
     it('ignores frames from the face task', () => {
       show(NO_HAND, 0, 300);
       for (let at = 333; at <= 1500; at += 33) {
-        game.onFrame({ kind: 'face', face: { faces: 0, landmarks: null, blendshapes: {} } }, at);
+        game.onFrame({
+          kind: 'face',
+          face: {
+            faces: 0,
+            landmarks: null,
+            blendshapes: {}
+          }
+        }, at);
       }
       expect(chosen).toEqual([]);
     });
@@ -251,7 +301,10 @@ describe('TrueFalseGame', () => {
         setInput('cameraActive', true);
         mount(width, height);
         const long = 'Câu dài hơn bình thường để thử xuống dòng: 你好 (nǐ hǎo) nghĩa là xin chào.';
-        setInput('question', { ...QUESTION, question: long + ' ' + long });
+        setInput('question', {
+          ...QUESTION,
+          question: long + ' ' + long
+        });
         const area = stage.getBoundingClientRect();
         const statement = rect('.statement');
         const [left, right] = targets().map(target => target.getBoundingClientRect());

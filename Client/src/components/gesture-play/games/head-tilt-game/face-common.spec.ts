@@ -1,20 +1,25 @@
+import type { CalibrationStep } from './face-common';
 import {
   CALIBRATION_MS,
-  FaceCalibrator,
   calibrationMessage,
+  FaceCalibrator,
   faceProblemMessage,
   isTypingTarget,
   readFacePose,
   splitOption,
   wordSize,
 } from './face-common';
-import type { CalibrationStep } from './face-common';
-import { VIDEO_HEIGHT, VIDEO_WIDTH, faceFrame, playFrames } from './face-fixture';
+import { faceFrame, playFrames, VIDEO_HEIGHT, VIDEO_WIDTH } from './face-fixture';
 
 describe('readFacePose', () => {
   it('reads roll, eye centre, nose and span of the single face', () => {
     const pose = readFacePose(
-      faceFrame({ roll: 10, centerX: 0.4, noseX: 0.45, span: 0.18 }),
+      faceFrame({
+        roll: 10,
+        centerX: 0.4,
+        noseX: 0.45,
+        span: 0.18
+      }),
       VIDEO_WIDTH,
       VIDEO_HEIGHT,
     );
@@ -36,7 +41,11 @@ describe('readFacePose', () => {
     expect(readFacePose(faceFrame({ faces: 0 }), VIDEO_WIDTH, VIDEO_HEIGHT)).toBeNull();
     expect(readFacePose(faceFrame({ faces: 2 }), VIDEO_WIDTH, VIDEO_HEIGHT)).toBeNull();
     expect(
-      readFacePose({ faces: 1, landmarks: [], blendshapes: {} }, VIDEO_WIDTH, VIDEO_HEIGHT),
+      readFacePose({
+        faces: 1,
+        landmarks: [],
+        blendshapes: {}
+      }, VIDEO_WIDTH, VIDEO_HEIGHT),
     ).toBeNull();
   });
 
@@ -62,7 +71,11 @@ describe('FaceCalibrator', () => {
 
   it('finishes after about a second of steady looking and reports the mean pose', () => {
     const calibrator = new FaceCalibrator();
-    const { results } = feed(calibrator, { roll: 3, centerX: 0.52, noseX: 0.53 }, 0, 1100);
+    const { results } = feed(calibrator, {
+      roll: 3,
+      centerX: 0.52,
+      noseX: 0.53
+    }, 0, 1100);
     const done = results.find(step => step.status === 'done');
 
     expect(done).toBeDefined();
@@ -99,8 +112,14 @@ describe('FaceCalibrator', () => {
 
   it('does not restart for a small wobble', () => {
     const calibrator = new FaceCalibrator();
-    const first = feed(calibrator, { roll: 0, centerX: 0.5 }, 0, 600);
-    const wobble = feed(calibrator, { roll: 4, centerX: 0.52 }, first.end, 600);
+    const first = feed(calibrator, {
+      roll: 0,
+      centerX: 0.5
+    }, 0, 600);
+    const wobble = feed(calibrator, {
+      roll: 4,
+      centerX: 0.52
+    }, first.end, 600);
     expect(wobble.results.some(step => step.status === 'done')).toBeTrue();
   });
 
@@ -172,10 +191,22 @@ describe('messages', () => {
 
 describe('card text helpers', () => {
   it('splits the pinyin in brackets from the word', () => {
-    expect(splitOption('水 (shuǐ)')).toEqual({ main: '水', note: 'shuǐ' });
-    expect(splitOption('Cảm ơn')).toEqual({ main: 'Cảm ơn', note: '' });
-    expect(splitOption('中国 (Zhōngguó)')).toEqual({ main: '中国', note: 'Zhōngguó' });
-    expect(splitOption('(x)')).toEqual({ main: '(x)', note: '' });
+    expect(splitOption('水 (shuǐ)')).toEqual({
+      main: '水',
+      note: 'shuǐ'
+    });
+    expect(splitOption('Cảm ơn')).toEqual({
+      main: 'Cảm ơn',
+      note: ''
+    });
+    expect(splitOption('中国 (Zhōngguó)')).toEqual({
+      main: '中国',
+      note: 'Zhōngguó'
+    });
+    expect(splitOption('(x)')).toEqual({
+      main: '(x)',
+      note: ''
+    });
   });
 
   it('shrinks long words', () => {

@@ -33,9 +33,8 @@
   color: var(--play-ink);
   background: #fff;
   border-radius: var(--qt-radius-lg);
-  box-shadow:
-    0 6px 0 #f59e0b,
-    0 10px 24px rgba(120, 60, 0, 0.25);
+  box-shadow: 0 6px 0 #f59e0b,
+  0 10px 24px rgba(120, 60, 0, 0.25);
 }
 
 /* Two by two, and four across once the stage is wide enough for four cards side by side. */
@@ -78,9 +77,8 @@
   border: 3px solid var(--k);
   border-radius: var(--qt-radius-lg);
   /* A solid lip in the card's colour, then a soft shadow. */
-  box-shadow:
-    0 6px 0 var(--k),
-    0 10px 24px rgba(120, 60, 0, 0.3);
+  box-shadow: 0 6px 0 var(--k),
+  0 10px 24px rgba(120, 60, 0, 0.3);
   cursor: pointer;
   transition: all var(--qt-transition);
 }
@@ -104,9 +102,8 @@
 /* `translate` and not `transform`, so the lift adds to the scale of a card being held. */
 .board:not(.locked) .card:not(.charging):hover {
   translate: 0 -2px;
-  box-shadow:
-    0 8px 0 var(--k),
-    0 14px 28px rgba(120, 60, 0, 0.35);
+  box-shadow: 0 8px 0 var(--k),
+  0 14px 28px rgba(120, 60, 0, 0.35);
 }
 
 .board.locked .card {
@@ -116,18 +113,16 @@
 /* Answered by a click or a key: the gold ring stays until the verdict. Before the hold, which adds its
    glow when the camera answered. */
 .card.picked {
-  box-shadow:
-    0 0 0 4px var(--play-charge),
-    0 6px 0 var(--k),
-    0 10px 24px rgba(120, 60, 0, 0.3);
+  box-shadow: 0 0 0 4px var(--play-charge),
+  0 6px 0 var(--k),
+  0 10px 24px rgba(120, 60, 0, 0.3);
 }
 
 /* The hold: a gold ring and glow around the card, over its lip. */
 .card.charging {
-  box-shadow:
-    0 0 0 4px var(--play-charge),
-    0 0 22px var(--play-charge-glow),
-    0 6px 0 var(--k);
+  box-shadow: 0 0 0 4px var(--play-charge),
+  0 0 22px var(--play-charge-glow),
+  0 6px 0 var(--k);
   transform: scale(1.03);
   translate: 0 -3px;
 }
@@ -137,17 +132,15 @@
 .card.correct {
   background: color-mix(in srgb, var(--play-ok) 22%, white);
   border-color: var(--play-ok);
-  box-shadow:
-    0 6px 0 var(--play-ok),
-    0 10px 24px rgba(120, 60, 0, 0.3);
+  box-shadow: 0 6px 0 var(--play-ok),
+  0 10px 24px rgba(120, 60, 0, 0.3);
 }
 
 .card.wrong {
   background: color-mix(in srgb, var(--play-bad) 14%, white);
   border-color: var(--play-bad);
-  box-shadow:
-    0 6px 0 var(--play-bad),
-    0 10px 24px rgba(120, 60, 0, 0.3);
+  box-shadow: 0 6px 0 var(--play-bad),
+  0 10px 24px rgba(120, 60, 0, 0.3);
 }
 
 .revealed .card:not(.correct):not(.wrong) {

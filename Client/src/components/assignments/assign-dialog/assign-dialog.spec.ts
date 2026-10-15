@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { Router, provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiJob } from '../../../models/ai-job';
 import { Assignment } from '../../../models/assignment';
@@ -12,9 +12,22 @@ const URL = '/api/assignments';
 
 function job(overrides: Partial<AiJob> = {}): AiJob {
   return {
-    id: 'job-1', status: 'done', title: 'Quiz HSK 1 bài 3', creative: true, exportType: 3, intelligence: 1,
-    imageCount: 0, courseType: null, courseName: '', hskStandard: null, level: null, lessonNumber: null,
-    csv: DEMO_QUIZ_CSV, errorStatus: 0, errorMessage: '', createdAt: '2026-10-13T00:00:00Z',
+    id: 'job-1',
+    status: 'done',
+    title: 'Quiz HSK 1 bài 3',
+    creative: true,
+    exportType: 3,
+    intelligence: 1,
+    imageCount: 0,
+    courseType: null,
+    courseName: '',
+    hskStandard: null,
+    level: null,
+    lessonNumber: null,
+    csv: DEMO_QUIZ_CSV,
+    errorStatus: 0,
+    errorMessage: '',
+    createdAt: '2026-10-13T00:00:00Z',
     finishedAt: '2026-10-13T00:01:00Z', ...overrides,
   };
 }
@@ -24,9 +37,44 @@ const TWO_STAGE_CSV = DEMO_QUIZ_CSV.split('\n').filter(line => /^[25],/.test(lin
 
 function assignment(overrides: Partial<Assignment> = {}): Assignment {
   return {
-    id: 'asg-1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'Quiz HSK 1 bài 3', label: '', timeMode: 'standard', stageLock: 'sequential',
-    passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5, '2': 5, '3': 5, '4': 5, '5': 5, '6': 5}, timeLimits: {'1': 12, '2': 12, '3': 12, '4': 12, '5': 12, '6': 12}, createdAt: '2026-10-14T00:00:00Z', closesAt: null,
-    closedAt: null, open: true, playerCount: 0, ...overrides,
+    id: 'asg-1',
+    code: 'K7M2X9QD4P',
+    jobId: 'job-1',
+    title: 'Quiz HSK 1 bài 3',
+    label: '',
+    timeMode: 'standard',
+    stageLock: 'sequential',
+    passPercents: {
+      '1': 70,
+      '2': 70,
+      '3': 70,
+      '4': 70,
+      '5': 70,
+      '6': 70
+    },
+    maxAttempts: null,
+    showBoard: true,
+    stageCounts: {
+      '1': 5,
+      '2': 5,
+      '3': 5,
+      '4': 5,
+      '5': 5,
+      '6': 5
+    },
+    timeLimits: {
+      '1': 12,
+      '2': 12,
+      '3': 12,
+      '4': 12,
+      '5': 12,
+      '6': 12
+    },
+    createdAt: '2026-10-14T00:00:00Z',
+    closesAt: null,
+    closedAt: null,
+    open: true,
+    playerCount: 0, ...overrides,
   };
 }
 
@@ -46,7 +94,10 @@ describe('AssignDialog', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        {provide: NzNotificationService, useValue: notifications},
+        {
+          provide: NzNotificationService,
+          useValue: notifications
+        },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -120,7 +171,10 @@ describe('AssignDialog', () => {
     await settle();
     const request = http.expectOne(URL);
     expect(request.request.body.stageLock).toBe('open');
-    request.flush(assignment({stageLock: 'open'}), {status: 201, statusText: 'Created'});
+    request.flush(assignment({ stageLock: 'open' }), {
+      status: 201,
+      statusText: 'Created'
+    });
     await settle();
   });
 
@@ -137,7 +191,7 @@ describe('AssignDialog', () => {
     }
 
     it('lists only the stages the quiz has, by position, each at the default with what it needs', async () => {
-      await show(job({csv: TWO_STAGE_CSV}));
+      await show(job({ csv: TWO_STAGE_CSV }));
 
       const rows = Array.from(dialog()!.querySelectorAll('.pass-row'));
       expect(rows.length).toBe(2);
@@ -156,20 +210,26 @@ describe('AssignDialog', () => {
     });
 
     it('sends the default of every stage the quiz has when nothing is changed', async () => {
-      await show(job({csv: TWO_STAGE_CSV}));
+      await show(job({ csv: TWO_STAGE_CSV }));
 
       button('Giao bài').click();
       await settle();
       const request = http.expectOne(URL);
-      expect(request.request.body.passPercents).toEqual({'2': 70, '5': 70});
+      expect(request.request.body.passPercents).toEqual({
+        '2': 70,
+        '5': 70
+      });
       // The server counts the quiz's questions itself, from the job's CSV: the dialog sends no counts.
       expect(request.request.body.stageCounts).toBeUndefined();
-      request.flush(assignment(), {status: 201, statusText: 'Created'});
+      request.flush(assignment(), {
+        status: 201,
+        statusText: 'Created'
+      });
       await settle();
     });
 
     it('sends an edited percentage under the stage number, and shows what it requires', async () => {
-      await show(job({csv: TWO_STAGE_CSV}));
+      await show(job({ csv: TWO_STAGE_CSV }));
 
       await typePercent(1, '50');
 
@@ -180,13 +240,19 @@ describe('AssignDialog', () => {
       button('Giao bài').click();
       await settle();
       const request = http.expectOne(URL);
-      expect(request.request.body.passPercents).toEqual({'2': 70, '5': 50});
-      request.flush(assignment(), {status: 201, statusText: 'Created'});
+      expect(request.request.body.passPercents).toEqual({
+        '2': 70,
+        '5': 50
+      });
+      request.flush(assignment(), {
+        status: 201,
+        statusText: 'Created'
+      });
       await settle();
     });
 
     it('reads an emptied box as the default and never sends a value outside the range', async () => {
-      await show(job({csv: TWO_STAGE_CSV}));
+      await show(job({ csv: TWO_STAGE_CSV }));
 
       await typePercent(0, '');
       await typePercent(1, '5000');
@@ -194,13 +260,19 @@ describe('AssignDialog', () => {
       await settle();
 
       const request = http.expectOne(URL);
-      expect(request.request.body.passPercents).toEqual({'2': 70, '5': 100});
-      request.flush(assignment(), {status: 201, statusText: 'Created'});
+      expect(request.request.body.passPercents).toEqual({
+        '2': 70,
+        '5': 100
+      });
+      request.flush(assignment(), {
+        status: 201,
+        statusText: 'Created'
+      });
       await settle();
     });
 
     it('goes back to the defaults when the dialog is opened again', async () => {
-      await show(job({csv: TWO_STAGE_CSV}));
+      await show(job({ csv: TWO_STAGE_CSV }));
       await typePercent(0, '100');
       expect(Array.from(dialog()!.querySelectorAll('.pass-row'))[0].textContent).toContain('cần đúng 5/5 câu');
 
@@ -213,8 +285,14 @@ describe('AssignDialog', () => {
       button('Giao bài').click();
       await settle();
       const request = http.expectOne(URL);
-      expect(request.request.body.passPercents).toEqual({'2': 70, '5': 70});
-      request.flush(assignment(), {status: 201, statusText: 'Created'});
+      expect(request.request.body.passPercents).toEqual({
+        '2': 70,
+        '5': 70
+      });
+      request.flush(assignment(), {
+        status: 201,
+        statusText: 'Created'
+      });
       await settle();
     });
 
@@ -223,7 +301,10 @@ describe('AssignDialog', () => {
 
       button('Giao bài').click();
       await settle();
-      http.expectOne(URL).flush('Invalid pass percents.', {status: 400, statusText: 'Bad Request'});
+      http.expectOne(URL).flush('Invalid pass percents.', {
+        status: 400,
+        statusText: 'Bad Request'
+      });
       await settle();
 
       expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain('10% đến 100%');
@@ -254,7 +335,10 @@ describe('AssignDialog', () => {
       await settle();
       const request = http.expectOne(URL);
       const body = request.request.body;
-      request.flush(assignment(), {status: 201, statusText: 'Created'});
+      request.flush(assignment(), {
+        status: 201,
+        statusText: 'Created'
+      });
       await settle();
       return body;
     }
@@ -350,7 +434,10 @@ describe('AssignDialog', () => {
 
       button('Giao bài').click();
       await settle();
-      http.expectOne(URL).flush('Invalid replay limit.', {status: 400, statusText: 'Bad Request'});
+      http.expectOne(URL).flush('Invalid replay limit.', {
+        status: 400,
+        statusText: 'Bad Request'
+      });
       await settle();
 
       expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain('từ 1 đến 10');
@@ -366,7 +453,10 @@ describe('AssignDialog', () => {
       await settle();
       const request = http.expectOne(URL);
       const body = request.request.body;
-      request.flush(assignment(), {status: 201, statusText: 'Created'});
+      request.flush(assignment(), {
+        status: 201,
+        statusText: 'Created'
+      });
       await settle();
       return body;
     }
@@ -411,7 +501,10 @@ describe('AssignDialog', () => {
 
       button('Giao bài').click();
       await settle();
-      http.expectOne(URL).flush('Invalid board setting.', {status: 400, statusText: 'Bad Request'});
+      http.expectOne(URL).flush('Invalid board setting.', {
+        status: 400,
+        statusText: 'Bad Request'
+      });
       await settle();
 
       expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain('Cài đặt bảng xếp hạng');
@@ -432,13 +525,23 @@ describe('AssignDialog', () => {
       closesAt: null,
       timeMode: 'standard',
       stageLock: 'sequential',
-      passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70},
+      passPercents: {
+        '1': 70,
+        '2': 70,
+        '3': 70,
+        '4': 70,
+        '5': 70,
+        '6': 70
+      },
       maxAttempts: null,
       showBoard: true,
     });
     expect(button('Giao bài').classList).toContain('ant-btn-loading');
 
-    request.flush(assignment({label: 'Lớp 3A'}), {status: 201, statusText: 'Created'});
+    request.flush(assignment({ label: 'Lớp 3A' }), {
+      status: 201,
+      statusText: 'Created'
+    });
     await settle();
 
     expect(text()).toContain('Đã giao bài!');
@@ -462,7 +565,10 @@ describe('AssignDialog', () => {
 
     button('Giao bài').click();
     await settle();
-    http.expectOne(URL).flush('Too many assignments.', {status: 409, statusText: 'Conflict'});
+    http.expectOne(URL).flush('Too many assignments.', {
+      status: 409,
+      statusText: 'Conflict'
+    });
     await settle();
 
     const alert = dialog()!.querySelector('[role="alert"]');
@@ -481,7 +587,7 @@ describe('AssignDialog', () => {
   });
 
   it('cannot give a job that holds no valid question', async () => {
-    await show(job({csv: 'Câu hỏi,Đáp án\nxin chào,你好'}));
+    await show(job({ csv: 'Câu hỏi,Đáp án\nxin chào,你好' }));
 
     expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain('không có câu hỏi hợp lệ');
     expect(button('Giao bài').disabled).toBeTrue();
@@ -497,7 +603,10 @@ describe('AssignDialog', () => {
     await typeLabel('Lớp 3A');
     button('Giao bài').click();
     await settle();
-    http.expectOne(URL).flush(assignment(), {status: 201, statusText: 'Created'});
+    http.expectOne(URL).flush(assignment(), {
+      status: 201,
+      statusText: 'Created'
+    });
     await settle();
     expect(text()).toContain('Đã giao bài!');
 

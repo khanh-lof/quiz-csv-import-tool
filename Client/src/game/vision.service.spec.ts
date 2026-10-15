@@ -1,18 +1,25 @@
 import { WritableSignal } from '@angular/core';
-import { TestBed, fakeAsync, flushMicrotasks, tick } from '@angular/core/testing';
+import { fakeAsync, flushMicrotasks, TestBed, tick } from '@angular/core/testing';
 import type { VisionKind } from './stage-game';
 import {
   CameraState,
   FaceResultLike,
   HandResultLike,
   ModelState,
-  VisionService,
   toFaceFrame,
   toHandFrame,
+  VisionService,
 } from './vision.service';
 
-const point = (x: number, y: number) => ({ x, y, z: 0 });
-const category = (categoryName: string, score: number) => ({ categoryName, score });
+const point = (x: number, y: number) => ({
+  x,
+  y,
+  z: 0
+});
+const category = (categoryName: string, score: number) => ({
+  categoryName,
+  score
+});
 
 describe('toHandFrame', () => {
   it('returns the first hand, its landmarks and its top gesture', () => {
@@ -28,7 +35,10 @@ describe('toHandFrame', () => {
   });
 
   it('turns the canned None gesture into null', () => {
-    const frame = toHandFrame({ landmarks: [[point(0.5, 0.5)]], gestures: [[category('None', 0.7)]] });
+    const frame = toHandFrame({
+      landmarks: [[point(0.5, 0.5)]],
+      gestures: [[category('None', 0.7)]]
+    });
     expect(frame.landmarks?.length).toBe(1);
     expect(frame.gesture).toBeNull();
   });
@@ -43,15 +53,25 @@ describe('toHandFrame', () => {
   });
 
   it('keeps the landmarks of a hand that has no gesture result', () => {
-    const frame = toHandFrame({ landmarks: [[point(0.1, 0.2)]], gestures: [] });
+    const frame = toHandFrame({
+      landmarks: [[point(0.1, 0.2)]],
+      gestures: []
+    });
     expect(frame.landmarks).toEqual([point(0.1, 0.2)]);
     expect(frame.gesture).toBeNull();
     expect(frame.gestureScore).toBe(0);
   });
 
   it('reports nothing in view as null landmarks', () => {
-    const empty = { landmarks: null, gesture: null, gestureScore: 0 };
-    expect(toHandFrame({ landmarks: [], gestures: [] })).toEqual(empty);
+    const empty = {
+      landmarks: null,
+      gesture: null,
+      gestureScore: 0
+    };
+    expect(toHandFrame({
+      landmarks: [],
+      gestures: []
+    })).toEqual(empty);
     expect(toHandFrame(null)).toEqual(empty);
     expect(toHandFrame(undefined)).toEqual(empty);
   });
@@ -70,12 +90,22 @@ describe('toFaceFrame', () => {
     const frame = toFaceFrame(result);
     expect(frame.faces).toBe(2);
     expect(frame.landmarks).toBe(first);
-    expect(frame.blendshapes).toEqual({ _neutral: 0.1, jawOpen: 0.62 });
+    expect(frame.blendshapes).toEqual({
+      _neutral: 0.1,
+      jawOpen: 0.62
+    });
   });
 
   it('reports no face as zero faces, null landmarks and no blendshapes', () => {
-    const empty = { faces: 0, landmarks: null, blendshapes: {} };
-    expect(toFaceFrame({ faceLandmarks: [], faceBlendshapes: [] })).toEqual(empty);
+    const empty = {
+      faces: 0,
+      landmarks: null,
+      blendshapes: {}
+    };
+    expect(toFaceFrame({
+      faceLandmarks: [],
+      faceBlendshapes: []
+    })).toEqual(empty);
     expect(toFaceFrame(null)).toEqual(empty);
     expect(toFaceFrame(undefined)).toEqual(empty);
   });
@@ -111,7 +141,10 @@ describe('VisionService', () => {
       expect(service.cameraMessage()).toBe('');
       expect(service.modelState('hand')()).toBe('idle');
       expect(service.modelState('face')()).toBe('idle');
-      expect(service.videoSize()).toEqual({ width: 0, height: 0 });
+      expect(service.videoSize()).toEqual({
+        width: 0,
+        height: 0
+      });
     });
 
     it('owns one muted inline video', () => {
@@ -220,7 +253,11 @@ describe('VisionService', () => {
       expect(service.cameraMessage()).toBe('');
       expect(service.video.srcObject).toBe(stream);
       expect(getUserMedia).toHaveBeenCalledWith({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
         audio: false,
       });
       // Already on: no second prompt.
@@ -247,7 +284,10 @@ describe('VisionService', () => {
       service.stopCamera();
       expect(stream.getVideoTracks()[0].readyState).toBe('ended');
       expect(service.cameraState()).toBe('off');
-      expect(service.videoSize()).toEqual({ width: 0, height: 0 });
+      expect(service.videoSize()).toEqual({
+        width: 0,
+        height: 0
+      });
     });
 
     it('can start again after a failure', async () => {
@@ -282,7 +322,10 @@ describe('VisionService', () => {
 
     it('creates the hand model once, however many callers ask', async () => {
       const recognizer = {};
-      const { runtime, createFromOptions } = fakeRuntime(recognizer);
+      const {
+        runtime,
+        createFromOptions
+      } = fakeRuntime(recognizer);
       const loadRuntime = spyOn(internals, 'loadRuntime').and.resolveTo(runtime);
 
       const first = service.ensureModel('hand');
@@ -304,7 +347,10 @@ describe('VisionService', () => {
     });
 
     it('asks the face model for blendshapes and a second face', async () => {
-      const { runtime, createFromOptions } = fakeRuntime({});
+      const {
+        runtime,
+        createFromOptions
+      } = fakeRuntime({});
       spyOn(internals, 'loadRuntime').and.resolveTo(runtime);
 
       await service.ensureModel('face');
@@ -376,16 +422,31 @@ describe('VisionService', () => {
     let closeHand: jasmine.Spy;
 
     function handResult(): HandResultLike {
-      return { landmarks: [[point(0.5, 0.5)]], gestures: [[category('Thumb_Up', 0.9)]] };
+      return {
+        landmarks: [[point(0.5, 0.5)]],
+        gestures: [[category('Thumb_Up', 0.9)]]
+      };
     }
 
     beforeEach(() => {
       videoTime = 1;
       const video = service.video;
-      Object.defineProperty(video, 'readyState', { value: 4, configurable: true });
-      Object.defineProperty(video, 'videoWidth', { value: 640, configurable: true });
-      Object.defineProperty(video, 'videoHeight', { value: 480, configurable: true });
-      Object.defineProperty(video, 'currentTime', { get: () => videoTime, configurable: true });
+      Object.defineProperty(video, 'readyState', {
+        value: 4,
+        configurable: true
+      });
+      Object.defineProperty(video, 'videoWidth', {
+        value: 640,
+        configurable: true
+      });
+      Object.defineProperty(video, 'videoHeight', {
+        value: 480,
+        configurable: true
+      });
+      Object.defineProperty(video, 'currentTime', {
+        get: () => videoTime,
+        configurable: true
+      });
 
       recognizeForVideo = jasmine.createSpy('recognizeForVideo').and.callFake(handResult);
       closeHand = jasmine.createSpy('close');
@@ -393,22 +454,35 @@ describe('VisionService', () => {
         faceLandmarks: [[point(0.5, 0.5)]],
         faceBlendshapes: [{ categories: [category('jawOpen', 0.7)] }],
       });
-      internals.recognizers.hand = { recognizeForVideo, close: closeHand };
-      internals.recognizers.face = { detectForVideo, close: jasmine.createSpy('close') };
+      internals.recognizers.hand = {
+        recognizeForVideo,
+        close: closeHand
+      };
+      internals.recognizers.face = {
+        detectForVideo,
+        close: jasmine.createSpy('close')
+      };
       internals.states.hand.set('ready');
       internals.states.face.set('ready');
       internals.cameraStateSignal.set('on');
     });
 
     it('reports the video size while on', () => {
-      expect(service.videoSize()).toEqual({ width: 640, height: 480 });
+      expect(service.videoSize()).toEqual({
+        width: 640,
+        height: 480
+      });
     });
 
     it('returns a converted hand frame', () => {
       const frame = service.detect('hand', 1000);
       expect(frame).toEqual({
         kind: 'hand',
-        hand: { landmarks: [point(0.5, 0.5)], gesture: 'Thumb_Up', gestureScore: 0.9 },
+        hand: {
+          landmarks: [point(0.5, 0.5)],
+          gesture: 'Thumb_Up',
+          gestureScore: 0.9
+        },
       });
       expect(recognizeForVideo).toHaveBeenCalledWith(service.video, 1000);
     });
@@ -417,21 +491,39 @@ describe('VisionService', () => {
       const frame = service.detect('face', 1000);
       expect(frame).toEqual({
         kind: 'face',
-        face: { faces: 1, landmarks: [point(0.5, 0.5)], blendshapes: { jawOpen: 0.7 } },
+        face: {
+          faces: 1,
+          landmarks: [point(0.5, 0.5)],
+          blendshapes: { jawOpen: 0.7 }
+        },
       });
       expect(detectForVideo).toHaveBeenCalledWith(service.video, 1000);
     });
 
     it('returns a frame with null landmarks when nothing is in view', () => {
-      recognizeForVideo.and.returnValue({ landmarks: [], gestures: [] });
+      recognizeForVideo.and.returnValue({
+        landmarks: [],
+        gestures: []
+      });
       expect(service.detect('hand', 1000)).toEqual({
         kind: 'hand',
-        hand: { landmarks: null, gesture: null, gestureScore: 0 },
+        hand: {
+          landmarks: null,
+          gesture: null,
+          gestureScore: 0
+        },
       });
-      detectForVideo.and.returnValue({ faceLandmarks: [], faceBlendshapes: [] });
+      detectForVideo.and.returnValue({
+        faceLandmarks: [],
+        faceBlendshapes: []
+      });
       expect(service.detect('face', 1000)).toEqual({
         kind: 'face',
-        face: { faces: 0, landmarks: null, blendshapes: {} },
+        face: {
+          faces: 0,
+          landmarks: null,
+          blendshapes: {}
+        },
       });
     });
 
@@ -455,7 +547,10 @@ describe('VisionService', () => {
     });
 
     it('waits for the video to have data', () => {
-      Object.defineProperty(service.video, 'readyState', { value: 1, configurable: true });
+      Object.defineProperty(service.video, 'readyState', {
+        value: 1,
+        configurable: true
+      });
       expect(service.detect('hand', 1000)).toBeNull();
       expect(recognizeForVideo).not.toHaveBeenCalled();
     });

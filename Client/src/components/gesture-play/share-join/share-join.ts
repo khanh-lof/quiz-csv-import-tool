@@ -60,7 +60,10 @@ export class ShareJoin {
   protected submit(): void {
     const name = this.trimmed();
     if (name !== '' && !this.busy()) {
-      this.join.emit({ name, avatar: this.avatar() });
+      this.join.emit({
+        name,
+        avatar: this.avatar()
+      });
     }
   }
 

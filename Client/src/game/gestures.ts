@@ -41,13 +41,19 @@ export function mapToStage(
   mirrored = true,
 ): XY {
   if (!(videoW > 0) || !(videoH > 0)) {
-    return { x: (mirrored ? mirrorX(nx) : nx) * stageW, y: ny * stageH };
+    return {
+      x: (mirrored ? mirrorX(nx) : nx) * stageW,
+      y: ny * stageH
+    };
   }
   const scale = Math.max(stageW / videoW, stageH / videoH);
   const drawnW = videoW * scale;
   const drawnH = videoH * scale;
   const x = (stageW - drawnW) / 2 + nx * drawnW;
-  return { x: mirrored ? stageW - x : x, y: (stageH - drawnH) / 2 + ny * drawnH };
+  return {
+    x: mirrored ? stageW - x : x,
+    y: (stageH - drawnH) / 2 + ny * drawnH
+  };
 }
 
 // Landmarks are normalized per axis, so on a 16:9 image a step of 0.1 in x is longer than one in y.
@@ -69,7 +75,13 @@ export class OneEuroFilter {
     private readonly minCutoff = 1.2,
     private readonly beta = 6,
     private readonly dCutoff = 1,
-  ) {}
+  ) {
+  }
+
+  private static alpha(cutoff: number, dt: number): number {
+    const tau = 1 / (2 * Math.PI * cutoff);
+    return 1 / (1 + tau / dt);
+  }
 
   filter(value: number, tMs: number): number {
     if (this.previousRaw === null) {
@@ -96,11 +108,6 @@ export class OneEuroFilter {
   reset(): void {
     this.previousRaw = null;
   }
-
-  private static alpha(cutoff: number, dt: number): number {
-    const tau = 1 / (2 * Math.PI * cutoff);
-    return 1 / (1 + tau / dt);
-  }
 }
 
 export interface PointSmootherOptions {
@@ -115,13 +122,20 @@ export class PointSmoother {
   private readonly fx: OneEuroFilter;
   private readonly fy: OneEuroFilter;
 
-  constructor({ minCutoff = 1.2, beta = 6, dCutoff = 1 }: PointSmootherOptions = {}) {
+  constructor({
+                minCutoff = 1.2,
+                beta = 6,
+                dCutoff = 1
+              }: PointSmootherOptions = {}) {
     this.fx = new OneEuroFilter(minCutoff, beta, dCutoff);
     this.fy = new OneEuroFilter(minCutoff, beta, dCutoff);
   }
 
   filter(x: number, y: number, tMs: number): XY {
-    return { x: this.fx.filter(x, tMs), y: this.fy.filter(y, tMs) };
+    return {
+      x: this.fx.filter(x, tMs),
+      y: this.fy.filter(y, tMs)
+    };
   }
 
   // Call when the tracked thing disappears, so it is not smoothed from its old position.
@@ -173,7 +187,12 @@ export class HoldGate<T> {
   private deviantSince = 0;
   private last: number | null = null;
 
-  constructor({ holdMs, armMs = 200, graceMs = 150, maxGapMs = 1000 }: HoldGateOptions) {
+  constructor({
+                holdMs,
+                armMs = 200,
+                graceMs = 150,
+                maxGapMs = 1000
+              }: HoldGateOptions) {
     this.holdMs = holdMs;
     this.armMs = armMs;
     this.graceMs = graceMs;
@@ -195,7 +214,11 @@ export class HoldGate<T> {
       } else {
         this.neutralSince = null;
       }
-      return { armed: this.armed, choice: null, progress: 0 };
+      return {
+        armed: this.armed,
+        choice: null,
+        progress: 0
+      };
     }
 
     if (choice === this.candidate) {
@@ -220,7 +243,11 @@ export class HoldGate<T> {
     }
 
     if (this.candidate === null) {
-      return { armed: true, choice: null, progress: 0 };
+      return {
+        armed: true,
+        choice: null,
+        progress: 0
+      };
     }
     const progress = Math.min(1, (now - this.candidateSince) / this.holdMs);
     // Select only while the player is actually still showing the choice, not in the middle of a
@@ -228,9 +255,18 @@ export class HoldGate<T> {
     if (progress >= 1 && choice === this.candidate) {
       const selected = this.candidate;
       this.lock();
-      return { armed: false, choice: selected, progress: 1, selected };
+      return {
+        armed: false,
+        choice: selected,
+        progress: 1,
+        selected
+      };
     }
-    return { armed: true, choice: this.candidate, progress };
+    return {
+      armed: true,
+      choice: this.candidate,
+      progress
+    };
   }
 
   // Back to "not armed" with no hold in progress; the player has to show neutral again. The page
@@ -291,7 +327,11 @@ export function headSignal(
   const tiltWins = Math.abs(roll) >= Math.abs(shiftSignal);
   const useRoll = control === 'tilt' || (control === 'easy' && tiltWins);
   const signal = useRoll ? roll : shiftSignal;
-  return { signal, shift, source: useRoll ? 'tilt' : 'move' };
+  return {
+    signal,
+    shift,
+    source: useRoll ? 'tilt' : 'move'
+  };
 }
 
 export interface TiltOptions {
@@ -349,11 +389,18 @@ export class TiltGate {
     raw: number,
     faces: number,
     now: number,
-    { threshold = 8, hold = 450 }: TiltOptions = {},
+    {
+      threshold = 8,
+      hold = 450
+    }: TiltOptions = {},
   ): TiltStep {
     if (faces !== 1 || !Number.isFinite(raw)) {
       this.reset();
-      return { progress: 0, side: null, invalid: true };
+      return {
+        progress: 0,
+        side: null,
+        invalid: true
+      };
     }
     let dt = this.last === null ? 0 : now - this.last;
     if (dt > 1000 || dt < 0) {
@@ -375,7 +422,12 @@ export class TiltGate {
       } else {
         this.centerSince = null;
       }
-      return { angle, progress: 0, side: null, waiting: !this.armed };
+      return {
+        angle,
+        progress: 0,
+        side: null,
+        waiting: !this.armed
+      };
     }
 
     let side: TiltSide | null = null;
@@ -390,7 +442,11 @@ export class TiltGate {
     }
     if (!side) {
       this.cancel();
-      return { angle, progress: 0, side: null };
+      return {
+        angle,
+        progress: 0,
+        side: null
+      };
     }
     if (this.side !== side) {
       this.side = side;
@@ -402,9 +458,18 @@ export class TiltGate {
     const progress = Math.min(1, this.held / hold);
     if (progress === 1) {
       this.lock();
-      return { angle, progress, side, selected: side };
+      return {
+        angle,
+        progress,
+        side,
+        selected: side
+      };
     }
-    return { angle, progress, side };
+    return {
+      angle,
+      progress,
+      side
+    };
   }
 }
 
@@ -474,7 +539,12 @@ export class PinchDetector {
   private lostSince: number | null = null;
   private lastRatio = Number.POSITIVE_INFINITY;
 
-  constructor({ on = 0.25, off = 0.4, debounceMs = 80, lostHoldMs = 300 }: PinchOptions = {}) {
+  constructor({
+                on = 0.25,
+                off = 0.4,
+                debounceMs = 80,
+                lostHoldMs = 300
+              }: PinchOptions = {}) {
     this.on = on;
     this.off = off;
     this.debounceMs = debounceMs;
@@ -485,15 +555,27 @@ export class PinchDetector {
     if (!lm) {
       this.pendingSince = null;
       if (!this.pinched) {
-        return { pinched: false, changed: null, ratio: Number.POSITIVE_INFINITY };
+        return {
+          pinched: false,
+          changed: null,
+          ratio: Number.POSITIVE_INFINITY
+        };
       }
       this.lostSince ??= now;
       if (now - this.lostSince >= this.lostHoldMs) {
         this.pinched = false;
         this.lostSince = null;
-        return { pinched: false, changed: 'up', ratio: Number.POSITIVE_INFINITY };
+        return {
+          pinched: false,
+          changed: 'up',
+          ratio: Number.POSITIVE_INFINITY
+        };
       }
-      return { pinched: true, changed: null, ratio: this.lastRatio };
+      return {
+        pinched: true,
+        changed: null,
+        ratio: this.lastRatio
+      };
     }
 
     this.lostSince = null;
@@ -502,15 +584,27 @@ export class PinchDetector {
     const flips = this.pinched ? ratio > this.off : ratio < this.on;
     if (!flips) {
       this.pendingSince = null;
-      return { pinched: this.pinched, changed: null, ratio };
+      return {
+        pinched: this.pinched,
+        changed: null,
+        ratio
+      };
     }
     this.pendingSince ??= now;
     if (now - this.pendingSince < this.debounceMs) {
-      return { pinched: this.pinched, changed: null, ratio };
+      return {
+        pinched: this.pinched,
+        changed: null,
+        ratio
+      };
     }
     this.pinched = !this.pinched;
     this.pendingSince = null;
-    return { pinched: this.pinched, changed: this.pinched ? 'down' : 'up', ratio };
+    return {
+      pinched: this.pinched,
+      changed: this.pinched ? 'down' : 'up',
+      ratio
+    };
   }
 
   reset(): void {
@@ -547,7 +641,11 @@ export class BiteDetector {
   private isOpen = false;
   private openSince = 0;
 
-  constructor({ open = 0.45, close = 0.2, minOpenMs = 80 }: BiteOptions = {}) {
+  constructor({
+                open = 0.45,
+                close = 0.2,
+                minOpenMs = 80
+              }: BiteOptions = {}) {
     this.open = open;
     this.close = close;
     this.minOpenMs = minOpenMs;
@@ -562,7 +660,10 @@ export class BiteDetector {
       this.isOpen = false;
       bite = now - this.openSince >= this.minOpenMs;
     }
-    return { open: this.isOpen, bite };
+    return {
+      open: this.isOpen,
+      bite
+    };
   }
 
   reset(): void {
@@ -605,5 +706,8 @@ export function segHit(
   }
   const t = clamp(((cx - ax) * dx + (cy - ay) * dy) / lengthSquared, 0, 1);
   const d = Math.hypot(cx - (ax + t * dx), cy - (ay + t * dy));
-  return d <= r ? { t, d } : null;
+  return d <= r ? {
+    t,
+    d
+  } : null;
 }

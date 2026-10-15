@@ -25,7 +25,7 @@ import {
   splitOption,
   wordSize,
 } from '../head-tilt-game/face-common';
-import { BITE_OPEN, FrogReader, Lane, frogHint } from './frog-logic';
+import { BITE_OPEN, frogHint, FrogReader, Lane } from './frog-logic';
 
 const LANES = 3;
 
@@ -46,42 +46,41 @@ const MISSED_HINT_MS = 1400;
 @Component({
   selector: 'app-frog-bite-game',
   imports: [FaceCalibrationPanel],
-  providers: [{ provide: StageGameBase, useExisting: forwardRef(() => FrogBiteGame) }],
+  providers: [{
+    provide: StageGameBase,
+    useExisting: forwardRef(() => FrogBiteGame)
+  }],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './frog-bite-game.html',
   styleUrl: './frog-bite-game.css',
 })
 export class FrogBiteGame extends StageGameBase {
   readonly visionKind = stageDef(3).vision;
-
-  private readonly vision = inject(VisionService);
-  private readonly audio = inject(GameAudio);
-  private readonly calibrator = new FaceCalibrator();
-  private readonly reader = new FrogReader();
-  private neutral: FacePose | null = null;
-  private currentQuestion: QuestionView | null = null;
-  private missedUntil = 0;
-
   // The lane the player bit (by click, key or mouth) for this question, so nothing can answer twice.
   protected readonly picked = linkedSignal<QuestionView, number | null>({
     source: this.question,
     computation: () => null,
   });
-
   protected readonly locked = computed(() => this.paused() || this.reveal() !== null);
-
   // One lane per option, in the order the page shuffled them; a lane without an option stays empty.
   protected readonly lanes = computed(() =>
     Array.from({ length: LANES }, (_, index) => {
       const text = this.question().options[index];
-      const { main, note } = splitOption(text ?? '');
-      return { index, filled: text !== undefined, main, note, size: wordSize(main) };
+      const {
+        main,
+        note
+      } = splitOption(text ?? '');
+      return {
+        index,
+        filled: text !== undefined,
+        main,
+        note,
+        size: wordSize(main)
+      };
     }),
   );
-
   protected readonly calibrationStatus = signal<CalibrationStatus>('collecting');
   protected readonly calibrationProgress = signal(0);
-  // The lane the head (or the arrow keys) put the frog in, and whether it has stayed there long enough
   // for a bite to count.
   protected readonly lane = signal<Lane>(1);
   protected readonly stable = signal(false);
@@ -89,9 +88,9 @@ export class FrogBiteGame extends StageGameBase {
   protected readonly mouthOpen = signal(false);
   protected readonly hint = signal(IDLE_HINT);
   protected readonly problem = signal(false);
-
   // After a bite the frog stays at the lane it bit.
   protected readonly frogLane = computed<number>(() => this.picked() ?? this.lane());
+  // The lane the head (or the arrow keys) put the frog in, and whether it has stayed there long enough
   // The lane whose bite counts right now: the frog has held it long enough and nothing is locked.
   protected readonly armedLane = computed<number | null>(() =>
     this.cameraActive() && this.stable() && !this.locked() ? this.frogLane() : null,
@@ -106,6 +105,13 @@ export class FrogBiteGame extends StageGameBase {
   protected readonly hintText = computed(() =>
     this.reveal() !== null ? 'Xem đáp án nhé!' : this.picked() !== null ? 'Đớp!' : this.hint(),
   );
+  private readonly vision = inject(VisionService);
+  private readonly audio = inject(GameAudio);
+  private readonly calibrator = new FaceCalibrator();
+  private readonly reader = new FrogReader();
+  private neutral: FacePose | null = null;
+  private currentQuestion: QuestionView | null = null;
+  private missedUntil = 0;
 
   constructor() {
     super();
@@ -126,7 +132,10 @@ export class FrogBiteGame extends StageGameBase {
       return;
     }
     this.syncQuestion();
-    const { width, height } = this.vision.videoSize();
+    const {
+      width,
+      height
+    } = this.vision.videoSize();
     if (!this.ready()) {
       this.calibrate(frame.face, width, height, now);
       return;

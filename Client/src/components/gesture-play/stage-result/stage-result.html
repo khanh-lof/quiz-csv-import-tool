@@ -1,5 +1,5 @@
-<section class="result" [class.passed]="result().passed">
-  <div class="badge" aria-hidden="true">{{ result().passed ? '🎉' : '💪' }}</div>
+<section [class.passed]="result().passed" class="result">
+  <div aria-hidden="true" class="badge">{{ result().passed ? '🎉' : '💪' }}</div>
   <h2 class="verdict">
     {{ result().passed ? 'Qua màn ' + result().position + '!' : 'Chưa qua màn ' + result().position }}
   </h2>
@@ -13,7 +13,7 @@
   </p>
   <p class="rule">Đúng ít nhất <b>{{ result().passMark }}/{{ result().total }}</b> câu để qua màn.</p>
   @if (saveText()) {
-    <p class="save-state" [attr.data-state]="preview() ? 'preview' : saveState()" role="status" aria-live="polite">
+    <p [attr.data-state]="preview() ? 'preview' : saveState()" aria-live="polite" class="save-state" role="status">
       {{ saveText() }}
     </p>
   }
@@ -52,20 +52,22 @@
 
   <div class="actions">
     @if (result().hasNext) {
-      <button nz-button nzType="primary" nzSize="large" type="button" (click)="nextStage.emit()">
+      <button (click)="nextStage.emit()" nz-button nzSize="large" nzType="primary" type="button">
         Màn tiếp theo
-        <nz-icon nzType="arrow-right" nzTheme="outline"/>
+        <nz-icon nzTheme="outline" nzType="arrow-right"/>
       </button>
     }
     @if (attemptsLeft() !== 0) {
-      <button nz-button [nzType]="result().passed || result().hasNext ? 'default' : 'primary'" nzSize="large" type="button"
-              (click)="retry.emit()">
-        <nz-icon nzType="reload" nzTheme="outline"/>
+      <button (click)="retry.emit()" [nzType]="result().passed || result().hasNext ? 'default' : 'primary'" nz-button
+              nzSize="large"
+              type="button">
+        <nz-icon nzTheme="outline" nzType="reload"/>
         Chơi lại màn
       </button>
     }
-    <button nz-button [nzType]="!result().hasNext && (result().passed || attemptsLeft() === 0) ? 'primary' : 'default'" nzSize="large"
-            type="button" (click)="toMap.emit()">
+    <button (click)="toMap.emit()" [nzType]="!result().hasNext && (result().passed || attemptsLeft() === 0) ? 'primary' : 'default'"
+            nz-button
+            nzSize="large" type="button">
       Về bản đồ
     </button>
   </div>

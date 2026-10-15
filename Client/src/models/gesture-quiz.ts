@@ -76,7 +76,13 @@ function parseRow(row: string[]): GestureQuestion | null {
   if (stage === 1) {
     const folded = foldAnswer(correct);
     const answer = TRUE_WORDS.has(folded) ? TRUE_ANSWER : FALSE_WORDS.has(folded) ? FALSE_ANSWER : null;
-    return answer ? { stage, question, correct: answer, wrong: [], explanation } : null;
+    return answer ? {
+      stage,
+      question,
+      correct: answer,
+      wrong: [],
+      explanation
+    } : null;
   }
 
   if (stage === WORD_ORDER_STAGE) {
@@ -84,7 +90,14 @@ function parseRow(row: string[]): GestureQuestion | null {
     if (chunks.length < MIN_CHUNKS || chunks.length > MAX_CHUNKS) {
       return null;
     }
-    return { stage, question, correct: chunks.join(' / '), wrong: [], chunks, explanation };
+    return {
+      stage,
+      question,
+      correct: chunks.join(' / '),
+      wrong: [],
+      chunks,
+      explanation
+    };
   }
 
   const wrongNeeded = stageDef(stage).optionCount - 1;
@@ -92,7 +105,13 @@ function parseRow(row: string[]): GestureQuestion | null {
   if (wrong.length < wrongNeeded) {
     return null;
   }
-  return { stage, question, correct, wrong: wrong.slice(0, wrongNeeded), explanation };
+  return {
+    stage,
+    question,
+    correct,
+    wrong: wrong.slice(0, wrongNeeded),
+    explanation
+  };
 }
 
 // FNV-1a over the UTF-16 code units: short, dependency-free and stable across runs, which is all a
@@ -149,7 +168,12 @@ export function parseGestureQuiz(rows: string[][], title: string): GestureQuiz {
     chunks: q.chunks,
   }));
 
-  return { title, key: `gq-${fnv1a(JSON.stringify(played))}`, stages, skipped };
+  return {
+    title,
+    key: `gq-${fnv1a(JSON.stringify(played))}`,
+    stages,
+    skipped
+  };
 }
 
 export function questionCount(quiz: GestureQuiz): number {

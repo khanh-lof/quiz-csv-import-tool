@@ -17,7 +17,7 @@ import { AiJob, AiJobStatus, filterJobs, lessonLabel } from '../../models/ai-job
 import { ExportType } from '../../models/export-type';
 import { GESTURE_QUIZ_COLUMNS } from '../../models/gesture-quiz';
 import { CourseType } from '../../models/course-type';
-import { HskStandard, hskMaxLevel } from '../../models/hsk-standard';
+import { hskMaxLevel, HskStandard } from '../../models/hsk-standard';
 import { AiJobService } from '../../services/ai-job.service';
 import { AiCsvService } from '../../services/ai-csv.service';
 import { CsvImportService } from '../../services/csv-import.service';
@@ -97,18 +97,23 @@ export class AiJobs implements OnInit {
     const job = this.viewing();
     return job && job.status === 'done' ? this.resultTable(job) : null;
   });
-
-  // inject() rather than a constructor parameter: the fields below read the service while being initialized.
-  private readonly jobService = inject(AiJobService);
-  protected readonly jobs = this.jobService.jobs;
-  protected readonly loaded = this.jobService.loaded;
   protected readonly filtered = computed(() => filterJobs(this.jobs(), {
-    search: this.search(), status: this.status(), creative: this.creative(), exportType: this.exportType(),
-    courseType: this.courseType(), hskStandard: this.hskStandard(), level: this.level(), lessonNumber: this.lessonNumber(),
+    search: this.search(),
+    status: this.status(),
+    creative: this.creative(),
+    exportType: this.exportType(),
+    courseType: this.courseType(),
+    hskStandard: this.hskStandard(),
+    level: this.level(),
+    lessonNumber: this.lessonNumber(),
   }));
   protected readonly isFiltering = computed(() =>
     this.search().trim() !== '' || this.status() !== null || this.creative() !== null || this.exportType() !== null
     || this.courseType() !== null || this.hskStandard() !== null || this.level() !== null || this.lessonNumber() !== null);
+  // inject() rather than a constructor parameter: the fields below read the service while being initialized.
+  private readonly jobService = inject(AiJobService);
+  protected readonly jobs = this.jobService.jobs;
+  protected readonly loaded = this.jobService.loaded;
 
   constructor(
     private readonly aiCsvService: AiCsvService,
@@ -158,17 +163,6 @@ export class AiJobs implements OnInit {
   }
 
   // The result as rows and columns. A Formatted job's CSV carries its own header row; an Auto job's has
-  // none, so the columns are named after the platform it was made for.
-  private resultTable(job: AiJob): ResultTable {
-    const rows = this.csvImportService.parseCsvRows(this.resultText(job)).filter(row => row.some(cell => cell !== ''));
-    if (job.creative && job.exportType !== null) {
-      const labels = CREATIVE_COLUMNS[job.exportType];
-      const width = Math.max(labels.length, ...rows.map(row => row.length));
-      return {headers: Array.from({length: width}, (_, i) => labels[i] ?? ''), rows};
-    }
-    const [headers = [], ...body] = rows;
-    return {headers, rows: body};
-  }
 
   protected rowCount(job: AiJob): number {
     const text = this.resultText(job);
@@ -179,7 +173,7 @@ export class AiJobs implements OnInit {
   protected openInTable(job: AiJob): void {
     const rows = this.csvImportService.parseCsv(this.resultText(job));
     if (rows.length === 0) {
-      this.notificationService.warning('Không có dữ liệu', 'AI không trả về dữ liệu CSV hợp lệ từ các ảnh.', {nzPlacement: 'top'});
+      this.notificationService.warning('Không có dữ liệu', 'AI không trả về dữ liệu CSV hợp lệ từ các ảnh.', { nzPlacement: 'top' });
       return;
     }
     this.pendingImportService.set(rows);
@@ -197,31 +191,32 @@ export class AiJobs implements OnInit {
     this.assignOpen.set(true);
   }
 
-  // A creative job is already a whole quiz: build the platform's file, then download it, or (Wayground
   // only, the user's choice per job) let the extension publish it.
   protected exportJob(job: AiJob, publish: boolean): void {
     const exportType = job.exportType!;
     const exported = this.fileExportService.exportFileFromCsvContent(
       FileExportService.buildFileName(job.title, exportType), this.resultText(job), exportType, !publish);
     if (!exported) {
-      this.notificationService.warning('Không có dữ liệu', 'AI không trả về câu hỏi nào. Vui lòng thử lại.', {nzPlacement: 'top'});
+      this.notificationService.warning('Không có dữ liệu', 'AI không trả về câu hỏi nào. Vui lòng thử lại.', { nzPlacement: 'top' });
       return;
     }
     if (publish && exported.xlsx) {
       this.waygroundExtensionService.sendImport(job.title, exported.fileName, exported.xlsx);
       this.notificationService.info('Đang tạo quiz trên Wayground…',
-        'Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.', {nzPlacement: 'top'});
+        'Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.', { nzPlacement: 'top' });
     } else if (exportType === ExportType.GestureQuiz) {
       // There is nothing to import: the file is played from the Game page.
       this.notificationService.success('Tải xong rồi',
         `Đã tải file ${exported.fileName}, mở nó ở trang Game là chơi được nhaa.`,
-        {nzPlacement: 'top'});
+        { nzPlacement: 'top' });
     } else {
       this.notificationService.success('Tải xong rồi',
         `Đã tải file ${exported.fileName}, import vào ${FileExportService.platformName(exportType)} là dùng được nhaa.`,
-        {nzPlacement: 'top'});
+        { nzPlacement: 'top' });
     }
   }
+
+  // A creative job is already a whole quiz: build the platform's file, then download it, or (Wayground
 
   // A menu item cannot hold a popconfirm (the menu closes under it), so deleting asks in a modal.
   protected confirmRemove(job: AiJob): void {
@@ -238,12 +233,6 @@ export class AiJobs implements OnInit {
     });
   }
 
-  private remove(job: AiJob): void {
-    this.jobService.remove(job.id).subscribe({
-      error: () => this.notificationService.error('Không xóa được', 'Vui lòng thử lại.', {nzPlacement: 'top'}),
-    });
-  }
-
   protected statusLabel(job: AiJob): string {
     switch (job.status) {
       case 'running':
@@ -253,5 +242,29 @@ export class AiJobs implements OnInit {
       default:
         return 'Lỗi';
     }
+  }
+
+  // none, so the columns are named after the platform it was made for.
+  private resultTable(job: AiJob): ResultTable {
+    const rows = this.csvImportService.parseCsvRows(this.resultText(job)).filter(row => row.some(cell => cell !== ''));
+    if (job.creative && job.exportType !== null) {
+      const labels = CREATIVE_COLUMNS[job.exportType];
+      const width = Math.max(labels.length, ...rows.map(row => row.length));
+      return {
+        headers: Array.from({ length: width }, (_, i) => labels[i] ?? ''),
+        rows
+      };
+    }
+    const [headers = [], ...body] = rows;
+    return {
+      headers,
+      rows: body
+    };
+  }
+
+  private remove(job: AiJob): void {
+    this.jobService.remove(job.id).subscribe({
+      error: () => this.notificationService.error('Không xóa được', 'Vui lòng thử lại.', { nzPlacement: 'top' }),
+    });
   }
 }

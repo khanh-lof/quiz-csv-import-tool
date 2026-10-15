@@ -5,23 +5,53 @@ import { Choice, QuestionView, Reveal, VisionFrame } from '../../../../game/stag
 import { FruitSliceGame } from './fruit-slice-game';
 import { Fruit, FruitField } from './fruit-slice-physics';
 
-const QUESTION: QuestionView = { stage: 4, question: '提高', options: ['水平', '任务', '观众'] };
-const NEXT_QUESTION: QuestionView = { stage: 4, question: '解决', options: ['问题', '习惯', '比赛'] };
+const QUESTION: QuestionView = {
+  stage: 4,
+  question: '提高',
+  options: ['水平', '任务', '观众']
+};
+const NEXT_QUESTION: QuestionView = {
+  stage: 4,
+  question: '解决',
+  options: ['问题', '习惯', '比赛']
+};
 
 function press(key: string, init: KeyboardEventInit = {}): void {
-  document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }));
+  document.dispatchEvent(new KeyboardEvent('keydown', {
+    key,
+    bubbles: true, ...init
+  }));
 }
 
 // A hand whose index fingertip is at the given point of the camera image.
 function handAt(x: number, y: number): VisionFrame {
-  const landmarks = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
-  landmarks[8] = { x, y, z: 0 };
-  return { kind: 'hand', hand: { landmarks, gesture: null, gestureScore: 0 } };
+  const landmarks = Array.from({ length: 21 }, () => ({
+    x: 0.5,
+    y: 0.5,
+    z: 0
+  }));
+  landmarks[8] = {
+    x,
+    y,
+    z: 0
+  };
+  return {
+    kind: 'hand',
+    hand: {
+      landmarks,
+      gesture: null,
+      gestureScore: 0
+    }
+  };
 }
 
 const handLost: VisionFrame = {
   kind: 'hand',
-  hand: { landmarks: null, gesture: null, gestureScore: 0 }
+  hand: {
+    landmarks: null,
+    gesture: null,
+    gestureScore: 0
+  }
 };
 
 describe('FruitSliceGame', () => {
@@ -38,7 +68,10 @@ describe('FruitSliceGame', () => {
 
   // A fruit hanging in the middle of the stage, where a swipe can find it.
   function fruitAtCentre(slot: number): Fruit {
-    const { width, height } = field.metrics;
+    const {
+      width,
+      height
+    } = field.metrics;
     const fruit: Fruit = {
       slot,
       x: width / 2,
@@ -59,7 +92,13 @@ describe('FruitSliceGame', () => {
   beforeEach(async () => {
     play = jasmine.createSpy('play');
     TestBed.configureTestingModule({
-      providers: [{ provide: GameAudio, useValue: { play, resume: () => undefined } }]
+      providers: [{
+        provide: GameAudio,
+        useValue: {
+          play,
+          resume: () => undefined
+        }
+      }]
     });
     fixture = TestBed.createComponent(FruitSliceGame);
     game = fixture.componentInstance;
@@ -123,7 +162,10 @@ describe('FruitSliceGame', () => {
       press('1', { repeat: true });
       const input = document.createElement('input');
       document.body.append(input);
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: '1', bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', {
+        key: '1',
+        bubbles: true
+      }));
       input.remove();
       expect(emitted).toEqual([]);
     });
@@ -132,7 +174,11 @@ describe('FruitSliceGame', () => {
       set('paused', true);
       press('1');
       set('paused', false);
-      set('reveal', { chosen: null, correct: false, correctIndex: 0 } satisfies Reveal);
+      set('reveal', {
+        chosen: null,
+        correct: false,
+        correctIndex: 0
+      } satisfies Reveal);
       press('1');
       expect(emitted).toEqual([]);
     });
@@ -190,7 +236,11 @@ describe('FruitSliceGame', () => {
 
     it('never cuts or answers while paused or judged', () => {
       fruitAtCentre(1);
-      set('reveal', { chosen: null, correct: false, correctIndex: 0 } satisfies Reveal);
+      set('reveal', {
+        chosen: null,
+        correct: false,
+        correctIndex: 0
+      } satisfies Reveal);
       swipeAcrossTheMiddle();
       expect(emitted).toEqual([]);
       expect(field.fruits.length).toBe(1);
@@ -207,7 +257,14 @@ describe('FruitSliceGame', () => {
 
     it('ignores frames of another kind', () => {
       game.onFrame(
-        { kind: 'face', face: { faces: 0, landmarks: null, blendshapes: {} } },
+        {
+          kind: 'face',
+          face: {
+            faces: 0,
+            landmarks: null,
+            blendshapes: {}
+          }
+        },
         0
       );
       expect(game['cursor'].has).toBeFalse();
@@ -288,7 +345,11 @@ describe('FruitSliceGame', () => {
     });
 
     it('stops throwing once the answer is judged', () => {
-      set('reveal', { chosen: null, correct: false, correctIndex: 2 } satisfies Reveal);
+      set('reveal', {
+        chosen: null,
+        correct: false,
+        correctIndex: 2
+      } satisfies Reveal);
       game.tick(0.016, 16);
       expect(field.fruits.length).toBe(0);
     });
@@ -304,10 +365,18 @@ describe('FruitSliceGame', () => {
     });
 
     it('bursts sparkles for a correct answer only', () => {
-      set('reveal', { chosen: 1, correct: false, correctIndex: 0 } satisfies Reveal);
+      set('reveal', {
+        chosen: 1,
+        correct: false,
+        correctIndex: 0
+      } satisfies Reveal);
       expect(field.particles.length).toBe(0);
       set('reveal', null);
-      set('reveal', { chosen: 0, correct: true, correctIndex: 0 } satisfies Reveal);
+      set('reveal', {
+        chosen: 0,
+        correct: true,
+        correctIndex: 0
+      } satisfies Reveal);
       expect(field.particles.filter(p => p.type === 'star').length).toBeGreaterThan(0);
     });
 
@@ -333,7 +402,11 @@ describe('FruitSliceGame', () => {
 
     it('marks the right box and the wrong choice once judged', () => {
       press('1');
-      set('reveal', { chosen: 0, correct: false, correctIndex: 2 } satisfies Reveal);
+      set('reveal', {
+        chosen: 0,
+        correct: false,
+        correctIndex: 2
+      } satisfies Reveal);
       const [first, second, third] = boxes();
       expect(first.classList).toContain('wrong');
       expect(second.classList).toContain('dim');
@@ -342,7 +415,11 @@ describe('FruitSliceGame', () => {
 
     it('clears the marks for the next question', () => {
       press('1');
-      set('reveal', { chosen: 0, correct: true, correctIndex: 0 } satisfies Reveal);
+      set('reveal', {
+        chosen: 0,
+        correct: true,
+        correctIndex: 0
+      } satisfies Reveal);
       set('reveal', null);
       set('question', NEXT_QUESTION);
       for (const box of boxes()) {

@@ -49,10 +49,21 @@
   animation: floatParticle 3s ease-in-out infinite alternate;
 }
 
-.p1 { animation-delay: 0s; }
-.p2 { animation-delay: 0.8s; }
-.p3 { animation-delay: 1.4s; }
-.p4 { animation-delay: 2.1s; }
+.p1 {
+  animation-delay: 0s;
+}
+
+.p2 {
+  animation-delay: 0.8s;
+}
+
+.p3 {
+  animation-delay: 1.4s;
+}
+
+.p4 {
+  animation-delay: 2.1s;
+}
 
 @keyframes floatParticle {
   0% {

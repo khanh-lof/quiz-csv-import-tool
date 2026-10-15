@@ -3,7 +3,7 @@
 
   @if (allPassed()) {
     <div class="celebration" role="status">
-      <div class="trophy" aria-hidden="true">🏆</div>
+      <div aria-hidden="true" class="trophy">🏆</div>
       <h2>Chúc mừng! Bạn đã qua tất cả các màn</h2>
       <p>Tổng điểm tốt nhất: <b>{{ totalScore() }}</b></p>
     </div>
@@ -24,14 +24,14 @@
 
   <div class="stages">
     @for (card of cards(); track card.def.stage) {
-      <button type="button" class="stage-card" [class]="'stage-card status-' + card.status"
-              [attr.data-game]="card.def.game"
+      <button (click)="start.emit(card.def.stage)" [attr.data-game]="card.def.game" [class]="'stage-card status-' + card.status"
               [disabled]="!card.playable"
-              (click)="start.emit(card.def.stage)">
+              class="stage-card"
+              type="button">
         <!-- The game's own scene (game-themes.css), as on its stage: the icon and the status sit on it, the
              texts below it on white, so they read the same whatever the scene's colours. -->
         <span class="card-scene">
-          <span class="stage-icon" aria-hidden="true">{{ card.def.icon }}</span>
+          <span aria-hidden="true" class="stage-icon">{{ card.def.icon }}</span>
           @switch (card.status) {
             @case ('passed') {
               <nz-tag nzColor="success">Đã qua ✓</nz-tag>
@@ -82,7 +82,7 @@
         <span><span class="setting-label">Thời gian mỗi câu:</span> {{ timeModeLabels[locked] }}</span>
       } @else {
         <span class="setting-label">Thời gian mỗi câu</span>
-        <nz-radio-group [ngModel]="settings().timeMode" (ngModelChange)="setTimeMode($event)"
+        <nz-radio-group (ngModelChange)="setTimeMode($event)" [ngModel]="settings().timeMode"
                         nzButtonStyle="solid" nzSize="small">
           <label nz-radio-button nzValue="standard">Chuẩn</label>
           <label nz-radio-button nzValue="extra">Thêm giờ (×1,5)</label>
@@ -92,15 +92,15 @@
     </div>
     <div class="setting">
       <span class="setting-label">Âm thanh</span>
-      <nz-switch [ngModel]="settings().sound" (ngModelChange)="setSound($event)"
+      <nz-switch (ngModelChange)="setSound($event)" [ngModel]="settings().sound"
                  nzCheckedChildren="Bật" nzUnCheckedChildren="Tắt"/>
     </div>
     @if (allowReset()) {
-      <button nz-button nzDanger type="button" class="reset-button"
-              nz-popconfirm nzPopconfirmTitle="Xóa tiến độ của quiz này và chơi lại từ đầu?"
-              nzPopconfirmPlacement="top" nzOkText="Chơi lại" nzOkDanger nzCancelText="Thôi"
-              (nzOnConfirm)="resetProgress()">
-        <nz-icon nzType="reload" nzTheme="outline"/>
+      <button (nzOnConfirm)="resetProgress()" class="reset-button" nz-button nz-popconfirm
+              nzCancelText="Thôi" nzDanger
+              nzOkDanger nzOkText="Chơi lại" nzPopconfirmPlacement="top" nzPopconfirmTitle="Xóa tiến độ của quiz này và chơi lại từ đầu?"
+              type="button">
+        <nz-icon nzTheme="outline" nzType="reload"/>
         Chơi lại từ đầu
       </button>
     }

@@ -1,29 +1,29 @@
 <div class="workspace-shell">
-  <div class="sidebar-slot" [class.collapsed]="collapsed()">
-    <nav class="qt-sidebar sidebar" [class.collapsed]="collapsed()" aria-label="Menu">
+  <div [class.collapsed]="collapsed()" class="sidebar-slot">
+    <nav [class.collapsed]="collapsed()" aria-label="Menu" class="qt-sidebar sidebar">
       <!-- The items stay unselectable on click: the pages are highlighted from the route alone
            (nzMatchRouter), so a refused navigation leaves the current page highlighted, and its group with it.
            The groups are open whenever the menu is, so the whole menu shows at once; collapsed, they are
            fly-outs, which must start closed. -->
       <!-- The collapse switch sits at the top of the menu, an icon alone: its tooltip names the action. -->
       <div class="sidebar-head">
-        <button type="button" class="collapse-toggle" nz-tooltip nzTooltipPlacement="right"
-                [nzTooltipTitle]="collapsed() ? 'Mở rộng menu' : 'Thu gọn menu'"
-                [attr.aria-label]="collapsed() ? 'Mở rộng menu' : 'Thu gọn menu'"
-                [attr.aria-expanded]="!collapsed()" (click)="toggleCollapsed()">
+        <button (click)="toggleCollapsed()" [attr.aria-expanded]="!collapsed()" [attr.aria-label]="collapsed() ? 'Mở rộng menu' : 'Thu gọn menu'" [nzTooltipTitle]="collapsed() ? 'Mở rộng menu' : 'Thu gọn menu'"
+                class="collapse-toggle"
+                nz-tooltip
+                nzTooltipPlacement="right" type="button">
           <nz-icon [nzType]="collapsed() ? 'double-right' : 'double-left'" nzTheme="outline"/>
         </button>
       </div>
 
-      <ul nz-menu nzMode="inline" [nzInlineCollapsed]="collapsed()" [nzSelectable]="false" class="workspace-nav"
-          (nzClick)="onMenuClick()">
+      <ul (nzClick)="onMenuClick()" [nzInlineCollapsed]="collapsed()" [nzSelectable]="false" class="workspace-nav" nz-menu
+          nzMode="inline">
         @for (entry of nav; track entry.label) {
           @if (isGroup(entry)) {
-            <li nz-submenu [nzOpen]="!collapsed()" [nzTitle]="entry.label" [nzIcon]="entry.icon">
+            <li [nzIcon]="entry.icon" [nzOpen]="!collapsed()" [nzTitle]="entry.label" nz-submenu>
               <ul>
                 @for (page of entry.pages; track page.route) {
-                  <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="right"
-                      [nzTooltipTrigger]="tooltipTrigger(page)" [nzTooltipTitle]="tooltipOf(page)">
+                  <li [nzTooltipTitle]="tooltipOf(page)" [nzTooltipTrigger]="tooltipTrigger(page)" nz-menu-item nz-tooltip
+                      nzMatchRouter nzTooltipPlacement="right">
                     <nz-icon [nzType]="page.icon" nzTheme="outline"/>
                     <span><a [routerLink]="page.route">{{ page.label }}</a></span>
                   </li>
@@ -31,8 +31,8 @@
               </ul>
             </li>
           } @else {
-            <li nz-menu-item nzMatchRouter nz-tooltip nzTooltipPlacement="right"
-                [nzTooltipTrigger]="tooltipTrigger(entry)" [nzTooltipTitle]="tooltipOf(entry)">
+            <li [nzTooltipTitle]="tooltipOf(entry)" [nzTooltipTrigger]="tooltipTrigger(entry)" nz-menu-item nz-tooltip
+                nzMatchRouter nzTooltipPlacement="right">
               <nz-icon [nzType]="entry.icon" nzTheme="outline"/>
               <span><a [routerLink]="entry.route">{{ entry.label }}</a></span>
             </li>
@@ -42,17 +42,17 @@
 
       <!-- The account action sits at the foot of the menu. The table works anonymously,
            so logging in is optional; the AI pages ask for it on their own. -->
-      <ul nz-menu nzMode="inline" [nzInlineCollapsed]="collapsed()" [nzSelectable]="false" class="sidebar-foot">
+      <ul [nzInlineCollapsed]="collapsed()" [nzSelectable]="false" class="sidebar-foot" nz-menu nzMode="inline">
         @if (isLoggedIn()) {
-          <li nz-menu-item nz-tooltip nzTooltipPlacement="right" [nzTooltipTrigger]="collapsed() ? 'hover' : null"
-              nzTooltipTitle="Đăng xuất" (click)="logout()">
-            <nz-icon nzType="logout" nzTheme="outline"/>
+          <li (click)="logout()" [nzTooltipTrigger]="collapsed() ? 'hover' : null" nz-menu-item nz-tooltip
+              nzTooltipPlacement="right" nzTooltipTitle="Đăng xuất">
+            <nz-icon nzTheme="outline" nzType="logout"/>
             <span>Đăng xuất</span>
           </li>
         } @else {
-          <li nz-menu-item nz-tooltip nzTooltipPlacement="right" [nzTooltipTrigger]="collapsed() ? 'hover' : null"
-              nzTooltipTitle="Đăng nhập" (click)="login()">
-            <nz-icon nzType="login" nzTheme="outline"/>
+          <li (click)="login()" [nzTooltipTrigger]="collapsed() ? 'hover' : null" nz-menu-item nz-tooltip
+              nzTooltipPlacement="right" nzTooltipTitle="Đăng nhập">
+            <nz-icon nzTheme="outline" nzType="login"/>
             <span>Đăng nhập</span>
           </li>
         }

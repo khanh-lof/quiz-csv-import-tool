@@ -201,6 +201,7 @@
   text-overflow: ellipsis;
   width: 100%;
 }
+
 .image-size {
   margin: 2px 0 0 0;
   font-size: 11px;
@@ -235,37 +236,46 @@
   gap: 12px 16px;
   width: 100%;
 }
+
 .creative-selection .field {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
+
 .creative-selection .field-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
+
 .creative-selection .field-label {
   white-space: nowrap;
 }
+
 .creative-selection .course-type-select {
   width: 150px;
 }
+
 /* Takes whatever is left of the row, so choosing "Khác" keeps Cấp/Bài on the same line when they fit. */
 .creative-selection .course-name-field {
   flex: 1 1 160px;
   min-width: 160px;
 }
+
 .creative-selection .course-name-input {
   width: 100%;
 }
+
 .creative-selection nz-input-number {
   width: 80px;
 }
+
 /* Wide enough for the "Không bắt buộc" placeholder. */
 .creative-selection nz-input-number.optional-level {
   width: 130px;
 }
+
 .intelligence-selection {
   display: flex;
   align-items: center;
@@ -273,13 +283,16 @@
   width: 100%;
   gap: 12px;
 }
+
 .ai-selection > label,
 .intelligence-selection > label {
   font-weight: bold;
 }
+
 .intelligence-warning {
   color: #fa8c16;
 }
+
 /* Template picker and intelligence share a row; flex-start keeps the picker's error message from
    shifting the radio buttons. */
 .output-selection {
@@ -289,14 +302,17 @@
   gap: 12px 16px;
   width: 100%;
 }
+
 .output-selection .field {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
+
 .output-selection .export-type-select {
   width: 200px;
 }
+
 /* The Game choices under the platform row: the games, the question count and what they make. */
 .gesture-options {
   display: flex;
@@ -304,29 +320,35 @@
   gap: 12px;
   width: 100%;
 }
+
 .gesture-options .field {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
+
 .gesture-options .field-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 12px;
 }
+
 .gesture-options .field-label {
   white-space: nowrap;
 }
+
 .gesture-options nz-input-number {
   width: 80px;
 }
+
 /* The checkboxes sit beside the label when there is room and drop below it when there is not: 300px is
    more than a phone leaves next to the label, so there the group takes the whole line and fits two games
    a row instead of squeezing one into each. min-width 0 lets it shrink to the row, never push it wider. */
 .gesture-options .games-row {
   align-items: flex-start;
 }
+
 .gesture-options nz-checkbox-group {
   display: flex;
   flex: 1 1 300px;
@@ -334,15 +356,18 @@
   gap: 4px 8px;
   min-width: 0;
 }
+
 /* A line under the choices. */
 .export-hint {
   color: var(--qt-text-muted);
 }
+
 .output-selection .intelligence-selection {
   width: auto;
   flex: 1 1 auto;
   min-height: 32px;
 }
+
 .ai-selection {
   display: flex;
   align-items: center;

@@ -1,9 +1,9 @@
-<button nz-button type="button" class="guide-button" (click)="isOpen.set(true)">
-  <nz-icon nzType="question-circle" nzTheme="outline"/>
+<button (click)="isOpen.set(true)" class="guide-button" nz-button type="button">
+  <nz-icon nzTheme="outline" nzType="question-circle"/>
   Hướng dẫn sử dụng
 </button>
-<nz-modal [nzVisible]="isOpen()" (nzVisibleChange)="isOpen.set($event)" nzTitle="Hướng dẫn sử dụng"
-          [nzFooter]="null" [nzWidth]="640" (nzOnCancel)="isOpen.set(false)">
+<nz-modal (nzOnCancel)="isOpen.set(false)" (nzVisibleChange)="isOpen.set($event)" [nzFooter]="null"
+          [nzVisible]="isOpen()" [nzWidth]="640" nzTitle="Hướng dẫn sử dụng">
   <ng-container *nzModalContent>
     <div class="usage-guide">
       <ng-content/>

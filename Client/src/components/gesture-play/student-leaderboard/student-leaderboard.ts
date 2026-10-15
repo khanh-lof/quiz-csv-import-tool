@@ -24,7 +24,11 @@ export const BOARD_POLL_MS = 30000;
 // The plain-text body of the 404 the server answers when the teacher hid the board from the students.
 const BOARD_HIDDEN = 'Board hidden';
 
-const MEDALS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
+const MEDALS: Record<number, string> = {
+  1: '🥇',
+  2: '🥈',
+  3: '🥉'
+};
 
 // One line of the board: a student's entry, flagged when it is the viewer's own, and whether a "⋯" goes before
 // it (the viewer's own row when it is not among the top).
@@ -54,21 +58,24 @@ export class StudentLeaderboard {
   readonly code = input.required<string>();
   // Changes (the page counts up) whenever the board is known to have changed and should be read again.
   readonly refreshKey = input(0);
-
-  private readonly sharedPlay = inject(SharedPlayService);
-  private readonly destroyRef = inject(DestroyRef);
-
   protected readonly board = signal<StudentBoard | null>(null);
-
   protected readonly rows = computed<BoardRow[]>(() => {
     const board = this.board();
     if (!board) {
       return [];
     }
-    const rows: BoardRow[] = board.top.map(entry => ({ entry, you: entry.you === true, gapBefore: false }));
+    const rows: BoardRow[] = board.top.map(entry => ({
+      entry,
+      you: entry.you === true,
+      gapBefore: false
+    }));
     const own = board.you;
     if (own && own.rank !== null && !rows.some(row => row.you)) {
-      rows.push({ entry: own, you: true, gapBefore: true });
+      rows.push({
+        entry: own,
+        you: true,
+        gapBefore: true
+      });
     }
     return rows;
   });
@@ -77,7 +84,8 @@ export class StudentLeaderboard {
     const own = this.board()?.you;
     return !!own && own.rank === null;
   });
-
+  private readonly sharedPlay = inject(SharedPlayService);
+  private readonly destroyRef = inject(DestroyRef);
   // Requests are numbered so that a slow answer for an older one never replaces a newer board.
   private sent = 0;
   private applied = 0;

@@ -1,4 +1,4 @@
-import { AVATARS, avatarDef, randomAvatar } from './avatar';
+import { avatarDef, AVATARS, randomAvatar } from './avatar';
 
 describe('AVATARS', () => {
   // The server's avatarIDs (Server/internal/api/avatars.go) must list exactly these, in this order.

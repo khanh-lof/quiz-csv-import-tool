@@ -36,18 +36,18 @@ import {
   tap,
   timer,
 } from 'rxjs';
-import { STAGES, stagePosition } from '../../../game/stages';
+import { stagePosition, STAGES } from '../../../game/stages';
 import {
   Assignment,
-  assignmentErrorMessage,
   AssignmentChange,
   AssignmentDetail,
+  assignmentErrorMessage,
   assignmentStatusText,
   formatStamp,
   isOpenAt,
-  passPercentOf,
-  LeaderboardEntry,
   leaderboardCsv,
+  LeaderboardEntry,
+  passPercentOf,
   shareUrl,
   STAGE_LOCK_LABELS,
   TIME_MODE_LABELS,
@@ -205,7 +205,7 @@ export class AssignmentLeaderboard {
     }));
   });
   // The same students for the podium, which keeps the first three ranks itself.
-  protected readonly podium = computed<PodiumEntry[]>(() => this.ranked().map(({player}) => ({
+  protected readonly podium = computed<PodiumEntry[]>(() => this.ranked().map(({ player }) => ({
     key: player.id,
     rank: player.rank ?? 0,
     name: player.name,
@@ -226,7 +226,7 @@ export class AssignmentLeaderboard {
   private readonly notificationService = inject(NzNotificationService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
-  private readonly board = viewChild('board', {read: ElementRef<HTMLElement>});
+  private readonly board = viewChild('board', { read: ElementRef<HTMLElement> });
 
   private id = '';
   // Every request gets a number, and an answer is used only if it is newer than what is already shown:
@@ -281,18 +281,18 @@ export class AssignmentLeaderboard {
     }
     try {
       await navigator.clipboard.writeText(shareUrl(detail.code));
-      this.notificationService.success('Đã sao chép link', 'Gửi link này cho học sinh nhaa.', {nzPlacement: 'top'});
+      this.notificationService.success('Đã sao chép link', 'Gửi link này cho học sinh nhaa.', { nzPlacement: 'top' });
     } catch {
       // No clipboard access (an insecure page, or the browser said no): the QR dialog shows a field to copy by hand.
       this.notificationService.warning('Chưa sao chép được',
-        'Bạn mở Mã QR, link nằm ở đó để sao chép bằng Ctrl+C nhé.', {nzPlacement: 'top'});
+        'Bạn mở Mã QR, link nằm ở đó để sao chép bằng Ctrl+C nhé.', { nzPlacement: 'top' });
     }
   }
 
   protected closeAssignment(): void {
-    this.change({closed: true}).subscribe({
+    this.change({ closed: true }).subscribe({
       next: () => this.notificationService.success('Đã đóng bài',
-        'Học sinh không vào chơi được nữa. Kết quả đang chơi dở vẫn được nhận thêm vài phút.', {nzPlacement: 'top'}),
+        'Học sinh không vào chơi được nữa. Kết quả đang chơi dở vẫn được nhận thêm vài phút.', { nzPlacement: 'top' }),
       error: err => this.fail('Không đóng được bài', err),
     });
   }
@@ -311,13 +311,16 @@ export class AssignmentLeaderboard {
     const closesAt = deadline === null ? null : deadline.toISOString();
     const reopen = this.deadlineMode() === 'reopen';
     // A reopen always names its closing time: the one kept from before may be in the past, which the server refuses.
-    this.change(reopen ? {closed: false, closesAt} : {closesAt}).subscribe({
+    this.change(reopen ? {
+      closed: false,
+      closesAt
+    } : { closesAt }).subscribe({
       next: () => {
         this.deadlineOpen.set(false);
         this.notificationService.success(
           reopen ? 'Đã mở lại bài' : closesAt === null ? 'Đã bỏ giờ đóng' : 'Đã hẹn giờ đóng',
           reopen ? 'Học sinh vào chơi lại được bằng link cũ.' : 'Bài sẽ đóng đúng giờ đã chọn.',
-          {nzPlacement: 'top'});
+          { nzPlacement: 'top' });
       },
       error: err => this.fail(reopen ? 'Không mở lại được bài' : 'Không hẹn giờ được', err),
     });
@@ -329,7 +332,7 @@ export class AssignmentLeaderboard {
       return;
     }
     const link = document.createElement('a');
-    const url = URL.createObjectURL(new Blob([leaderboardCsv(detail)], {type: 'text/csv;charset=utf-8'}));
+    const url = URL.createObjectURL(new Blob([leaderboardCsv(detail)], { type: 'text/csv;charset=utf-8' }));
     link.href = url;
     link.download = fileNameFor(detail);
     link.click();
@@ -344,7 +347,7 @@ export class AssignmentLeaderboard {
     const failed = () => this.notificationService.warning(
       'Không bật được toàn màn hình',
       'Trình duyệt không cho phép chế độ toàn màn hình ở đây.',
-      {nzPlacement: 'top'});
+      { nzPlacement: 'top' });
     try {
       this.board()?.nativeElement.requestFullscreen().catch(failed);
     } catch {
@@ -415,7 +418,7 @@ export class AssignmentLeaderboard {
     }
     const before = captureRows(container);
     return () => {
-      afterNextRender(() => playFlip(container, before), {injector: this.injector});
+      afterNextRender(() => playFlip(container, before), { injector: this.injector });
     };
   }
 
@@ -437,7 +440,7 @@ export class AssignmentLeaderboard {
     return this.assignments.update(id, change).pipe(
       tap(assignment => {
         if (id === this.id) {
-          this.detail.update(detail => detail && {...detail, ...assignment});
+          this.detail.update(detail => detail && { ...detail, ...assignment });
           // Answers to requests sent before this change describe the assignment as it was.
           this.latestApplied = this.requestSeq;
           this.now.set(new Date());
@@ -452,6 +455,6 @@ export class AssignmentLeaderboard {
     if (err instanceof HttpErrorResponse && err.status === 404) {
       this.notFound.set(true);
     }
-    this.notificationService.error(title, assignmentErrorMessage(err), {nzPlacement: 'top'});
+    this.notificationService.error(title, assignmentErrorMessage(err), { nzPlacement: 'top' });
   }
 }

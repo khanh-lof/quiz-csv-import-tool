@@ -4,40 +4,68 @@ import {
   FINGER_HINT,
   FINGER_HOLD_MS,
   FINGER_STABLE_FRAMES,
-  FingerReader,
-  FingerView,
-  IDLE_FINGER_VIEW,
-  NO_HAND,
   fingerBadge,
   fingerChoice,
   fingerKeyIndex,
+  FingerReader,
   fingerStatus,
+  FingerView,
   hasHanzi,
+  IDLE_FINGER_VIEW,
+  NO_HAND,
   sameFingerView,
 } from './finger-count-logic';
 
 // An upright hand with the first `extended` of the four long fingers (index first) up and the rest
 // folded, like the hand in the gestures spec: wrist at the bottom, PIPs a quarter of the frame above.
 function handWith(extended: number, thumbOut = false): HandFrame {
-  const landmarks: Point3[] = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
-  landmarks[0] = { x: 0.5, y: 0.9, z: 0 };
+  const landmarks: Point3[] = Array.from({ length: 21 }, () => ({
+    x: 0.5,
+    y: 0.5,
+    z: 0
+  }));
+  landmarks[0] = {
+    x: 0.5,
+    y: 0.9,
+    z: 0
+  };
   [
     [8, 6, 0.42],
     [12, 10, 0.48],
     [16, 14, 0.54],
     [20, 18, 0.6],
   ].forEach(([tip, pip, x], finger) => {
-    landmarks[pip] = { x, y: 0.5, z: 0 };
-    landmarks[tip] = { x, y: finger < extended ? 0.28 : 0.6, z: 0 };
+    landmarks[pip] = {
+      x,
+      y: 0.5,
+      z: 0
+    };
+    landmarks[tip] = {
+      x,
+      y: finger < extended ? 0.28 : 0.6,
+      z: 0
+    };
   });
   if (thumbOut) {
     // The thumb stuck far out to the side, as a fist with the thumb out or an open hand.
-    landmarks[4] = { x: 0.15, y: 0.3, z: 0 };
+    landmarks[4] = {
+      x: 0.15,
+      y: 0.3,
+      z: 0
+    };
   }
-  return { landmarks, gesture: null, gestureScore: 0 };
+  return {
+    landmarks,
+    gesture: null,
+    gestureScore: 0
+  };
 }
 
-const NO_HAND_FRAME: HandFrame = { landmarks: null, gesture: null, gestureScore: 0 };
+const NO_HAND_FRAME: HandFrame = {
+  landmarks: null,
+  gesture: null,
+  gestureScore: 0
+};
 
 // Reads `frame` `times` times and returns the last reading.
 function readTimes(reader: FingerReader, frame: HandFrame, times: number, aspect = 1): number {
@@ -133,7 +161,10 @@ describe('finger-count decision per frame', () => {
   function shots(frame: HandFrame, from: number, to: number): Shot[] {
     const out: Shot[] = [];
     for (let at = from; at <= to; at += 33) {
-      out.push({ at, frame });
+      out.push({
+        at,
+        frame
+      });
     }
     return out;
   }
@@ -142,7 +173,10 @@ describe('finger-count decision per frame', () => {
     const reader = new FingerReader();
     const selector = new HoldSelector(FINGER_HOLD_MS);
     const selected: number[] = [];
-    for (const { at, frame } of all) {
+    for (const {
+      at,
+      frame
+    } of all) {
       const step = selector.step(fingerChoice(reader.read(frame, 1), optionCount), at);
       if (step.selected !== undefined) {
         selected.push(step.selected);
@@ -214,26 +248,49 @@ describe('badge and status', () => {
   });
 
   it('shows the charging card and the progress in percent', () => {
-    expect(fingerStatus(view({ armed: true, choice: 2, progress: 0.4, count: 3 }))).toBe(
+    expect(fingerStatus(view({
+      armed: true,
+      choice: 2,
+      progress: 0.4,
+      count: 3
+    }))).toBe(
       'Đang chọn đáp án 3… 40%',
     );
   });
 
   it('asks for a fist while fingers are up and the gate is not armed', () => {
-    expect(fingerStatus(view({ armed: false, count: 2 }))).toBe('Nắm tay lại rồi chọn câu tiếp');
+    expect(fingerStatus(view({
+      armed: false,
+      count: 2
+    }))).toBe('Nắm tay lại rồi chọn câu tiếp');
   });
 
   it('shows the standing hint otherwise', () => {
-    expect(fingerStatus(view({ armed: true, count: 0 }))).toBe(FINGER_HINT);
-    expect(fingerStatus(view({ armed: false, count: NO_HAND }))).toBe(FINGER_HINT);
+    expect(fingerStatus(view({
+      armed: true,
+      count: 0
+    }))).toBe(FINGER_HINT);
+    expect(fingerStatus(view({
+      armed: false,
+      count: NO_HAND
+    }))).toBe(FINGER_HINT);
     expect(FINGER_HINT).toBe('Giơ số ngón theo đáp án (không tính ngón cái)');
   });
 
   it('compares views by what is shown', () => {
     expect(sameFingerView(IDLE_FINGER_VIEW, { ...IDLE_FINGER_VIEW })).toBeTrue();
-    expect(sameFingerView(IDLE_FINGER_VIEW, { ...IDLE_FINGER_VIEW, count: 2 })).toBeFalse();
-    expect(sameFingerView(IDLE_FINGER_VIEW, { ...IDLE_FINGER_VIEW, progress: 0.005 })).toBeTrue();
-    expect(sameFingerView(IDLE_FINGER_VIEW, { ...IDLE_FINGER_VIEW, progress: 0.2 })).toBeFalse();
+    expect(sameFingerView(IDLE_FINGER_VIEW, {
+      ...IDLE_FINGER_VIEW,
+      count: 2
+    })).toBeFalse();
+    expect(sameFingerView(IDLE_FINGER_VIEW, {
+      ...IDLE_FINGER_VIEW,
+      progress: 0.005
+    })).toBeTrue();
+    expect(sameFingerView(IDLE_FINGER_VIEW, {
+      ...IDLE_FINGER_VIEW,
+      progress: 0.2
+    })).toBeFalse();
   });
 });
 

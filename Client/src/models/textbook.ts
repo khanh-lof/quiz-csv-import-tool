@@ -15,10 +15,33 @@ export interface Textbook {
 }
 
 export const TEXTBOOKS: readonly Textbook[] = [
-  {courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 1, lessons: 15, title: '《新HSK教程1》'},
-  {courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 2, lessons: 15, title: '《新HSK教程2》'},
-  {courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 3, lessons: 18, title: '《新HSK教程3》'},
-  {courseType: CourseType.Yct, level: 6, lessons: 15, title: '《YCT标准教程6》'},
+  {
+    courseType: CourseType.Hsk,
+    hskStandard: HskStandard.V3,
+    level: 1,
+    lessons: 15,
+    title: '《新HSK教程1》'
+  },
+  {
+    courseType: CourseType.Hsk,
+    hskStandard: HskStandard.V3,
+    level: 2,
+    lessons: 15,
+    title: '《新HSK教程2》'
+  },
+  {
+    courseType: CourseType.Hsk,
+    hskStandard: HskStandard.V3,
+    level: 3,
+    lessons: 18,
+    title: '《新HSK教程3》'
+  },
+  {
+    courseType: CourseType.Yct,
+    level: 6,
+    lessons: 15,
+    title: '《YCT标准教程6》'
+  },
 ];
 
 // The book for the chosen course, or undefined when there is none (a course typed in by hand never has one,

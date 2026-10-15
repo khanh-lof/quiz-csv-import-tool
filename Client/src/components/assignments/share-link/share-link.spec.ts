@@ -14,10 +14,13 @@ describe('ShareLink', () => {
     notifications = jasmine.createSpyObj('NzNotificationService', ['success', 'warning']);
     await TestBed.configureTestingModule({
       imports: [ShareLink],
-      providers: [{provide: NzNotificationService, useValue: notifications}],
+      providers: [{
+        provide: NzNotificationService,
+        useValue: notifications
+      }],
     }).compileComponents();
     writeText = jasmine.createSpy('writeText').and.resolveTo();
-    spyOnProperty(navigator, 'clipboard', 'get').and.returnValue({writeText} as unknown as Clipboard);
+    spyOnProperty(navigator, 'clipboard', 'get').and.returnValue({ writeText } as unknown as Clipboard);
     fixture = TestBed.createComponent(ShareLink);
     fixture.componentRef.setInput('code', CODE);
     fixture.detectChanges();

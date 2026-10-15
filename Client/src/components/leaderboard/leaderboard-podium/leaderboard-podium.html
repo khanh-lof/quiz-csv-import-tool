@@ -1,22 +1,22 @@
 @if (steps().length > 0) {
-  <ol class="podium" aria-label="Ba hạng đầu">
+  <ol aria-label="Ba hạng đầu" class="podium">
     @for (step of steps(); track step.rank) {
-      <li class="step" [attr.data-rank]="step.rank" [style.grid-column]="step.column">
+      <li [attr.data-rank]="step.rank" [style.grid-column]="step.column" class="step">
         <span class="sr-only">Hạng {{ step.rank }}: </span>
         @if (step.rank === 1) {
-          <span class="crown" aria-hidden="true">👑</span>
+          <span aria-hidden="true" class="crown">👑</span>
         }
         <div class="avatars">
           @for (entry of step.shown; track entry.key) {
-            <app-player-avatar [avatar]="entry.avatar" [name]="entry.name" [size]="step.avatarSize" [ring]="step.ring"/>
+            <app-player-avatar [avatar]="entry.avatar" [name]="entry.name" [ring]="step.ring" [size]="step.avatarSize"/>
           }
           @if (step.extra > 0) {
-            <span class="more" aria-hidden="true">+{{ step.extra }}</span>
+            <span aria-hidden="true" class="more">+{{ step.extra }}</span>
           }
         </div>
-        <app-marquee-text class="names" [text]="step.names"/>
+        <app-marquee-text [text]="step.names" class="names"/>
         <p class="meta">{{ step.meta }}</p>
-        <div class="plinth" aria-hidden="true">
+        <div aria-hidden="true" class="plinth">
           <span class="place">{{ medal(step.rank) }}</span>
         </div>
       </li>

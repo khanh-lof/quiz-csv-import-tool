@@ -24,7 +24,7 @@ class FakeQuery {
   change(matches: boolean): void {
     this.matches = matches;
     for (const listener of this.listeners) {
-      listener({matches} as MediaQueryListEvent);
+      listener({ matches } as MediaQueryListEvent);
     }
   }
 }
@@ -36,7 +36,7 @@ describe('MarqueeText', () => {
 
   beforeEach(async () => {
     localStorage.removeItem(KEY);
-    await TestBed.configureTestingModule({imports: [MarqueeText]}).compileComponents();
+    await TestBed.configureTestingModule({ imports: [MarqueeText] }).compileComponents();
   });
 
   afterEach(() => localStorage.removeItem(KEY));
@@ -239,7 +239,11 @@ describe('MarqueeText', () => {
     // Takes a global away for the duration of `run`, then puts it back.
     async function without(target: object, name: string, run: () => Promise<void>): Promise<void> {
       const own = Object.getOwnPropertyDescriptor(target, name);
-      Object.defineProperty(target, name, {value: undefined, configurable: true, writable: true});
+      Object.defineProperty(target, name, {
+        value: undefined,
+        configurable: true,
+        writable: true
+      });
       try {
         await run();
       } finally {

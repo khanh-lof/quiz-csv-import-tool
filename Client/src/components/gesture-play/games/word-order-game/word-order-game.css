@@ -69,10 +69,9 @@
   position: relative;
   font: inherit;
   cursor: pointer;
-  transition:
-    border-color var(--qt-transition),
-    background var(--qt-transition),
-    box-shadow var(--qt-transition);
+  transition: border-color var(--qt-transition),
+  background var(--qt-transition),
+  box-shadow var(--qt-transition);
 }
 
 /* The dwell ring: a ring around the target that fills clockwise as --dwell goes from 0 to 1. */
@@ -83,31 +82,27 @@
   padding: calc(var(--u) * 0.8);
   border-radius: calc(var(--qt-radius-lg) + var(--u));
   background: conic-gradient(var(--play-charge) calc(var(--dwell, 0) * 360deg), transparent 0);
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box,
+  linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box,
+  linear-gradient(#000 0 0);
   mask-composite: exclude;
   pointer-events: none;
 }
 
 /* The gold ring goes around the target's own shadow (--lift, set by .card and .tile). */
 .target.hot {
-  box-shadow:
-    0 0 0 3px var(--play-charge),
-    0 0 18px var(--play-charge-glow),
-    var(--lift);
+  box-shadow: 0 0 0 3px var(--play-charge),
+  0 0 18px var(--play-charge-glow),
+  var(--lift);
 }
 
 @media (hover: hover) {
   .target:hover {
-    box-shadow:
-      0 0 0 3px var(--play-charge),
-      0 0 18px var(--play-charge-glow),
-      var(--lift);
+    box-shadow: 0 0 0 3px var(--play-charge),
+    0 0 18px var(--play-charge-glow),
+    var(--lift);
   }
 }
 
@@ -145,9 +140,8 @@
   background: rgba(12, 40, 28, 0.45);
   border: 2px dashed rgba(255, 255, 255, 0.55);
   border-radius: var(--qt-radius-lg);
-  transition:
-    border-color var(--qt-transition),
-    background var(--qt-transition);
+  transition: border-color var(--qt-transition),
+  background var(--qt-transition);
 }
 
 .line.right {
@@ -207,9 +201,8 @@
 
 /* A wooden block, like a Scrabble tile: a pale face with a darker edge underneath. */
 .tile {
-  --lift:
-    0 calc(var(--u) * 0.6) 0 #a66f35,
-    0 calc(var(--u) * 1) calc(var(--u) * 1.6) rgba(0, 0, 0, 0.4);
+  --lift: 0 calc(var(--u) * 0.6) 0 #a66f35,
+  0 calc(var(--u) * 1) calc(var(--u) * 1.6) rgba(0, 0, 0, 0.4);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -314,12 +307,10 @@
   inset: 0;
   background: rgba(255, 255, 255, 0.35);
   border: calc(var(--u) * 0.5) solid #fff;
-  box-shadow:
-    0 0 0 2px var(--play-charge),
-    0 0 14px var(--play-charge-glow);
-  transition:
-    transform 0.12s,
-    background 0.12s;
+  box-shadow: 0 0 0 2px var(--play-charge),
+  0 0 14px var(--play-charge-glow);
+  transition: transform 0.12s,
+  background 0.12s;
 }
 
 /* The fingers are closed: the ring shrinks like a press. */
@@ -332,13 +323,11 @@
   inset: calc(var(--u) * -0.9);
   padding: calc(var(--u) * 0.7);
   background: conic-gradient(var(--play-charge) calc(var(--dwell, 0) * 360deg), transparent 0);
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box,
+  linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box,
+  linear-gradient(#000 0 0);
   mask-composite: exclude;
 }
 

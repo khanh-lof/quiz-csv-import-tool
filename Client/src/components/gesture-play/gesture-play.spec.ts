@@ -43,21 +43,26 @@ class FakeVision {
   readonly video = document.createElement('video');
   readonly cameraState = signal<CameraState>('off');
   readonly cameraMessage = signal('');
-  private readonly models = { hand: signal<ModelState>('idle'), face: signal<ModelState>('idle') };
-
   readonly startCamera = jasmine.createSpy('startCamera').and.callFake(async () => this.cameraState.set('on'));
   readonly stopCamera = jasmine.createSpy('stopCamera').and.callFake(() => this.cameraState.set('off'));
+  readonly detect = jasmine.createSpy('detect').and.returnValue(null);
+  private readonly models = {
+    hand: signal<ModelState>('idle'),
+    face: signal<ModelState>('idle')
+  };
   readonly ensureModel = jasmine
     .createSpy('ensureModel')
     .and.callFake(async (kind: VisionKind) => this.models[kind].set('ready'));
-  readonly detect = jasmine.createSpy('detect').and.returnValue(null);
 
   modelState(kind: VisionKind) {
     return this.models[kind];
   }
 
   videoSize() {
-    return { width: 640, height: 480 };
+    return {
+      width: 640,
+      height: 480
+    };
   }
 }
 
@@ -69,9 +74,22 @@ function sampleStages(...stages: number[]): string {
 
 function gestureJob(overrides: Partial<AiJob> = {}): AiJob {
   return {
-    id: 'job-1', status: 'done', title: 'HSK1 bài 1', creative: true, exportType: ExportType.GestureQuiz,
-    intelligence: 1, imageCount: 0, courseType: null, courseName: '', hskStandard: null, level: null,
-    lessonNumber: null, csv: DEMO_QUIZ_CSV, errorStatus: 0, errorMessage: '', createdAt: '2026-10-13T00:00:00Z',
+    id: 'job-1',
+    status: 'done',
+    title: 'HSK1 bài 1',
+    creative: true,
+    exportType: ExportType.GestureQuiz,
+    intelligence: 1,
+    imageCount: 0,
+    courseType: null,
+    courseName: '',
+    hskStandard: null,
+    level: null,
+    lessonNumber: null,
+    csv: DEMO_QUIZ_CSV,
+    errorStatus: 0,
+    errorMessage: '',
+    createdAt: '2026-10-13T00:00:00Z',
     finishedAt: null, ...overrides,
   };
 }
@@ -88,28 +106,89 @@ function timeLimitsFor(mode: TimeMode): Record<string, number | null> {
 
 // What GET share/{code} says of the sample quiz: how many questions each stage has, and nothing of the questions.
 function sharedQuiz(overrides: Partial<SharedQuiz> = {}): SharedQuiz {
-  return { title: 'HSK1 bài 1', label: 'Lớp 6A', timeMode: 'standard', stageLock: 'sequential',
-    passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70}, maxAttempts: null, showBoard: true,
-    stageCounts: {'1': 5, '2': 5, '3': 5, '4': 5, '5': 5, '6': 5}, timeLimits: timeLimitsFor(overrides.timeMode ?? 'standard'),
-    attempts: {}, results: {}, closesAt: null, ...overrides };
+  return {
+    title: 'HSK1 bài 1',
+    label: 'Lớp 6A',
+    timeMode: 'standard',
+    stageLock: 'sequential',
+    passPercents: {
+      '1': 70,
+      '2': 70,
+      '3': 70,
+      '4': 70,
+      '5': 70,
+      '6': 70
+    },
+    maxAttempts: null,
+    showBoard: true,
+    stageCounts: {
+      '1': 5,
+      '2': 5,
+      '3': 5,
+      '4': 5,
+      '5': 5,
+      '6': 5
+    },
+    timeLimits: timeLimitsFor(overrides.timeMode ?? 'standard'),
+    attempts: {},
+    results: {},
+    closesAt: null, ...overrides
+  };
 }
 
 function assignmentDetail(overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
   return {
-    id: 'a1', code: CODE, jobId: 'job-1', title: 'HSK1 bài 1', label: 'Lớp 6A', timeMode: 'standard', stageLock: 'sequential',
-    passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70}, maxAttempts: null,
-    showBoard: true, stageCounts: { 1: 5, 2: 5, 3: 5, 4: 5, 5: 5, 6: 5 }, timeLimits: timeLimitsFor(overrides.timeMode ?? 'standard'),
-    createdAt: '2026-10-14T00:00:00Z', closesAt: null,
-    closedAt: null, open: true, playerCount: 0, csv: DEMO_QUIZ_CSV, players: [], ...overrides,
+    id: 'a1',
+    code: CODE,
+    jobId: 'job-1',
+    title: 'HSK1 bài 1',
+    label: 'Lớp 6A',
+    timeMode: 'standard',
+    stageLock: 'sequential',
+    passPercents: {
+      '1': 70,
+      '2': 70,
+      '3': 70,
+      '4': 70,
+      '5': 70,
+      '6': 70
+    },
+    maxAttempts: null,
+    showBoard: true,
+    stageCounts: {
+      1: 5,
+      2: 5,
+      3: 5,
+      4: 5,
+      5: 5,
+      6: 5
+    },
+    timeLimits: timeLimitsFor(overrides.timeMode ?? 'standard'),
+    createdAt: '2026-10-14T00:00:00Z',
+    closesAt: null,
+    closedAt: null,
+    open: true,
+    playerCount: 0,
+    csv: DEMO_QUIZ_CSV,
+    players: [], ...overrides,
   };
 }
 
 const httpError = (status: number, body = '') =>
-  throwError(() => new HttpErrorResponse({ status, error: body || null }));
+  throwError(() => new HttpErrorResponse({
+    status,
+    error: body || null
+  }));
 
 // What the leaderboard under the map reads: nobody has played, unless a spec says otherwise.
 function studentBoard(overrides: Partial<StudentBoard> = {}): StudentBoard {
-  return { top: [], you: null, possible: 30, stageCount: 6, playerCount: 0, ...overrides };
+  return {
+    top: [],
+    you: null,
+    possible: 30,
+    stageCount: 6,
+    playerCount: 0, ...overrides
+  };
 }
 
 describe('GesturePlay', () => {
@@ -154,14 +233,24 @@ describe('GesturePlay', () => {
     const item = run.items[index];
     const limit = server.quiz.timeLimits[String(run.stage)];
     return {
-      index, question: item.question, options: optionsOf(item), chunks: item.chunks ? [...item.chunks].reverse() : null,
-      timeLeftMs: limit === null ? null : limit * 1000, graceMs: 5000,
+      index,
+      question: item.question,
+      options: optionsOf(item),
+      chunks: item.chunks ? [...item.chunks].reverse() : null,
+      timeLeftMs: limit === null ? null : limit * 1000,
+      graceMs: 5000,
     };
   }
 
   function serve(overrides: Partial<SharedQuiz> = {}): void {
     const quiz = sharedQuiz(overrides);
-    server = { quiz, started: { ...quiz.attempts }, results: { ...quiz.results }, runs: 0, run: null };
+    server = {
+      quiz,
+      started: { ...quiz.attempts },
+      results: { ...quiz.results },
+      runs: 0,
+      run: null
+    };
   }
 
   // Starts a run of `stage` on the fake server: it counts toward the student's runs at once, and the first question
@@ -170,9 +259,18 @@ describe('GesturePlay', () => {
     const key = String(stage);
     server.started[key] = (server.started[key] ?? 0) + 1;
     server.runs += 1;
-    server.run = { id: `run-${server.runs}`, stage, items: demoQuiz.stages.get(stage)!, answered: 0, right: 0 };
+    server.run = {
+      id: `run-${server.runs}`,
+      stage,
+      items: demoQuiz.stages.get(stage)!,
+      answered: 0,
+      right: 0
+    };
     return {
-      runId: server.run.id, stage, total: server.run.items.length, attempts: server.started[key],
+      runId: server.run.id,
+      stage,
+      total: server.run.items.length,
+      attempts: server.started[key],
       question: dealt(server.run, 0),
     };
   }
@@ -196,15 +294,26 @@ describe('GesturePlay', () => {
     if (index === run.items.length - 1) {
       const total = run.items.length;
       const passed = run.right >= passMark(total, passPercentOf(server.quiz.passPercents, run.stage));
-      result = { correct: run.right, total, passed };
+      result = {
+        correct: run.right,
+        total,
+        passed
+      };
       const best = server.results[String(run.stage)];
       server.results[String(run.stage)] = {
-        correct: Math.max(best?.correct ?? 0, run.right), total, passed: (best?.passed ?? false) || passed,
+        correct: Math.max(best?.correct ?? 0, run.right),
+        total,
+        passed: (best?.passed ?? false) || passed,
       };
     }
     return {
-      correct, timedOut, correctIndex: item.chunks ? undefined : options.indexOf(item.correct),
-      correctOrder: item.chunks ?? undefined, answer: item.correct, explanation: item.explanation, result,
+      correct,
+      timedOut,
+      correctIndex: item.chunks ? undefined : options.indexOf(item.correct),
+      correctOrder: item.chunks ?? undefined,
+      answer: item.correct,
+      explanation: item.explanation,
+      result,
     };
   }
 
@@ -215,13 +324,20 @@ describe('GesturePlay', () => {
     audio = jasmine.createSpyObj<GameAudio>('GameAudio', ['play', 'resume', 'setMuted']);
     notifications = jasmine.createSpyObj('NzNotificationService', ['warning', 'success', 'error']);
     params = new BehaviorSubject(convertToParamMap({}));
-    jobs = { jobs: signal<AiJob[]>([]), refresh: jasmine.createSpy('refresh').and.returnValue(of([])) };
+    jobs = {
+      jobs: signal<AiJob[]>([]),
+      refresh: jasmine.createSpy('refresh').and.returnValue(of([]))
+    };
     stored = null;
     serve();
     shared = jasmine.createSpyObj<SharedPlayService>(
       'SharedPlayService',
       ['load', 'join', 'identity', 'forget', 'startRun', 'nextQuestion', 'answer', 'setAvatar', 'leaderboard']);
-    shared.load.and.callFake(() => of({ ...server.quiz, attempts: { ...server.started }, results: { ...server.results } }));
+    shared.load.and.callFake(() => of({
+      ...server.quiz,
+      attempts: { ...server.started },
+      results: { ...server.results }
+    }));
     shared.startRun.and.callFake(startOnServer);
     shared.nextQuestion.and.callFake((_code: string, _runId: string) => of(dealt(server.run!, server.run!.answered)));
     shared.answer.and.callFake(answerOnServer);
@@ -230,12 +346,20 @@ describe('GesturePlay', () => {
       stored = null;
     });
     shared.join.and.callFake((_code: string, name: string, avatar = '') => {
-      const identity: PlayerIdentity = { playerId: `p-${name.toLowerCase()}`, token: 'token', name, avatar };
+      const identity: PlayerIdentity = {
+        playerId: `p-${name.toLowerCase()}`,
+        token: 'token',
+        name,
+        avatar
+      };
       stored = identity;
       return of(identity);
     });
     shared.setAvatar.and.callFake((_code: string, avatar: string) => {
-      stored = { ...stored!, avatar };
+      stored = {
+        ...stored!,
+        avatar
+      };
       return of(stored);
     });
     shared.leaderboard.and.callFake(() => of(studentBoard()));
@@ -246,13 +370,34 @@ describe('GesturePlay', () => {
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: ActivatedRoute, useValue: { paramMap: params } },
-        { provide: VisionService, useValue: vision },
-        { provide: GameAudio, useValue: Object.assign(audio, { muted: signal(false) }) },
-        { provide: NzNotificationService, useValue: notifications },
-        { provide: AiJobService, useValue: jobs },
-        { provide: SharedPlayService, useValue: shared },
-        { provide: AssignmentService, useValue: assignments },
+        {
+          provide: ActivatedRoute,
+          useValue: { paramMap: params }
+        },
+        {
+          provide: VisionService,
+          useValue: vision
+        },
+        {
+          provide: GameAudio,
+          useValue: Object.assign(audio, { muted: signal(false) })
+        },
+        {
+          provide: NzNotificationService,
+          useValue: notifications
+        },
+        {
+          provide: AiJobService,
+          useValue: jobs
+        },
+        {
+          provide: SharedPlayService,
+          useValue: shared
+        },
+        {
+          provide: AssignmentService,
+          useValue: assignments
+        },
       ],
     });
   });
@@ -462,7 +607,11 @@ describe('GesturePlay', () => {
       expect(text()).toContain('Chính xác! +10');
       expect(text()).toContain('⭐ 10');
       expect(text()).toContain('Đáp án:');
-      expect(game().reveal()).toEqual(jasmine.objectContaining({ chosen: choice, correct: true, correctIndex: choice as number }));
+      expect(game().reveal()).toEqual(jasmine.objectContaining({
+        chosen: choice,
+        correct: true,
+        correctIndex: choice as number
+      }));
       expect(audio.play).toHaveBeenCalledWith('correct', 1);
       expect(audio.play).not.toHaveBeenCalledWith('wrong');
     });
@@ -587,7 +736,10 @@ describe('GesturePlay', () => {
         JSON.stringify({
           [demoQuiz.key]: {
             passed: stages,
-            best: Object.fromEntries(stages.map(stage => [stage, { correct: 5, total: 5 }])),
+            best: Object.fromEntries(stages.map(stage => [stage, {
+              correct: 5,
+              total: 5
+            }])),
           },
         }),
       );
@@ -709,7 +861,16 @@ describe('GesturePlay', () => {
         JSON.stringify({
           [only46.key]: {
             passed: [4, 6],
-            best: { 4: { correct: 5, total: 5 }, 6: { correct: 4, total: 5 } },
+            best: {
+              4: {
+                correct: 5,
+                total: 5
+              },
+              6: {
+                correct: 4,
+                total: 5
+              }
+            },
           },
         }),
       );
@@ -753,7 +914,11 @@ describe('GesturePlay', () => {
 
     it('lets the teacher preview every stage of an assignment that has only some', () => {
       assignments.get.and.returnValue(of(assignmentDetail({
-        csv: sampleStages(4, 6), stageCounts: { 4: 5, 6: 5 },
+        csv: sampleStages(4, 6),
+        stageCounts: {
+          4: 5,
+          6: 5
+        },
       })));
       params.next(convertToParamMap({ assignmentId: 'a1' }));
       open();
@@ -851,7 +1016,11 @@ describe('GesturePlay', () => {
     });
 
     it('starts the camera by itself on the next stage when it was on last time', async () => {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ timeMode: 'standard', sound: true, useCamera: true }));
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        timeMode: 'standard',
+        sound: true,
+        useCamera: true
+      }));
       playDemo();
       expect(vision.startCamera).not.toHaveBeenCalled();
 
@@ -881,7 +1050,11 @@ describe('GesturePlay', () => {
     });
 
     it('gives half as long again in extra-time mode', () => {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ timeMode: 'extra', sound: true, useCamera: false }));
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        timeMode: 'extra',
+        sound: true,
+        useCamera: false
+      }));
       playDemo();
       click('.stage-card', 'Màn 1');
 
@@ -889,7 +1062,11 @@ describe('GesturePlay', () => {
     });
 
     it('has no limit in unlimited mode', () => {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ timeMode: 'unlimited', sound: true, useCamera: false }));
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        timeMode: 'unlimited',
+        sound: true,
+        useCamera: false
+      }));
       playDemo();
       click('.stage-card', 'Màn 1');
       expect(text()).toContain('không giới hạn thời gian');
@@ -899,7 +1076,11 @@ describe('GesturePlay', () => {
     });
 
     it('mutes the shared audio when the sound was turned off last time', () => {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ timeMode: 'standard', sound: false, useCamera: false }));
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        timeMode: 'standard',
+        sound: false,
+        useCamera: false
+      }));
       open();
 
       expect(audio.setMuted).toHaveBeenCalledWith(true);
@@ -909,7 +1090,12 @@ describe('GesturePlay', () => {
   // A student on /play/s/:code. `stored` is who this device joined the quiz as before, if anyone.
   describe('a shared quiz (a student)', () => {
     const SAVED_KEY = `asg:${CODE}:p-lan`;
-    const lan: PlayerIdentity = { playerId: 'p-lan', token: 'token', name: 'Lan', avatar: 'cat' };
+    const lan: PlayerIdentity = {
+      playerId: 'p-lan',
+      token: 'token',
+      name: 'Lan',
+      avatar: 'cat'
+    };
 
     function openShared(identity: PlayerIdentity | null = null): void {
       stored = identity;
@@ -919,7 +1105,10 @@ describe('GesturePlay', () => {
     }
 
     function joinAs(name: string, avatar = 'cat'): void {
-      fixture.debugElement.query(By.directive(ShareJoin)).componentInstance.join.emit({ name, avatar });
+      fixture.debugElement.query(By.directive(ShareJoin)).componentInstance.join.emit({
+        name,
+        avatar
+      });
       fixture.detectChanges();
     }
 
@@ -962,7 +1151,12 @@ describe('GesturePlay', () => {
       });
 
       it('builds the map from the stage counts alone: the server sends no questions', () => {
-        serve({ stageCounts: { '2': 7, '4': 3 } });
+        serve({
+          stageCounts: {
+            '2': 7,
+            '4': 3
+          }
+        });
         openShared(lan);
 
         expect(stageCards().map(card => card.querySelector('.stage-no')?.textContent)).toEqual(['Màn 1', 'Màn 2']);
@@ -982,7 +1176,14 @@ describe('GesturePlay', () => {
       });
 
       it('says the quiz has nothing to play when the server counts no questions, or none that make a stage', () => {
-        const counts: Record<string, number>[] = [{}, { '0': 5, '7': 5, x: 5, '2': 0, '3': -1, '4': 2.5 }];
+        const counts: Record<string, number>[] = [{}, {
+          '0': 5,
+          '7': 5,
+          x: 5,
+          '2': 0,
+          '3': -1,
+          '4': 2.5
+        }];
         for (const stageCounts of counts) {
           serve({ stageCounts });
           openShared(lan);
@@ -997,21 +1198,61 @@ describe('GesturePlay', () => {
       it('makes the progress of the device the one the server holds for the student', () => {
         // An earlier visit left a pass the server does not know of (it was only on this device).
         localStorage.setItem(PROGRESS_KEY, JSON.stringify({
-          [SAVED_KEY]: { passed: [1, 2], best: { 1: { correct: 5, total: 5 }, 2: { correct: 5, total: 5 } } },
+          [SAVED_KEY]: {
+            passed: [1, 2],
+            best: {
+              1: {
+                correct: 5,
+                total: 5
+              },
+              2: {
+                correct: 5,
+                total: 5
+              }
+            }
+          },
         }));
-        serve({ results: { '1': { correct: 4, total: 5, passed: true }, '2': { correct: 2, total: 5, passed: false } } });
+        serve({
+          results: {
+            '1': {
+              correct: 4,
+              total: 5,
+              passed: true
+            },
+            '2': {
+              correct: 2,
+              total: 5,
+              passed: false
+            }
+          }
+        });
         openShared(lan);
 
         expect(stageCards().map(card => card.disabled)).toEqual([false, false, true, true, true, true]);
         expect(stageCards()[0].textContent).toContain('Đã qua');
         expect(stageCards()[1].textContent).not.toContain('Đã qua');
         expect(JSON.parse(localStorage.getItem(PROGRESS_KEY)!)[SAVED_KEY]).toEqual({
-          passed: [1], best: { 1: { correct: 4, total: 5 }, 2: { correct: 2, total: 5 } },
+          passed: [1],
+          best: {
+            1: {
+              correct: 4,
+              total: 5
+            },
+            2: {
+              correct: 2,
+              total: 5
+            }
+          },
         });
       });
 
       it('shows a device the server does not know as the student with nothing passed', () => {
-        localStorage.setItem(PROGRESS_KEY, JSON.stringify({ [SAVED_KEY]: { passed: [1], best: {} } }));
+        localStorage.setItem(PROGRESS_KEY, JSON.stringify({
+          [SAVED_KEY]: {
+            passed: [1],
+            best: {}
+          }
+        }));
         openShared(lan);
 
         expect(stageCards().map(card => card.disabled)).toEqual([false, true, true, true, true, true]);
@@ -1116,7 +1357,11 @@ describe('GesturePlay', () => {
       });
 
       it('shows the teacher\'s time mode as text, without the time radios or the reset', () => {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ timeMode: 'standard', sound: true, useCamera: false }));
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+          timeMode: 'standard',
+          sound: true,
+          useCamera: false
+        }));
         shared.load.and.returnValue(of(sharedQuiz({ timeMode: 'extra' })));
         openShared(lan);
 
@@ -1128,7 +1373,11 @@ describe('GesturePlay', () => {
       });
 
       it('times the questions by the teacher\'s time mode, not the student\'s own', () => {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ timeMode: 'unlimited', sound: true, useCamera: false }));
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+          timeMode: 'unlimited',
+          sound: true,
+          useCamera: false
+        }));
         shared.load.and.returnValue(of(sharedQuiz({ timeMode: 'extra' })));
         openShared(lan);
 
@@ -1139,11 +1388,21 @@ describe('GesturePlay', () => {
 
       // The seconds are the server's, from its configuration: they need not be the table's (12, 12, 15, 15, 20, 45).
       describe("the server's time limits", () => {
-        const SERVER_LIMITS = { '1': 9, '2': 9, '3': 10, '4': 10, '5': 14, '6': 40 };
+        const SERVER_LIMITS = {
+          '1': 9,
+          '2': 9,
+          '3': 10,
+          '4': 10,
+          '5': 14,
+          '6': 40
+        };
         const hudText = (): string => normalized('.hud');
 
         it("shows the server's seconds on the intro of each stage, not the table's", () => {
-          shared.load.and.returnValue(of(sharedQuiz({ stageLock: 'open', timeLimits: SERVER_LIMITS })));
+          shared.load.and.returnValue(of(sharedQuiz({
+            stageLock: 'open',
+            timeLimits: SERVER_LIMITS
+          })));
           openShared(lan);
 
           click('.stage-card', 'Màn 1');
@@ -1170,7 +1429,12 @@ describe('GesturePlay', () => {
         });
 
         it("says there is no limit when the server sends none for the stage, whatever the table says", () => {
-          shared.load.and.returnValue(of(sharedQuiz({ timeLimits: { ...SERVER_LIMITS, '1': null } })));
+          shared.load.and.returnValue(of(sharedQuiz({
+            timeLimits: {
+              ...SERVER_LIMITS,
+              '1': null
+            }
+          })));
           openShared(lan);
 
           click('.stage-card', 'Màn 1');
@@ -1182,7 +1446,12 @@ describe('GesturePlay', () => {
         it('takes them again from the check before a stage', () => {
           shared.load.and.returnValue(of(sharedQuiz({ timeLimits: SERVER_LIMITS })));
           openShared(lan);
-          shared.load.and.returnValue(of(sharedQuiz({ timeLimits: { ...SERVER_LIMITS, '1': 7 } })));
+          shared.load.and.returnValue(of(sharedQuiz({
+            timeLimits: {
+              ...SERVER_LIMITS,
+              '1': 7
+            }
+          })));
 
           click('.stage-card', 'Màn 1');
 
@@ -1190,7 +1459,10 @@ describe('GesturePlay', () => {
         });
 
         it("falls back to the stage's own seconds in the teacher's mode for a stage the server sent no limit for", () => {
-          shared.load.and.returnValue(of(sharedQuiz({ timeMode: 'extra', timeLimits: {} })));
+          shared.load.and.returnValue(of(sharedQuiz({
+            timeMode: 'extra',
+            timeLimits: {}
+          })));
           openShared(lan);
 
           click('.stage-card', 'Màn 1');
@@ -1215,10 +1487,29 @@ describe('GesturePlay', () => {
     describe('the avatar and the leaderboard', () => {
       const BOARD = studentBoard({
         top: [
-          { rank: 1, name: 'Minh', avatar: 'dragon', stagesPassed: 3, correct: 14 },
-          { rank: 2, name: 'Lan', avatar: 'cat', stagesPassed: 2, correct: 9, you: true },
+          {
+            rank: 1,
+            name: 'Minh',
+            avatar: 'dragon',
+            stagesPassed: 3,
+            correct: 14
+          },
+          {
+            rank: 2,
+            name: 'Lan',
+            avatar: 'cat',
+            stagesPassed: 2,
+            correct: 9,
+            you: true
+          },
         ],
-        you: { rank: 2, name: 'Lan', avatar: 'cat', stagesPassed: 2, correct: 9 },
+        you: {
+          rank: 2,
+          name: 'Lan',
+          avatar: 'cat',
+          stagesPassed: 2,
+          correct: 9
+        },
         playerCount: 2,
       });
 
@@ -1286,14 +1577,20 @@ describe('GesturePlay', () => {
         });
 
         it('draws a letter for a student who joined without an avatar', () => {
-          openShared({ ...lan, avatar: '' });
+          openShared({
+            ...lan,
+            avatar: ''
+          });
 
           expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('L');
         });
 
         it('carries a long name in full in its tooltip, to scroll', () => {
           const long = 'Nguyễn Hoàng Bảo Ngọc Lan Phương Thảo Vy';
-          openShared({ ...lan, name: long });
+          openShared({
+            ...lan,
+            name: long
+          });
 
           expect(element().querySelector('.share-line app-marquee-text')?.getAttribute('title')).toBe(long);
         });
@@ -1413,7 +1710,10 @@ describe('GesturePlay', () => {
 
         it('offers a random avatar to a student who has none, and sends it on "Lưu"', async () => {
           spyOn(Math, 'random').and.returnValue(0);
-          openShared({ ...lan, avatar: '' });
+          openShared({
+            ...lan,
+            avatar: ''
+          });
 
           await openDialog();
           expect(radio('Chuột').getAttribute('aria-checked')).toBe('true');
@@ -1437,7 +1737,10 @@ describe('GesturePlay', () => {
           expect(document.body.querySelector('.ant-modal-footer .ant-btn-primary')?.classList).toContain('ant-btn-loading');
           expect(dialogOpen()).toBeTrue();
 
-          answer.next({ ...lan, avatar: 'dragon' });
+          answer.next({
+            ...lan,
+            avatar: 'dragon'
+          });
           await pause();
           expect(dialogOpen()).toBeFalse();
           expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐲');
@@ -1501,7 +1804,10 @@ describe('GesturePlay', () => {
           await save();
           expect(notifications.error).toHaveBeenCalledTimes(1);
 
-          shared.setAvatar.and.callFake((_code: string, avatar: string) => of({ ...lan, avatar }));
+          shared.setAvatar.and.callFake((_code: string, avatar: string) => of({
+            ...lan,
+            avatar
+          }));
           await save();
 
           expect(shared.setAvatar).toHaveBeenCalledTimes(2);
@@ -1595,7 +1901,16 @@ describe('GesturePlay', () => {
       }
 
       it('says on the intro what the percentage of the teacher comes to', () => {
-        shared.load.and.returnValue(of(sharedQuiz({ passPercents: { 1: 50, 2: 70, 3: 70, 4: 70, 5: 70, 6: 70 } })));
+        shared.load.and.returnValue(of(sharedQuiz({
+          passPercents: {
+            1: 50,
+            2: 70,
+            3: 70,
+            4: 70,
+            5: 70,
+            6: 70
+          }
+        })));
         openShared(lan);
 
         click('.stage-card', 'Màn 1');
@@ -1604,7 +1919,16 @@ describe('GesturePlay', () => {
       });
 
       it('passes 3 of 5 at 50%, where the default would fail it', () => {
-        serve({ passPercents: { 1: 50, 2: 70, 3: 70, 4: 70, 5: 70, 6: 70 } });
+        serve({
+          passPercents: {
+            1: 50,
+            2: 70,
+            3: 70,
+            4: 70,
+            5: 70,
+            6: 70
+          }
+        });
         openShared(lan);
 
         playStageOneRight(3);
@@ -1626,7 +1950,16 @@ describe('GesturePlay', () => {
       });
 
       it('asks for every answer at 100%', () => {
-        serve({ passPercents: { 1: 100, 2: 70, 3: 70, 4: 70, 5: 70, 6: 70 } });
+        serve({
+          passPercents: {
+            1: 100,
+            2: 70,
+            3: 70,
+            4: 70,
+            5: 70,
+            6: 70
+          }
+        });
         openShared(lan);
 
         playStageOneRight(4);
@@ -1636,7 +1969,16 @@ describe('GesturePlay', () => {
       });
 
       it('shows the own percentage of each stage on the map when they differ', () => {
-        shared.load.and.returnValue(of(sharedQuiz({ passPercents: { 1: 50, 2: 70, 3: 70, 4: 70, 5: 70, 6: 70 } })));
+        shared.load.and.returnValue(of(sharedQuiz({
+          passPercents: {
+            1: 50,
+            2: 70,
+            3: 70,
+            4: 70,
+            5: 70,
+            6: 70
+          }
+        })));
         openShared(lan);
 
         const cards = stageCards();
@@ -1646,7 +1988,16 @@ describe('GesturePlay', () => {
       });
 
       it('names the one percentage in the summary of the map when every stage shares it', () => {
-        shared.load.and.returnValue(of(sharedQuiz({ passPercents: { 1: 50, 2: 50, 3: 50, 4: 50, 5: 50, 6: 50 } })));
+        shared.load.and.returnValue(of(sharedQuiz({
+          passPercents: {
+            1: 50,
+            2: 50,
+            3: 50,
+            4: 50,
+            5: 50,
+            6: 50
+          }
+        })));
         openShared(lan);
 
         expect(normalized('.summary')).toContain('Đúng từ 50% số câu để mở màn sau.');
@@ -1677,7 +2028,10 @@ describe('GesturePlay', () => {
 
     describe('the replay limit', () => {
       const limited = (overrides: Partial<SharedQuiz> = {}) =>
-        sharedQuiz({ stageLock: 'open', maxAttempts: 2, ...overrides });
+        sharedQuiz({
+          stageLock: 'open',
+          maxAttempts: 2, ...overrides
+        });
       const cardText = (index: number): string => (stageCards()[index].textContent ?? '').replace(/\s+/g, ' ');
 
       // Answers the five questions of the stage on screen.
@@ -1712,7 +2066,12 @@ describe('GesturePlay', () => {
       });
 
       it('shows a stage with all its runs used as used up, and it cannot be opened', () => {
-        serve(limited({ attempts: { 1: 2, 3: 5 } }));
+        serve(limited({
+          attempts: {
+            1: 2,
+            3: 5
+          }
+        }));
         openShared(lan);
 
         expect(cardText(0)).toContain('Hết lượt');
@@ -1963,7 +2322,9 @@ describe('GesturePlay', () => {
       // on a clock of the spec's own, which `performance.now` reads too (the page takes the time a question was
       // dealt from it).
       let clock: number;
-      const page = (): { frame(now: number): void } => fixture.componentInstance as unknown as { frame(now: number): void };
+      const page = (): { frame(now: number): void } => fixture.componentInstance as unknown as {
+        frame(now: number): void
+      };
 
       function tickFrames(ms: number, step = 100): void {
         for (let elapsed = 0; elapsed < ms; elapsed += step) {
@@ -2000,30 +2361,69 @@ describe('GesturePlay', () => {
 
           expect(shared.startRun).toHaveBeenCalledOnceWith(CODE, 1);
           expect(element().querySelector('app-true-false-game')).not.toBeNull();
-          expect(game().question()).toEqual({ stage: 1, question: demoQuiz.stages.get(1)![0].question, options: ['Đúng', 'Sai'] });
+          expect(game().question()).toEqual({
+            stage: 1,
+            question: demoQuiz.stages.get(1)![0].question,
+            options: ['Đúng', 'Sai']
+          });
           expect(hud()).toContain('Câu 1/5');
           expect(hud()).toContain('⏱ 12s');
           expect(audio.play).toHaveBeenCalledWith('start');
         });
 
         it('plays the run as the server dealt it: its total, its options and, for a sentence, its pieces', () => {
-          serve({ stageLock: 'open', stageCounts: { '2': 4, '6': 2 } });
+          serve({
+            stageLock: 'open',
+            stageCounts: {
+              '2': 4,
+              '6': 2
+            }
+          });
           shared.startRun.and.callFake((_code: string, stage: number) => {
             const question: SharedQuestion = stage === 6
-              ? { index: 0, question: 'Tôi uống trà.', options: [], chunks: ['茶', '我', '喝'], timeLeftMs: 68000, graceMs: 5000 }
-              : { index: 0, question: 'Con mèo trong tiếng Trung là gì?', options: ['狗', '猫'], chunks: null, timeLeftMs: 23000, graceMs: 5000 };
-            return of({ runId: 'r', stage, total: stage === 6 ? 2 : 4, attempts: 1, question });
+              ? {
+                index: 0,
+                question: 'Tôi uống trà.',
+                options: [],
+                chunks: ['茶', '我', '喝'],
+                timeLeftMs: 68000,
+                graceMs: 5000
+              }
+              : {
+                index: 0,
+                question: 'Con mèo trong tiếng Trung là gì?',
+                options: ['狗', '猫'],
+                chunks: null,
+                timeLeftMs: 23000,
+                graceMs: 5000
+              };
+            return of({
+              runId: 'r',
+              stage,
+              total: stage === 6 ? 2 : 4,
+              attempts: 1,
+              question
+            });
           });
           openShared(lan);
 
           startStage('Màn 1');
-          expect(game().question()).toEqual({ stage: 2, question: 'Con mèo trong tiếng Trung là gì?', options: ['狗', '猫'] });
+          expect(game().question()).toEqual({
+            stage: 2,
+            question: 'Con mèo trong tiếng Trung là gì?',
+            options: ['狗', '猫']
+          });
           expect(hud()).toContain('Câu 1/4');
           click('button[aria-label="Về bản đồ"]');
 
           startStage('Màn 2');
           expect(element().querySelector('app-word-order-game')).not.toBeNull();
-          expect(game().question()).toEqual({ stage: 6, question: 'Tôi uống trà.', options: [], chunks: ['茶', '我', '喝'] });
+          expect(game().question()).toEqual({
+            stage: 6,
+            question: 'Tôi uống trà.',
+            options: [],
+            chunks: ['茶', '我', '喝']
+          });
           expect(hud()).toContain('Câu 1/2');
           expect(hud()).toContain('⏱ 68s');
         });
@@ -2085,7 +2485,12 @@ describe('GesturePlay', () => {
           expect(shared.answer).toHaveBeenCalledOnceWith(CODE, 'run-1', 0, choice as number);
           expect(text()).toContain('Chính xác! +10');
           expect(text()).toContain('⭐ 10');
-          expect(game().reveal()).toEqual({ chosen: choice, correct: true, correctIndex: choice as number, correctOrder: undefined });
+          expect(game().reveal()).toEqual({
+            chosen: choice,
+            correct: true,
+            correctIndex: choice as number,
+            correctOrder: undefined
+          });
           expect(audio.play).toHaveBeenCalledWith('correct', 1);
         });
 
@@ -2157,7 +2562,10 @@ describe('GesturePlay', () => {
           expect(text()).toContain('⭐ 0');
           expect(text()).toContain('Đáp án:');
           expect(text()).toContain(explanationOnScreen());
-          expect(game().reveal()).toEqual(jasmine.objectContaining({ correct: false, correctIndex: rightChoice() as number }));
+          expect(game().reveal()).toEqual(jasmine.objectContaining({
+            correct: false,
+            correctIndex: rightChoice() as number
+          }));
           expect(audio.play).toHaveBeenCalledWith('wrong');
         });
 
@@ -2171,7 +2579,10 @@ describe('GesturePlay', () => {
           fixture.detectChanges();
 
           expect(shared.answer).toHaveBeenCalledOnceWith(CODE, 'run-1', 0, order);
-          expect(game().reveal()).toEqual(jasmine.objectContaining({ correct: true, correctOrder: order }));
+          expect(game().reveal()).toEqual(jasmine.objectContaining({
+            correct: true,
+            correctOrder: order
+          }));
           expect(normalized('.answer')).toBe(`Đáp án: ${order.join('')}`);
           expect(text()).toContain('Chính xác!');
         });
@@ -2184,7 +2595,10 @@ describe('GesturePlay', () => {
 
           expect(shared.answer).toHaveBeenCalledOnceWith(CODE, 'run-1', 0, null);
           expect(text()).toContain('Hết giờ');
-          expect(game().reveal()).toEqual(jasmine.objectContaining({ chosen: null, correct: false }));
+          expect(game().reveal()).toEqual(jasmine.objectContaining({
+            chosen: null,
+            correct: false
+          }));
           expect(audio.play).toHaveBeenCalledWith('timeout');
           expect(text()).toContain('Đáp án:');
           expect(text()).toContain(explanationOnScreen());
@@ -2192,7 +2606,11 @@ describe('GesturePlay', () => {
 
         it('shows the verdict of a time-out as one even when the choice was sent along and the server was late', () => {
           shared.answer.and.callFake((_code: string, _runId: string, index: number, choice: number | string[] | null) =>
-            of({ ...judgeOnServer(index, choice), correct: false, timedOut: true }));
+            of({
+              ...judgeOnServer(index, choice),
+              correct: false,
+              timedOut: true
+            }));
           openShared(lan);
           startStage();
 
@@ -2200,7 +2618,10 @@ describe('GesturePlay', () => {
           fixture.detectChanges();
 
           expect(text()).toContain('Hết giờ');
-          expect(game().reveal()).toEqual(jasmine.objectContaining({ chosen: null, correct: false }));
+          expect(game().reveal()).toEqual(jasmine.objectContaining({
+            chosen: null,
+            correct: false
+          }));
           expect(text()).toContain('⭐ 0');
           expect(audio.play).toHaveBeenCalledWith('timeout');
         });
@@ -2285,13 +2706,19 @@ describe('GesturePlay', () => {
           startStage();
           game().choose.emit(rightChoice());
           fixture.detectChanges();
-          shared.nextQuestion.and.returnValue(of({ ...dealt(server.run!, 1), timeLeftMs: 7300 }));
+          shared.nextQuestion.and.returnValue(of({
+            ...dealt(server.run!, 1),
+            timeLeftMs: 7300
+          }));
 
           click('button', 'Tiếp');
           expect(hud()).toContain('⏱ 8s');
           game().choose.emit(rightChoice());
           fixture.detectChanges();
-          shared.nextQuestion.and.returnValue(of({ ...dealt(server.run!, 2), timeLeftMs: null }));
+          shared.nextQuestion.and.returnValue(of({
+            ...dealt(server.run!, 2),
+            timeLeftMs: null
+          }));
 
           click('button', 'Tiếp');
           expect(hud()).toContain('⏱ ∞');
@@ -2329,7 +2756,14 @@ describe('GesturePlay', () => {
         it('shows the numbers the server worked out for the run, and writes them as the progress of the device', () => {
           shared.answer.and.callFake((_code: string, _runId: string, index: number, choice: number | string[] | null) => {
             const verdict = judgeOnServer(index, choice);
-            return of(verdict.result ? { ...verdict, result: { correct: 3, total: 5, passed: false } } : verdict);
+            return of(verdict.result ? {
+              ...verdict,
+              result: {
+                correct: 3,
+                total: 5,
+                passed: false
+              }
+            } : verdict);
           });
           openShared(lan);
 
@@ -2337,7 +2771,15 @@ describe('GesturePlay', () => {
 
           expect(text()).toContain('Chưa qua màn 1');
           expect(normalized('.score')).toContain('Đúng 3/5 câu');
-          expect(JSON.parse(localStorage.getItem(PROGRESS_KEY)!)[SAVED_KEY]).toEqual({ passed: [], best: { 1: { correct: 3, total: 5 } } });
+          expect(JSON.parse(localStorage.getItem(PROGRESS_KEY)!)[SAVED_KEY]).toEqual({
+            passed: [],
+            best: {
+              1: {
+                correct: 3,
+                total: 5
+              }
+            }
+          });
         });
 
         it('opens the next stage on the map from what the server recorded', () => {
@@ -2365,7 +2807,11 @@ describe('GesturePlay', () => {
         it('lets a stage that a run on another device passed unlock the next one at the check before it', () => {
           openShared(lan);
           expect(stageCards()[1].disabled).toBeTrue();
-          server.results['1'] = { correct: 5, total: 5, passed: true };
+          server.results['1'] = {
+            correct: 5,
+            total: 5,
+            passed: true
+          };
 
           click('.stage-card', 'Màn 1');
           click('button', 'Về bản đồ');
@@ -2485,7 +2931,10 @@ describe('GesturePlay', () => {
           game().choose.emit(rightChoice());
           fixture.detectChanges();
           clock += 30000;
-          shared.nextQuestion.and.returnValue(of({ ...dealt(server.run!, 1), timeLeftMs: 4000 }));
+          shared.nextQuestion.and.returnValue(of({
+            ...dealt(server.run!, 1),
+            timeLeftMs: 4000
+          }));
           click('button', 'Tiếp');
           game().ready.set(false);
 
@@ -2511,7 +2960,15 @@ describe('GesturePlay', () => {
       });
 
       it('learns from the server what it has passed after a 409 Stage locked', () => {
-        const passedOne = of(sharedQuiz({ results: { '1': { correct: 5, total: 5, passed: true } } }));
+        const passedOne = of(sharedQuiz({
+          results: {
+            '1': {
+              correct: 5,
+              total: 5,
+              passed: true
+            }
+          }
+        }));
         // Opening the quiz and the check before the stage see stage 1 passed; the answer after the refusal does not.
         shared.load.and.returnValues(passedOne, passedOne, of(sharedQuiz()));
         openShared(lan);
@@ -2820,7 +3277,19 @@ describe('GesturePlay', () => {
           click('button', 'Bắt đầu');
           click('button', 'Về bản đồ');
 
-          start.next({ runId: 'r', stage: 1, total: 5, attempts: 1, question: { index: 0, question: 'Q', options: ['Đúng', 'Sai'], timeLeftMs: 12000, graceMs: 5000 } });
+          start.next({
+            runId: 'r',
+            stage: 1,
+            total: 5,
+            attempts: 1,
+            question: {
+              index: 0,
+              question: 'Q',
+              options: ['Đúng', 'Sai'],
+              timeLeftMs: 12000,
+              graceMs: 5000
+            }
+          });
           fixture.detectChanges();
 
           expect(stageCards().length).toBe(6);
@@ -2928,7 +3397,13 @@ describe('GesturePlay', () => {
 
     it('shows the board students see under the map, read by the assignment\'s code', () => {
       shared.leaderboard.and.returnValue(of(studentBoard({
-        top: [{ rank: 1, name: 'Minh', avatar: 'dragon', stagesPassed: 3, correct: 14 }],
+        top: [{
+          rank: 1,
+          name: 'Minh',
+          avatar: 'dragon',
+          stagesPassed: 3,
+          correct: 14
+        }],
       })));
       openPreview();
 
@@ -2984,7 +3459,11 @@ describe('GesturePlay', () => {
     });
 
     it('uses the teacher\'s time mode, and shows it as text', () => {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ timeMode: 'unlimited', sound: true, useCamera: false }));
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        timeMode: 'unlimited',
+        sound: true,
+        useCamera: false
+      }));
       assignments.get.and.returnValue(of(assignmentDetail({ timeMode: 'extra' })));
       openPreview();
 
@@ -2995,7 +3474,16 @@ describe('GesturePlay', () => {
     });
 
     it("uses the server's time limits of the assignment for the intro and for the clock of the local run", () => {
-      assignments.get.and.returnValue(of(assignmentDetail({ timeLimits: { '1': 8, '2': 8, '3': 9, '4': 9, '5': 11, '6': 30 } })));
+      assignments.get.and.returnValue(of(assignmentDetail({
+        timeLimits: {
+          '1': 8,
+          '2': 8,
+          '3': 9,
+          '4': 9,
+          '5': 11,
+          '6': 30
+        }
+      })));
       openPreview();
 
       click('.stage-card', 'Màn 1');
@@ -3005,7 +3493,9 @@ describe('GesturePlay', () => {
       expect(normalized('.hud')).toContain('⏱ 8s');
 
       // The page's animation loop does not run inside a synchronous spec: its frames are driven by hand.
-      const frame = (now: number): void => (fixture.componentInstance as unknown as { frame(now: number): void }).frame(now);
+      const frame = (now: number): void => (fixture.componentInstance as unknown as {
+        frame(now: number): void
+      }).frame(now);
       let now = 1000;
       for (; now < 8500; now += 100) {
         frame(now);
@@ -3022,7 +3512,16 @@ describe('GesturePlay', () => {
     });
 
     it('says there is no limit when the assignment sends none for the stage', () => {
-      assignments.get.and.returnValue(of(assignmentDetail({ timeLimits: { '1': null, '2': 8, '3': 9, '4': 9, '5': 11, '6': 30 } })));
+      assignments.get.and.returnValue(of(assignmentDetail({
+        timeLimits: {
+          '1': null,
+          '2': 8,
+          '3': 9,
+          '4': 9,
+          '5': 11,
+          '6': 30
+        }
+      })));
       openPreview();
 
       click('.stage-card', 'Màn 1');
@@ -3033,7 +3532,16 @@ describe('GesturePlay', () => {
     });
 
     it('judges a run by the percentages of the assignment, without writing progress', () => {
-      assignments.get.and.returnValue(of(assignmentDetail({ passPercents: { 1: 50, 2: 70, 3: 70, 4: 70, 5: 70, 6: 70 } })));
+      assignments.get.and.returnValue(of(assignmentDetail({
+        passPercents: {
+          1: 50,
+          2: 70,
+          3: 70,
+          4: 70,
+          5: 70,
+          6: 70
+        }
+      })));
       openPreview();
 
       click('.stage-card', 'Màn 1');
@@ -3066,7 +3574,10 @@ describe('GesturePlay', () => {
     });
 
     it('never limits the runs, whatever the assignment says', () => {
-      assignments.get.and.returnValue(of(assignmentDetail({ stageLock: 'open', maxAttempts: 1 })));
+      assignments.get.and.returnValue(of(assignmentDetail({
+        stageLock: 'open',
+        maxAttempts: 1
+      })));
       openPreview();
 
       expect(stageCards().some(card => /lượt/.test(card.textContent ?? ''))).toBeFalse();

@@ -25,7 +25,7 @@ export function gestureStagesOf(value: unknown): number[] {
 // An integer within the allowed range, else the default.
 export function questionsPerStageOf(value: unknown): number {
   return typeof value === 'number' && Number.isInteger(value)
-    && value >= QUESTIONS_PER_STAGE_MIN && value <= QUESTIONS_PER_STAGE_MAX
+  && value >= QUESTIONS_PER_STAGE_MIN && value <= QUESTIONS_PER_STAGE_MAX
     ? value
     : QUESTIONS_PER_STAGE_DEFAULT;
 }

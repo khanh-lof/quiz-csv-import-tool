@@ -7,11 +7,10 @@ import { CsvBuilderBase } from './csv-builder-base';
   providedIn: 'root',
 })
 export class BlooketCsvBuilder extends CsvBuilderBase {
-  private separator = ',';
-
   protected override readonly CsvHeader = '"Blooket\n' +
     'Import Template",,,,,,,\n' +
     'Question #,Question Text,Answer 1,Answer 2,Answer 3,Answer 4,Time Limit (sec),Correct Answer(s)';
+  private separator = ',';
 
   public buildFromRows(rows: QuestionDefinition[]) {
     let csvResult = this.CsvHeader;

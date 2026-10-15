@@ -15,11 +15,31 @@ const QUESTION: QuestionView = {
 // A 21-point hand with the wrist and middle knuckle fixed (so the pinch ratio has a hand size) and the
 // index fingertip at (x, y) in the unmirrored camera image. The thumb tip is `gap` to its right.
 function hand(x: number, y: number, gap = 0.4): Point3[] {
-  const points: Point3[] = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
-  points[0] = { x: 0.5, y: 0.9, z: 0 };
-  points[9] = { x: 0.5, y: 0.6, z: 0 };
-  points[8] = { x, y, z: 0 };
-  points[4] = { x: x + gap, y, z: 0 };
+  const points: Point3[] = Array.from({ length: 21 }, () => ({
+    x: 0.5,
+    y: 0.5,
+    z: 0
+  }));
+  points[0] = {
+    x: 0.5,
+    y: 0.9,
+    z: 0
+  };
+  points[9] = {
+    x: 0.5,
+    y: 0.6,
+    z: 0
+  };
+  points[8] = {
+    x,
+    y,
+    z: 0
+  };
+  points[4] = {
+    x: x + gap,
+    y,
+    z: 0
+  };
   return points;
 }
 
@@ -75,14 +95,20 @@ describe('WordOrderGame', () => {
   }
 
   function press(key: string, init: KeyboardEventInit = {}): void {
-    document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }));
+    document.dispatchEvent(new KeyboardEvent('keydown', {
+      key,
+      bubbles: true, ...init
+    }));
     fixture.detectChanges();
   }
 
   function centreOf(id: string): { x: number; y: number } {
     const origin = host.getBoundingClientRect();
     const box = host.querySelector<HTMLElement>(`[data-target="${id}"]`)!.getBoundingClientRect();
-    return { x: box.left - origin.left + box.width / 2, y: box.top - origin.top + box.height / 2 };
+    return {
+      x: box.left - origin.left + box.width / 2,
+      y: box.top - origin.top + box.height / 2
+    };
   }
 
   // Feeds the game a hand whose fingertip is at stage position (x, y), every 33 ms from `from` to `to`.
@@ -91,7 +117,14 @@ describe('WordOrderGame', () => {
   function holdAt(x: number, y: number, from: number, to: number, gap = 0.4): void {
     for (let now = from; now <= to; now += 33) {
       const landmarks = hand(1 - x / 1000, y / 562, gap);
-      game.onFrame({ kind: 'hand', hand: { landmarks, gesture: null, gestureScore: 0 } }, now);
+      game.onFrame({
+        kind: 'hand',
+        hand: {
+          landmarks,
+          gesture: null,
+          gestureScore: 0
+        }
+      }, now);
       game.tick(0.033, now);
     }
     fixture.detectChanges();
@@ -199,7 +232,10 @@ describe('WordOrderGame', () => {
     it('starts the next question from an empty line', () => {
       click(pool()[0]);
       click(pool()[1]);
-      fixture.componentRef.setInput('question', { ...QUESTION, chunks: ['你', '好'] });
+      fixture.componentRef.setInput('question', {
+        ...QUESTION,
+        chunks: ['你', '好']
+      });
       fixture.detectChanges();
       expect(lineText()).toEqual([]);
       expect(pool().length).toBe(2);
@@ -222,7 +258,11 @@ describe('WordOrderGame', () => {
     });
 
     it('marks a right answer green', () => {
-      fixture.componentRef.setInput('reveal', { chosen: [], correct: true, correctOrder: ['这'] });
+      fixture.componentRef.setInput('reveal', {
+        chosen: [],
+        correct: true,
+        correctOrder: ['这']
+      });
       fixture.detectChanges();
       expect(host.querySelector('.line')!.classList).toContain('right');
     });
@@ -254,7 +294,10 @@ describe('WordOrderGame', () => {
     });
 
     it('picks a tile the fingertip rests on', () => {
-      const { x, y } = centreOf('pool:2');
+      const {
+        x,
+        y
+      } = centreOf('pool:2');
       holdAt(x, y, 0, 600);
       expect(lineText()).toEqual([]);
       holdAt(x, y, 633, 900);
@@ -263,7 +306,10 @@ describe('WordOrderGame', () => {
 
     it('undoes once per dwell and cooldown when the cursor stays on the undo card', () => {
       [0, 1, 2].forEach(index => click(pool()[index]));
-      const { x, y } = centreOf('undo');
+      const {
+        x,
+        y
+      } = centreOf('undo');
       holdAt(x, y, 0, 1000);
       expect(lineText()).toEqual(['这', '是']);
       // The first pick was at about 700 ms, so the card is not offered again until about 1100 ms, and
@@ -298,10 +344,17 @@ describe('WordOrderGame', () => {
 
     it('ignores the hand while judged', () => {
       click(pool()[0]);
-      const reveal: Reveal = { chosen: ['这'], correct: false, correctOrder: ['这', '是'] };
+      const reveal: Reveal = {
+        chosen: ['这'],
+        correct: false,
+        correctOrder: ['这', '是']
+      };
       fixture.componentRef.setInput('reveal', reveal);
       fixture.detectChanges();
-      const { x, y } = centreOf('line:0');
+      const {
+        x,
+        y
+      } = centreOf('line:0');
       holdAt(x, y, 0, 900);
       holdAt(x, y, 933, 1200, 0.01);
       expect(lineText()).toEqual(['这']);

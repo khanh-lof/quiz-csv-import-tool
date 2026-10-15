@@ -10,7 +10,10 @@ describe('DeadlinePicker', () => {
   let picker: DeadlinePicker;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({imports: [DeadlinePicker], providers: [provideNzDateFnsAdapter()]}).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [DeadlinePicker],
+      providers: [provideNzDateFnsAdapter()]
+    }).compileComponents();
     fixture = TestBed.createComponent(DeadlinePicker);
     picker = fixture.componentInstance;
     fixture.detectChanges();

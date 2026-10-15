@@ -24,7 +24,12 @@ function seeded(seed: number): Rng {
   };
 }
 
-const STAGE: StageMetrics = { width: 1000, height: 600, playTop: 120, radius: 60 };
+const STAGE: StageMetrics = {
+  width: 1000,
+  height: 600,
+  playTop: 120,
+  radius: 60
+};
 
 function fruit(overrides: Partial<Fruit> = {}): Fruit {
   return {
@@ -102,7 +107,11 @@ describe('spawnWave', () => {
     const field = new FruitField(seeded(11));
     field.resize(STAGE.width, STAGE.height, STAGE.playTop);
     field.step(0, true);
-    const wave = field.fruits.map(f => ({ f, apex: apexOf(f), top: Infinity }));
+    const wave = field.fruits.map(f => ({
+      f,
+      apex: apexOf(f),
+      top: Infinity
+    }));
     // Small steps: the game's own integrator is a little biased at 60 fps (the fruit peaks a few
     // pixels lower than planned, which is the safe side), and that bias grows with the step.
     for (let i = 0; i < 1500; i++) {
@@ -121,39 +130,90 @@ describe('findSlice', () => {
   const height = 600;
 
   it('hits a fruit that the segment passes through', () => {
-    const hit = findSlice([fruit()], { ax: 400, ay: 300, bx: 600, by: 300 }, height);
+    const hit = findSlice([fruit()], {
+      ax: 400,
+      ay: 300,
+      bx: 600,
+      by: 300
+    }, height);
     expect(hit?.fruit.slot).toBe(0);
     expect(hit?.t).toBeCloseTo(0.5, 5);
   });
 
   it('hits a fruit that sits between the two end points of a fast swipe', () => {
     // Neither end is near the fruit: only testing the whole segment finds it.
-    expect(findSlice([fruit()], { ax: 100, ay: 300, bx: 900, by: 310 }, height)).not.toBeNull();
+    expect(findSlice([fruit()], {
+      ax: 100,
+      ay: 300,
+      bx: 900,
+      by: 310
+    }, height)).not.toBeNull();
   });
 
   it('misses a fruit the segment passes by', () => {
-    expect(findSlice([fruit()], { ax: 400, ay: 100, bx: 600, by: 100 }, height)).toBeNull();
-    expect(findSlice([fruit()], { ax: 100, ay: 300, bx: 300, by: 300 }, height)).toBeNull();
+    expect(findSlice([fruit()], {
+      ax: 400,
+      ay: 100,
+      bx: 600,
+      by: 100
+    }, height)).toBeNull();
+    expect(findSlice([fruit()], {
+      ax: 100,
+      ay: 300,
+      bx: 300,
+      by: 300
+    }, height)).toBeNull();
   });
 
   it('is generous by a few percent around the fruit', () => {
     // 50 * 1.08 = 54 px from the centre still counts.
-    expect(findSlice([fruit()], { ax: 400, ay: 353, bx: 600, by: 353 }, height)).not.toBeNull();
-    expect(findSlice([fruit()], { ax: 400, ay: 356, bx: 600, by: 356 }, height)).toBeNull();
+    expect(findSlice([fruit()], {
+      ax: 400,
+      ay: 353,
+      bx: 600,
+      by: 353
+    }, height)).not.toBeNull();
+    expect(findSlice([fruit()], {
+      ax: 400,
+      ay: 356,
+      bx: 600,
+      by: 356
+    }, height)).toBeNull();
   });
 
   it('ignores fruits that are still waiting, already cut or off the stage', () => {
-    const segment = { ax: 400, ay: 300, bx: 600, by: 300 };
+    const segment = {
+      ax: 400,
+      ay: 300,
+      bx: 600,
+      by: 300
+    };
     expect(findSlice([fruit({ wait: 0.2 })], segment, height)).toBeNull();
     expect(findSlice([fruit({ cut: true })], segment, height)).toBeNull();
-    const below = { ax: 400, ay: 700, bx: 600, by: 700 };
+    const below = {
+      ax: 400,
+      ay: 700,
+      bx: 600,
+      by: 700
+    };
     expect(findSlice([fruit({ y: 700 })], below, height)).toBeNull();
   });
 
   it('cuts only the first fruit along the swipe', () => {
-    const near = fruit({ slot: 1, x: 400 });
-    const far = fruit({ slot: 2, x: 700 });
-    const hit = findSlice([far, near], { ax: 300, ay: 300, bx: 800, by: 300 }, height);
+    const near = fruit({
+      slot: 1,
+      x: 400
+    });
+    const far = fruit({
+      slot: 2,
+      x: 700
+    });
+    const hit = findSlice([far, near], {
+      ax: 300,
+      ay: 300,
+      bx: 800,
+      by: 300
+    }, height);
     expect(hit?.fruit.slot).toBe(1);
   });
 });
@@ -182,9 +242,18 @@ describe('FruitField', () => {
 
   it('cuts a fruit into two halves with a flash and juice, and remembers where', () => {
     const f = field();
-    const target = fruit({ slot: 1, x: 500, y: 300 });
+    const target = fruit({
+      slot: 1,
+      x: 500,
+      y: 300
+    });
     f.fruits.push(target);
-    const cut = f.slash({ ax: 400, ay: 300, bx: 600, by: 300 });
+    const cut = f.slash({
+      ax: 400,
+      ay: 300,
+      bx: 600,
+      by: 300
+    });
     expect(cut).toBe(target);
     expect(target.cut).toBeTrue();
     expect(f.fruits.length).toBe(0);
@@ -192,13 +261,22 @@ describe('FruitField', () => {
     expect(f.halves.map(h => h.side).sort()).toEqual([-1, 1]);
     expect(f.flashes.length).toBe(1);
     expect(f.particles.length).toBe(26);
-    expect(f.lastCut).toEqual({ x: 500, y: 300, slot: 1 });
+    expect(f.lastCut).toEqual({
+      x: 500,
+      y: 300,
+      slot: 1
+    });
   });
 
   it('leaves everything alone when the swipe misses', () => {
     const f = field();
     f.fruits.push(fruit());
-    expect(f.slash({ ax: 0, ay: 0, bx: 100, by: 0 })).toBeNull();
+    expect(f.slash({
+      ax: 0,
+      ay: 0,
+      bx: 100,
+      by: 0
+    })).toBeNull();
     expect(f.fruits.length).toBe(1);
     expect(f.halves.length).toBe(0);
   });
@@ -207,13 +285,21 @@ describe('FruitField', () => {
     const f = field();
     f.effects = 0.4;
     f.fruits.push(fruit());
-    f.slash({ ax: 400, ay: 300, bx: 600, by: 300 });
+    f.slash({
+      ax: 400,
+      ay: 300,
+      bx: 600,
+      by: 300
+    });
     expect(f.particles.length).toBe(10);
   });
 
   it('cuts the visible fruit of a slot for the keyboard, and nothing when there is none', () => {
     const f = field();
-    f.fruits.push(fruit({ slot: 2 }), fruit({ slot: 0, wait: 0.3 }));
+    f.fruits.push(fruit({ slot: 2 }), fruit({
+      slot: 0,
+      wait: 0.3
+    }));
     expect(f.sliceSlot(0)).toBeNull();
     expect(f.sliceSlot(1)).toBeNull();
     expect(f.sliceSlot(2)?.slot).toBe(2);
@@ -222,8 +308,16 @@ describe('FruitField', () => {
 
   it('keeps the halves and juice when the next question clears the fruits', () => {
     const f = field();
-    f.fruits.push(fruit(), fruit({ slot: 1, x: 200 }));
-    f.slash({ ax: 400, ay: 300, bx: 600, by: 300 });
+    f.fruits.push(fruit(), fruit({
+      slot: 1,
+      x: 200
+    }));
+    f.slash({
+      ax: 400,
+      ay: 300,
+      bx: 600,
+      by: 300
+    });
     f.clearFruits();
     expect(f.fruits.length).toBe(0);
     expect(f.lastCut).toBeNull();
@@ -234,7 +328,12 @@ describe('FruitField', () => {
   it('lets the pieces and the juice fall out and fade away', () => {
     const f = field();
     f.fruits.push(fruit());
-    f.slash({ ax: 400, ay: 300, bx: 600, by: 300 });
+    f.slash({
+      ax: 400,
+      ay: 300,
+      bx: 600,
+      by: 300
+    });
     for (let i = 0; i < 400; i++) {
       f.step(0.016, false);
     }
@@ -249,8 +348,16 @@ describe('FruitField', () => {
     expect(f.particles.length).toBe(16);
     expect(f.particles.every(p => p.type === 'star' && p.x === 500)).toBeTrue();
     f.clear();
-    f.fruits.push(fruit({ x: 200, y: 350 }));
-    f.slash({ ax: 100, ay: 350, bx: 300, by: 350 });
+    f.fruits.push(fruit({
+      x: 200,
+      y: 350
+    }));
+    f.slash({
+      ax: 100,
+      ay: 350,
+      bx: 300,
+      by: 350
+    });
     f.particles.length = 0;
     f.sparkle();
     expect(f.particles.every(p => p.x === 200 && p.y === 350)).toBeTrue();
@@ -281,7 +388,10 @@ describe('HandCursor', () => {
 
   it('starts a fresh trail where the hand first appears and never swipes from nowhere', () => {
     const cursor = new HandCursor();
-    expect(cursor.point(500, 300, 0, W, H)).toEqual({ trail: 'restart', slash: null });
+    expect(cursor.point(500, 300, 0, W, H)).toEqual({
+      trail: 'restart',
+      slash: null
+    });
     expect(cursor.has).toBeTrue();
     expect(cursor.x).toBe(500);
     expect(cursor.y).toBe(300);
@@ -321,14 +431,20 @@ describe('HandCursor', () => {
 
   it('ignores tiny jitter entirely', () => {
     const cursor = placed();
-    expect(cursor.point(501, 300, 33, W, H)).toEqual({ trail: null, slash: null });
+    expect(cursor.point(501, 300, 33, W, H)).toEqual({
+      trail: null,
+      slash: null
+    });
     expect(cursor.x).toBe(500);
   });
 
   it('ignores a jump larger than the limit once', () => {
     const cursor = placed();
     const step = cursor.point(500 + jump + 50, 300, 33, W, H);
-    expect(step).toEqual({ trail: null, slash: null });
+    expect(step).toEqual({
+      trail: null,
+      slash: null
+    });
     expect(cursor.x).toBe(500);
     expect(cursor.y).toBe(300);
   });
@@ -337,7 +453,10 @@ describe('HandCursor', () => {
     const cursor = placed();
     cursor.point(500 + jump + 50, 300, 33, W, H);
     const step = cursor.point(500 + jump + 60, 305, 66, W, H);
-    expect(step).toEqual({ trail: 'restart', slash: null });
+    expect(step).toEqual({
+      trail: 'restart',
+      slash: null
+    });
     expect(cursor.x).toBe(500 + jump + 60);
     expect(cursor.y).toBe(305);
   });
@@ -347,7 +466,10 @@ describe('HandCursor', () => {
     cursor.point(960, 580, 33, W, H);
     // A second far reading that is nowhere near the first outlier is another glitch.
     const step = cursor.point(40, 20, 66, W, H);
-    expect(step).toEqual({ trail: null, slash: null });
+    expect(step).toEqual({
+      trail: null,
+      slash: null
+    });
     expect(cursor.x).toBe(500);
   });
 
@@ -356,7 +478,10 @@ describe('HandCursor', () => {
     cursor.point(960, 580, 33, W, H);
     cursor.point(520, 300, 66, W, H);
     // The old outlier no longer vouches for a second far reading near it.
-    expect(cursor.point(965, 580, 99, W, H)).toEqual({ trail: null, slash: null });
+    expect(cursor.point(965, 580, 99, W, H)).toEqual({
+      trail: null,
+      slash: null
+    });
     expect(cursor.x).toBeLessThan(600);
   });
 
@@ -372,7 +497,10 @@ describe('HandCursor', () => {
   it('starts a new trail when the hand comes back after being lost', () => {
     const cursor = placed();
     cursor.lost(500);
-    expect(cursor.point(100, 100, 600, W, H)).toEqual({ trail: 'restart', slash: null });
+    expect(cursor.point(100, 100, 600, W, H)).toEqual({
+      trail: 'restart',
+      slash: null
+    });
     expect(cursor.x).toBe(100);
   });
 });

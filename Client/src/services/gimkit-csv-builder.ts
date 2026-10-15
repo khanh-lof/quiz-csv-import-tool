@@ -7,10 +7,9 @@ import { CsvBuilderBase } from './csv-builder-base';
   providedIn: 'root',
 })
 export class GimkitCsvBuilder extends CsvBuilderBase {
-  private separator = ',';
-
   protected override readonly CsvHeader = 'Gimkit Spreadsheet Import Template,,,,\n' +
     'Question,Correct Answer,Incorrect Answer 1,Incorrect Answer 2 (Optional),Incorrect Answer 3 (Optional)';
+  private separator = ',';
 
   public buildFromRows(rows: QuestionDefinition[]) {
     let csvResult = this.CsvHeader;

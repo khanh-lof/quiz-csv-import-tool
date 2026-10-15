@@ -10,7 +10,13 @@ function quizWith(stages: number[], key = 'quiz-a'): GestureQuiz {
     title: 'Quiz',
     key,
     stages: new Map(
-      stages.map(stage => [stage, [{ stage, question: 'Q', correct: 'A', wrong: [], explanation: '' }]]),
+      stages.map(stage => [stage, [{
+        stage,
+        question: 'Q',
+        correct: 'A',
+        wrong: [],
+        explanation: ''
+      }]]),
     ),
     skipped: 0,
   };
@@ -112,13 +118,22 @@ describe('GestureProgressService', () => {
 
     it('keeps the best run, not the latest', () => {
       service.record('k', 1, 3, 5);
-      expect(service.best('k', 1)).toEqual({ correct: 3, total: 5 });
+      expect(service.best('k', 1)).toEqual({
+        correct: 3,
+        total: 5
+      });
 
       service.record('k', 1, 5, 5);
-      expect(service.best('k', 1)).toEqual({ correct: 5, total: 5 });
+      expect(service.best('k', 1)).toEqual({
+        correct: 5,
+        total: 5
+      });
 
       service.record('k', 1, 2, 5);
-      expect(service.best('k', 1)).toEqual({ correct: 5, total: 5 });
+      expect(service.best('k', 1)).toEqual({
+        correct: 5,
+        total: 5
+      });
     });
 
     it('is kept apart per stage and per quiz', () => {
@@ -126,9 +141,18 @@ describe('GestureProgressService', () => {
       service.record('b', 1, 2, 5);
       service.record('a', 2, 1, 4);
 
-      expect(service.best('a', 1)).toEqual({ correct: 5, total: 5 });
-      expect(service.best('b', 1)).toEqual({ correct: 2, total: 5 });
-      expect(service.best('a', 2)).toEqual({ correct: 1, total: 4 });
+      expect(service.best('a', 1)).toEqual({
+        correct: 5,
+        total: 5
+      });
+      expect(service.best('b', 1)).toEqual({
+        correct: 2,
+        total: 5
+      });
+      expect(service.best('a', 2)).toEqual({
+        correct: 1,
+        total: 4
+      });
       expect(service.best('b', 2)).toBeNull();
     });
 
@@ -143,7 +167,10 @@ describe('GestureProgressService', () => {
     expect(service.record('k', 1, 1, 5)).toBeFalse();
 
     expect(service.isPassed('k', 1)).toBeTrue();
-    expect(service.best('k', 1)).toEqual({ correct: 5, total: 5 });
+    expect(service.best('k', 1)).toEqual({
+      correct: 5,
+      total: 5
+    });
   });
 
   it('shows a change through the same instance at once', () => {
@@ -163,8 +190,14 @@ describe('GestureProgressService', () => {
 
     expect(reopened.isPassed('k', 1)).toBeTrue();
     expect(reopened.isPassed('k', 2)).toBeFalse();
-    expect(reopened.best('k', 1)).toEqual({ correct: 4, total: 5 });
-    expect(reopened.best('k', 2)).toEqual({ correct: 2, total: 5 });
+    expect(reopened.best('k', 1)).toEqual({
+      correct: 4,
+      total: 5
+    });
+    expect(reopened.best('k', 2)).toEqual({
+      correct: 2,
+      total: 5
+    });
   });
 
   it('keeps another instance\'s progress when it records on top of an older copy', () => {
@@ -203,14 +236,30 @@ describe('GestureProgressService', () => {
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
-          k: { passed: [1, 'x', 99], best: { 1: { correct: 5, total: 5 }, 2: { correct: 'a' }, 9: { correct: 1, total: 1 } } },
+          k: {
+            passed: [1, 'x', 99],
+            best: {
+              1: {
+                correct: 5,
+                total: 5
+              },
+              2: { correct: 'a' },
+              9: {
+                correct: 1,
+                total: 1
+              }
+            }
+          },
         }),
       );
       const partial = new GestureProgressService();
 
       expect(partial.isPassed('k', 1)).toBeTrue();
       expect(partial.isPassed('k', 99)).toBeFalse();
-      expect(partial.best('k', 1)).toEqual({ correct: 5, total: 5 });
+      expect(partial.best('k', 1)).toEqual({
+        correct: 5,
+        total: 5
+      });
       expect(partial.best('k', 2)).toBeNull();
       expect(partial.best('k', 9)).toBeNull();
     });
@@ -218,12 +267,29 @@ describe('GestureProgressService', () => {
 
   describe('replace', () => {
     it('sets the passed stages and the best results from what the server holds', () => {
-      service.replace('k', { '1': { correct: 5, total: 5, passed: true }, '2': { correct: 3, total: 5, passed: false } });
+      service.replace('k', {
+        '1': {
+          correct: 5,
+          total: 5,
+          passed: true
+        },
+        '2': {
+          correct: 3,
+          total: 5,
+          passed: false
+        }
+      });
 
       expect(service.isPassed('k', 1)).toBeTrue();
       expect(service.isPassed('k', 2)).toBeFalse();
-      expect(service.best('k', 1)).toEqual({ correct: 5, total: 5 });
-      expect(service.best('k', 2)).toEqual({ correct: 3, total: 5 });
+      expect(service.best('k', 1)).toEqual({
+        correct: 5,
+        total: 5
+      });
+      expect(service.best('k', 2)).toEqual({
+        correct: 3,
+        total: 5
+      });
       expect(service.isUnlocked(quizWith([1, 2, 3]), 3)).toBeFalse();
       expect(new GestureProgressService().isPassed('k', 1)).toBeTrue();
     });
@@ -232,11 +298,20 @@ describe('GestureProgressService', () => {
       service.record('k', 1, 5, 5);
       service.record('k', 2, 5, 5);
 
-      service.replace('k', { '1': { correct: 2, total: 5, passed: false } });
+      service.replace('k', {
+        '1': {
+          correct: 2,
+          total: 5,
+          passed: false
+        }
+      });
 
       expect(service.isPassed('k', 1)).toBeFalse();
       expect(service.isPassed('k', 2)).toBeFalse();
-      expect(service.best('k', 1)).toEqual({ correct: 2, total: 5 });
+      expect(service.best('k', 1)).toEqual({
+        correct: 2,
+        total: 5
+      });
       expect(service.best('k', 2)).toBeNull();
     });
 
@@ -254,7 +329,13 @@ describe('GestureProgressService', () => {
       const other = new GestureProgressService();
       other.record('b', 1, 5, 5);
 
-      service.replace('a', { '1': { correct: 4, total: 5, passed: true } });
+      service.replace('a', {
+        '1': {
+          correct: 4,
+          total: 5,
+          passed: true
+        }
+      });
 
       const reopened = new GestureProgressService();
       expect(reopened.isPassed('a', 1)).toBeTrue();
@@ -263,11 +344,31 @@ describe('GestureProgressService', () => {
 
     it('leaves out what cannot be a result', () => {
       service.replace('k', {
-        '1': { correct: 4, total: 5, passed: true },
-        '9': { correct: 1, total: 1, passed: true },
-        x: { correct: 1, total: 1, passed: true },
-        '2': { correct: 6, total: 5, passed: true },
-        '3': { correct: -1, total: 5, passed: false },
+        '1': {
+          correct: 4,
+          total: 5,
+          passed: true
+        },
+        '9': {
+          correct: 1,
+          total: 1,
+          passed: true
+        },
+        x: {
+          correct: 1,
+          total: 1,
+          passed: true
+        },
+        '2': {
+          correct: 6,
+          total: 5,
+          passed: true
+        },
+        '3': {
+          correct: -1,
+          total: 5,
+          passed: false
+        },
       });
 
       expect(service.isPassed('k', 1)).toBeTrue();
@@ -275,13 +376,24 @@ describe('GestureProgressService', () => {
       expect(service.isPassed('k', 2)).toBeFalse();
       expect(service.best('k', 2)).toBeNull();
       expect(service.best('k', 3)).toBeNull();
-      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).k.best).toEqual({ 1: { correct: 4, total: 5 } });
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).k.best).toEqual({
+        1: {
+          correct: 4,
+          total: 5
+        }
+      });
     });
 
     it('shows a change through the same instance at once, even when the storage is blocked', () => {
       spyOn(Storage.prototype, 'setItem').and.throwError('blocked');
 
-      service.replace('k', { '1': { correct: 5, total: 5, passed: true } });
+      service.replace('k', {
+        '1': {
+          correct: 5,
+          total: 5,
+          passed: true
+        }
+      });
 
       expect(service.isPassed('k', 1)).toBeTrue();
     });

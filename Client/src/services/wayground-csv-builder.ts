@@ -3,12 +3,11 @@ import { Utils } from '../utils';
 import { QuestionDefinition } from '../models/question-definition';
 import { QuestionType } from '../models/question-type';
 import { CsvBuilderBase } from './csv-builder-base';
+
 @Injectable({
   providedIn: 'root',
 })
 export class WaygroundCsvBuilder extends CsvBuilderBase {
-  private separator = ',';
-
   protected override readonly CsvHeader = `Question Text,Question Type,Option 1,Option 2,Option 3,Option 4,Option 5,Correct Answer,Time in seconds,Image Link,Answer explanation
 "Text of the question
 
@@ -53,6 +52,7 @@ Leave blank for ""Open-Ended"", ""Poll"", ""Draw"" and ""Fill-in-the-Blank"".","
 
 
 "`;
+  private separator = ',';
 
   public buildFromRows(rows: QuestionDefinition[]) {
     let csvResult = this.CsvHeader;
@@ -65,8 +65,7 @@ Leave blank for ""Open-Ended"", ""Poll"", ""Draw"" and ""Fill-in-the-Blank"".","
             let cells = [row.question, this.resolveQuestionTypeLabel(row.questionType)];
             if (row.questionType === QuestionType.FillInTheBlank) {
               cells = cells.concat([row.answer, '', '', '', '', '', '', '', '']);
-            }
-            else {
+            } else {
               let answers = this.generateAnswers(row, possibleIncorrectAnswer);
               cells = cells.concat([...answers, '', (answers.indexOf(row.answer) + 1).toString(), '', '', '']);
             }

@@ -1,22 +1,22 @@
 <!-- While the request is out the dialog cannot be dismissed, or its answer would land in a closed dialog. -->
-<nz-modal [nzVisible]="open()" (nzVisibleChange)="open.set($event)" (nzOnCancel)="open.set(false)"
-          nzTitle="Giao bài cho học sinh" [nzFooter]="null" nzWidth="min(560px, 95vw)"
-          [nzClosable]="!sending()" [nzMaskClosable]="!sending()" [nzKeyboard]="!sending()">
+<nz-modal (nzOnCancel)="open.set(false)" (nzVisibleChange)="open.set($event)" [nzClosable]="!sending()"
+          [nzFooter]="null" [nzKeyboard]="!sending()" [nzMaskClosable]="!sending()"
+          [nzVisible]="open()" nzTitle="Giao bài cho học sinh" nzWidth="min(560px, 95vw)">
   <ng-container *nzModalContent>
     @if (assignment(); as made) {
       <p class="done-text">
-        <nz-icon nzType="check-circle" nzTheme="fill" class="done-icon"/>
+        <nz-icon class="done-icon" nzTheme="fill" nzType="check-circle"/>
         Đã giao bài! Gửi link hoặc cho học sinh quét mã QR để vào chơi, chỉ cần nhập tên.
       </p>
       <app-share-link [code]="made.code" [qrSize]="200"/>
       <div class="actions">
-        <button nz-button nzType="default" type="button" (click)="tryAssignment(made)">
-          <nz-icon nzType="eye" nzTheme="outline"/>
+        <button (click)="tryAssignment(made)" nz-button nzType="default" type="button">
+          <nz-icon nzTheme="outline" nzType="eye"/>
           Xem thử
         </button>
-        <button nz-button nzType="default" type="button" (click)="close()">Xong</button>
-        <button nz-button nzType="primary" type="button" (click)="showLeaderboard(made)">
-          <nz-icon nzType="trophy" nzTheme="outline"/>
+        <button (click)="close()" nz-button nzType="default" type="button">Xong</button>
+        <button (click)="showLeaderboard(made)" nz-button nzType="primary" type="button">
+          <nz-icon nzTheme="outline" nzType="trophy"/>
           Xem bảng xếp hạng
         </button>
       </div>
@@ -38,8 +38,8 @@
         <label class="field-label" for="assign-label">
           Lớp / nhóm <span class="muted">(không bắt buộc)</span>
         </label>
-        <input id="assign-label" nz-input placeholder="VD: Lớp 3A" [attr.maxlength]="maxLabelLength"
-               [ngModel]="label()" (ngModelChange)="label.set($event ?? '')" (keydown.enter)="submit()"/>
+        <input (keydown.enter)="submit()" (ngModelChange)="label.set($event ?? '')" [attr.maxlength]="maxLabelLength" [ngModel]="label()"
+               id="assign-label" nz-input placeholder="VD: Lớp 3A"/>
       </div>
 
       <div class="field">
@@ -49,42 +49,44 @@
 
       <div class="field">
         <span class="field-label" id="assign-time-mode">Thời gian mỗi câu</span>
-        <nz-radio-group class="radios" aria-labelledby="assign-time-mode" [ngModel]="timeMode()"
-                        (ngModelChange)="timeMode.set($event)">
+        <nz-radio-group (ngModelChange)="timeMode.set($event)" [ngModel]="timeMode()" aria-labelledby="assign-time-mode"
+                        class="radios">
           @for (mode of timeModes; track mode.value) {
-            <label nz-radio [nzValue]="mode.value">{{ mode.label }}</label>
+            <label [nzValue]="mode.value" nz-radio>{{ mode.label }}</label>
           }
         </nz-radio-group>
       </div>
 
       <div class="field">
         <span class="field-label" id="assign-stage-lock">Mở khóa các màn</span>
-        <nz-radio-group class="radios" aria-labelledby="assign-stage-lock" [ngModel]="stageLock()"
-                        (ngModelChange)="stageLock.set($event)">
+        <nz-radio-group (ngModelChange)="stageLock.set($event)" [ngModel]="stageLock()" aria-labelledby="assign-stage-lock"
+                        class="radios">
           @for (lock of stageLocks; track lock.value) {
-            <label nz-radio [nzValue]="lock.value">{{ lock.label }}</label>
+            <label [nzValue]="lock.value" nz-radio>{{ lock.label }}</label>
           }
         </nz-radio-group>
-        <p class="muted hint">Mở tất cả: học sinh chơi màn nào cũng được. Nếu không, mỗi màn chỉ mở sau khi đạt điểm qua màn của màn trước.</p>
+        <p class="muted hint">Mở tất cả: học sinh chơi màn nào cũng được. Nếu không, mỗi màn chỉ mở sau khi đạt điểm qua
+          màn của màn trước.</p>
       </div>
 
       @if (stageLock() === 'open') {
         <div class="field">
           <span class="field-label" id="assign-attempts">Giới hạn số lần chơi mỗi màn</span>
-          <div class="attempts-row" role="group" aria-labelledby="assign-attempts">
-            <nz-switch [ngModel]="limitAttempts()" (ngModelChange)="limitAttempts.set($event)"
+          <div aria-labelledby="assign-attempts" class="attempts-row" role="group">
+            <nz-switch (ngModelChange)="limitAttempts.set($event)" [ngModel]="limitAttempts()"
                        nzCheckedChildren="Giới hạn" nzUnCheckedChildren="Không"/>
             @if (limitAttempts()) {
-              <nz-input-number nzId="assign-attempts-count" [ngModel]="attemptsInput()"
-                               (ngModelChange)="attemptsInput.set($event)" [nzMin]="minAttemptsLimit"
-                               [nzMax]="maxAttemptsLimit" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
+              <nz-input-number (ngModelChange)="attemptsInput.set($event)" [ngModel]="attemptsInput()"
+                               [nzMax]="maxAttemptsLimit" [nzMin]="minAttemptsLimit"
+                               [nzPrecision]="0" [nzStep]="1" nzId="assign-attempts-count"></nz-input-number>
               <span class="muted">lần mỗi màn</span>
             } @else {
               <span class="muted">Không giới hạn</span>
             }
           </div>
           @if (limitAttempts()) {
-            <p class="muted hint">Học sinh chỉ được chơi mỗi màn tối đa {{ maxAttemptsSent() }} lần, tính cả lần đạt.</p>
+            <p class="muted hint">Học sinh chỉ được chơi mỗi màn tối đa {{ maxAttemptsSent() }} lần, tính cả lần
+              đạt.</p>
           }
         </div>
       }
@@ -92,31 +94,33 @@
       @if (passRows().length > 0) {
         <div class="field">
           <span class="field-label" id="assign-pass">Điểm qua màn</span>
-          <div class="pass-rows" role="group" aria-labelledby="assign-pass">
+          <div aria-labelledby="assign-pass" class="pass-rows" role="group">
             @for (row of passRows(); track row.stage) {
               <div class="pass-row">
-                <label class="pass-name" [for]="'assign-pass-' + row.stage">
+                <label [for]="'assign-pass-' + row.stage" class="pass-name">
                   {{ row.icon }} Màn {{ row.position }} <span class="muted">({{ row.name }})</span>
                 </label>
-                <nz-input-number [nzId]="'assign-pass-' + row.stage" [ngModel]="row.value"
-                                 (ngModelChange)="setPercent(row.stage, $event)" [nzMin]="minPercent"
-                                 [nzMax]="maxPercent" [nzStep]="5" [nzPrecision]="0"
-                                 [nzFormatter]="formatPercent" [nzParser]="parsePercent"
-                                 [nzPlaceHolder]="defaultPercent + '%'"></nz-input-number>
+                <nz-input-number (ngModelChange)="setPercent(row.stage, $event)" [ngModel]="row.value"
+                                 [nzFormatter]="formatPercent" [nzId]="'assign-pass-' + row.stage"
+                                 [nzMax]="maxPercent" [nzMin]="minPercent" [nzParser]="parsePercent"
+                                 [nzPlaceHolder]="defaultPercent + '%'" [nzPrecision]="0"
+                                 [nzStep]="5"></nz-input-number>
                 <span class="muted pass-need">cần đúng {{ row.mark }}/{{ row.count }} câu</span>
               </div>
             }
           </div>
-          <p class="muted hint">Học sinh phải đúng ít nhất chừng này phần trăm số câu của màn để qua màn ({{ minPercent }}–{{ maxPercent }}%, để trống là {{ defaultPercent }}%).</p>
+          <p class="muted hint">Học sinh phải đúng ít nhất chừng này phần trăm số câu của màn để qua màn
+            ({{ minPercent }}–{{ maxPercent }}%, để trống là {{ defaultPercent }}%).</p>
         </div>
       }
 
       <div class="field">
         <span class="field-label" id="assign-show-board">Học sinh xem bảng xếp hạng</span>
-        <div class="attempts-row" role="group" aria-labelledby="assign-show-board">
-          <nz-switch [ngModel]="showBoard()" (ngModelChange)="showBoard.set($event)"
+        <div aria-labelledby="assign-show-board" class="attempts-row" role="group">
+          <nz-switch (ngModelChange)="showBoard.set($event)" [ngModel]="showBoard()"
                      nzCheckedChildren="Bật" nzUnCheckedChildren="Tắt"/>
-          <span class="muted">{{ showBoard() ? 'Top 5 của lớp và hạng của mình' : 'Chỉ thầy cô xem bảng xếp hạng' }}</span>
+          <span
+            class="muted">{{ showBoard() ? 'Top 5 của lớp và hạng của mình' : 'Chỉ thầy cô xem bảng xếp hạng' }}</span>
         </div>
       </div>
 
@@ -125,13 +129,13 @@
       }
 
       <div class="actions">
-        <button nz-button nzType="default" type="button" [disabled]="questions() === 0" (click)="tryJob()">
-          <nz-icon nzType="eye" nzTheme="outline"/>
+        <button (click)="tryJob()" [disabled]="questions() === 0" nz-button nzType="default" type="button">
+          <nz-icon nzTheme="outline" nzType="eye"/>
           Xem thử
         </button>
-        <button nz-button nzType="primary" type="button" [nzLoading]="sending()" [disabled]="!canSubmit()"
-                (click)="submit()">
-          <nz-icon nzType="send" nzTheme="outline"/>
+        <button (click)="submit()" [disabled]="!canSubmit()" [nzLoading]="sending()" nz-button nzType="primary"
+                type="button">
+          <nz-icon nzTheme="outline" nzType="send"/>
           Giao bài
         </button>
       </div>

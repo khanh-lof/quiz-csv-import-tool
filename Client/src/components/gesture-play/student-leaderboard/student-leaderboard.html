@@ -1,7 +1,7 @@
 @if (board(); as current) {
-  <section class="board" aria-labelledby="student-board-title">
+  <section aria-labelledby="student-board-title" class="board">
     <header class="head">
-      <h2 id="student-board-title" class="title"><span aria-hidden="true">🏆</span> Bảng xếp hạng</h2>
+      <h2 class="title" id="student-board-title"><span aria-hidden="true">🏆</span> Bảng xếp hạng</h2>
       <app-marquee-pause-button [compact]="true"/>
     </header>
 
@@ -11,11 +11,12 @@
       <ol class="rows">
         @for (row of rows(); track $index) {
           @if (row.gapBefore) {
-            <li class="gap" aria-hidden="true">⋯</li>
+            <li aria-hidden="true" class="gap">⋯</li>
           }
-          <li class="row" [class.is-you]="row.you">
+          <li [class.is-you]="row.you" class="row">
             @if (isMedal(row.entry.rank)) {
-              <span class="rank" role="img" [attr.aria-label]="'Hạng ' + row.entry.rank">{{ badge(row.entry.rank) }}</span>
+              <span [attr.aria-label]="'Hạng ' + row.entry.rank" class="rank"
+                    role="img">{{ badge(row.entry.rank) }}</span>
             } @else {
               <span class="rank">{{ badge(row.entry.rank) }}</span>
             }
@@ -28,7 +29,8 @@
                 }
               </span>
               <span class="score">
-                {{ row.entry.stagesPassed }}/{{ current.stageCount }} màn · {{ row.entry.correct }}/{{ current.possible }} câu
+                {{ row.entry.stagesPassed }}/{{ current.stageCount }} màn · {{ row.entry.correct }}
+                /{{ current.possible }} câu
               </span>
             </span>
           </li>

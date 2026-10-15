@@ -12,12 +12,12 @@
 
   <div class="field">
     <label class="field-label" for="player-name">Tên của bạn</label>
-    <input #nameInput nz-input id="player-name" name="name" maxlength="40" autocomplete="off" autofocus
-           [class.ant-input-status-error]="!!error()" [attr.aria-invalid]="!!error()"
-           [attr.aria-describedby]="error() ? 'player-name-error' : null"
-           [ngModel]="name()" (ngModelChange)="name.set($event ?? '')" (keydown.enter)="onEnter($event)"/>
+    <input #nameInput (keydown.enter)="onEnter($event)" (ngModelChange)="name.set($event ?? '')" [attr.aria-describedby]="error() ? 'player-name-error' : null" [attr.aria-invalid]="!!error()" [class.ant-input-status-error]="!!error()" [ngModel]="name()"
+           autocomplete="off" autofocus
+           id="player-name"
+           maxlength="40" name="name" nz-input/>
     @if (error()) {
-      <p id="player-name-error" class="error text-error" role="alert">{{ error() }}</p>
+      <p class="error text-error" id="player-name-error" role="alert">{{ error() }}</p>
     }
   </div>
 
@@ -26,8 +26,8 @@
     <app-avatar-picker [(value)]="avatar"/>
   </div>
 
-  <button nz-button nzType="primary" nzSize="large" type="button" class="join-button"
-          [disabled]="trimmed() === '' || busy()" [nzLoading]="busy()" (click)="submit()">
+  <button (click)="submit()" [disabled]="trimmed() === '' || busy()" [nzLoading]="busy()" class="join-button" nz-button
+          nzSize="large" nzType="primary" type="button">
     Vào chơi
   </button>
 </section>

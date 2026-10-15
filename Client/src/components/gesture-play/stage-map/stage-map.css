@@ -74,9 +74,8 @@
 
 .stage-card:not(:disabled):hover,
 .stage-card:not(:disabled):focus-visible {
-  box-shadow:
-    0 0 0 4px color-mix(in srgb, var(--g-frame) 35%, transparent),
-    0 12px 28px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--g-frame) 35%, transparent),
+  0 12px 28px rgba(0, 0, 0, 0.2);
   transform: translateY(-3px);
   outline: none;
 }

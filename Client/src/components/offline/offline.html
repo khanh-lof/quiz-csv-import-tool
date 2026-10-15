@@ -1,33 +1,33 @@
 <div class="qt-centered-page">
   <div class="offline-card-wrapper">
-    <nz-card nzTitle="Quiz Tool - Mất kết nối" class="offline-card">
+    <nz-card class="offline-card" nzTitle="Quiz Tool - Mất kết nối">
       <div class="offline-content">
         <!-- Offline SVG Illustration -->
         <div class="illustration-container">
-          <svg class="offline-illustration" viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg class="offline-illustration" fill="none" viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#ffb7d4" />
-                <stop offset="50%" stop-color="#ff8ecb" />
-                <stop offset="100%" stop-color="#8fb0ff" />
+              <linearGradient id="cloudGrad" x1="0%" x2="100%" y1="0%" y2="100%">
+                <stop offset="0%" stop-color="#ffb7d4"/>
+                <stop offset="50%" stop-color="#ff8ecb"/>
+                <stop offset="100%" stop-color="#8fb0ff"/>
               </linearGradient>
-              <linearGradient id="slashGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#ff4d6d" />
-                <stop offset="100%" stop-color="#ff758c" />
+              <linearGradient id="slashGrad" x1="0%" x2="100%" y1="0%" y2="100%">
+                <stop offset="0%" stop-color="#ff4d6d"/>
+                <stop offset="100%" stop-color="#ff758c"/>
               </linearGradient>
-              <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#ff8ecb" flood-opacity="0.3" />
+              <filter height="140%" id="softGlow" width="140%" x="-20%" y="-20%">
+                <feDropShadow dx="0" dy="4" flood-color="#ff8ecb" flood-opacity="0.3" stdDeviation="6"/>
               </filter>
             </defs>
 
             <!-- Decorative background particles -->
-            <circle cx="35" cy="40" r="4" fill="#ffb7d4" class="floating-particle p1" opacity="0.7"/>
-            <circle cx="165" cy="35" r="5" fill="#8fb0ff" class="floating-particle p2" opacity="0.7"/>
-            <circle cx="175" cy="95" r="3" fill="#ff8ecb" class="floating-particle p3" opacity="0.6"/>
-            <circle cx="25" cy="105" r="4" fill="#b7cfff" class="floating-particle p4" opacity="0.6"/>
+            <circle class="floating-particle p1" cx="35" cy="40" fill="#ffb7d4" opacity="0.7" r="4"/>
+            <circle class="floating-particle p2" cx="165" cy="35" fill="#8fb0ff" opacity="0.7" r="5"/>
+            <circle class="floating-particle p3" cx="175" cy="95" fill="#ff8ecb" opacity="0.6" r="3"/>
+            <circle class="floating-particle p4" cx="25" cy="105" fill="#b7cfff" opacity="0.6" r="4"/>
 
             <!-- Cloud shape -->
-            <g filter="url(#softGlow)" class="cloud-group">
+            <g class="cloud-group" filter="url(#softGlow)">
               <path
                 d="M145 110H60C46.19 110 35 98.81 35 85C35 72.16 44.66 61.6 57.17 60.19C61.42 45.74 74.68 35 90.5 35C108.27 35 122.95 48.24 125.46 65.5C126.96 65.17 128.46 65 130 65C143.81 65 155 76.19 155 90C155 101.05 147.8 110 145 110Z"
                 fill="url(#cloudGrad)"
@@ -37,13 +37,16 @@
             <!-- Disconnected Wifi Signal / Slash -->
             <g class="wifi-disconnected">
               <!-- Inner wifi arcs -->
-              <path d="M78 82C84 76 96 76 102 82" stroke="white" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.9"/>
-              <path d="M68 72C79 62 101 62 112 72" stroke="white" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.9"/>
-              <circle cx="90" cy="92" r="3.5" fill="white" />
+              <path d="M78 82C84 76 96 76 102 82" fill="none" opacity="0.9" stroke="white" stroke-linecap="round"
+                    stroke-width="3.5"/>
+              <path d="M68 72C79 62 101 62 112 72" fill="none" opacity="0.9" stroke="white" stroke-linecap="round"
+                    stroke-width="3.5"/>
+              <circle cx="90" cy="92" fill="white" r="3.5"/>
 
               <!-- Disconnection slash -->
-              <line x1="60" y1="115" x2="120" y2="55" stroke="url(#slashGrad)" stroke-width="4.5" stroke-linecap="round"/>
-              <line x1="60" y1="115" x2="120" y2="55" stroke="white" stroke-width="2" stroke-linecap="round"/>
+              <line stroke="url(#slashGrad)" stroke-linecap="round" stroke-width="4.5" x1="60" x2="120" y1="115"
+                    y2="55"/>
+              <line stroke="white" stroke-linecap="round" stroke-width="2" x1="60" x2="120" y1="115" y2="55"/>
             </g>
           </svg>
         </div>
@@ -66,23 +69,23 @@
         <!-- Actions -->
         <div class="offline-actions">
           <button
-            nz-button
-            nzType="primary"
-            nzSize="large"
-            [nzLoading]="isChecking"
             (click)="onRetry()"
+            [nzLoading]="isChecking"
+            nz-button
+            nzSize="large"
+            nzType="primary"
           >
-            <nz-icon nzType="reload" nzTheme="outline" />
+            <nz-icon nzTheme="outline" nzType="reload"/>
             Thử kết nối lại
           </button>
 
           <button
-            nz-button
-            nzType="default"
-            nzSize="large"
             (click)="onGoHome()"
+            nz-button
+            nzSize="large"
+            nzType="default"
           >
-            <nz-icon nzType="home" nzTheme="outline" />
+            <nz-icon nzTheme="outline" nzType="home"/>
             Về trang chủ
           </button>
         </div>

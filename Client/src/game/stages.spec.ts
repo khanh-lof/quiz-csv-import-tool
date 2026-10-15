@@ -1,4 +1,12 @@
-import { DEFAULT_PASS_PERCENT, MAX_PASS_PERCENT, MIN_PASS_PERCENT, passMark, STAGES, stageDef, stagePosition } from './stages';
+import {
+  DEFAULT_PASS_PERCENT,
+  MAX_PASS_PERCENT,
+  MIN_PASS_PERCENT,
+  passMark,
+  stageDef,
+  stagePosition,
+  STAGES
+} from './stages';
 
 describe('stagePosition', () => {
   it('is the stage number itself when the quiz has all six stages', () => {

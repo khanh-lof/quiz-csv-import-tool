@@ -1,16 +1,16 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   Assignment,
-  assignmentErrorMessage,
   AssignmentDetail,
+  assignmentErrorMessage,
   assignmentStatusText,
   attemptsLeft,
   DEFAULT_ATTEMPTS_LIMIT,
   formatClose,
   formatStamp,
   isOpenAt,
-  LeaderboardEntry,
   leaderboardCsv,
+  LeaderboardEntry,
   MAX_ATTEMPTS_LIMIT,
   MIN_ATTEMPTS_LIMIT,
   passPercentOf,
@@ -27,23 +27,72 @@ function local(y: number, mo: number, d: number, h = 0, mi = 0): string {
 
 function assignment(overrides: Partial<Assignment> = {}): Assignment {
   return {
-    id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: '', timeMode: 'standard', stageLock: 'sequential',
-    passPercents: {'1': 70, '2': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5, '2': 5}, timeLimits: {'1': 12, '2': 12}, createdAt: local(2026, 10, 14, 8), closesAt: null, closedAt: null,
-    open: true, playerCount: 0, ...overrides,
+    id: 'a1',
+    code: 'K7M2X9QD4P',
+    jobId: 'job-1',
+    title: 'HSK1 bài 1',
+    label: '',
+    timeMode: 'standard',
+    stageLock: 'sequential',
+    passPercents: {
+      '1': 70,
+      '2': 70
+    },
+    maxAttempts: null,
+    showBoard: true,
+    stageCounts: {
+      '1': 5,
+      '2': 5
+    },
+    timeLimits: {
+      '1': 12,
+      '2': 12
+    },
+    createdAt: local(2026, 10, 14, 8),
+    closesAt: null,
+    closedAt: null,
+    open: true,
+    playerCount: 0, ...overrides,
   };
 }
 
 function player(overrides: Partial<LeaderboardEntry> = {}): LeaderboardEntry {
   return {
-    id: 'p1', name: 'Lan', avatar: 'cat', rank: 1, stagesPassed: 1, correct: 9, possible: 10, attempts: 2,
-    stages: {'1': {correct: 5, total: 5, passed: true, attempts: 1}, '2': {correct: 4, total: 5, passed: false, attempts: 1}},
-    joinedAt: local(2026, 10, 14, 8, 1), lastPlayedAt: local(2026, 10, 14, 8, 5), reachedAt: local(2026, 10, 14, 8, 5),
+    id: 'p1',
+    name: 'Lan',
+    avatar: 'cat',
+    rank: 1,
+    stagesPassed: 1,
+    correct: 9,
+    possible: 10,
+    attempts: 2,
+    stages: {
+      '1': {
+        correct: 5,
+        total: 5,
+        passed: true,
+        attempts: 1
+      },
+      '2': {
+        correct: 4,
+        total: 5,
+        passed: false,
+        attempts: 1
+      }
+    },
+    joinedAt: local(2026, 10, 14, 8, 1),
+    lastPlayedAt: local(2026, 10, 14, 8, 5),
+    reachedAt: local(2026, 10, 14, 8, 5),
     ...overrides,
   };
 }
 
 function detail(players: LeaderboardEntry[], overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
-  return {...assignment(), csv: '', players, ...overrides};
+  return {
+    ...assignment(),
+    csv: '',
+    players, ...overrides
+  };
 }
 
 describe('shareUrl', () => {
@@ -58,18 +107,36 @@ describe('shareUrl', () => {
 
 describe('placeholderQuiz', () => {
   it('holds as many blank questions in each stage as the counts say, in stage order', () => {
-    const quiz = placeholderQuiz('HSK1 bài 1', 'asg:K7M2X9QD4P', {'6': 3, '1': 5, '4': 10});
+    const quiz = placeholderQuiz('HSK1 bài 1', 'asg:K7M2X9QD4P', {
+      '6': 3,
+      '1': 5,
+      '4': 10
+    });
 
     expect([...quiz.stages.keys()]).toEqual([1, 4, 6]);
     expect([...quiz.stages.values()].map(questions => questions.length)).toEqual([5, 10, 3]);
-    expect(quiz.stages.get(4)![0]).toEqual({stage: 4, question: '', correct: '', wrong: [], explanation: ''});
+    expect(quiz.stages.get(4)![0]).toEqual({
+      stage: 4,
+      question: '',
+      correct: '',
+      wrong: [],
+      explanation: ''
+    });
     expect(quiz.title).toBe('HSK1 bài 1');
     expect(quiz.key).toBe('asg:K7M2X9QD4P');
     expect(quiz.skipped).toBe(0);
   });
 
   it('leaves out what is not a stage or has no whole positive count', () => {
-    const quiz = placeholderQuiz('Quiz', 'k', {'0': 5, '2': 0, '3': -1, '4': 2.5, '5': 4, '7': 5, x: 5});
+    const quiz = placeholderQuiz('Quiz', 'k', {
+      '0': 5,
+      '2': 0,
+      '3': -1,
+      '4': 2.5,
+      '5': 4,
+      '7': 5,
+      x: 5
+    });
 
     expect([...quiz.stages.keys()]).toEqual([5]);
   });
@@ -87,20 +154,29 @@ describe('isOpenAt', () => {
   });
 
   it('is open before the closing time and closed from it on', () => {
-    const a = assignment({closesAt: local(2026, 10, 14, 12, 30)});
+    const a = assignment({ closesAt: local(2026, 10, 14, 12, 30) });
     expect(isOpenAt(a, now)).toBeTrue();
     expect(isOpenAt(a, new Date(2026, 9, 14, 12, 30))).toBeFalse();
     expect(isOpenAt(a, new Date(2026, 9, 14, 13, 0))).toBeFalse();
   });
 
   it('is closed once closed by hand, whatever the closing time says', () => {
-    expect(isOpenAt(assignment({closedAt: local(2026, 10, 14, 11)}), now)).toBeFalse();
-    expect(isOpenAt(assignment({closedAt: local(2026, 10, 14, 11), closesAt: local(2026, 10, 15, 11)}), now)).toBeFalse();
+    expect(isOpenAt(assignment({ closedAt: local(2026, 10, 14, 11) }), now)).toBeFalse();
+    expect(isOpenAt(assignment({
+      closedAt: local(2026, 10, 14, 11),
+      closesAt: local(2026, 10, 15, 11)
+    }), now)).toBeFalse();
   });
 
   it('goes by the clock, not by the stale open flag', () => {
-    expect(isOpenAt(assignment({open: true, closesAt: local(2026, 10, 14, 9)}), now)).toBeFalse();
-    expect(isOpenAt(assignment({open: false, closesAt: local(2026, 10, 14, 15)}), now)).toBeTrue();
+    expect(isOpenAt(assignment({
+      open: true,
+      closesAt: local(2026, 10, 14, 9)
+    }), now)).toBeFalse();
+    expect(isOpenAt(assignment({
+      open: false,
+      closesAt: local(2026, 10, 14, 15)
+    }), now)).toBeTrue();
   });
 });
 
@@ -122,12 +198,12 @@ describe('assignmentStatusText', () => {
   const now = new Date(2026, 9, 14, 12, 0);
 
   it('says closed for a closed assignment', () => {
-    expect(assignmentStatusText(assignment({closedAt: local(2026, 10, 14, 11)}), now)).toBe('Đã đóng');
-    expect(assignmentStatusText(assignment({closesAt: local(2026, 10, 14, 11)}), now)).toBe('Đã đóng');
+    expect(assignmentStatusText(assignment({ closedAt: local(2026, 10, 14, 11) }), now)).toBe('Đã đóng');
+    expect(assignmentStatusText(assignment({ closesAt: local(2026, 10, 14, 11) }), now)).toBe('Đã đóng');
   });
 
   it('gives the closing time of an open assignment that has one', () => {
-    expect(assignmentStatusText(assignment({closesAt: local(2026, 10, 14, 21, 30)}), now))
+    expect(assignmentStatusText(assignment({ closesAt: local(2026, 10, 14, 21, 30) }), now))
       .toBe('Đang mở · đóng lúc 21:30 14/10');
   });
 
@@ -157,7 +233,11 @@ describe('leaderboardCsv', () => {
   }
 
   it('has no avatar column, whatever avatars the students picked', () => {
-    const csv = leaderboardCsv(detail([player({avatar: 'dragon'}), player({id: 'p2', name: 'Minh', avatar: ''})]));
+    const csv = leaderboardCsv(detail([player({ avatar: 'dragon' }), player({
+      id: 'p2',
+      name: 'Minh',
+      avatar: ''
+    })]));
     const [header, first, second] = lines(csv);
     expect(header).toBe('Hạng,Tên,Màn đã qua,Câu đúng,Màn 1 (Đúng hay sai),Màn 2 (Nghiêng đầu),Lần chơi,Cập nhật');
     expect(first).toBe('1,Lan,1/2,9/10,5/5 ✓,4/5,2,14/10/2026 08:05');
@@ -173,14 +253,34 @@ describe('leaderboardCsv', () => {
   });
 
   it('has a column per stage of the assignment, in order, headed with its position and its game', () => {
-    const csv = leaderboardCsv(detail([], {stageCounts: {'4': 5, '1': 5, '6': 10}}));
+    const csv = leaderboardCsv(detail([], {
+      stageCounts: {
+        '4': 5,
+        '1': 5,
+        '6': 10
+      }
+    }));
     expect(lines(csv)[0]).toBe(
       'Hạng,Tên,Màn đã qua,Câu đúng,Màn 1 (Đúng hay sai),Màn 2 (Chém hoa quả),Màn 3 (Xếp câu),Lần chơi,Cập nhật');
   });
 
   it('numbers the stage columns by position, not by stage number', () => {
-    const csv = leaderboardCsv(detail([player({stages: {'6': {correct: 4, total: 5, passed: true, attempts: 1}}})],
-      {stageCounts: {'4': 5, '6': 5}}));
+    const csv = leaderboardCsv(detail([player({
+        stages: {
+          '6': {
+            correct: 4,
+            total: 5,
+            passed: true,
+            attempts: 1
+          }
+        }
+      })],
+      {
+        stageCounts: {
+          '4': 5,
+          '6': 5
+        }
+      }));
     const [header, row] = lines(csv);
     expect(header).toBe('Hạng,Tên,Màn đã qua,Câu đúng,Màn 1 (Chém hoa quả),Màn 2 (Xếp câu),Lần chơi,Cập nhật');
     // Stage 4 has no result, stage 6 is the second column.
@@ -189,8 +289,19 @@ describe('leaderboardCsv', () => {
 
   it('writes one row per student, in the order given', () => {
     const csv = leaderboardCsv(detail([
-      player({id: 'a', name: 'Lan', rank: 1}),
-      player({id: 'b', name: 'Minh', rank: 2, stagesPassed: 0, correct: 3, attempts: 1}),
+      player({
+        id: 'a',
+        name: 'Lan',
+        rank: 1
+      }),
+      player({
+        id: 'b',
+        name: 'Minh',
+        rank: 2,
+        stagesPassed: 0,
+        correct: 3,
+        attempts: 1
+      }),
     ]));
     const rows = lines(csv);
     expect(rows[0]).toBe('Hạng,Tên,Màn đã qua,Câu đúng,Màn 1 (Đúng hay sai),Màn 2 (Nghiêng đầu),Lần chơi,Cập nhật');
@@ -202,23 +313,42 @@ describe('leaderboardCsv', () => {
 
   it('leaves the rank, the stages and the time empty for a student who has not played', () => {
     const csv = leaderboardCsv(detail([
-      player({name: 'Bảo', rank: null, stagesPassed: 0, correct: 0, attempts: 0, stages: {}, lastPlayedAt: null, reachedAt: null}),
+      player({
+        name: 'Bảo',
+        rank: null,
+        stagesPassed: 0,
+        correct: 0,
+        attempts: 0,
+        stages: {},
+        lastPlayedAt: null,
+        reachedAt: null
+      }),
     ]));
     expect(lines(csv)[1]).toBe(',Bảo,0/2,0/10,,,0,');
   });
 
   it('counts the stages the assignment has, not six', () => {
-    const csv = leaderboardCsv(detail([player({stagesPassed: 3, correct: 40, possible: 45})], {stageCounts: {'1': 5, '3': 10, '5': 30}}));
+    const csv = leaderboardCsv(detail([player({
+      stagesPassed: 3,
+      correct: 40,
+      possible: 45
+    })], {
+      stageCounts: {
+        '1': 5,
+        '3': 10,
+        '5': 30
+      }
+    }));
     expectStart(lines(csv)[1], '1,Lan,3/3,40/45,');
   });
 
   it('quotes fields that contain a comma, a quote or a line break', () => {
-    const csv = leaderboardCsv(detail([player({name: 'Lan, "Bé"\nNhỏ'})]));
+    const csv = leaderboardCsv(detail([player({ name: 'Lan, "Bé"\nNhỏ' })]));
     expect(csv).toContain('1,"Lan, ""Bé""\nNhỏ",1/2');
   });
 
   it('keeps a name that starts like a formula from running in a spreadsheet', () => {
-    const csv = leaderboardCsv(detail([player({name: '=HYPERLINK("http://x")'}), player({name: '-Lan'}), player({name: 'Lan-2'})]));
+    const csv = leaderboardCsv(detail([player({ name: '=HYPERLINK("http://x")' }), player({ name: '-Lan' }), player({ name: 'Lan-2' })]));
     const rows = lines(csv);
     expectStart(rows[1], `1,"'=HYPERLINK(""http://x"")",`);
     expectStart(rows[2], `1,'-Lan,`);
@@ -228,12 +358,18 @@ describe('leaderboardCsv', () => {
 
 describe('passPercentOf', () => {
   it('gives the percentage stored for the stage', () => {
-    expect(passPercentOf({'1': 50, '2': 90}, 1)).toBe(50);
-    expect(passPercentOf({'1': 50, '2': 90}, 2)).toBe(90);
+    expect(passPercentOf({
+      '1': 50,
+      '2': 90
+    }, 1)).toBe(50);
+    expect(passPercentOf({
+      '1': 50,
+      '2': 90
+    }, 2)).toBe(90);
   });
 
   it('falls back to 70 for a stage the map lacks, or when there is no map', () => {
-    expect(passPercentOf({'1': 50}, 3)).toBe(70);
+    expect(passPercentOf({ '1': 50 }, 3)).toBe(70);
     expect(passPercentOf(null, 1)).toBe(70);
     expect(passPercentOf(undefined, 6)).toBe(70);
   });
@@ -262,7 +398,10 @@ describe('attemptsLeft', () => {
 });
 
 describe('assignmentErrorMessage', () => {
-  const failure = (status: number, error: unknown = '') => new HttpErrorResponse({status, error});
+  const failure = (status: number, error: unknown = '') => new HttpErrorResponse({
+    status,
+    error
+  });
 
   it('turns the plain-text answers of the server into advice', () => {
     expect(assignmentErrorMessage(failure(409, 'Too many assignments.'))).toContain('100 bài giao');

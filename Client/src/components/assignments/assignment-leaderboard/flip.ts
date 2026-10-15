@@ -51,21 +51,27 @@ export function playFlip(container: HTMLElement, before: ReadonlyMap<string, DOM
     }
     const shift = old.top - row.getBoundingClientRect().top;
     if (Math.abs(shift) >= 1) {
-      moving.push({row, shift});
+      moving.push({
+        row,
+        shift
+      });
     }
   }
   if (moving.length === 0) {
     return;
   }
 
-  for (const {row, shift} of moving) {
+  for (const {
+    row,
+    shift
+  } of moving) {
     row.style.transition = 'none';
     row.style.transform = `translateY(${shift}px)`;
   }
   // Forces the layout, so the transition starts from the offset and not from the final place.
   container.getBoundingClientRect();
 
-  for (const {row} of moving) {
+  for (const { row } of moving) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const finish = () => {
       clearTimeout(timer);

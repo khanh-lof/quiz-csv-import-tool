@@ -13,7 +13,11 @@ export interface GestureSettings {
   useCamera: boolean;
 }
 
-const DEFAULTS: GestureSettings = { timeMode: 'standard', sound: true, useCamera: false };
+const DEFAULTS: GestureSettings = {
+  timeMode: 'standard',
+  sound: true,
+  useCamera: false
+};
 
 const TIME_MODES: TimeMode[] = ['standard', 'extra', 'unlimited'];
 
@@ -36,14 +40,21 @@ export function parseSettings(raw: string | null): GestureSettings {
 // the shared GameAudio here, so the stage map's switch and the game's button stay one setting.
 @Injectable({ providedIn: 'root' })
 export class GestureSettingsService {
-  private readonly audio = inject(GameAudio);
-
   readonly settings = signal<GestureSettings>(GestureSettingsService.load());
+  private readonly audio = inject(GameAudio);
 
   constructor() {
     // The sound is on until the player turns it off, so only an "off" has to be passed on.
     if (!this.settings().sound) {
       this.audio.setMuted(true);
+    }
+  }
+
+  private static load(): GestureSettings {
+    try {
+      return parseSettings(localStorage.getItem(STORAGE_KEY));
+    } catch {
+      return { ...DEFAULTS };
     }
   }
 
@@ -57,14 +68,6 @@ export class GestureSettingsService {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {
       // Storage blocked or full: the choice then lasts until the page is closed.
-    }
-  }
-
-  private static load(): GestureSettings {
-    try {
-      return parseSettings(localStorage.getItem(STORAGE_KEY));
-    } catch {
-      return { ...DEFAULTS };
     }
   }
 }

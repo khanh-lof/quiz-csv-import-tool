@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit } from '@angular/core';
 
 import { Router } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -15,18 +15,17 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
     NzButtonModule,
     NzCardModule,
     NzIconDirective
-],
+  ],
   templateUrl: './offline.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './offline.css'
 })
 export class OfflineComponent implements OnInit {
+  isChecking = false;
   protected readonly onlineStatusService = inject(OnlineStatusService);
   private readonly router = inject(Router);
   private readonly notificationService = inject(NzNotificationService);
   private readonly destroyRef = inject(DestroyRef);
-
-  isChecking = false;
 
   ngOnInit(): void {
     this.onlineStatusService.isOnline$

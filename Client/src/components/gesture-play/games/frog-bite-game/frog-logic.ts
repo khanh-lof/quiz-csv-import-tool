@@ -1,7 +1,7 @@
 import { BiteDetector } from '../../../../game/gestures';
 import type { FaceFrame } from '../../../../game/stage-game';
-import { faceProblemMessage, readFacePose } from '../head-tilt-game/face-common';
 import type { FacePose } from '../head-tilt-game/face-common';
+import { faceProblemMessage, readFacePose } from '../head-tilt-game/face-common';
 
 // The frog sits in one of three lanes, left to right on the screen; a lane's index is also the index
 // of its option.
@@ -70,7 +70,11 @@ export class LaneTracker {
       this.lane = next;
       this.since = now;
     }
-    return { lane: this.lane, changed, stableMs: now - this.since };
+    return {
+      lane: this.lane,
+      changed,
+      stableMs: now - this.since
+    };
   }
 
   // Back to the middle lane with nothing remembered, for when the head is lost.
@@ -106,7 +110,10 @@ export interface FrogStep {
 // of the jaw is the bite, and a bite only counts in a lane the frog has held for a moment.
 export class FrogReader {
   private readonly lanes = new LaneTracker();
-  private readonly bites = new BiteDetector({ open: BITE_OPEN, close: BITE_CLOSE });
+  private readonly bites = new BiteDetector({
+    open: BITE_OPEN,
+    close: BITE_CLOSE
+  });
   private waitingForClosedMouth = true;
   // A bite has answered this question; only `newQuestion` allows another.
   private answered = false;

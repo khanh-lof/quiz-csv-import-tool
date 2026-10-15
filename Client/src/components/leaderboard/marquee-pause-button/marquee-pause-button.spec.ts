@@ -12,7 +12,7 @@ describe('MarqueePauseButton', () => {
 
   beforeEach(async () => {
     localStorage.removeItem(KEY);
-    await TestBed.configureTestingModule({imports: [MarqueePauseButton]}).compileComponents();
+    await TestBed.configureTestingModule({ imports: [MarqueePauseButton] }).compileComponents();
     settings = TestBed.inject(MarqueeSettings);
     fixture = TestBed.createComponent(MarqueePauseButton);
     fixture.detectChanges();

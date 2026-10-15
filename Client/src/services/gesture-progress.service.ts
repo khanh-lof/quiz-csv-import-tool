@@ -30,7 +30,10 @@ function sanitizeQuiz(value: unknown): QuizProgress | null {
   if (typeof value !== 'object' || value === null) {
     return null;
   }
-  const { passed, best } = value as { passed?: unknown; best?: unknown };
+  const {
+    passed,
+    best
+  } = value as { passed?: unknown; best?: unknown };
   const stages = new Set(STAGES.map(def => def.stage));
   const progress: QuizProgress = {
     passed: Array.isArray(passed)
@@ -40,9 +43,15 @@ function sanitizeQuiz(value: unknown): QuizProgress | null {
   };
   if (typeof best === 'object' && best !== null) {
     for (const [stage, entry] of Object.entries(best)) {
-      const { correct, total } = (entry ?? {}) as { correct?: unknown; total?: unknown };
+      const {
+        correct,
+        total
+      } = (entry ?? {}) as { correct?: unknown; total?: unknown };
       if (stages.has(Number(stage)) && isWholeNumber(correct) && isWholeNumber(total) && correct <= total) {
-        progress.best[Number(stage)] = { correct, total };
+        progress.best[Number(stage)] = {
+          correct,
+          total
+        };
       }
     }
   }
@@ -107,13 +116,19 @@ export class GestureProgressService {
     const passed = correct >= passMark(total, percent);
     // Read again before writing, so a second tab's progress is not overwritten by this tab's older copy.
     const store = loadStore();
-    const progress = store[key] ?? { passed: [], best: {} };
+    const progress = store[key] ?? {
+      passed: [],
+      best: {}
+    };
     if (passed && !progress.passed.includes(stage)) {
       progress.passed.push(stage);
     }
     const previous = progress.best[stage];
     if (!previous || correct * previous.total > previous.correct * total) {
-      progress.best[stage] = { correct, total };
+      progress.best[stage] = {
+        correct,
+        total
+      };
     }
     store[key] = progress;
     saveStore(store);
@@ -132,7 +147,10 @@ export class GestureProgressService {
     // A pass only counts with a best result beside it that is valid.
     const best = sanitizeQuiz({
       passed: [],
-      best: Object.fromEntries(entries.map(([stage, result]) => [stage, { correct: result?.correct, total: result?.total }])),
+      best: Object.fromEntries(entries.map(([stage, result]) => [stage, {
+        correct: result?.correct,
+        total: result?.total
+      }])),
     })?.best ?? {};
     const progress: QuizProgress = {
       passed: entries

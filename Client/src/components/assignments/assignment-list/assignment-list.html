@@ -1,19 +1,19 @@
-<nz-card nzTitle="Bài đã giao" [nzExtra]="refreshTemplate">
+<nz-card [nzExtra]="refreshTemplate" nzTitle="Bài đã giao">
   @if (assignments().length > 0) {
     <p class="help">{{ helpText }}</p>
   }
 
-  <nz-table #listTable nzSize="small" class="list-table" [nzData]="assignments()" [nzLoading]="loading()"
-            [nzPageSize]="pageSize" [nzShowPagination]="assignments().length > pageSize"
-            [nzScroll]="{ x: '720px' }" [nzNoResult]="emptyTemplate">
+  <nz-table #listTable [nzData]="assignments()" [nzLoading]="loading()" [nzNoResult]="emptyTemplate" [nzPageSize]="pageSize"
+            [nzScroll]="{ x: '720px' }" [nzShowPagination]="assignments().length > pageSize"
+            class="list-table" nzSize="small">
     <thead>
-      <tr>
-        <th>Bài</th>
-        <th>Trạng thái</th>
-        <th>Học sinh</th>
-        <th>Lúc giao</th>
-        <th nzWidth="40px"></th>
-      </tr>
+    <tr>
+      <th>Bài</th>
+      <th>Trạng thái</th>
+      <th>Học sinh</th>
+      <th>Lúc giao</th>
+      <th nzWidth="40px"></th>
+    </tr>
     </thead>
     <tbody>
       @for (assignment of listTable.data; track assignment.id) {
@@ -30,33 +30,39 @@
           <td>{{ assignment.playerCount }}</td>
           <td>{{ assignment.createdAt | date:'dd/MM HH:mm' }}</td>
           <td class="assignment-actions">
-            <button nz-button nzType="text" nzSize="small" type="button" aria-label="Thao tác" title="Thao tác"
-                    nz-dropdown [nzDropdownMenu]="assignmentMenu" nzTrigger="click" nzPlacement="bottomRight">
-              <nz-icon nzType="control" nzTheme="twotone" nzTwotoneColor="#ff8ecb"/>
+            <button [nzDropdownMenu]="assignmentMenu" aria-label="Thao tác" nz-button nz-dropdown nzPlacement="bottomRight" nzSize="small"
+                    nzTrigger="click" nzType="text" title="Thao tác" type="button">
+              <nz-icon nzTheme="twotone" nzTwotoneColor="#ff8ecb" nzType="control"/>
             </button>
             <nz-dropdown-menu #assignmentMenu="nzDropdownMenu">
-              <ul nz-menu class="action-menu">
-                <li nz-menu-item [routerLink]="['/assignments', assignment.id]">
-                  <nz-icon nzType="trophy" nzTheme="outline"/> Bảng xếp hạng
+              <ul class="action-menu" nz-menu>
+                <li [routerLink]="['/assignments', assignment.id]" nz-menu-item>
+                  <nz-icon nzTheme="outline" nzType="trophy"/>
+                  Bảng xếp hạng
                 </li>
-                <li nz-menu-item (click)="copyLink(assignment)">
-                  <nz-icon nzType="link" nzTheme="outline"/> Sao chép link
+                <li (click)="copyLink(assignment)" nz-menu-item>
+                  <nz-icon nzTheme="outline" nzType="link"/>
+                  Sao chép link
                 </li>
-                <li nz-menu-item (click)="showQr(assignment)">
-                  <nz-icon nzType="qrcode" nzTheme="outline"/> Mã QR
+                <li (click)="showQr(assignment)" nz-menu-item>
+                  <nz-icon nzTheme="outline" nzType="qrcode"/>
+                  Mã QR
                 </li>
                 @if (isOpen(assignment)) {
-                  <li nz-menu-item (click)="confirmClose(assignment)">
-                    <nz-icon nzType="lock" nzTheme="outline"/> Đóng bài
+                  <li (click)="confirmClose(assignment)" nz-menu-item>
+                    <nz-icon nzTheme="outline" nzType="lock"/>
+                    Đóng bài
                   </li>
                 } @else {
-                  <li nz-menu-item (click)="askReopen(assignment)">
-                    <nz-icon nzType="unlock" nzTheme="outline"/> Mở lại
+                  <li (click)="askReopen(assignment)" nz-menu-item>
+                    <nz-icon nzTheme="outline" nzType="unlock"/>
+                    Mở lại
                   </li>
                 }
                 <li nz-menu-divider></li>
-                <li nz-menu-item nzDanger (click)="confirmRemove(assignment)">
-                  <nz-icon nzType="delete" nzTheme="outline"/> Xóa
+                <li (click)="confirmRemove(assignment)" nz-menu-item nzDanger>
+                  <nz-icon nzTheme="outline" nzType="delete"/>
+                  Xóa
                 </li>
               </ul>
             </nz-dropdown-menu>
@@ -68,8 +74,8 @@
 </nz-card>
 
 <ng-template #refreshTemplate>
-  <button nz-button nzType="default" type="button" [disabled]="loading()" (click)="load()">
-    <nz-icon nzType="reload" nzTheme="outline"/>
+  <button (click)="load()" [disabled]="loading()" nz-button nzType="default" type="button">
+    <nz-icon nzTheme="outline" nzType="reload"/>
     Làm mới
   </button>
 </ng-template>
@@ -83,15 +89,15 @@
     <div class="empty">
       <p class="help">{{ helpText }}</p>
       <a nz-button nzType="primary" routerLink="/ai-history">
-        <nz-icon nzType="history" nzTheme="outline"/>
+        <nz-icon nzTheme="outline" nzType="history"/>
         Đến AI › Lịch sử
       </a>
     </div>
   }
 </ng-template>
 
-<nz-modal [nzVisible]="qrOpen()" (nzVisibleChange)="qrOpen.set($event)" (nzOnCancel)="qrOpen.set(false)"
-          [nzFooter]="null" nzWidth="min(640px, 95vw)">
+<nz-modal (nzOnCancel)="qrOpen.set(false)" (nzVisibleChange)="qrOpen.set($event)" [nzFooter]="null"
+          [nzVisible]="qrOpen()" nzWidth="min(640px, 95vw)">
   <!-- A template, not nzTitle: the popup is reused for different assignments, and a string title is read once. -->
   <ng-container *nzModalTitle>{{ qrFor()?.title }}</ng-container>
   <ng-container *nzModalContent>
@@ -101,9 +107,9 @@
   </ng-container>
 </nz-modal>
 
-<nz-modal [nzVisible]="reopenOpen()" (nzVisibleChange)="reopenOpen.set($event)" (nzOnCancel)="reopenOpen.set(false)"
-          nzOkText="Mở lại" nzCancelText="Hủy" [nzOkLoading]="reopenBusy()" [nzOkDisabled]="reopenDeadlinePassed()"
-          (nzOnOk)="confirmReopen()" nzWidth="min(560px, 95vw)">
+<nz-modal (nzOnCancel)="reopenOpen.set(false)" (nzOnOk)="confirmReopen()" (nzVisibleChange)="reopenOpen.set($event)"
+          [nzOkDisabled]="reopenDeadlinePassed()" [nzOkLoading]="reopenBusy()" [nzVisible]="reopenOpen()" nzCancelText="Hủy"
+          nzOkText="Mở lại" nzWidth="min(560px, 95vw)">
   <ng-container *nzModalTitle>Mở lại: {{ reopening()?.title }}</ng-container>
   <ng-container *nzModalContent>
     <p class="reopen-help">Bài sẽ mở lại bằng cùng link. Chọn giờ đóng mới nếu bạn muốn hẹn giờ.</p>

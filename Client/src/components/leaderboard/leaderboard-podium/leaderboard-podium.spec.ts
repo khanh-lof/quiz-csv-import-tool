@@ -3,14 +3,21 @@ import { LeaderboardPodium } from './leaderboard-podium';
 import { PodiumEntry } from './podium';
 
 function entry(rank: number, name: string, overrides: Partial<PodiumEntry> = {}): PodiumEntry {
-  return {key: name, rank, name, avatar: 'cat', stagesPassed: 2, correct: 9, ...overrides};
+  return {
+    key: name,
+    rank,
+    name,
+    avatar: 'cat',
+    stagesPassed: 2,
+    correct: 9, ...overrides
+  };
 }
 
 describe('LeaderboardPodium', () => {
   let fixture: ComponentFixture<LeaderboardPodium>;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({imports: [LeaderboardPodium]}).compileComponents();
+    await TestBed.configureTestingModule({ imports: [LeaderboardPodium] }).compileComponents();
     fixture = TestBed.createComponent(LeaderboardPodium);
   });
 
@@ -34,7 +41,13 @@ describe('LeaderboardPodium', () => {
   const phone = () => window.innerWidth < 768;
   const avatarPx = (rank: number, scale = 1) => (rank === 1 ? (phone() ? 56 : 88) : phone() ? 36 : 56) * scale;
 
-  const THREE = [entry(1, 'Lan', {correct: 14}), entry(2, 'Minh', {correct: 11, stagesPassed: 1}), entry(3, 'Hoa', {correct: 7, stagesPassed: 1})];
+  const THREE = [entry(1, 'Lan', { correct: 14 }), entry(2, 'Minh', {
+    correct: 11,
+    stagesPassed: 1
+  }), entry(3, 'Hoa', {
+    correct: 7,
+    stagesPassed: 1
+  })];
 
   it('is an ordered list named "Ba hạng đầu" with a step for each of the three ranks, in rank order', () => {
     show(THREE);

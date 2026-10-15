@@ -6,11 +6,28 @@ import { Workspace } from '../components/workspace/workspace';
 import { AiGeneration } from '../components/ai-generation/ai-generation';
 import { AiJobs } from '../components/ai-jobs/ai-jobs';
 import { authGuard } from '../services/auth.guard';
+import { AuthService } from '../services/auth.service';
+import { inject } from '@angular/core';
 
 export const routes: Routes = [
-  {path: '', redirectTo: 'ai', pathMatch: 'full'},
-  {path: 'login', component: LoginComponent},
-  {path: 'offline', component: OfflineComponent},
+  {
+    path: '',
+    redirectTo: () => {
+      if (inject(AuthService).hasAccessToken()) {
+        return '/ai';
+      }
+      return '/quiz';
+    },
+    pathMatch: 'full'
+  },
+  {
+    path: 'login',
+    component: LoginComponent
+  },
+  {
+    path: 'offline',
+    component: OfflineComponent
+  },
   // The gesture quiz is played full screen, outside the Workspace frame. It is loaded lazily so that
   // MediaPipe and the six games stay out of the initial bundle: only a player who opens it downloads them.
   // /play takes a quiz file (or the sample) and is open to anonymous users; /play/:jobId plays an AI job
@@ -38,13 +55,26 @@ export const routes: Routes = [
   },
   // Both ways of building a quiz share one screen with a switch between them.
   {
-    path: '', component: Workspace, children: [
+    path: '',
+    component: Workspace,
+    children: [
       // Open to anonymous users.
-      {path: 'quiz', component: VocabularyTable},
+      {
+        path: 'quiz',
+        component: VocabularyTable
+      },
       // The server requires a token for AI generation.
-      {path: 'ai', component: AiGeneration, canActivate: [authGuard]},
+      {
+        path: 'ai',
+        component: AiGeneration,
+        canActivate: [authGuard]
+      },
       // The history of the AI generations is its own page (and tab), apart from the form that starts them.
-      {path: 'ai-history', component: AiJobs, canActivate: [authGuard]},
+      {
+        path: 'ai-history',
+        component: AiJobs,
+        canActivate: [authGuard]
+      },
       // The teacher's assignments and their leaderboards: lazy, like the game, since only a teacher opens them.
       {
         path: 'assignments',
@@ -60,5 +90,8 @@ export const routes: Routes = [
       }
     ]
   },
-  {path: '**', redirectTo: 'ai'}
+  {
+    path: '**',
+    redirectTo: 'quiz'
+  }
 ];

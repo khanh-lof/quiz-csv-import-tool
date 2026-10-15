@@ -99,10 +99,9 @@
   border: 4px solid #65a30d;
   border-radius: var(--qt-radius-lg);
   box-shadow: var(--pond-shadow);
-  transition:
-    transform var(--qt-transition),
-    border-color var(--qt-transition),
-    box-shadow var(--qt-transition);
+  transition: transform var(--qt-transition),
+  border-color var(--qt-transition),
+  box-shadow var(--qt-transition);
 }
 
 /* The lane the frog sits in keeps its own (gold) look, so hovering it changes nothing. */
@@ -114,10 +113,9 @@
 /* The lane the frog is in: gold, the same "hold to confirm" colour as the other games. */
 .lane.here .card {
   border-color: var(--play-charge);
-  box-shadow:
-    0 0 0 4px var(--play-charge),
-    0 0 22px var(--play-charge-glow),
-    var(--pond-shadow);
+  box-shadow: 0 0 0 4px var(--play-charge),
+  0 0 22px var(--play-charge-glow),
+  var(--pond-shadow);
   transform: translateY(-0.8cqh);
 }
 
@@ -393,10 +391,9 @@ kbd {
 /* The gold ring around the frog's lane swells and fades once a bite counts. */
 @keyframes ready {
   50% {
-    box-shadow:
-      0 0 0 6px rgba(250, 204, 21, 0.55),
-      0 0 22px var(--play-charge-glow),
-      var(--pond-shadow);
+    box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.55),
+    0 0 22px var(--play-charge-glow),
+    var(--pond-shadow);
   }
 }
 

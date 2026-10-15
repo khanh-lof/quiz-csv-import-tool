@@ -1,5 +1,5 @@
 import { DEMO_QUIZ_CSV, DEMO_QUIZ_TITLE } from '../game/demo-quiz';
-import { passMark, STAGES, stageDef } from '../game/stages';
+import { passMark, stageDef, STAGES } from '../game/stages';
 import { CsvImportService } from '../services/csv-import.service';
 import { GestureQuiz, parseGestureQuiz, questionCount, sentenceOf } from './gesture-quiz';
 
@@ -29,7 +29,11 @@ describe('parseGestureQuiz', () => {
 
     expect(quiz.title).toBe('Bài 1');
     expect(quiz.stages.get(2)![0]).toEqual({
-      stage: 2, question: 'Q', correct: 'A', wrong: ['B'], explanation: 'Vì sao',
+      stage: 2,
+      question: 'Q',
+      correct: 'A',
+      wrong: ['B'],
+      explanation: 'Vì sao',
     });
   });
 

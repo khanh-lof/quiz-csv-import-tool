@@ -41,9 +41,21 @@ export interface FruitSlot {
 }
 
 export const SLOTS: readonly FruitSlot[] = [
-  { name: 'xanh lá', glow: '53,199,89', juice: ['#6fdc4f', '#b6f27a', '#ff7b8a'] },
-  { name: 'đỏ', glow: '255,77,79', juice: ['#ff6b6b', '#ff9a9a', '#ffd27a'] },
-  { name: 'vàng', glow: '255,212,38', juice: ['#ffd426', '#ffe66d', '#ffb300'] },
+  {
+    name: 'xanh lá',
+    glow: '53,199,89',
+    juice: ['#6fdc4f', '#b6f27a', '#ff7b8a']
+  },
+  {
+    name: 'đỏ',
+    glow: '255,77,79',
+    juice: ['#ff6b6b', '#ff9a9a', '#ffd27a']
+  },
+  {
+    name: 'vàng',
+    glow: '255,212,38',
+    juice: ['#ffd426', '#ffe66d', '#ffb300']
+  },
 ];
 
 export interface Fruit {
@@ -133,7 +145,12 @@ export function spawnWave(
   slotCount = SLOTS.length,
   rng: Rng = Math.random,
 ): Fruit[] {
-  const { width: w, height: h, playTop, radius } = metrics;
+  const {
+    width: w,
+    height: h,
+    playTop,
+    radius
+  } = metrics;
   const slots = shuffle(
     Array.from({ length: Math.min(slotCount, SLOTS.length) }, (_, i) => i),
     rng,
@@ -174,7 +191,10 @@ export function spawnWave(
 export function apexOf(fruit: Fruit): { x: number; y: number } {
   const rise = (fruit.vy * fruit.vy) / (2 * fruit.g);
   const time = -fruit.vy / fruit.g;
-  return { x: fruit.x + fruit.vx * time, y: fruit.y - rise };
+  return {
+    x: fruit.x + fruit.vx * time,
+    y: fruit.y - rise
+  };
 }
 
 export interface SliceHit {
@@ -188,7 +208,12 @@ export interface SliceHit {
 // path the one met first (smallest t, then the closest pass) wins, so one swipe cuts one fruit.
 export function findSlice(
   fruits: readonly Fruit[],
-  { ax, ay, bx, by }: Segment,
+  {
+    ax,
+    ay,
+    bx,
+    by
+  }: Segment,
   stageHeight: number,
 ): SliceHit | null {
   let best: SliceHit | null = null;
@@ -201,7 +226,11 @@ export function findSlice(
       hit &&
       (!best || hit.t < best.t - 1e-6 || (Math.abs(hit.t - best.t) < 1e-6 && hit.d < best.d))
     ) {
-      best = { fruit, t: hit.t, d: hit.d };
+      best = {
+        fruit,
+        t: hit.t,
+        d: hit.d
+      };
     }
   }
   return best;
@@ -220,7 +249,12 @@ export class FruitField {
   halves: Half[] = [];
   particles: Particle[] = [];
   flashes: Flash[] = [];
-  metrics: StageMetrics = { width: 0, height: 0, playTop: 0, radius: 32 };
+  metrics: StageMetrics = {
+    width: 0,
+    height: 0,
+    playTop: 0,
+    radius: 32
+  };
   // How many answers (and so colours of fruit) the current question has.
   slotCount = SLOTS.length;
   // 1 for normal play, less for `prefers-reduced-motion`.
@@ -230,7 +264,8 @@ export class FruitField {
 
   private waveDelay = 0;
 
-  constructor(private readonly rng: Rng = Math.random) {}
+  constructor(private readonly rng: Rng = Math.random) {
+  }
 
   get ready(): boolean {
     return this.metrics.width > 0 && this.metrics.height > 0;
@@ -240,7 +275,12 @@ export class FruitField {
   // scene over; a mere shift of the top row only moves the line fruits may not cross.
   resize(width: number, height: number, playTop: number): void {
     const changed = width !== this.metrics.width || height !== this.metrics.height;
-    this.metrics = { width, height, playTop, radius: fruitRadius(width, height) };
+    this.metrics = {
+      width,
+      height,
+      playTop,
+      radius: fruitRadius(width, height)
+    };
     if (changed) {
       this.clear();
     }
@@ -348,7 +388,11 @@ export class FruitField {
       this.fruits.splice(index, 1);
     }
     fruit.cut = true;
-    this.lastCut = { x: fruit.x, y: fruit.y, slot: fruit.slot };
+    this.lastCut = {
+      x: fruit.x,
+      y: fruit.y,
+      slot: fruit.slot
+    };
     const rng = this.rng;
     const base = ang - Math.PI / 2;
     const nx = -Math.sin(ang);
@@ -369,7 +413,14 @@ export class FruitField {
         vr: side * rand(rng, 1, 2.6) + fruit.vr * 0.3,
       });
     }
-    this.flashes.push({ x: fruit.x, y: fruit.y, ang, life: 0.28, max: 0.28, len: fruit.r * 2.8 });
+    this.flashes.push({
+      x: fruit.x,
+      y: fruit.y,
+      ang,
+      life: 0.28,
+      max: 0.28,
+      len: fruit.r * 2.8
+    });
     const juice = SLOTS[fruit.slot].juice;
     const drops = Math.round(DROPLETS * this.effects);
     for (let k = 0; k < drops; k++) {
@@ -393,8 +444,16 @@ export class FruitField {
   // The burst of stars for a correct answer, at the last cut or, when nothing was cut (the answer
   // came from the keyboard with no fruit in view), in the middle of the play area.
   sparkle(): void {
-    const { width, height, playTop, radius } = this.metrics;
-    const at = this.lastCut ?? { x: width / 2, y: playTop + (height - playTop) * 0.4 };
+    const {
+      width,
+      height,
+      playTop,
+      radius
+    } = this.metrics;
+    const at = this.lastCut ?? {
+      x: width / 2,
+      y: playTop + (height - playTop) * 0.4
+    };
     const rng = this.rng;
     const count = Math.round(SPARKLES * this.effects);
     for (let k = 0; k < count; k++) {
@@ -448,29 +507,44 @@ export class HandCursor {
       // The hand just came into view: start from where it is, never draw a line from the old spot.
       this.has = true;
       this.place(px, py, now);
-      return { trail: 'restart', slash: null };
+      return {
+        trail: 'restart',
+        slash: null
+      };
     }
     const d = Math.hypot(px - this.x, py - this.y);
     if (d > HAND_JUMP * longSide) {
       if (this.outlier && Math.hypot(px - this.outlierX, py - this.outlierY) < 0.12 * longSide) {
         // Two readings in a row agree on the new place, so the hand really went there.
         this.place(px, py, now);
-        return { trail: 'restart', slash: null };
+        return {
+          trail: 'restart',
+          slash: null
+        };
       }
       this.outlier = true;
       this.outlierX = px;
       this.outlierY = py;
-      return { trail: null, slash: null };
+      return {
+        trail: null,
+        slash: null
+      };
     }
     this.outlier = false;
     if (d < Math.max(1.5, 0.002 * longSide)) {
       // Resting still: a steady hand's landmark wobbles by a pixel or two. Remembering the moment
       // keeps the time since the last real move short, so the next move's speed is not diluted.
       this.movedAt = now;
-      return { trail: null, slash: null };
+      return {
+        trail: null,
+        slash: null
+      };
     }
     const blend = clamp(0.35 + d / (0.08 * longSide), 0.35, 0.85);
-    const from = { x: this.x, y: this.y };
+    const from = {
+      x: this.x,
+      y: this.y
+    };
     this.x += (px - this.x) * blend;
     this.y += (py - this.y) * blend;
     const seconds = Math.max(1, now - this.movedAt) / 1000;
@@ -480,7 +554,12 @@ export class HandCursor {
       HAND_MIN_SPEED * Math.min(width, height);
     return {
       trail: 'extend',
-      slash: fast ? { ax: from.x, ay: from.y, bx: this.x, by: this.y } : null,
+      slash: fast ? {
+        ax: from.x,
+        ay: from.y,
+        bx: this.x,
+        by: this.y
+      } : null,
     };
   }
 

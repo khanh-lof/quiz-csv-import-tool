@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   effect,
   ElementRef,
@@ -10,7 +11,6 @@ import {
   OnDestroy,
   OnInit,
   signal,
-  computed,
   untracked,
   viewChild,
 } from '@angular/core';
@@ -26,7 +26,7 @@ import { Observable, Observer, Subscription, timeout } from 'rxjs';
 import { DEMO_QUIZ_CSV, DEMO_QUIZ_TITLE } from '../../game/demo-quiz';
 import { GameAudio } from '../../game/game-audio';
 import { Choice, QuestionView, Reveal, StageGameBase, VisionFrame, VisionKind } from '../../game/stage-game';
-import { passMark, STAGES, stageDef, stagePosition } from '../../game/stages';
+import { passMark, stageDef, stagePosition, STAGES } from '../../game/stages';
 import { VisionService } from '../../game/vision.service';
 import { AiJob } from '../../models/ai-job';
 import {
@@ -150,12 +150,22 @@ const STAND_TIP: Record<VisionKind, string> = {
 // The question a student plays when the server deals it: what the games show and nothing else. The answer, which
 // the server keeps until the question is answered, is filled in from its verdict (`withVerdict`).
 function sharedPlayQuestion(stage: number, served: SharedQuestion): PlayQuestion {
-  const view: QuestionView = { stage, question: served.question, options: served.options ?? [] };
+  const view: QuestionView = {
+    stage,
+    question: served.question,
+    options: served.options ?? []
+  };
   if (served.chunks) {
     view.chunks = served.chunks;
   }
   return {
-    source: { stage, question: served.question, correct: '', wrong: [], explanation: '' },
+    source: {
+      stage,
+      question: served.question,
+      correct: '',
+      wrong: [],
+      explanation: ''
+    },
     view,
     correctIndex: null,
     correctOrder: null,
@@ -167,7 +177,11 @@ function sharedPlayQuestion(stage: number, served: SharedQuestion): PlayQuestion
 function withVerdict(play: PlayQuestion, verdict: SharedVerdict): PlayQuestion {
   return {
     ...play,
-    source: { ...play.source, correct: verdict.answer, explanation: verdict.explanation },
+    source: {
+      ...play.source,
+      correct: verdict.answer,
+      explanation: verdict.explanation
+    },
     correctIndex: verdict.correctIndex ?? null,
     correctOrder: verdict.correctOrder ?? null,
   };
@@ -177,8 +191,14 @@ function withVerdict(play: PlayQuestion, verdict: SharedVerdict): PlayQuestion {
 // could not be reached).
 function failureOf(err: unknown): { status: number; body: string } {
   return err instanceof HttpErrorResponse
-    ? { status: err.status, body: typeof err.error === 'string' ? err.error.trim() : '' }
-    : { status: 0, body: '' };
+    ? {
+      status: err.status,
+      body: typeof err.error === 'string' ? err.error.trim() : ''
+    }
+    : {
+      status: 0,
+      body: ''
+    };
 }
 
 // The gesture quiz page, played full screen outside the workspace frame. It loads a quiz (from an AI job
@@ -217,21 +237,6 @@ function failureOf(err: unknown): { status: number; body: string } {
   styleUrls: ['./gesture-play.css', './game-themes.css', './play-themes.css']
 })
 export class GesturePlay implements OnInit, OnDestroy {
-  private readonly route = inject(ActivatedRoute);
-  private readonly zone = inject(NgZone);
-  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly destroyRef = inject(DestroyRef);
-  private readonly notificationService = inject(NzNotificationService);
-  private readonly jobService = inject(AiJobService);
-  private readonly assignmentService = inject(AssignmentService);
-  private readonly sharedPlay = inject(SharedPlayService);
-  private readonly aiCsvService = inject(AiCsvService);
-  private readonly csvImportService = inject(CsvImportService);
-  private readonly progress = inject(GestureProgressService);
-  private readonly settingsService = inject(GestureSettingsService);
-  private readonly vision = inject(VisionService);
-  private readonly audio = inject(GameAudio);
-
   protected readonly screen = signal<Screen>('loading');
   protected readonly mode = signal<Mode>('local');
   // The AI job being played, when the page was opened from the jobs table ("Chơi ngay").
@@ -239,22 +244,6 @@ export class GesturePlay implements OnInit, OnDestroy {
   // The assignment being previewed (the teacher), and the code of the shared quiz, upper-cased (a student).
   protected readonly assignmentId = signal<string | null>(null);
   protected readonly shareCode = signal('');
-  // The code of the assignment being previewed: the board under its map is read by it, as a student's is.
-  private readonly previewCode = signal('');
-  // The quiz as it was loaded, and the student playing it. What is played (`quiz`) is the same quiz under
-  // a key of its own for that student, so GestureProgressService keeps each student's locks and bests
-  // apart from other students' and from the same quiz played as a file or a job.
-  private readonly baseQuiz = signal<GestureQuiz | null>(null);
-  private readonly player = signal<PlayerIdentity | null>(null);
-  protected readonly quiz = computed<GestureQuiz | null>(() => {
-    const base = this.baseQuiz();
-    const player = this.player();
-    return base && player && this.mode() === 'shared'
-      ? { ...base, key: `asg:${this.shareCode()}:${player.playerId}` }
-      : base;
-  });
-  protected readonly playerName = computed(() => this.player()?.name ?? '');
-  protected readonly playerAvatar = computed(() => this.player()?.avatar ?? '');
   protected readonly shared = signal<SharedInfo | null>(null);
   protected readonly closeText = computed(() => {
     const closesAt = this.shared()?.closesAt;
@@ -270,11 +259,20 @@ export class GesturePlay implements OnInit, OnDestroy {
   protected readonly backLink = computed<PageLink | null>(() => {
     switch (this.mode()) {
       case 'job':
-        return { url: '/ai-history', text: 'Về lịch sử AI' };
+        return {
+          url: '/ai-history',
+          text: 'Về lịch sử AI'
+        };
       case 'preview':
-        return { url: `/assignments/${encodeURIComponent(this.assignmentId() ?? '')}`, text: 'Về bảng xếp hạng' };
+        return {
+          url: `/assignments/${encodeURIComponent(this.assignmentId() ?? '')}`,
+          text: 'Về bảng xếp hạng'
+        };
       case 'local':
-        return { url: '/quiz', text: 'Về bảng quiz' };
+        return {
+          url: '/quiz',
+          text: 'Về bảng quiz'
+        };
       default:
         return null;
     }
@@ -283,20 +281,14 @@ export class GesturePlay implements OnInit, OnDestroy {
   protected readonly assignmentTimeMode = signal<TimeMode | null>(null);
   // The teacher's stage lock: `open` lets the student play any stage from the start.
   protected readonly assignmentStageLock = signal<StageLock | null>(null);
-  // The teacher's choice to show the board to students. Null while unknown, which is the closed card of a link
-  // that was already closed when opened (GET share/{code} answered 410, so the page never learnt it): the
   // board component then copes with the server's 404 `Board hidden` itself.
   protected readonly assignmentShowBoard = signal<boolean | null>(null);
-  // The seconds a question of each stage ("1" to "6") lasts in the assignment (time mode applied, null: no limit),
   // as the server sent them; null outside an assignment, where the stage's own seconds are the default for practice.
   protected readonly assignmentTimeLimits = signal<Record<string, number | null> | null>(null);
   // The teacher's pass percentage of each stage ("1" to "6"); null outside an assignment, where it is the default.
   protected readonly assignmentPassPercents = signal<Record<string, number> | null>(null);
-  // The teacher's limit on the runs of each stage (an assignment with the open lock), null for none, and the
-  // runs this student has used of each stage ("1" to "6"), as the server counts them: a run counts from the
   // moment it starts. Only a shared quiz is ever limited.
   protected readonly assignmentMaxAttempts = signal<number | null>(null);
-  private readonly attemptsUsed = signal<Record<string, number>>({});
   // Why a quiz could not be opened: shown on the load screen, or in the error card for the other modes.
   protected readonly problem = signal('');
   protected readonly errorLink = signal<PageLink | null>(null);
@@ -304,26 +296,20 @@ export class GesturePlay implements OnInit, OnDestroy {
   protected readonly checking = signal(false);
   protected readonly joinError = signal('');
   protected readonly joining = signal(false);
+  // The quiz as it was loaded, and the student playing it. What is played (`quiz`) is the same quiz under
+  // a key of its own for that student, so GestureProgressService keeps each student's locks and bests
   // Whether the last finished run of a shared quiz is on the server, for its result screen.
   protected readonly saveState = signal<SaveState | null>(null);
-  // The leaderboard under the map and on the closed card: whose code it reads (a student's, or the previewed
-  // assignment's), the count that tells it a result was saved and the board should be read again, and whether
-  // the error card is the closed one of a student who joined, which shows the final board under its message.
-  protected readonly boardCode = computed(() => this.mode() === 'preview' ? this.previewCode() : this.shareCode());
   protected readonly boardKey = signal(0);
   protected readonly closedBoard = signal(false);
   // The avatar dialog: whether it is open, the avatar picked in it so far and whether the change is being sent.
   protected readonly avatarOpen = signal(false);
   protected readonly avatarDraft = signal('');
   protected readonly avatarSaving = signal(false);
-
-  protected readonly settings = this.settingsService.settings;
   protected readonly effectiveTimeMode = computed(() => this.assignmentTimeMode() ?? this.settings().timeMode);
-  // Every stage with questions can be opened, passed or not: the teacher's preview, or an assignment whose
   // teacher chose the open lock.
   protected readonly allStagesOpen = computed(() =>
     this.mode() === 'preview' || this.assignmentStageLock() === 'open');
-
   // The stage being played, by its number (1-6): the identity of its game, as in the CSV and the progress.
   protected readonly stage = signal(1);
   protected readonly def = computed(() => stageDef(this.stage()));
@@ -332,37 +318,24 @@ export class GesturePlay implements OnInit, OnDestroy {
     const quiz = this.quiz();
     return quiz ? stagePosition(quiz.stages.keys(), this.stage()) : this.stage();
   });
+  // The teacher's choice to show the board to students. Null while unknown, which is the closed card of a link
+  // that was already closed when opened (GET share/{code} answered 410, so the page never learnt it): the
   protected readonly stageQuestionCount = computed(() => this.quiz()?.stages.get(this.stage())?.length ?? 0);
-  // The seconds a question of the stage being played lasts, or null for no limit. An assignment's come from the
-  // server, which may configure them differently from `STAGES`, and a page cannot be trusted with the table;
+  // The seconds a question of each stage ("1" to "6") lasts in the assignment (time mode applied, null: no limit),
   // practice from a file or a job uses the stage's own seconds in the player's time mode.
   protected readonly stageTimeLimit = computed(() => {
     const limits = this.assignmentTimeLimits();
     const own = limits?.[String(this.stage())];
     return limits && own !== undefined ? own : timeLimitFor(this.def().seconds, this.effectiveTimeMode());
   });
-  // The percentage of right answers that passes the stage being played, and the number of answers it makes.
-  private readonly passPercent = computed(() => passPercentOf(this.assignmentPassPercents(), this.stage()));
-  protected readonly stagePassMark = computed(() => passMark(this.stageQuestionCount(), this.passPercent()));
   protected readonly standTip = computed(() => STAND_TIP[this.def().vision]);
-
-  // A shared run is played against the server: the run is being started, an answer is out (the page ignores
-  // further input and its clock stands still until the verdict comes), the next question is being fetched, or
+  // The teacher's limit on the runs of each stage (an assignment with the open lock), null for none, and the
+  // runs this student has used of each stage ("1" to "6"), as the server counts them: a run counts from the
   // the last request failed even after the service's retries and waits for "Thử lại".
   protected readonly starting = signal(false);
   protected readonly answering = signal(false);
   protected readonly advancing = signal(false);
   protected readonly connectionLost = signal(false);
-  // How many questions the run being played has, as the server dealt it. Only questions already dealt are in
-  // `questions`, one more with each "Tiếp".
-  private readonly runTotal = signal(0);
-  // The open question is timed by the server's clock, which cannot be stopped.
-  private readonly serverClock = signal(false);
-  // Pausing would not stop that clock, so it is not offered while a timed question of a shared run is open
-  // (after the verdict it is: nothing is running then).
-  protected readonly pauseLocked = computed(() =>
-    this.mode() === 'shared' && this.serverClock() && this.reveal() === null);
-
   // The runs each stage of the quiz has left, for the map; null when there is no limit to show.
   protected readonly attemptsLeftByStage = computed<Record<string, number> | null>(() => {
     const quiz = this.quiz();
@@ -375,28 +348,26 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
     return left;
   });
+  // One run of a stage.
+  protected readonly questions = signal<PlayQuestion[]>([]);
+  protected readonly index = signal(0);
+  protected readonly score = signal(0);
+  // The leaderboard under the map and on the closed card: whose code it reads (a student's, or the previewed
+  // assignment's), the count that tells it a result was saved and the board should be read again, and whether
+  protected readonly streak = signal(0);
+  protected readonly reveal = signal<Reveal | null>(null);
+  protected readonly paused = signal(false);
+  // changes, so the page is not redrawn on every frame.
+  protected readonly secondsLeft = signal<number | null>(null);
+  protected readonly result = signal<StageRunResult | null>(null);
   // The same for the stage whose result is on screen.
   protected readonly resultAttemptsLeft = computed(() => {
     const run = this.result();
     return run ? this.stageAttemptsLeft(run.stage) : null;
   });
-
-  // One run of a stage.
-  protected readonly questions = signal<PlayQuestion[]>([]);
-  protected readonly index = signal(0);
-  protected readonly score = signal(0);
-  protected readonly streak = signal(0);
-  protected readonly reveal = signal<Reveal | null>(null);
-  protected readonly paused = signal(false);
-  // The whole seconds left on this question (null without a time limit): written only when the second
-  // changes, so the page is not redrawn on every frame.
-  protected readonly secondsLeft = signal<number | null>(null);
-  protected readonly result = signal<StageRunResult | null>(null);
-
   protected readonly current = computed(() => this.questions()[this.index()] ?? null);
   protected readonly view = computed(() => this.current()?.view ?? null);
-  protected readonly totalQuestions = computed(() =>
-    this.mode() === 'shared' ? this.runTotal() : this.questions().length);
+  // Every stage with questions can be opened, passed or not: the teacher's preview, or an assignment whose
   protected readonly correctText = computed(() => {
     const play = this.current();
     return play ? correctAnswerText(play) : '';
@@ -407,31 +378,49 @@ export class GesturePlay implements OnInit, OnDestroy {
       return null;
     }
     if (reveal.chosen === null) {
-      return { kind: 'wrong', text: '⏱ Hết giờ' };
+      return {
+        kind: 'wrong',
+        text: '⏱ Hết giờ'
+      };
     }
     return reveal.correct
-      ? { kind: 'correct', text: `✓ Chính xác! +${POINTS_PER_CORRECT}` }
-      : { kind: 'wrong', text: '✗ Chưa đúng' };
+      ? {
+        kind: 'correct',
+        text: `✓ Chính xác! +${POINTS_PER_CORRECT}`
+      }
+      : {
+        kind: 'wrong',
+        text: '✗ Chưa đúng'
+      };
   });
-
-  // The camera, and whether this stage's model is ready: only then do gestures reach the game.
-  protected readonly cameraState = this.vision.cameraState;
   protected readonly cameraOn = computed(() => this.cameraState() === 'on');
-  protected readonly modelState = computed(() => this.vision.modelState(this.def().vision)());
   protected readonly cameraActive = computed(() => this.cameraOn() && this.modelState() === 'ready');
   protected readonly tracking = signal<Tracking>('lost');
+  // The seconds a question of the stage being played lasts, or null for no limit. An assignment's come from the
+  // server, which may configure them differently from `STAGES`, and a page cannot be trusted with the table;
   protected readonly fullscreen = signal(false);
-
   protected readonly cameraChip = computed<Chip>(() => {
     switch (this.cameraState()) {
       case 'on':
-        return { text: 'Camera bật', tone: 'ok' };
+        return {
+          text: 'Camera bật',
+          tone: 'ok'
+        };
       case 'starting':
-        return { text: 'Đang bật camera…', tone: 'wait' };
+        return {
+          text: 'Đang bật camera…',
+          tone: 'wait'
+        };
       case 'off':
-        return { text: 'Camera tắt', tone: 'off' };
+        return {
+          text: 'Camera tắt',
+          tone: 'off'
+        };
       default:
-        return { text: 'Không dùng được camera', tone: 'bad' };
+        return {
+          text: 'Không dùng được camera',
+          tone: 'bad'
+        };
     }
   });
   // The recognition model's state, only while there is a camera for it to read.
@@ -441,11 +430,20 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
     switch (this.modelState()) {
       case 'loading':
-        return { text: 'Đang tải nhận diện…', tone: 'wait' };
+        return {
+          text: 'Đang tải nhận diện…',
+          tone: 'wait'
+        };
       case 'ready':
-        return { text: 'Nhận diện sẵn sàng', tone: 'ok' };
+        return {
+          text: 'Nhận diện sẵn sàng',
+          tone: 'ok'
+        };
       case 'error':
-        return { text: 'Chưa tải được nhận diện', tone: 'bad' };
+        return {
+          text: 'Chưa tải được nhận diện',
+          tone: 'bad'
+        };
       default:
         return null;
     }
@@ -457,13 +455,45 @@ export class GesturePlay implements OnInit, OnDestroy {
     const hand = this.def().vision === 'hand';
     switch (this.tracking()) {
       case 'seen':
-        return { text: hand ? 'Đã thấy tay ✓' : 'Đã thấy mặt ✓', tone: 'ok' };
+        return {
+          text: hand ? 'Đã thấy tay ✓' : 'Đã thấy mặt ✓',
+          tone: 'ok'
+        };
       case 'multi':
-        return { text: 'Chỉ một người trước camera', tone: 'bad' };
+        return {
+          text: 'Chỉ một người trước camera',
+          tone: 'bad'
+        };
       default:
-        return { text: hand ? 'Đưa tay vào khung hình' : 'Chưa thấy mặt', tone: 'wait' };
+        return {
+          text: hand ? 'Đưa tay vào khung hình' : 'Chưa thấy mặt',
+          tone: 'wait'
+        };
     }
   });
+
+  // A shared run is played against the server: the run is being started, an answer is out (the page ignores
+  // further input and its clock stands still until the verdict comes), the next question is being fetched, or
+  private readonly route = inject(ActivatedRoute);
+  private readonly zone = inject(NgZone);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
+  // How many questions the run being played has, as the server dealt it. Only questions already dealt are in
+  private readonly notificationService = inject(NzNotificationService);
+  private readonly jobService = inject(AiJobService);
+  // Pausing would not stop that clock, so it is not offered while a timed question of a shared run is open
+  private readonly assignmentService = inject(AssignmentService);
+  private readonly sharedPlay = inject(SharedPlayService);
+  private readonly aiCsvService = inject(AiCsvService);
+  private readonly csvImportService = inject(CsvImportService);
+  private readonly progress = inject(GestureProgressService);
+  private readonly settingsService = inject(GestureSettingsService);
+  protected readonly settings = this.settingsService.settings;
+  private readonly vision = inject(VisionService);
+  // The camera, and whether this stage's model is ready: only then do gestures reach the game.
+  protected readonly cameraState = this.vision.cameraState;
+  // The whole seconds left on this question (null without a time limit): written only when the second
+  protected readonly modelState = computed(() => this.vision.modelState(this.def().vision)());
   // Why the camera or recognition is not working, in words the player can act on.
   protected readonly cameraNotice = computed(() => {
     const message = this.vision.cameraMessage();
@@ -474,7 +504,39 @@ export class GesturePlay implements OnInit, OnDestroy {
       ? 'Không tải được bộ nhận diện cử chỉ. Bạn vẫn chơi được bằng chuột và bàn phím.'
       : '';
   });
-
+  private readonly audio = inject(GameAudio);
+  // The code of the assignment being previewed: the board under its map is read by it, as a student's is.
+  private readonly previewCode = signal('');
+  // the error card is the closed one of a student who joined, which shows the final board under its message.
+  protected readonly boardCode = computed(() => this.mode() === 'preview' ? this.previewCode() : this.shareCode());
+  // apart from other students' and from the same quiz played as a file or a job.
+  private readonly baseQuiz = signal<GestureQuiz | null>(null);
+  private readonly player = signal<PlayerIdentity | null>(null);
+  protected readonly quiz = computed<GestureQuiz | null>(() => {
+    const base = this.baseQuiz();
+    const player = this.player();
+    return base && player && this.mode() === 'shared'
+      ? {
+        ...base,
+        key: `asg:${this.shareCode()}:${player.playerId}`
+      }
+      : base;
+  });
+  protected readonly playerName = computed(() => this.player()?.name ?? '');
+  protected readonly playerAvatar = computed(() => this.player()?.avatar ?? '');
+  private readonly attemptsUsed = signal<Record<string, number>>({});
+  // The percentage of right answers that passes the stage being played, and the number of answers it makes.
+  private readonly passPercent = computed(() => passPercentOf(this.assignmentPassPercents(), this.stage()));
+  protected readonly stagePassMark = computed(() => passMark(this.stageQuestionCount(), this.passPercent()));
+  // `questions`, one more with each "Tiếp".
+  private readonly runTotal = signal(0);
+  protected readonly totalQuestions = computed(() =>
+    this.mode() === 'shared' ? this.runTotal() : this.questions().length);
+  // The open question is timed by the server's clock, which cannot be stopped.
+  private readonly serverClock = signal(false);
+  // (after the verdict it is: nothing is running then).
+  protected readonly pauseLocked = computed(() =>
+    this.mode() === 'shared' && this.serverClock() && this.reveal() === null);
   private readonly game = viewChild(StageGameBase);
   // Where `vision.video` is shown: the stage while playing, the small preview on the intro screen.
   private readonly stageElement = viewChild<ElementRef<HTMLElement>>('stageBox');
@@ -588,35 +650,6 @@ export class GesturePlay implements OnInit, OnDestroy {
 
   // ---- Loading a quiz ----
 
-  private loadJob(id: string): void {
-    this.screen.set('loading');
-    const find = () => this.jobService.jobs().find(job => job.id === id);
-    const known = find();
-    if (known) {
-      this.openJob(known);
-      return;
-    }
-    // The table's list is empty when the page was opened directly (or the job is new): ask once.
-    this.jobService.refresh().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => this.openJob(find()),
-      error: () => this.fail('Không tải được quiz từ máy chủ. Hãy kiểm tra kết nối rồi thử lại.'),
-    });
-  }
-
-  private openJob(job: AiJob | undefined): void {
-    if (!job) {
-      this.fail('Không tìm thấy quiz này. Có thể nó đã bị xóa khỏi bảng lịch sử.');
-    } else if (job.status === 'running') {
-      this.fail('AI vẫn đang tạo quiz này. Hãy quay lại bảng lịch sử và thử lại khi nó xong.');
-    } else if (job.status !== 'done') {
-      this.fail('Lần tạo này không thành công nên chưa có quiz để chơi.');
-    } else if (job.exportType !== ExportType.GestureQuiz) {
-      this.fail('Đây không phải game. Hãy chọn nền tảng "Game" khi nhờ AI tạo.');
-    } else {
-      this.openCsv(this.aiCsvService.extractCsvContent(job.csv), job.title);
-    }
-  }
-
   protected onFilePicked(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -634,128 +667,6 @@ export class GesturePlay implements OnInit, OnDestroy {
   protected playDemo(): void {
     this.audio.resume();
     this.openCsv(DEMO_QUIZ_CSV, DEMO_QUIZ_TITLE);
-  }
-
-  private openCsv(text: string, title: string): void {
-    const quiz = this.parseQuiz(text, title);
-    if (!quiz) {
-      return;
-    }
-    this.resetRun();
-    this.problem.set('');
-    this.baseQuiz.set(quiz);
-    this.screen.set('map');
-  }
-
-  // The quiz in `text`, or null (after showing why) when it has nothing to play.
-  private parseQuiz(text: string, title: string): GestureQuiz | null {
-    const rows = this.csvImportService.parseCsvRows(text.startsWith(BYTE_ORDER_MARK) ? text.slice(1) : text);
-    const quiz = parseGestureQuiz(rows, title);
-    if (questionCount(quiz) === 0) {
-      this.failNoQuestions();
-      return null;
-    }
-    // A student cannot do anything about rows the teacher's quiz lost, so only the others are told.
-    if (quiz.skipped > 0 && this.mode() !== 'shared') {
-      this.notificationService.warning(
-        'Có dòng không dùng được',
-        `Đã bỏ qua ${quiz.skipped} dòng không hợp lệ trong quiz.`,
-        { nzPlacement: 'top' });
-    }
-    return quiz;
-  }
-
-  private failNoQuestions(): void {
-    const mode = this.mode();
-    this.fail(NO_QUESTIONS[mode === 'job' ? 'local' : mode]);
-  }
-
-  // The quiz a teacher gave out, as a student opens it. The server does not send its questions (it deals them
-  // one at a time as they are played), only how many each stage has, which is all the map and the intro need. A
-  // device that has joined this quiz before goes straight to the map.
-  private loadShared(): void {
-    this.screen.set('loading');
-    this.watch(this.sharedPlay.load(this.shareCode()), {
-      next: shared => {
-        const quiz = placeholderQuiz(shared.title, `asg:${this.shareCode()}`, shared.stageCounts ?? {});
-        if (questionCount(quiz) === 0) {
-          this.failNoQuestions();
-          return;
-        }
-        this.problem.set('');
-        this.baseQuiz.set(quiz);
-        this.shared.set({ label: shared.label, closesAt: shared.closesAt });
-        this.assignmentTimeMode.set(shared.timeMode);
-        this.assignmentTimeLimits.set(shared.timeLimits ?? null);
-        this.assignmentStageLock.set(shared.stageLock);
-        this.assignmentShowBoard.set(shared.showBoard);
-        this.assignmentPassPercents.set(shared.passPercents);
-        this.assignmentMaxAttempts.set(shared.maxAttempts ?? null);
-        this.countAttempts(shared);
-        const identity = this.sharedPlay.identity(this.shareCode());
-        if (identity) {
-          this.player.set(identity);
-          this.syncProgress(shared);
-          this.screen.set('map');
-        } else {
-          this.askToJoin();
-        }
-      },
-      error: err => this.fail(this.sharedGone(err) ?? SHARED_FAILED),
-    });
-  }
-
-  // The teacher's try-out of an assignment: its quiz and time mode, with nothing tied to a student.
-  private loadPreview(id: string): void {
-    this.screen.set('loading');
-    this.watch(this.assignmentService.get(id), {
-      next: detail => {
-        this.assignmentTimeMode.set(detail.timeMode);
-        this.assignmentTimeLimits.set(detail.timeLimits ?? null);
-        this.assignmentStageLock.set(detail.stageLock);
-        this.assignmentShowBoard.set(detail.showBoard);
-        this.assignmentPassPercents.set(detail.passPercents);
-        this.previewCode.set(detail.code.toUpperCase());
-        this.shared.set({ label: detail.label, closesAt: detail.closesAt });
-        this.openCsv(this.aiCsvService.extractCsvContent(detail.csv), detail.title);
-      },
-      error: err => this.fail('Không tải được bài này.', err instanceof HttpErrorResponse && err.status === 404),
-    });
-  }
-
-  // Subscribes for the page, replacing the request that was in flight.
-  private watch<T>(source: Observable<T>, observer: Partial<Observer<T>>): void {
-    this.request?.unsubscribe();
-    this.request = source.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(observer);
-  }
-
-  // What a final answer from the server means to a student: the link points at nothing (404) or the
-  // assignment is over (410). Anything else (offline, a server error) may pass, so it gives null.
-  private sharedGone(err: unknown): string | null {
-    const status = err instanceof HttpErrorResponse ? err.status : 0;
-    return status === 404 ? SHARED_MISSING : status === 410 ? SHARED_CLOSED : null;
-  }
-
-  // A quiz opened from a job, a shared quiz or a preview has no load screen to go back to, so its problems
-  // get their own card, with a way back for the two signed-in modes (a student has none).
-  private fail(message: string, missing = false): void {
-    this.problem.set(message);
-    // A student who joined sees the final board under "closed": the leaderboard route answers after the close.
-    this.closedBoard.set(
-      message === SHARED_CLOSED && this.mode() === 'shared' && this.sharedPlay.identity(this.shareCode()) !== null);
-    this.screen.set(this.mode() === 'local' ? 'load' : 'error');
-    // An assignment that is gone has no leaderboard page to return to, only the list.
-    this.errorLink.set(missing ? { url: '/assignments', text: 'Về danh sách bài đã giao' } : this.backLink());
-  }
-
-  // ---- A student joining ----
-
-  // The join screen: this device is not a known student of the quiz (yet, or any more).
-  private askToJoin(): void {
-    this.player.set(null);
-    this.joining.set(false);
-    this.joinError.set('');
-    this.screen.set('join');
   }
 
   protected joinQuiz(request: JoinRequest): void {
@@ -785,25 +696,6 @@ export class GesturePlay implements OnInit, OnDestroy {
     });
   }
 
-  // The server's plain-text answer to a join, in words a student can act on.
-  private joinProblem(err: unknown): string {
-    const status = err instanceof HttpErrorResponse ? err.status : 0;
-    const body = err instanceof HttpErrorResponse && typeof err.error === 'string' ? err.error.trim() : '';
-    if (status === 409 && body === 'Name taken') {
-      return 'Tên này đã có bạn dùng, hãy thêm họ hoặc số.';
-    }
-    if (status === 409 && body === 'Assignment is full') {
-      return 'Bài đã đủ số học sinh, hãy báo thầy cô.';
-    }
-    if (status === 400) {
-      return 'Tên cần từ 1 đến 40 ký tự.';
-    }
-    if (status === 0) {
-      return 'Mất kết nối, hãy thử lại.';
-    }
-    return 'Chưa vào được bài, hãy thử lại.';
-  }
-
   // "Không phải bạn?": this device joins again as someone else. The old student stays in the teacher's list.
   protected switchPlayer(event: Event): void {
     event.preventDefault();
@@ -811,7 +703,6 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.askToJoin();
   }
 
-  // The avatar button on the map's line opens the picker with the student's own avatar chosen (or a random one,
   // for a student who has none yet).
   protected openAvatarPicker(): void {
     const own = this.playerAvatar();
@@ -823,8 +714,6 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.avatarOpen.set(false);
   }
 
-  // "Lưu" in the avatar dialog. The device's identity is the truth, kept by the service: a 403 means the teacher
-  // removed this student (the service has forgotten them already), so the join screen comes back, and a 410
   // means the assignment closed, so the closed card does. Any other failure keeps the dialog for another try.
   protected saveAvatar(): void {
     const draft = this.avatarDraft();
@@ -869,7 +758,8 @@ export class GesturePlay implements OnInit, OnDestroy {
     });
   }
 
-  // ---- Moving between the screens ----
+  // The quiz a teacher gave out, as a student opens it. The server does not send its questions (it deals them
+  // one at a time as they are played), only how many each stage has, which is all the map and the intro need. A
 
   protected openIntro(stage: number): void {
     if (this.mode() === 'shared') {
@@ -885,10 +775,154 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.showIntro(stage);
   }
 
-  private showIntro(stage: number): void {
-    this.stage.set(stage);
-    this.screen.set('intro');
-    this.prepareVision();
+  protected begin(): void {
+    // A user gesture, which is what lets the browser start the sound.
+    this.audio.resume();
+    this.audio.play('start');
+    this.startRun();
+  }
+
+  protected backToMap(): void {
+    this.resetRun();
+    // The camera is only needed while a stage is being set up or played.
+    this.vision.stopCamera();
+    // A student whose name was removed by the teacher is not a known student any more: the map is theirs.
+    if (this.mode() === 'shared' && !this.sharedPlay.identity(this.shareCode())) {
+      this.askToJoin();
+      return;
+    }
+    this.screen.set('map');
+  }
+
+  // What a final answer from the server means to a student: the link points at nothing (404) or the
+
+  // Another quiz from a file: only for a quiz that was opened on this page, not for a job's.
+  protected openAnother(): void {
+    this.resetRun();
+    this.vision.stopCamera();
+    this.baseQuiz.set(null);
+    this.problem.set('');
+    this.screen.set('load');
+  }
+
+  // A quiz opened from a job, a shared quiz or a preview has no load screen to go back to, so its problems
+
+  protected openNextStage(): void {
+    const next = this.nextStageWithQuestions(this.stage());
+    if (next === null) {
+      this.backToMap();
+    } else {
+      this.openIntro(next);
+    }
+  }
+
+  // ---- A student joining ----
+
+  protected retryStage(): void {
+    this.audio.resume();
+    if (this.mode() === 'shared') {
+      this.guardSharedStage(this.stage(), () => this.startRun());
+      return;
+    }
+    this.startRun();
+  }
+
+  // Called by the game with the player's choice, possibly from the animation loop outside Angular.
+  protected onChoose(choice: Choice): void {
+    this.inZone(() => {
+      const play = this.current();
+      if (!play || this.screen() !== 'playing' || this.paused() || this.reveal() !== null || this.answering()) {
+        return;
+      }
+      if (this.mode() === 'shared') {
+        this.sendAnswer(choice);
+      } else {
+        this.showReveal(play, judge(play, choice));
+      }
+    });
+  }
+
+  // "Tiếp": on to the next question, or the result after the last one.
+  protected next(): void {
+    this.inZone(() => {
+      if (this.reveal() === null || this.screen() !== 'playing') {
+        return;
+      }
+      if (this.mode() === 'shared') {
+        this.nextShared();
+        return;
+      }
+      if (this.index() + 1 >= this.questions().length) {
+        this.finishRun();
+        return;
+      }
+      this.reveal.set(null);
+      this.index.update(index => index + 1);
+      this.startQuestionTimer();
+    });
+  }
+
+  // "Thử lại" in the feedback bar: sends the request that failed again.
+  protected retryConnection(): void {
+    const retry = this.retryAction;
+    this.retryAction = null;
+    this.connectionLost.set(false);
+    retry?.();
+  }
+
+  // The avatar button on the map's line opens the picker with the student's own avatar chosen (or a random one,
+
+  protected togglePause(): void {
+    if (this.screen() === 'playing' && !this.pauseLocked()) {
+      this.paused.update(paused => !paused);
+    }
+  }
+
+  protected toggleSound(): void {
+    this.settingsService.update({ sound: !this.settings().sound });
+  }
+
+  // "Lưu" in the avatar dialog. The device's identity is the truth, kept by the service: a 403 means the teacher
+  // removed this student (the service has forgotten them already), so the join screen comes back, and a 410
+
+  protected toggleCamera(): void {
+    const state = this.vision.cameraState();
+    if (state === 'on' || state === 'starting') {
+      this.vision.stopCamera();
+      this.settingsService.update({ useCamera: false });
+      return;
+    }
+    void this.enableCamera();
+  }
+
+  // ---- Moving between the screens ----
+
+  protected retryModel(): void {
+    void this.loadModel(this.def().vision);
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  protected onKeydown(event: KeyboardEvent): void {
+    if (this.screen() !== 'playing' || event.ctrlKey || event.metaKey || event.altKey) {
+      return;
+    }
+    // Typing in a field is not a command.
+    if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]')) {
+      return;
+    }
+    if (event.key === 'p' || event.key === 'P') {
+      event.preventDefault();
+      if (!event.repeat) {
+        this.togglePause();
+      }
+    } else if (event.key === 'Enter' && this.reveal() !== null && !this.paused()) {
+      // Prevented so that a focused button does not also click itself. A held key must not skip a
+      // question after the next one.
+      event.preventDefault();
+      if (!event.repeat) {
+        this.next();
+      }
+    }
   }
 
   // What a shared quiz needs before one of its stages starts (or is replayed): the device must still be a
@@ -897,6 +931,223 @@ export class GesturePlay implements OnInit, OnDestroy {
   // meantime. The server's answer also brings the student's runs and results up to date, which is where the
   // stage lock and the replay limit really live: the map and the stage are checked again against them. A
   // server that cannot be reached does not stop the student from reaching the intro, where starting the run
+
+  // question instead of a timed-out one. Not for a shared question the server is timing: it keeps running.
+  @HostListener('document:visibilitychange')
+  protected onVisibilityChange(): void {
+    if (document.hidden && this.screen() === 'playing' && !this.pauseLocked()) {
+      this.paused.set(true);
+    }
+  }
+
+  // Whether `stage` can be opened by this student: it is in the quiz, and either every stage is open or the
+
+  @HostListener('document:fullscreenchange')
+  protected onFullscreenChange(): void {
+    this.fullscreen.set(document.fullscreenElement !== null);
+  }
+
+  protected toggleFullscreen(): void {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => undefined);
+      return;
+    }
+    const failed = () => this.notificationService.warning(
+      'Không bật được toàn màn hình',
+      'Trình duyệt không cho phép chế độ toàn màn hình ở đây.',
+      { nzPlacement: 'top' });
+    try {
+      this.host.nativeElement.requestFullscreen().catch(failed);
+    } catch {
+      failed();
+    }
+  }
+
+  private loadJob(id: string): void {
+    this.screen.set('loading');
+    const find = () => this.jobService.jobs().find(job => job.id === id);
+    const known = find();
+    if (known) {
+      this.openJob(known);
+      return;
+    }
+    // The table's list is empty when the page was opened directly (or the job is new): ask once.
+    this.jobService.refresh().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => this.openJob(find()),
+      error: () => this.fail('Không tải được quiz từ máy chủ. Hãy kiểm tra kết nối rồi thử lại.'),
+    });
+  }
+
+  private openJob(job: AiJob | undefined): void {
+    if (!job) {
+      this.fail('Không tìm thấy quiz này. Có thể nó đã bị xóa khỏi bảng lịch sử.');
+    } else if (job.status === 'running') {
+      this.fail('AI vẫn đang tạo quiz này. Hãy quay lại bảng lịch sử và thử lại khi nó xong.');
+    } else if (job.status !== 'done') {
+      this.fail('Lần tạo này không thành công nên chưa có quiz để chơi.');
+    } else if (job.exportType !== ExportType.GestureQuiz) {
+      this.fail('Đây không phải game. Hãy chọn nền tảng "Game" khi nhờ AI tạo.');
+    } else {
+      this.openCsv(this.aiCsvService.extractCsvContent(job.csv), job.title);
+    }
+  }
+
+  private openCsv(text: string, title: string): void {
+    const quiz = this.parseQuiz(text, title);
+    if (!quiz) {
+      return;
+    }
+    this.resetRun();
+    this.problem.set('');
+    this.baseQuiz.set(quiz);
+    this.screen.set('map');
+  }
+
+  // The quiz in `text`, or null (after showing why) when it has nothing to play.
+  private parseQuiz(text: string, title: string): GestureQuiz | null {
+    const rows = this.csvImportService.parseCsvRows(text.startsWith(BYTE_ORDER_MARK) ? text.slice(1) : text);
+    const quiz = parseGestureQuiz(rows, title);
+    if (questionCount(quiz) === 0) {
+      this.failNoQuestions();
+      return null;
+    }
+    // A student cannot do anything about rows the teacher's quiz lost, so only the others are told.
+    if (quiz.skipped > 0 && this.mode() !== 'shared') {
+      this.notificationService.warning(
+        'Có dòng không dùng được',
+        `Đã bỏ qua ${quiz.skipped} dòng không hợp lệ trong quiz.`,
+        { nzPlacement: 'top' });
+    }
+    return quiz;
+  }
+
+  private failNoQuestions(): void {
+    const mode = this.mode();
+    this.fail(NO_QUESTIONS[mode === 'job' ? 'local' : mode]);
+  }
+
+  // ---- Playing a stage ----
+
+  // device that has joined this quiz before goes straight to the map.
+  private loadShared(): void {
+    this.screen.set('loading');
+    this.watch(this.sharedPlay.load(this.shareCode()), {
+      next: shared => {
+        const quiz = placeholderQuiz(shared.title, `asg:${this.shareCode()}`, shared.stageCounts ?? {});
+        if (questionCount(quiz) === 0) {
+          this.failNoQuestions();
+          return;
+        }
+        this.problem.set('');
+        this.baseQuiz.set(quiz);
+        this.shared.set({
+          label: shared.label,
+          closesAt: shared.closesAt
+        });
+        this.assignmentTimeMode.set(shared.timeMode);
+        this.assignmentTimeLimits.set(shared.timeLimits ?? null);
+        this.assignmentStageLock.set(shared.stageLock);
+        this.assignmentShowBoard.set(shared.showBoard);
+        this.assignmentPassPercents.set(shared.passPercents);
+        this.assignmentMaxAttempts.set(shared.maxAttempts ?? null);
+        this.countAttempts(shared);
+        const identity = this.sharedPlay.identity(this.shareCode());
+        if (identity) {
+          this.player.set(identity);
+          this.syncProgress(shared);
+          this.screen.set('map');
+        } else {
+          this.askToJoin();
+        }
+      },
+      error: err => this.fail(this.sharedGone(err) ?? SHARED_FAILED),
+    });
+  }
+
+  // The state every run starts from, whoever judges it: the questions it has (all of them for a local run, only
+
+  // The teacher's try-out of an assignment: its quiz and time mode, with nothing tied to a student.
+  private loadPreview(id: string): void {
+    this.screen.set('loading');
+    this.watch(this.assignmentService.get(id), {
+      next: detail => {
+        this.assignmentTimeMode.set(detail.timeMode);
+        this.assignmentTimeLimits.set(detail.timeLimits ?? null);
+        this.assignmentStageLock.set(detail.stageLock);
+        this.assignmentShowBoard.set(detail.showBoard);
+        this.assignmentPassPercents.set(detail.passPercents);
+        this.previewCode.set(detail.code.toUpperCase());
+        this.shared.set({
+          label: detail.label,
+          closesAt: detail.closesAt
+        });
+        this.openCsv(this.aiCsvService.extractCsvContent(detail.csv), detail.title);
+      },
+      error: err => this.fail('Không tải được bài này.', err instanceof HttpErrorResponse && err.status === 404),
+    });
+  }
+
+  // Back to a state where nothing is being played, so a stale run can never be seen or judged. A shared run's
+
+  // Subscribes for the page, replacing the request that was in flight.
+  private watch<T>(source: Observable<T>, observer: Partial<Observer<T>>): void {
+    this.request?.unsubscribe();
+    this.request = source.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(observer);
+  }
+
+  // assignment is over (410). Anything else (offline, a server error) may pass, so it gives null.
+  private sharedGone(err: unknown): string | null {
+    const status = err instanceof HttpErrorResponse ? err.status : 0;
+    return status === 404 ? SHARED_MISSING : status === 410 ? SHARED_CLOSED : null;
+  }
+
+  // get their own card, with a way back for the two signed-in modes (a student has none).
+  private fail(message: string, missing = false): void {
+    this.problem.set(message);
+    // A student who joined sees the final board under "closed": the leaderboard route answers after the close.
+    this.closedBoard.set(
+      message === SHARED_CLOSED && this.mode() === 'shared' && this.sharedPlay.identity(this.shareCode()) !== null);
+    this.screen.set(this.mode() === 'local' ? 'load' : 'error');
+    // An assignment that is gone has no leaderboard page to return to, only the list.
+    this.errorLink.set(missing ? {
+      url: '/assignments',
+      text: 'Về danh sách bài đã giao'
+    } : this.backLink());
+  }
+
+  // The join screen: this device is not a known student of the quiz (yet, or any more).
+  private askToJoin(): void {
+    this.player.set(null);
+    this.joining.set(false);
+    this.joinError.set('');
+    this.screen.set('join');
+  }
+
+  // The server's plain-text answer to a join, in words a student can act on.
+  private joinProblem(err: unknown): string {
+    const status = err instanceof HttpErrorResponse ? err.status : 0;
+    const body = err instanceof HttpErrorResponse && typeof err.error === 'string' ? err.error.trim() : '';
+    if (status === 409 && body === 'Name taken') {
+      return 'Tên này đã có bạn dùng, hãy thêm họ hoặc số.';
+    }
+    if (status === 409 && body === 'Assignment is full') {
+      return 'Bài đã đủ số học sinh, hãy báo thầy cô.';
+    }
+    if (status === 400) {
+      return 'Tên cần từ 1 đến 40 ký tự.';
+    }
+    if (status === 0) {
+      return 'Mất kết nối, hãy thử lại.';
+    }
+    return 'Chưa vào được bài, hãy thử lại.';
+  }
+
+  private showIntro(stage: number): void {
+    this.stage.set(stage);
+    this.screen.set('intro');
+    this.prepareVision();
+  }
+
   // reports its own failure. The wait is a quick spinner, with no delay added when the answer is fast.
   private guardSharedStage(stage: number, proceed: () => void): void {
     const identity = this.sharedPlay.identity(this.shareCode());
@@ -919,7 +1170,10 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.watch(this.sharedPlay.load(this.shareCode()).pipe(timeout(STAGE_CHECK_TIMEOUT_MS)), {
       next: shared => {
         this.checking.set(false);
-        this.shared.set({ label: shared.label, closesAt: shared.closesAt });
+        this.shared.set({
+          label: shared.label,
+          closesAt: shared.closesAt
+        });
         this.assignmentTimeLimits.set(shared.timeLimits ?? null);
         this.countAttempts(shared);
         this.syncProgress(shared);
@@ -943,57 +1197,17 @@ export class GesturePlay implements OnInit, OnDestroy {
     });
   }
 
-  // Whether `stage` can be opened by this student: it is in the quiz, and either every stage is open or the
+  // ---- A student's run, judged by the server ----
+
+  // A shared quiz is not played against questions the page holds: it asks the server to start the stage, is dealt
+  // one question at a time without its answer, sends each choice and shows the verdict that comes back, so there
+  // is nothing in the page to read the answers from, no clock to change and no score to make up. Every request
+  // belongs to the run it was made for (`watchRun`).
+
   // ones before it are passed.
   private stageOpen(stage: number): boolean {
     const quiz = this.quiz();
     return !!quiz?.stages.has(stage) && (this.allStagesOpen() || this.progress.isUnlocked(quiz, stage));
-  }
-
-  protected begin(): void {
-    // A user gesture, which is what lets the browser start the sound.
-    this.audio.resume();
-    this.audio.play('start');
-    this.startRun();
-  }
-
-  protected backToMap(): void {
-    this.resetRun();
-    // The camera is only needed while a stage is being set up or played.
-    this.vision.stopCamera();
-    // A student whose name was removed by the teacher is not a known student any more: the map is theirs.
-    if (this.mode() === 'shared' && !this.sharedPlay.identity(this.shareCode())) {
-      this.askToJoin();
-      return;
-    }
-    this.screen.set('map');
-  }
-
-  // Another quiz from a file: only for a quiz that was opened on this page, not for a job's.
-  protected openAnother(): void {
-    this.resetRun();
-    this.vision.stopCamera();
-    this.baseQuiz.set(null);
-    this.problem.set('');
-    this.screen.set('load');
-  }
-
-  protected openNextStage(): void {
-    const next = this.nextStageWithQuestions(this.stage());
-    if (next === null) {
-      this.backToMap();
-    } else {
-      this.openIntro(next);
-    }
-  }
-
-  protected retryStage(): void {
-    this.audio.resume();
-    if (this.mode() === 'shared') {
-      this.guardSharedStage(this.stage(), () => this.startRun());
-      return;
-    }
-    this.startRun();
   }
 
   private nextStageWithQuestions(stage: number): number | null {
@@ -1001,7 +1215,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     return STAGES.find(def => def.stage > stage && quiz?.stages.has(def.stage))?.stage ?? null;
   }
 
-  // ---- Playing a stage ----
+  // Subscribes for the run being played, replacing the request that was in flight. What comes back after the run
 
   private startRun(): void {
     if (this.mode() === 'shared') {
@@ -1021,7 +1235,11 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.prepareVision();
   }
 
-  // The state every run starts from, whoever judges it: the questions it has (all of them for a local run, only
+  // The clock of a question the server dealt. It started when the server dealt the question, so the time left is
+  // the server's figure (null: no limit), which only differs from the stage's own for a question fetched again.
+  // The page's own clock waits for a face game's calibration, but the server's does not: once the question's time
+  // and the grace the server adds for the network are over, an answer would come too late, so time is up whatever
+
   // the first for a shared one) and nothing scored yet.
   private beginRun(questions: PlayQuestion[]): void {
     this.questions.set(questions);
@@ -1037,7 +1255,8 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.missed = [];
   }
 
-  // Back to a state where nothing is being played, so a stale run can never be seen or judged. A shared run's
+  // Sends the choice for the question on screen (null: the time ran out). While it is out the page ignores
+
   // request in flight goes with it.
   private resetRun(): void {
     this.runSeq += 1;
@@ -1061,25 +1280,15 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.result.set(null);
   }
 
+  // Shows the server's verdict on question `index` like the page judges a local one, and scores from it. A
+
   private startQuestionTimer(): void {
     this.remaining = this.limit ?? 0;
     this.secondsLeft.set(this.limit);
   }
 
-  // Called by the game with the player's choice, possibly from the animation loop outside Angular.
-  protected onChoose(choice: Choice): void {
-    this.inZone(() => {
-      const play = this.current();
-      if (!play || this.screen() !== 'playing' || this.paused() || this.reveal() !== null || this.answering()) {
-        return;
-      }
-      if (this.mode() === 'shared') {
-        this.sendAnswer(choice);
-      } else {
-        this.showReveal(play, judge(play, choice));
-      }
-    });
-  }
+  // "Tiếp" in a shared run: the result after the last question's verdict, else the next question. The view and
+  // the reveal stay on screen until it arrives, so the game component is not recreated, and the question
 
   private timeUp(): void {
     this.inZone(() => {
@@ -1094,6 +1303,9 @@ export class GesturePlay implements OnInit, OnDestroy {
       }
     });
   }
+
+  // What a failed request of a run in progress means. A final answer from the server ends the run one way or
+  // another; a failure of the connection (after the service's own retries) keeps the screen, the question or its
 
   private showReveal(play: PlayQuestion, reveal: Reveal): void {
     this.reveal.set(reveal);
@@ -1113,26 +1325,6 @@ export class GesturePlay implements OnInit, OnDestroy {
       answer: correctAnswerText(play),
       explanation: play.source.explanation,
       timedOut: reveal.chosen === null,
-    });
-  }
-
-  // "Tiếp": on to the next question, or the result after the last one.
-  protected next(): void {
-    this.inZone(() => {
-      if (this.reveal() === null || this.screen() !== 'playing') {
-        return;
-      }
-      if (this.mode() === 'shared') {
-        this.nextShared();
-        return;
-      }
-      if (this.index() + 1 >= this.questions().length) {
-        this.finishRun();
-        return;
-      }
-      this.reveal.set(null);
-      this.index.update(index => index + 1);
-      this.startQuestionTimer();
     });
   }
 
@@ -1183,12 +1375,8 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.screen.set('result');
   }
 
-  // ---- A student's run, judged by the server ----
-
-  // A shared quiz is not played against questions the page holds: it asks the server to start the stage, is dealt
-  // one question at a time without its answer, sends each choice and shows the verdict that comes back, so there
-  // is nothing in the page to read the answers from, no clock to change and no score to make up. Every request
-  // belongs to the run it was made for (`watchRun`).
+  // The answers that end a shared run whatever it was doing: the assignment closed (410), it is gone (404 that is
+  // not about the run), or the server does not know this student (403, which the service has forgotten already).
 
   private startSharedRun(): void {
     if (this.starting()) {
@@ -1214,16 +1402,21 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.runId = start.runId;
     this.runTotal.set(start.total);
     // The run counts toward the replay limit from the moment it starts, finished or not.
-    this.attemptsUsed.update(used => ({ ...used, [String(stage)]: start.attempts }));
+    this.attemptsUsed.update(used => ({
+      ...used,
+      [String(stage)]: start.attempts
+    }));
     this.beginRun([sharedPlayQuestion(stage, start.question)]);
     this.startServerClock(start.question);
     this.screen.set('playing');
     this.prepareVision();
   }
 
-  // Subscribes for the run being played, replacing the request that was in flight. What comes back after the run
   // was left or replaced (the map, another quiz, a newer run) is dropped.
-  private watchRun<T>(source: Observable<T>, observer: { next: (value: T) => void; error: (err: unknown) => void }): void {
+  private watchRun<T>(source: Observable<T>, observer: {
+    next: (value: T) => void;
+    error: (err: unknown) => void
+  }): void {
     const seq = this.runSeq;
     this.runRequest?.unsubscribe();
     this.runRequest = source.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -1240,10 +1433,8 @@ export class GesturePlay implements OnInit, OnDestroy {
     });
   }
 
-  // The clock of a question the server dealt. It started when the server dealt the question, so the time left is
-  // the server's figure (null: no limit), which only differs from the stage's own for a question fetched again.
-  // The page's own clock waits for a face game's calibration, but the server's does not: once the question's time
-  // and the grace the server adds for the network are over, an answer would come too late, so time is up whatever
+  // Brings the progress and the runs of this device's student up to date from the server, quietly: nothing is
+
   // the game says (`deadline`).
   private startServerClock(question: SharedQuestion): void {
     const left = question.timeLeftMs;
@@ -1258,7 +1449,6 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
   }
 
-  // Sends the choice for the question on screen (null: the time ran out). While it is out the page ignores
   // further input and its clock stands still; the reveal waits for the server's verdict.
   private sendAnswer(choice: Choice | null): void {
     const runId = this.runId;
@@ -1277,7 +1467,8 @@ export class GesturePlay implements OnInit, OnDestroy {
     });
   }
 
-  // Shows the server's verdict on question `index` like the page judges a local one, and scores from it. A
+  // The runs `stage` has left for this student: null outside a shared quiz (a teacher's preview and a file are
+
   // verdict that says time was up is shown as a time-out even when a choice was sent with the answer.
   private showVerdict(index: number, choice: Choice | null, verdict: SharedVerdict): void {
     const asked = this.questions()[index];
@@ -1295,8 +1486,8 @@ export class GesturePlay implements OnInit, OnDestroy {
     });
   }
 
-  // "Tiếp" in a shared run: the result after the last question's verdict, else the next question. The view and
-  // the reveal stay on screen until it arrives, so the game component is not recreated, and the question
+  // Takes what the server says this student has used. A run counts the moment it starts and the answer to the
+
   // replaces them in one step.
   private nextShared(): void {
     if (this.advancing() || this.connectionLost()) {
@@ -1326,8 +1517,6 @@ export class GesturePlay implements OnInit, OnDestroy {
     });
   }
 
-  // What a failed request of a run in progress means. A final answer from the server ends the run one way or
-  // another; a failure of the connection (after the service's own retries) keeps the screen, the question or its
   // verdict, and offers "Thử lại", which sends the same request again.
   private runRequestFailed(err: unknown, retry: () => void): void {
     const { status } = failureOf(err);
@@ -1353,7 +1542,10 @@ export class GesturePlay implements OnInit, OnDestroy {
     if (this.sharedEnded(err)) {
       return;
     }
-    const { status, body } = failureOf(err);
+    const {
+      status,
+      body
+    } = failureOf(err);
     if (status === 409 && body === 'Stage locked') {
       // This page thought the stage was open and the server knows better: the map is brought into step.
       this.backToMap();
@@ -1373,11 +1565,12 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
   }
 
-  // The answers that end a shared run whatever it was doing: the assignment closed (410), it is gone (404 that is
-  // not about the run), or the server does not know this student (403, which the service has forgotten already).
   // Returns whether it was one of them.
   private sharedEnded(err: unknown): boolean {
-    const { status, body } = failureOf(err);
+    const {
+      status,
+      body
+    } = failureOf(err);
     if (status === 410) {
       this.leaveRun();
       this.fail(SHARED_CLOSED);
@@ -1393,21 +1586,14 @@ export class GesturePlay implements OnInit, OnDestroy {
     return true;
   }
 
+  // ---- The animation loop ----
+
   // Out of the run and off the camera, for a screen that is not the map.
   private leaveRun(): void {
     this.resetRun();
     this.vision.stopCamera();
   }
 
-  // "Thử lại" in the feedback bar: sends the request that failed again.
-  protected retryConnection(): void {
-    const retry = this.retryAction;
-    this.retryAction = null;
-    this.connectionLost.set(false);
-    retry?.();
-  }
-
-  // Brings the progress and the runs of this device's student up to date from the server, quietly: nothing is
   // shown if it cannot be reached.
   private refreshSharedProgress(): void {
     this.watch(this.sharedPlay.load(this.shareCode()), {
@@ -1419,6 +1605,10 @@ export class GesturePlay implements OnInit, OnDestroy {
     });
   }
 
+  // The question's clock: it only runs while the player can answer (nothing judged yet, no answer out, and a
+  // face game's calibration finished, which is `ready`) and a time limit is on. A shared question also has the
+  // server's clock, which waits for nothing: past its `deadline` time is up, ready or not, and the player is
+
   // Makes the progress kept on this device (which the stage map shows) the server's own for the student.
   private syncProgress(shared: SharedQuiz): void {
     const quiz = this.quiz();
@@ -1427,7 +1617,6 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
   }
 
-  // The runs `stage` has left for this student: null outside a shared quiz (a teacher's preview and a file are
   // never limited) or when the teacher set no limit.
   private stageAttemptsLeft(stage: number): number | null {
     return this.mode() === 'shared'
@@ -1435,30 +1624,24 @@ export class GesturePlay implements OnInit, OnDestroy {
       : null;
   }
 
-  // Takes what the server says this student has used. A run counts the moment it starts and the answer to the
+  // Runs `action` inside Angular's zone, so the page is checked afterwards even when the caller is the
+
   // start says how many that makes, so the server's figure is the newest one this page can be given.
   private countAttempts(shared: SharedQuiz): void {
     this.attemptsUsed.set({ ...shared.attempts });
   }
 
+  // ---- Camera ----
+
   private useUpAttempts(stage: number): void {
     const max = this.assignmentMaxAttempts();
     if (max !== null) {
-      this.attemptsUsed.update(used => ({ ...used, [String(stage)]: Math.max(max, used[String(stage)] ?? 0) }));
+      this.attemptsUsed.update(used => ({
+        ...used,
+        [String(stage)]: Math.max(max, used[String(stage)] ?? 0)
+      }));
     }
   }
-
-  protected togglePause(): void {
-    if (this.screen() === 'playing' && !this.pauseLocked()) {
-      this.paused.update(paused => !paused);
-    }
-  }
-
-  protected toggleSound(): void {
-    this.settingsService.update({ sound: !this.settings().sound });
-  }
-
-  // ---- The animation loop ----
 
   private startLoop(): void {
     // Outside Angular's zone, so a frame every 16 ms does not run change detection each time; whatever
@@ -1471,6 +1654,8 @@ export class GesturePlay implements OnInit, OnDestroy {
       this.frameHandle = requestAnimationFrame(step);
     });
   }
+
+  // What a stage needs from the camera when it is opened: start it if the player had it on last time,
 
   private frame(now: number): void {
     const dt = this.lastFrameAt === 0 ? 0 : Math.min((now - this.lastFrameAt) / 1000, MAX_FRAME_DT_S);
@@ -1503,9 +1688,6 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
   }
 
-  // The question's clock: it only runs while the player can answer (nothing judged yet, no answer out, and a
-  // face game's calibration finished, which is `ready`) and a time limit is on. A shared question also has the
-  // server's clock, which waits for nothing: past its `deadline` time is up, ready or not, and the player is
   // shown the smaller of the two clocks.
   private runTimer(dt: number, now: number, ready: boolean): void {
     if (this.limit === null) {
@@ -1546,7 +1728,9 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
   }
 
-  // Runs `action` inside Angular's zone, so the page is checked afterwards even when the caller is the
+  // Once this stage's model is ready and the camera is on, the other kind the quiz needs is fetched in
+  // the background so changing stage does not wait for it. Never while playing: creating a model can
+
   // animation loop or a game that was driven from it.
   private inZone(action: () => void): void {
     if (NgZone.isInAngularZone()) {
@@ -1556,17 +1740,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
   }
 
-  // ---- Camera ----
-
-  protected toggleCamera(): void {
-    const state = this.vision.cameraState();
-    if (state === 'on' || state === 'starting') {
-      this.vision.stopCamera();
-      this.settingsService.update({ useCamera: false });
-      return;
-    }
-    void this.enableCamera();
-  }
+  // ---- Keyboard, visibility and fullscreen ----
 
   private async enableCamera(): Promise<void> {
     this.audio.resume();
@@ -1582,7 +1756,8 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
   }
 
-  // What a stage needs from the camera when it is opened: start it if the player had it on last time,
+  // A hidden tab stops the animation frames anyway; pausing makes the player come back to a stopped
+
   // and make sure this stage's model (hand or face) is loaded.
   private prepareVision(): void {
     const state = this.vision.cameraState();
@@ -1593,17 +1768,11 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
   }
 
-  protected retryModel(): void {
-    void this.loadModel(this.def().vision);
-  }
-
   // A failed load is shown by the model chip and the notice; the quiz stays playable without it.
   private loadModel(kind: VisionKind): Promise<void> {
     return this.vision.ensureModel(kind).then(() => this.preloadOtherModels()).catch(() => undefined);
   }
 
-  // Once this stage's model is ready and the camera is on, the other kind the quiz needs is fetched in
-  // the background so changing stage does not wait for it. Never while playing: creating a model can
   // stall the page for a moment.
   private preloadOtherModels(): void {
     const quiz = this.quiz();
@@ -1616,62 +1785,6 @@ export class GesturePlay implements OnInit, OnDestroy {
       if (this.vision.modelState(kind)() === 'idle') {
         this.vision.ensureModel(kind).catch(() => undefined);
       }
-    }
-  }
-
-  // ---- Keyboard, visibility and fullscreen ----
-
-  @HostListener('document:keydown', ['$event'])
-  protected onKeydown(event: KeyboardEvent): void {
-    if (this.screen() !== 'playing' || event.ctrlKey || event.metaKey || event.altKey) {
-      return;
-    }
-    // Typing in a field is not a command.
-    if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]')) {
-      return;
-    }
-    if (event.key === 'p' || event.key === 'P') {
-      event.preventDefault();
-      if (!event.repeat) {
-        this.togglePause();
-      }
-    } else if (event.key === 'Enter' && this.reveal() !== null && !this.paused()) {
-      // Prevented so that a focused button does not also click itself. A held key must not skip a
-      // question after the next one.
-      event.preventDefault();
-      if (!event.repeat) {
-        this.next();
-      }
-    }
-  }
-
-  // A hidden tab stops the animation frames anyway; pausing makes the player come back to a stopped
-  // question instead of a timed-out one. Not for a shared question the server is timing: it keeps running.
-  @HostListener('document:visibilitychange')
-  protected onVisibilityChange(): void {
-    if (document.hidden && this.screen() === 'playing' && !this.pauseLocked()) {
-      this.paused.set(true);
-    }
-  }
-
-  @HostListener('document:fullscreenchange')
-  protected onFullscreenChange(): void {
-    this.fullscreen.set(document.fullscreenElement !== null);
-  }
-
-  protected toggleFullscreen(): void {
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => undefined);
-      return;
-    }
-    const failed = () => this.notificationService.warning(
-      'Không bật được toàn màn hình',
-      'Trình duyệt không cho phép chế độ toàn màn hình ở đây.',
-      { nzPlacement: 'top' });
-    try {
-      this.host.nativeElement.requestFullscreen().catch(failed);
-    } catch {
-      failed();
     }
   }
 }

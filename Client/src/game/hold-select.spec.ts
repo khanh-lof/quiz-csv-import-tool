@@ -2,11 +2,11 @@ import {
   HoldCues,
   HoldSelector,
   HoldSelectorStep,
-  StableReading,
   isPlainKey,
   isTypingTarget,
   ringOffset,
   sameProgress,
+  StableReading,
 } from './hold-select';
 
 // Feeds `choice` to the selector every 20 ms from `from` to `to` (inclusive) and returns the steps.
@@ -165,18 +165,45 @@ describe('HoldSelector', () => {
 });
 
 describe('key and target checks', () => {
-  const plain = { ctrlKey: false, metaKey: false, altKey: false, shiftKey: false };
+  const plain = {
+    ctrlKey: false,
+    metaKey: false,
+    altKey: false,
+    shiftKey: false
+  };
 
   it('lets a plain key on the page through', () => {
-    expect(isPlainKey({ ...plain, target: document.body })).toBeTrue();
-    expect(isPlainKey({ ...plain, target: null })).toBeTrue();
+    expect(isPlainKey({
+      ...plain,
+      target: document.body
+    })).toBeTrue();
+    expect(isPlainKey({
+      ...plain,
+      target: null
+    })).toBeTrue();
   });
 
   it('refuses a key with a modifier', () => {
-    expect(isPlainKey({ ...plain, ctrlKey: true, target: document.body })).toBeFalse();
-    expect(isPlainKey({ ...plain, metaKey: true, target: document.body })).toBeFalse();
-    expect(isPlainKey({ ...plain, altKey: true, target: document.body })).toBeFalse();
-    expect(isPlainKey({ ...plain, shiftKey: true, target: document.body })).toBeFalse();
+    expect(isPlainKey({
+      ...plain,
+      ctrlKey: true,
+      target: document.body
+    })).toBeFalse();
+    expect(isPlainKey({
+      ...plain,
+      metaKey: true,
+      target: document.body
+    })).toBeFalse();
+    expect(isPlainKey({
+      ...plain,
+      altKey: true,
+      target: document.body
+    })).toBeFalse();
+    expect(isPlainKey({
+      ...plain,
+      shiftKey: true,
+      target: document.body
+    })).toBeFalse();
   });
 
   it('refuses a key typed into a text field', () => {
@@ -191,16 +218,36 @@ describe('key and target checks', () => {
 
 describe('ring and view helpers', () => {
   it('draws the ring on the charged target only', () => {
-    const view = { armed: true, choice: 1, progress: 0.25 };
+    const view = {
+      armed: true,
+      choice: 1,
+      progress: 0.25
+    };
     expect(ringOffset(view, 1)).toBeCloseTo(75);
     expect(ringOffset(view, 0)).toBe(100);
-    expect(ringOffset({ armed: true, choice: 0, progress: 1 }, 0)).toBe(0);
-    expect(ringOffset({ armed: true, choice: null, progress: 0 }, 0)).toBe(100);
+    expect(ringOffset({
+      armed: true,
+      choice: 0,
+      progress: 1
+    }, 0)).toBe(0);
+    expect(ringOffset({
+      armed: true,
+      choice: null,
+      progress: 0
+    }, 0)).toBe(100);
   });
 
   it('keeps the offset within the circle', () => {
-    expect(ringOffset({ armed: true, choice: 0, progress: 3 }, 0)).toBe(0);
-    expect(ringOffset({ armed: true, choice: 0, progress: -1 }, 0)).toBe(100);
+    expect(ringOffset({
+      armed: true,
+      choice: 0,
+      progress: 3
+    }, 0)).toBe(0);
+    expect(ringOffset({
+      armed: true,
+      choice: 0,
+      progress: -1
+    }, 0)).toBe(100);
   });
 
   it('treats progress within two percent as the same', () => {

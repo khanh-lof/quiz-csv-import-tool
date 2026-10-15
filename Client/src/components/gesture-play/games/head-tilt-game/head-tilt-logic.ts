@@ -1,8 +1,8 @@
-import { TiltGate, clamp, headSignal } from '../../../../game/gestures';
 import type { TiltSide } from '../../../../game/gestures';
+import { clamp, headSignal, TiltGate } from '../../../../game/gestures';
 import type { FaceFrame } from '../../../../game/stage-game';
-import { faceProblemMessage, readFacePose } from './face-common';
 import type { FacePose } from './face-common';
+import { faceProblemMessage, readFacePose } from './face-common';
 
 // The head-tilt prototype's "easy" control with its defaults: a lean of 8 degrees of roll, or a head
 // shift of 0.4 eye spans (which headSignal scales to the same units), held for 450 ms.

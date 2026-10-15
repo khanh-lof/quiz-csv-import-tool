@@ -10,9 +10,8 @@
 .stage[data-game] {
   border-color: var(--g-frame);
   background: var(--g-scene);
-  box-shadow:
-    var(--g-inset, 0 0 0 0 transparent),
-    var(--qt-card-shadow);
+  box-shadow: var(--g-inset, 0 0 0 0 transparent),
+  var(--qt-card-shadow);
 }
 
 /* Between the camera picture and the game (see the template), so it never covers a card. */

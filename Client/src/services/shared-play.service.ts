@@ -32,9 +32,19 @@ function sanitizeIdentities(raw: unknown): IdentityStore {
   const store: IdentityStore = {};
   if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
     for (const [code, value] of Object.entries(raw)) {
-      const {playerId, token, name, avatar} = (value ?? {}) as Partial<Record<keyof PlayerIdentity, unknown>>;
+      const {
+        playerId,
+        token,
+        name,
+        avatar
+      } = (value ?? {}) as Partial<Record<keyof PlayerIdentity, unknown>>;
       if (isText(playerId) && isText(token) && isText(name)) {
-        store[code.toUpperCase()] = {playerId, token, name, avatar: isText(avatar) ? avatar : ''};
+        store[code.toUpperCase()] = {
+          playerId,
+          token,
+          name,
+          avatar: isText(avatar) ? avatar : ''
+        };
       }
     }
   }
@@ -98,7 +108,7 @@ function isTransient(err: unknown): boolean {
 // questions one at a time without their answers and judges each answer. The student has no account, so the server
 // knows a device by the token it handed out on joining, which is kept here. Only the lazy play page uses this
 // service.
-@Injectable({providedIn: 'root'})
+@Injectable({ providedIn: 'root' })
 export class SharedPlayService {
   private readonly baseUrl = '/api/share';
 
@@ -119,17 +129,33 @@ export class SharedPlayService {
   load(code: string): Observable<SharedQuiz> {
     const token = this.identity(code)?.token;
     return this.http.get<SharedQuiz>(`${this.baseUrl}/${encodeURIComponent(code)}`,
-      token ? {headers: {'X-Player-Token': token}} : {});
+      token ? { headers: { 'X-Player-Token': token } } : {});
   }
 
   // Registers the student under `name` with the picked avatar (an id of `AVATARS`, '' for none) and
   // remembers the answer on this device. Failures are rethrown for the page to explain: 400 (bad name, or
   // `Invalid avatar.`), 409 (`Name taken` or `Assignment is full`), 404 and 410.
   join(code: string, name: string, avatar = ''): Observable<PlayerIdentity> {
-    return this.http.post<PlayerIdentity>(`${this.baseUrl}/${encodeURIComponent(code)}/players`, {name, avatar}).pipe(
-      map(({playerId, token, name: joinedName, avatar: joinedAvatar}) =>
-        ({playerId, token, name: joinedName, avatar: joinedAvatar ?? ''})),
-      tap(identity => this.identities.write({...this.identities.read(), [normalizeCode(code)]: identity})));
+    return this.http.post<PlayerIdentity>(`${this.baseUrl}/${encodeURIComponent(code)}/players`, {
+      name,
+      avatar
+    }).pipe(
+      map(({
+             playerId,
+             token,
+             name: joinedName,
+             avatar: joinedAvatar
+           }) =>
+        ({
+          playerId,
+          token,
+          name: joinedName,
+          avatar: joinedAvatar ?? ''
+        })),
+      tap(identity => this.identities.write({
+        ...this.identities.read(),
+        [normalizeCode(code)]: identity
+      })));
   }
 
   // Changes the avatar of the student this device joined as, and emits the identity as it is stored now. A
@@ -139,19 +165,32 @@ export class SharedPlayService {
   setAvatar(code: string, avatar: string): Observable<PlayerIdentity> {
     const identity = this.identity(code);
     if (!identity) {
-      return throwError(() => new HttpErrorResponse({status: 403, statusText: 'Forbidden', error: 'Unknown player'}));
+      return throwError(() => new HttpErrorResponse({
+        status: 403,
+        statusText: 'Forbidden',
+        error: 'Unknown player'
+      }));
     }
     return this.http.patch<Pick<PlayerIdentity, 'playerId' | 'name' | 'avatar'>>(
-      `${this.baseUrl}/${encodeURIComponent(code)}/player`, {avatar}, {headers: {'X-Player-Token': identity.token}}).pipe(
+      `${this.baseUrl}/${encodeURIComponent(code)}/player`, { avatar }, { headers: { 'X-Player-Token': identity.token } }).pipe(
       map(answer => {
         // The stored identity may have changed while the request was out (another tab joined as someone
         // else): only the student this request was for gets the new avatar.
         const current = this.identity(code);
         if (current?.token !== identity.token) {
-          return {...identity, avatar: answer.avatar};
+          return {
+            ...identity,
+            avatar: answer.avatar
+          };
         }
-        const updated = {...current, avatar: answer.avatar};
-        this.identities.write({...this.identities.read(), [normalizeCode(code)]: updated});
+        const updated = {
+          ...current,
+          avatar: answer.avatar
+        };
+        this.identities.write({
+          ...this.identities.read(),
+          [normalizeCode(code)]: updated
+        });
         return updated;
       }),
       catchError(err => {
@@ -169,7 +208,7 @@ export class SharedPlayService {
   leaderboard(code: string): Observable<StudentBoard> {
     const token = this.identity(code)?.token;
     return this.http.get<StudentBoard>(`${this.baseUrl}/${encodeURIComponent(code)}/leaderboard`,
-      token ? {headers: {'X-Player-Token': token}} : {});
+      token ? { headers: { 'X-Player-Token': token } } : {});
   }
 
   // Who this device joined `code` as, or null.
@@ -179,7 +218,7 @@ export class SharedPlayService {
 
   // Lets this device join again as someone else. The old student stays in the teacher's leaderboard.
   forget(code: string): void {
-    const rest = {...this.identities.read()};
+    const rest = { ...this.identities.read() };
     delete rest[normalizeCode(code)];
     this.identities.write(rest);
   }
@@ -191,16 +230,16 @@ export class SharedPlayService {
   // device that has not joined has no token to send, so it fails like the server would, with no request.
   startRun(code: string, stage: number): Observable<SharedRunStart> {
     return this.asStudent(code, token => this.http.post<SharedRunStart>(
-      `${this.baseUrl}/${encodeURIComponent(code)}/runs`, {stage}, {headers: {'X-Player-Token': token}}), false);
+      `${this.baseUrl}/${encodeURIComponent(code)}/runs`, { stage }, { headers: { 'X-Player-Token': token } }), false);
   }
 
   // The question after the one just answered. The server deals it the same way twice (a question already dealt
   // is sent again with its clock still running), so a transient failure is retried before it is reported.
   // Failures as for `startRun`, plus 404 `Run not found` and 409 `Run is over`.
   nextQuestion(code: string, runId: string): Observable<SharedQuestion> {
-    return this.asStudent(code, token => this.http.post<{question: SharedQuestion}>(
+    return this.asStudent(code, token => this.http.post<{ question: SharedQuestion }>(
       `${this.baseUrl}/${encodeURIComponent(code)}/runs/${encodeURIComponent(runId)}/next`, null,
-      {headers: {'X-Player-Token': token}}).pipe(map(answer => answer.question)), true);
+      { headers: { 'X-Player-Token': token } }).pipe(map(answer => answer.question)), true);
   }
 
   // Sends the answer to question `index` of the run and emits the server's verdict: `choice` is the option's
@@ -209,8 +248,11 @@ export class SharedPlayService {
   // retried before it is reported. Failures as for `nextQuestion`, plus 400 `Invalid answer.`
   answer(code: string, runId: string, index: number, choice: Choice | null): Observable<SharedVerdict> {
     return this.asStudent(code, token => this.http.post<SharedVerdict>(
-      `${this.baseUrl}/${encodeURIComponent(code)}/runs/${encodeURIComponent(runId)}/answers`, {index, choice},
-      {headers: {'X-Player-Token': token}}), true);
+      `${this.baseUrl}/${encodeURIComponent(code)}/runs/${encodeURIComponent(runId)}/answers`, {
+        index,
+        choice
+      },
+      { headers: { 'X-Player-Token': token } }), true);
   }
 
   // A request made as the student this device joined as. Without an identity it fails as a 403 and sends
@@ -220,15 +262,19 @@ export class SharedPlayService {
   private asStudent<T>(code: string, send: (token: string) => Observable<T>, idempotent: boolean): Observable<T> {
     const identity = this.identity(code);
     if (!identity) {
-      return throwError(() => new HttpErrorResponse({status: 403, statusText: 'Forbidden', error: 'Unknown player'}));
+      return throwError(() => new HttpErrorResponse({
+        status: 403,
+        statusText: 'Forbidden',
+        error: 'Unknown player'
+      }));
     }
     const request = send(identity.token);
     return (idempotent
-      ? request.pipe(retry({
-        count: RETRY_COUNT,
-        delay: (err, attempt) => isTransient(err) ? timer(RETRY_STEP_MS * attempt) : throwError(() => err),
-      }))
-      : request
+        ? request.pipe(retry({
+          count: RETRY_COUNT,
+          delay: (err, attempt) => isTransient(err) ? timer(RETRY_STEP_MS * attempt) : throwError(() => err),
+        }))
+        : request
     ).pipe(catchError(err => {
       if (err instanceof HttpErrorResponse && err.status === 403 && this.identity(code)?.token === identity.token) {
         this.forget(code);

@@ -1,4 +1,4 @@
-<div class="board" [class.locked]="locked()">
+<div [class.locked]="locked()" class="board">
   <div class="top">
     <div class="card prompt">
       <span class="label">Xếp thành câu có nghĩa</span>
@@ -6,27 +6,27 @@
     </div>
     @if (reveal() === null) {
       <button
-        type="button"
-        class="card target undo"
-        [class.off]="line().length === 0"
-        [class.hot]="hovered() === undoId"
-        [attr.data-target]="undoId"
         (click)="activate(undoId)"
+        [attr.data-target]="undoId"
+        [class.hot]="hovered() === undoId"
+        [class.off]="line().length === 0"
+        class="card target undo"
+        type="button"
       >
         <span aria-hidden="true">↩</span> Hoàn tác
       </button>
     }
   </div>
 
-  <div class="line" [class.right]="verdict() === 'right'" [class.wrong]="verdict() === 'wrong'">
+  <div [class.right]="verdict() === 'right'" [class.wrong]="verdict() === 'wrong'" class="line">
     @for (slot of slots(); track $index) {
       @if (slot.filled) {
         <button
-          type="button"
-          class="tile target placed"
-          [class.hot]="hovered() === lineId($index)"
-          [attr.data-target]="lineId($index)"
           (click)="activate(lineId($index))"
+          [attr.data-target]="lineId($index)"
+          [class.hot]="hovered() === lineId($index)"
+          class="tile target placed"
+          type="button"
         >
           {{ slot.text }}
         </button>
@@ -45,12 +45,12 @@
     <div class="pool">
       @for (tile of pool(); track tile.index) {
         <button
-          type="button"
-          class="tile target"
+          (click)="activate(poolId(tile.index))"
+          [attr.data-target]="poolId(tile.index)"
           [class.gone]="tile.placed"
           [class.hot]="hovered() === poolId(tile.index)"
-          [attr.data-target]="poolId(tile.index)"
-          (click)="activate(poolId(tile.index))"
+          class="tile target"
+          type="button"
         >
           @if (!cameraActive() && tile.index < 9) {
             <kbd>{{ tile.index + 1 }}</kbd>
@@ -66,10 +66,10 @@
 @if (cameraActive()) {
   <div
     #cursor
-    class="cursor"
-    [class.visible]="handVisible()"
     [class.pinched]="pinched()"
+    [class.visible]="handVisible()"
     aria-hidden="true"
+    class="cursor"
   >
     <span class="progress"></span>
     <span class="ring"></span>

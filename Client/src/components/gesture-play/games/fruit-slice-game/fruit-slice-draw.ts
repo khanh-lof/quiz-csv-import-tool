@@ -1,5 +1,5 @@
 import { clamp } from '../../../../game/gestures';
-import { Flash, FruitField, Half, Fruit, Particle, SLOTS, TAU } from './fruit-slice-physics';
+import { Flash, Fruit, FruitField, Half, Particle, SLOTS, TAU } from './fruit-slice-physics';
 
 // Canvas drawing for the fruit-slicing game: the three fruit sprites (ported from the prototype's
 // `FRUIT_DRAW`, a whole fruit and a cross-section each), the scene and the swipe trails. The fruits
@@ -69,6 +69,7 @@ function radial(x: Ctx, inner: number, outer: number, stops: [number, string][])
 
 interface FruitDrawing {
   whole(x: Ctx): void;
+
   section(x: Ctx): void;
 }
 
@@ -274,7 +275,10 @@ let sprites: FruitSprite[] | null = null;
 // Built on first use and then shared by every game instance: drawing six 340 px sprites is cheap
 // but there is no reason to repeat it for each stage the player starts.
 export function fruitSprites(): FruitSprite[] {
-  sprites ??= FRUIT_DRAW.map(d => ({ whole: makeSprite(d.whole), section: makeSprite(d.section) }));
+  sprites ??= FRUIT_DRAW.map(d => ({
+    whole: makeSprite(d.whole),
+    section: makeSprite(d.section)
+  }));
   return sprites;
 }
 

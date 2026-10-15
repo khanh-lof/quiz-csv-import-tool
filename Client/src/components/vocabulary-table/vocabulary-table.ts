@@ -1,4 +1,12 @@
-import { Component, DestroyRef, ElementRef, OnInit, QueryList, ViewChildren, ChangeDetectionStrategy } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  ElementRef,
+  OnInit,
+  QueryList,
+  ViewChildren
+} from '@angular/core';
 import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzTableModule } from 'ng-zorro-antd/table';
@@ -71,26 +79,17 @@ interface TableDraft {
   styleUrl: './vocabulary-table.css',
 })
 export class VocabularyTable implements OnInit {
+  formGroup: FormGroup;
+  @ViewChildren('rowSourceInputs') rowSourceInputs!: QueryList<ElementRef>;
   protected listOfData: FormGroup<QuestionDefinitionForm>[];
-
-  protected get questionForms() {
-    return this.formGroup.get('listOfData') as FormArray<FormGroup<QuestionDefinitionForm>>;
-  }
-
   protected readonly ExportType = ExportType;
   protected readonly WaygroundDelivery = WaygroundDelivery;
-
   protected readonly extensionInstalled: boolean;
   // Outside the form group: it is a preference shared with the AI page, not part of the table's draft.
   protected readonly waygroundDelivery: FormControl<WaygroundDelivery>;
-
   protected readonly minRows = 4;
-
   protected readonly duplicateErrorKey = 'duplicate';
-
-  formGroup: FormGroup;
-
-  @ViewChildren('rowSourceInputs') rowSourceInputs!: QueryList<ElementRef>;
+  protected readonly QuestionType = QuestionType;
 
   constructor(private readonly fileExportService: FileExportService,
               private readonly csvImportService: CsvImportService,
@@ -109,54 +108,19 @@ export class VocabularyTable implements OnInit {
     this.formGroup.valueChanges.pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.saveDraft());
     this.extensionInstalled = waygroundExtensionService.isInstalled();
-    this.waygroundDelivery = new FormControl(waygroundExtensionService.preferredDelivery(), {nonNullable: true});
+    this.waygroundDelivery = new FormControl(waygroundExtensionService.preferredDelivery(), { nonNullable: true });
     this.waygroundDelivery.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(delivery => waygroundExtensionService.savePreferredDelivery(delivery));
+  }
+
+  protected get questionForms() {
+    return this.formGroup.get('listOfData') as FormArray<FormGroup<QuestionDefinitionForm>>;
   }
 
   // Whether exporting hands the quiz to the extension to publish instead of downloading the file.
   protected get publishesWithExtension(): boolean {
     return this.formGroup.get('exportType')?.value === ExportType.Wayground
       && this.waygroundExtensionService.shouldPublish(this.waygroundDelivery.value);
-  }
-
-  private restoreDraft(): void {
-    let draft: TableDraft | null = null;
-    try {
-      draft = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) ?? 'null');
-    } catch {
-      return;
-    }
-    if (!draft) {
-      return;
-    }
-    const rows = (draft.rows ?? []).filter(row => row.question || row.answer);
-    if (rows.length) {
-      this.questionForms.clear();
-      rows.forEach(row => this.questionForms.push(
-        this.createQuestionFormGroupWithValues(row.question ?? '', row.answer ?? '', row.questionType ?? QuestionType.MultipleChoice)));
-      for (let i = rows.length; i < this.minRows; i++) {
-        this.questionForms.push(this.createQuestionFormGroup());
-      }
-    }
-    this.formGroup.patchValue({exportType: draft.exportType ?? null});
-  }
-
-  private saveDraft(): void {
-    const draft: TableDraft = {rows: this.currentRows(), exportType: this.formGroup.get('exportType')?.value ?? null};
-    try {
-      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
-    } catch {
-      // Keeping the draft is only a convenience.
-    }
-  }
-
-  private currentRows(): QuestionDefinition[] {
-    return this.questionForms.controls.map(x => ({
-      question: x.controls.question.value,
-      answer: x.controls.answer.value,
-      questionType: x.controls.questionType.value
-    } as QuestionDefinition));
   }
 
   // Rows the AI page generated in its formatted mode arrive here to be reviewed before export.
@@ -192,7 +156,7 @@ export class VocabularyTable implements OnInit {
       const rows = this.csvImportService.parseCsv(content);
 
       if (!rows.length) {
-        this.notificationService.warning('Không có dữ liệu', 'File CSV không có dữ liệu hợp lệ để nhập.', {nzPlacement: 'top'});
+        this.notificationService.warning('Không có dữ liệu', 'File CSV không có dữ liệu hợp lệ để nhập.', { nzPlacement: 'top' });
         return;
       }
 
@@ -203,6 +167,114 @@ export class VocabularyTable implements OnInit {
     input.value = '';
   }
 
+  deleteRow(index: number) {
+    this.questionForms.removeAt(index);
+    this.refreshTable();
+  }
+
+  exportFile() {
+    const exportTypeControl = this.formGroup.get('exportType')!;
+    if (exportTypeControl.value === null) {
+      exportTypeControl.markAsDirty();
+      this.notificationService.error('Chưa chọn template', 'Chọn Gimkit, Blooket hoặc Wayground trước khi tải file nhé.', { nzPlacement: 'top' });
+      return;
+    }
+    // Rows left completely empty are ignored rather than blocking the export, as long as enough real
+    // rows remain for the builders to draw wrong answers from.
+    const filledRowCount = this.questionForms.controls.filter(x => !this.isEmptyRow(x)).length;
+    if (filledRowCount < this.minRows) {
+      this.notificationService.error('Chưa đủ câu hỏi',
+        `Cần ít nhất ${this.minRows} câu hỏi có đáp án để tạo đáp án sai cho mỗi câu.`, { nzPlacement: 'top' });
+      return;
+    }
+    this.removeEmptyControls();
+    this.refreshTable();
+
+    this.formGroup.markAllAsDirty();
+    if (this.formGroup.invalid) {
+      const message = this.questionForms.hasError('duplicateExists')
+        ? 'Có câu hỏi hoặc đáp án bị trùng, sửa lại chỗ báo đỏ nhé.'
+        : 'Còn ô trống, điền nốt chỗ báo đỏ nhé.';
+      this.notificationService.error('Tập trung vàoooo', message, { nzPlacement: 'top' });
+      return;
+    }
+    const exportType: ExportType = exportTypeControl.value;
+    const today = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD in local time
+    const title = `QuizTool-${today}`;
+    const publish = this.publishesWithExtension;
+    const exported = this.fileExportService.exportFile(
+      FileExportService.buildFileName(title, exportType), this.currentRows(), exportType, !publish);
+    if (!exported) return;
+    if (publish && exported.xlsx) {
+      this.waygroundExtensionService.sendImport(title, exported.fileName, exported.xlsx);
+      this.notificationService.info('Đang tạo quiz trên Wayground…',
+        'Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.', { nzPlacement: 'top' });
+      return;
+    }
+    this.notificationService.success('Tải file thành công',
+      `Đã tải ${exported.fileName}, import vào ${FileExportService.platformName(exportType)} là dùng được nhaa.`, { nzPlacement: 'top' });
+  }
+
+  protected confirmDeleteAllRows() {
+    if (this.questionForms.controls.every(x => this.isEmptyRow(x))) {
+      this.deleteAllRows();
+      return;
+    }
+    this.modalService.confirm({
+      nzTitle: 'Xóa tất cả câu hỏi?',
+      nzContent: 'Toàn bộ câu hỏi và đáp án trong bảng sẽ bị xóa.',
+      nzOkText: 'Xóa',
+      nzOkDanger: true,
+      nzClassName: 'qt-confirm-danger',
+      nzIconType: 'delete',
+      nzCancelText: 'Giữ lại',
+      nzCentered: true,
+      nzOnOk: () => this.deleteAllRows()
+    });
+  }
+
+  private restoreDraft(): void {
+    let draft: TableDraft | null = null;
+    try {
+      draft = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) ?? 'null');
+    } catch {
+      return;
+    }
+    if (!draft) {
+      return;
+    }
+    const rows = (draft.rows ?? []).filter(row => row.question || row.answer);
+    if (rows.length) {
+      this.questionForms.clear();
+      rows.forEach(row => this.questionForms.push(
+        this.createQuestionFormGroupWithValues(row.question ?? '', row.answer ?? '', row.questionType ?? QuestionType.MultipleChoice)));
+      for (let i = rows.length; i < this.minRows; i++) {
+        this.questionForms.push(this.createQuestionFormGroup());
+      }
+    }
+    this.formGroup.patchValue({ exportType: draft.exportType ?? null });
+  }
+
+  private saveDraft(): void {
+    const draft: TableDraft = {
+      rows: this.currentRows(),
+      exportType: this.formGroup.get('exportType')?.value ?? null
+    };
+    try {
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    } catch {
+      // Keeping the draft is only a convenience.
+    }
+  }
+
+  private currentRows(): QuestionDefinition[] {
+    return this.questionForms.controls.map(x => ({
+      question: x.controls.question.value,
+      answer: x.controls.answer.value,
+      questionType: x.controls.questionType.value
+    } as QuestionDefinition));
+  }
+
   private applyImportedRows(rows: QuestionDefinition[]) {
     this.removeEmptyControls();
     rows.forEach((row) => {
@@ -210,7 +282,7 @@ export class VocabularyTable implements OnInit {
     });
 
     this.refreshTable();
-    this.notificationService.success('Nhập thành công', `Đã nhập ${rows.length} dòng.`, {nzPlacement: 'top'});
+    this.notificationService.success('Nhập thành công', `Đã nhập ${rows.length} dòng.`, { nzPlacement: 'top' });
 
     setTimeout(() => {
       const inputs = this.rowSourceInputs.toArray();
@@ -224,57 +296,10 @@ export class VocabularyTable implements OnInit {
     this.formGroup.updateValueAndValidity();
   }
 
-  deleteRow(index: number) {
-    this.questionForms.removeAt(index);
-    this.refreshTable();
-  }
-
-  exportFile() {
-    const exportTypeControl = this.formGroup.get('exportType')!;
-    if (exportTypeControl.value === null) {
-      exportTypeControl.markAsDirty();
-      this.notificationService.error('Chưa chọn template', 'Chọn Gimkit, Blooket hoặc Wayground trước khi tải file nhé.', {nzPlacement: 'top'});
-      return;
-    }
-    // Rows left completely empty are ignored rather than blocking the export, as long as enough real
-    // rows remain for the builders to draw wrong answers from.
-    const filledRowCount = this.questionForms.controls.filter(x => !this.isEmptyRow(x)).length;
-    if (filledRowCount < this.minRows) {
-      this.notificationService.error('Chưa đủ câu hỏi',
-        `Cần ít nhất ${this.minRows} câu hỏi có đáp án để tạo đáp án sai cho mỗi câu.`, {nzPlacement: 'top'});
-      return;
-    }
-    this.removeEmptyControls();
-    this.refreshTable();
-
-    this.formGroup.markAllAsDirty();
-    if (this.formGroup.invalid) {
-      const message = this.questionForms.hasError('duplicateExists')
-        ? 'Có câu hỏi hoặc đáp án bị trùng, sửa lại chỗ báo đỏ nhé.'
-        : 'Còn ô trống, điền nốt chỗ báo đỏ nhé.';
-      this.notificationService.error('Tập trung vàoooo', message, {nzPlacement: 'top'});
-      return;
-    }
-    const exportType: ExportType = exportTypeControl.value;
-    const today = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD in local time
-    const title = `QuizTool-${today}`;
-    const publish = this.publishesWithExtension;
-    const exported = this.fileExportService.exportFile(
-      FileExportService.buildFileName(title, exportType), this.currentRows(), exportType, !publish);
-    if (!exported) return;
-    if (publish && exported.xlsx) {
-      this.waygroundExtensionService.sendImport(title, exported.fileName, exported.xlsx);
-      this.notificationService.info('Đang tạo quiz trên Wayground…',
-        'Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.', {nzPlacement: 'top'});
-      return;
-    }
-    this.notificationService.success('Tải file thành công',
-      `Đã tải ${exported.fileName}, import vào ${FileExportService.platformName(exportType)} là dùng được nhaa.`, {nzPlacement: 'top'});
-  }
-
   private isEmptyRow(row: FormGroup<QuestionDefinitionForm>): boolean {
     return !row.controls.question.value?.trim() && !row.controls.answer.value?.trim();
   }
+
   private createQuestionFormGroup(): FormGroup<QuestionDefinitionForm> {
     return this.createQuestionFormGroupWithValues('', '');
   }
@@ -331,26 +356,8 @@ export class VocabularyTable implements OnInit {
       }
     }
 
-    return hasAnyDuplicate ? {duplicateExists: true} : null;
+    return hasAnyDuplicate ? { duplicateExists: true } : null;
   };
-
-  protected confirmDeleteAllRows() {
-    if (this.questionForms.controls.every(x => this.isEmptyRow(x))) {
-      this.deleteAllRows();
-      return;
-    }
-    this.modalService.confirm({
-      nzTitle: 'Xóa tất cả câu hỏi?',
-      nzContent: 'Toàn bộ câu hỏi và đáp án trong bảng sẽ bị xóa.',
-      nzOkText: 'Xóa',
-      nzOkDanger: true,
-      nzClassName: 'qt-confirm-danger',
-      nzIconType: 'delete',
-      nzCancelText: 'Giữ lại',
-      nzCentered: true,
-      nzOnOk: () => this.deleteAllRows()
-    });
-  }
 
   private deleteAllRows() {
     this.questionForms.clear();
@@ -373,7 +380,5 @@ export class VocabularyTable implements OnInit {
     }
     return forms;
   }
-
-  protected readonly QuestionType = QuestionType;
 }
 

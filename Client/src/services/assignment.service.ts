@@ -1,20 +1,22 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpStatusCode } from '@angular/common/http';
 import { catchError, map, Observable, of } from 'rxjs';
-import {
-  Assignment,
-  AssignmentChange,
-  AssignmentDetail,
-  NewAssignment,
-} from '../models/assignment';
+import { Assignment, AssignmentChange, AssignmentDetail, NewAssignment, } from '../models/assignment';
 
 // The teacher's side of "Giao bài": the assignments of the signed-in user. It holds no state, every page
 // asks the server for what it shows, so a leaderboard page and the list never disagree about an old copy.
-@Injectable({providedIn: 'root'})
+@Injectable({ providedIn: 'root' })
 export class AssignmentService {
   private readonly endpointUrl = '/api/assignments';
 
   constructor(private readonly http: HttpClient) {
+  }
+
+  private static alreadyGone(err: { status?: number }): Observable<void> {
+    if (err?.status === HttpStatusCode.NotFound) {
+      return of(undefined);
+    }
+    throw err;
   }
 
   create(request: NewAssignment): Observable<Assignment> {
@@ -31,11 +33,12 @@ export class AssignmentService {
     return this.http.get<AssignmentDetail>(`${this.endpointUrl}/${encodeURIComponent(id)}`);
   }
 
+  // Deletes the assignment and its students' results. One that is already gone (another tab deleted it)
+
   update(id: string, change: AssignmentChange): Observable<Assignment> {
     return this.http.patch<Assignment>(`${this.endpointUrl}/${encodeURIComponent(id)}`, change);
   }
 
-  // Deletes the assignment and its students' results. One that is already gone (another tab deleted it)
   // counts as deleted, like an AI job.
   remove(id: string): Observable<void> {
     return this.http.delete<void>(`${this.endpointUrl}/${encodeURIComponent(id)}`).pipe(
@@ -46,12 +49,5 @@ export class AssignmentService {
     return this.http.delete<void>(
       `${this.endpointUrl}/${encodeURIComponent(id)}/players/${encodeURIComponent(playerId)}`).pipe(
       catchError(AssignmentService.alreadyGone));
-  }
-
-  private static alreadyGone(err: { status?: number }): Observable<void> {
-    if (err?.status === HttpStatusCode.NotFound) {
-      return of(undefined);
-    }
-    throw err;
   }
 }

@@ -14,14 +14,14 @@ import { stageDef } from '../../../../game/stages';
 import { HoldSelector, isPlainKey, ringOffset } from '../../../../game/hold-select';
 import {
   IDLE_THUMB_VIEW,
+  sameThumbView,
   THUMB_HOLD_MS,
   THUMB_TARGETS,
-  TRUE_INDEX,
-  ThumbReader,
-  ThumbView,
-  sameThumbView,
   thumbKeyIndex,
+  ThumbReader,
   thumbStatus,
+  ThumbView,
+  TRUE_INDEX,
 } from './true-false-logic';
 
 // Stage 1: a statement to judge, answered with a thumb held up (Đúng) or down (Sai) in front of the
@@ -29,7 +29,10 @@ import {
 @Component({
   selector: 'app-true-false-game',
   standalone: true,
-  providers: [{ provide: StageGameBase, useExisting: forwardRef(() => TrueFalseGame) }],
+  providers: [{
+    provide: StageGameBase,
+    useExisting: forwardRef(() => TrueFalseGame)
+  }],
   changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './true-false-game.html',
   styleUrl: './true-false-game.css',
@@ -40,29 +43,26 @@ export class TrueFalseGame extends StageGameBase {
   protected readonly targets = THUMB_TARGETS;
   // Which target is Đúng, for the template to colour it green and the other red.
   protected readonly trueIndex = TRUE_INDEX;
-
-  private readonly audio = inject(GameAudio);
-  private readonly reader = new ThumbReader();
-  private readonly selector = new HoldSelector(THUMB_HOLD_MS);
-  // The question the gate was last locked for, see `onFrame`.
-  private lockedFor: QuestionView | null = null;
-
-  // The option the player answered with for this question, by gesture, click or key, so that a second
   // input cannot answer twice.
   protected readonly picked = linkedSignal<QuestionView, number | null>({
     source: this.question,
     computation: () => null,
   });
-
   // What the camera side shows: the charging target and its progress. Back to idle on every question.
   protected readonly view = linkedSignal<QuestionView, ThumbView>({
     source: this.question,
     computation: () => IDLE_THUMB_VIEW,
     equal: sameThumbView,
   });
-
   protected readonly locked = computed(() => this.paused() || this.reveal() !== null);
   protected readonly status = computed(() => thumbStatus(this.view()));
+
+  // The option the player answered with for this question, by gesture, click or key, so that a second
+  private readonly audio = inject(GameAudio);
+  private readonly reader = new ThumbReader();
+  private readonly selector = new HoldSelector(THUMB_HOLD_MS);
+  // The question the gate was last locked for, see `onFrame`.
+  private lockedFor: QuestionView | null = null;
 
   @HostListener('document:keydown', ['$event'])
   onKey(event: KeyboardEvent): void {
@@ -93,7 +93,12 @@ export class TrueFalseGame extends StageGameBase {
     if (step.selected !== undefined) {
       this.answer(step.selected, true);
     } else {
-      this.view.set({ armed: step.armed, choice: step.choice, progress: step.progress, shown });
+      this.view.set({
+        armed: step.armed,
+        choice: step.choice,
+        progress: step.progress,
+        shown
+      });
     }
   }
 
@@ -126,7 +131,12 @@ export class TrueFalseGame extends StageGameBase {
     this.picked.set(index);
     this.view.set(
       byCamera
-        ? { armed: false, choice: index, progress: 1, shown: index === 0 ? 0 : 1 }
+        ? {
+          armed: false,
+          choice: index,
+          progress: 1,
+          shown: index === 0 ? 0 : 1
+        }
         : IDLE_THUMB_VIEW,
     );
     this.choose.emit(index);
