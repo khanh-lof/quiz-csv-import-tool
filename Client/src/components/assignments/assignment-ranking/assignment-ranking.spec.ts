@@ -296,20 +296,19 @@ describe('AssignmentRanking', () => {
       leave();
     }));
 
-    it('keeps the last ranking and says it is out of date when a refresh fails', fakeAsync(() => {
+    it('keeps the last ranking quietly when a refresh fails', fakeAsync(() => {
       open();
 
       tick(5000);
       http.expectOne(ENDPOINT).flush('boom', {status: 500, statusText: 'Server Error'});
       fixture.detectChanges();
-      expect(text()).toContain('Chưa cập nhật được');
       expect(rows().length).toBe(3);
       expect(notifications.error).not.toHaveBeenCalled();
 
       tick(5000);
       http.expectOne(ENDPOINT).flush(detail());
       fixture.detectChanges();
-      expect(text()).not.toContain('Chưa cập nhật được');
+      expect(rows().length).toBe(3);
       leave();
     }));
 

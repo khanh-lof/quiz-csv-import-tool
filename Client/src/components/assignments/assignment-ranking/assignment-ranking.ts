@@ -106,8 +106,6 @@ export class AssignmentRanking {
   protected readonly notFound = signal(false);
   // Why the first load failed, while there is nothing to show yet. Later failures keep the last data.
   protected readonly loadError = signal<string | null>(null);
-  // The last poll failed: the ranking shown may be out of date.
-  protected readonly stale = signal(false);
   // A refresh the teacher asked for is under way.
   protected readonly refreshing = signal(false);
   // A change to the assignment (close, reopen, closing time) is being saved.
@@ -130,11 +128,6 @@ export class AssignmentRanking {
   protected readonly statusText = computed(() => {
     const detail = this.detail();
     return detail === null ? '' : assignmentStatusText(detail, this.now());
-  });
-  // The ranking is changing by itself (open, or inside the grace period after it closed).
-  protected readonly live = computed(() => {
-    const detail = this.detail();
-    return detail !== null && shouldPoll(detail, this.now());
   });
   protected readonly stages = computed<StageColumn[]>(() => {
     const keys = Object.keys(this.detail()?.stageCounts ?? {}).sort((a, b) => Number(a) - Number(b));
@@ -312,7 +305,6 @@ export class AssignmentRanking {
     this.detail.set(null);
     this.notFound.set(false);
     this.loadError.set(null);
-    this.stale.set(false);
   }
 
   private wantsPoll(): boolean {
@@ -340,7 +332,6 @@ export class AssignmentRanking {
     this.latestApplied = seq;
     this.detail.set(detail);
     this.loadError.set(null);
-    this.stale.set(false);
     this.now.set(new Date());
   }
 
@@ -352,8 +343,6 @@ export class AssignmentRanking {
       this.notFound.set(true);
     } else if (this.detail() === null) {
       this.loadError.set(assignmentErrorMessage(err));
-    } else {
-      this.stale.set(true);
     }
   }
 

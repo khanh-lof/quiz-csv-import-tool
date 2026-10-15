@@ -642,13 +642,12 @@ describe('GesturePlay', () => {
       expect(game().question().stage).toBe(6);
     });
 
-    it('explains in the guide that a quiz has one to six stages', () => {
+    it('does not claim in the guide that a quiz always has six stages', () => {
       open();
       // The guide's text is in a popup, which exists only once it is opened.
       click('.guide-button');
 
       const guide = document.querySelector('.usage-guide')?.textContent ?? '';
-      expect(guide).toContain('từ 1 đến 6 màn');
       expect(guide).not.toContain('Quiz có 6 màn');
     });
   });

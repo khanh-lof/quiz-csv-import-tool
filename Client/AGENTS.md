@@ -424,8 +424,7 @@ routes added for this (see above for their guards).
   which mirrors the server's `ResultGrace`) and the tab is visible; otherwise there is only the "Làm mới"
   button, and a tab that comes back to the front catches up at once. Requests are numbered and an answer older
   than the one on screen is dropped, so a poll sent before a close or a removal cannot undo it; a change's
-  answer is merged into the page keeping the students; a failed poll keeps the last data and says "Chưa cập
-  nhật được"; a 404 shows a not-found state. "Tải bảng điểm" is `rankingCsv` (stage columns headed `Màn 1 (Chém hoa quả)`, a BOM so Excel reads UTF-8, CRLF
+  answer is merged into the page keeping the students; a failed poll quietly keeps the last data; a 404 shows a not-found state. "Tải bảng điểm" is `rankingCsv` (stage columns headed `Màn 1 (Chém hoa quả)`, a BOM so Excel reads UTF-8, CRLF
   line ends, a leading apostrophe on a name that starts with `=`, `+`, `-`, `@`, tab or CR so a spreadsheet does
   not run it as a formula), named `<title>[-<label>]-bang-xep-hang.csv` by `fileNameFor`.
 

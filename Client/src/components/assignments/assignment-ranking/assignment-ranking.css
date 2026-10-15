@@ -50,16 +50,6 @@ nz-card {
   gap: 4px 12px;
 }
 
-.live {
-  color: var(--qt-text-muted);
-  font-size: 13px;
-}
-
-.stale {
-  color: #cf1322;
-  font-size: 13px;
-}
-
 .empty {
   padding: 8px 0;
 }
