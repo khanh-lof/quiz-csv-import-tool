@@ -36,6 +36,12 @@ type Server struct {
 	// LLMTimeout bounds each Generator call; zero means no limit.
 	LLMTimeout time.Duration
 
+	// StageSeconds is how many seconds a question of each Game stage (1 to 6, in order) lasts in the standard
+	// time mode, from the server's own configuration (GAME_STAGE_SECONDS). A shared quiz is timed here and
+	// nowhere else; the students' page is told the limits in the replies. Empty means gesturequiz's
+	// defaults, which is also what a Server that was not given any reads as.
+	StageSeconds []int
+
 	// Now is the clock the assignment handlers read (opening times, results, closing); nil means
 	// time.Now. Tests set it to step through a closing time without waiting.
 	Now func() time.Time
@@ -74,7 +80,9 @@ func (s *Server) Handler() http.Handler {
 	// and these routes never answer 401, which the SPA's interceptor would answer with a refresh.
 	mux.HandleFunc("GET /api/share/{code}", s.getShared)
 	mux.HandleFunc("POST /api/share/{code}/players", s.joinShared)
-	mux.HandleFunc("POST /api/share/{code}/results", s.reportResult)
+	mux.HandleFunc("POST /api/share/{code}/runs", s.startRun)
+	mux.HandleFunc("POST /api/share/{code}/runs/{runId}/next", s.nextQuestion)
+	mux.HandleFunc("POST /api/share/{code}/runs/{runId}/answers", s.answerQuestion)
 	mux.HandleFunc("PATCH /api/share/{code}/player", s.updateSharedPlayer)
 	mux.HandleFunc("GET /api/share/{code}/leaderboard", s.sharedLeaderboard)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {

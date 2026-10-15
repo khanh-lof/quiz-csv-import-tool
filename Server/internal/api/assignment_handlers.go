@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"quiz-csv-import-tool/server/internal/auth"
 	"quiz-csv-import-tool/server/internal/csvgen"
+	"quiz-csv-import-tool/server/internal/gesturequiz"
 	"quiz-csv-import-tool/server/internal/store"
 )
 
@@ -21,10 +23,8 @@ const (
 	maxLabelRunes         = 60
 	// maxClosesAhead is how far in the future a closing time may be set.
 	maxClosesAhead = 180 * 24 * time.Hour
-	// stageNumbers is how many stages the game has; stageCounts keys run from "1" to this.
+	// stageNumbers is how many stages the game has; the keys of passPercents run from "1" to this.
 	stageNumbers = 6
-	// maxStageQuestions is the most questions one stage may hold; the model writes 4 or 5.
-	maxStageQuestions = 50
 	// createAttempts is how often creating an assignment is tried when a freshly drawn id or code
 	// turns out to be taken (which practically never happens with 50 random bits in a code).
 	createAttempts = 3
@@ -47,6 +47,9 @@ type assignmentView struct {
 	TimeMode    string         `json:"timeMode"`
 	StageLock   string         `json:"stageLock"`
 	StageCounts map[string]int `json:"stageCounts"`
+	// TimeLimits is how many seconds a question of each stage lasts, the time mode applied, null when it is
+	// unlimited. It follows the server's configuration at the time of the answer, so it is never stored.
+	TimeLimits map[string]*int `json:"timeLimits"`
 	// PassPercents is the share of right answers that passes each stage, for exactly the stages in
 	// StageCounts, defaults filled in.
 	PassPercents map[string]int `json:"passPercents"`
@@ -61,7 +64,7 @@ type assignmentView struct {
 	PlayerCount int        `json:"playerCount"`
 }
 
-func newAssignmentView(a *store.Assignment, now time.Time, playerCount int) assignmentView {
+func (s *Server) newAssignmentView(a *store.Assignment, now time.Time, playerCount int) assignmentView {
 	counts := a.StageCounts
 	if counts == nil {
 		counts = map[string]int{}
@@ -72,7 +75,7 @@ func newAssignmentView(a *store.Assignment, now time.Time, playerCount int) assi
 		PassPercents: passPercentsOf(a),
 		MaxAttempts:  a.MaxAttempts,
 		ShowBoard:    !a.HideBoard,
-		StageCounts:  counts, CreatedAt: a.CreatedAt.UTC(), ClosesAt: utcPtr(a.ClosesAt), ClosedAt: utcPtr(a.ClosedAt),
+		StageCounts:  counts, TimeLimits: s.timeLimits(a), CreatedAt: a.CreatedAt.UTC(), ClosesAt: utcPtr(a.ClosesAt), ClosedAt: utcPtr(a.ClosedAt),
 		Open: a.OpenAt(now), PlayerCount: playerCount,
 	}
 }
@@ -95,18 +98,19 @@ type assignmentDetailView struct {
 
 // createAssignment handles POST /api/assignments: it snapshots one of the caller's finished Quiz cử
 // chỉ jobs under a new public code. The checks run in the order the contract lists their messages,
-// the cheap ones on the payload before anything is read from the database.
+// the cheap ones on the payload before anything is read from the database. The question counts of
+// each stage are the server's own, read off the job's CSV with the same parser that later deals the
+// questions to the students; a "stageCounts" in the body, as an older page sends, is ignored.
 func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 	claims, _ := auth.FromContext(r.Context())
 	username := claims.Username()
 
 	var req struct {
-		JobID       string         `json:"jobId"`
-		Label       string         `json:"label"`
-		ClosesAt    *string        `json:"closesAt"`
-		TimeMode    string         `json:"timeMode"`
-		StageLock   string         `json:"stageLock"`
-		StageCounts map[string]int `json:"stageCounts"`
+		JobID     string  `json:"jobId"`
+		Label     string  `json:"label"`
+		ClosesAt  *string `json:"closesAt"`
+		TimeMode  string  `json:"timeMode"`
+		StageLock string  `json:"stageLock"`
 		// PassPercents is read raw so that a value that is not an integer is told apart from bad JSON.
 		PassPercents json.RawMessage `json:"passPercents"`
 		// MaxAttempts is read raw for the same reason.
@@ -144,11 +148,7 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		}
 		closesAt = &t
 	}
-	if !validStageCounts(req.StageCounts) {
-		writeText(w, http.StatusBadRequest, "Invalid stage counts.")
-		return
-	}
-	passPercents, ok := parsePassPercents(req.PassPercents, req.StageCounts)
+	passPercents, ok := parsePassPercents(req.PassPercents)
 	if !ok {
 		writeText(w, http.StatusBadRequest, "Invalid pass percents.")
 		return
@@ -187,6 +187,17 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusConflict, "Job is not a finished gesture quiz.")
 		return
 	}
+	// A CSV that holds no question the game can play is no quiz to hand out, however finished its job is.
+	stageCounts := gesturequiz.Parse(job.CSV).StageCounts()
+	if len(stageCounts) == 0 {
+		writeText(w, http.StatusConflict, "Job is not a finished gesture quiz.")
+		return
+	}
+	// A pass percent for a stage the quiz does not have is of no use, and not worth refusing the request for.
+	maps.DeleteFunc(passPercents, func(stage string, _ int) bool {
+		_, has := stageCounts[stage]
+		return !has
+	})
 
 	a := &store.Assignment{
 		Username:     username,
@@ -196,7 +207,7 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		CSV:          job.CSV,
 		TimeMode:     req.TimeMode,
 		StageLock:    req.StageLock,
-		StageCounts:  req.StageCounts,
+		StageCounts:  stageCounts,
 		PassPercents: passPercents,
 		MaxAttempts:  maxAttempts,
 		HideBoard:    !showBoard,
@@ -214,7 +225,7 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "creating assignment failed", err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, newAssignmentView(a, now, 0))
+	writeJSON(w, http.StatusCreated, s.newAssignmentView(a, now, 0))
 }
 
 // listAssignments handles GET /api/assignments: the caller's assignments, newest first.
@@ -238,7 +249,7 @@ func (s *Server) listAssignments(w http.ResponseWriter, r *http.Request) {
 	now := s.now()
 	views := make([]assignmentView, len(assignments))
 	for i := range assignments {
-		views[i] = newAssignmentView(&assignments[i], now, counts[assignments[i].ID])
+		views[i] = s.newAssignmentView(&assignments[i], now, counts[assignments[i].ID])
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, http.StatusOK, map[string]any{"assignments": views})
@@ -263,7 +274,7 @@ func (s *Server) getAssignment(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, http.StatusOK, assignmentDetailView{
-		assignmentView: newAssignmentView(a, s.now(), len(players)),
+		assignmentView: s.newAssignmentView(a, s.now(), len(players)),
 		CSV:            a.CSV,
 		Players:        buildLeaderboard(players, a.StageCounts),
 	})
@@ -364,7 +375,7 @@ func (s *Server) patchAssignment(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "counting players failed", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, newAssignmentView(updated, now, counts[updated.ID]))
+	writeJSON(w, http.StatusOK, s.newAssignmentView(updated, now, counts[updated.ID]))
 }
 
 // deleteAssignment handles DELETE /api/assignments/{id}; the store removes its players too.
@@ -499,10 +510,10 @@ func parseShowBoard(raw json.RawMessage) (bool, bool) {
 }
 
 // parsePassPercents reads the optional passPercents of a create request. Absent or null is "all
-// default" (nil); otherwise it must be an object whose keys are stages of the quiz and whose values are
-// integers from minPassPercent to maxPassPercent, written as plain JSON integers. Only what was sent
-// is kept.
-func parsePassPercents(raw json.RawMessage, stageCounts map[string]int) (map[string]int, bool) {
+// default" (nil); otherwise it must be an object whose keys are stages of the game ("1" to "6") and whose
+// values are integers from minPassPercent to maxPassPercent, written as plain JSON integers. Only what was
+// sent is kept; the caller drops the stages its quiz does not have.
+func parsePassPercents(raw json.RawMessage) (map[string]int, bool) {
 	if len(raw) == 0 || string(raw) == "null" {
 		return nil, true
 	}
@@ -512,7 +523,7 @@ func parsePassPercents(raw json.RawMessage, stageCounts map[string]int) (map[str
 	}
 	out := make(map[string]int, len(values))
 	for stage, v := range values {
-		if _, ok := stageCounts[stage]; !ok {
+		if !validStageKey(stage) {
 			return nil, false
 		}
 		p, err := strconv.Atoi(string(v))
@@ -534,22 +545,10 @@ func parseClosesAt(raw string, now time.Time) (time.Time, bool) {
 	return t.UTC().Truncate(time.Millisecond), true
 }
 
-// validStageCounts checks the question counts the client reads off the quiz: stages "1" to "6" by
-// their canonical spelling, 1 to maxStageQuestions questions each, at least one stage.
-func validStageCounts(counts map[string]int) bool {
-	if len(counts) == 0 {
-		return false
-	}
-	for key, n := range counts {
-		stage, err := strconv.Atoi(key)
-		if err != nil || strconv.Itoa(stage) != key || stage < 1 || stage > stageNumbers {
-			return false
-		}
-		if n < 1 || n > maxStageQuestions {
-			return false
-		}
-	}
-	return true
+// validStageKey reports whether the key names a stage of the game by its canonical spelling: "1" to "6".
+func validStageKey(key string) bool {
+	stage, err := strconv.Atoi(key)
+	return err == nil && strconv.Itoa(stage) == key && stage >= 1 && stage <= stageNumbers
 }
 
 // newShareCode draws the code of a link from crypto/rand.

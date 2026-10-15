@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { stageDef } from '../../../game/stages';
-import { SubmitOutcome } from '../../../models/assignment';
 
 // A question the player got wrong or ran out of time on, with what they should have answered.
 export interface MissedQuestion {
@@ -29,20 +28,16 @@ export interface StageRunResult {
   hasNext: boolean;
 }
 
-// What a student's result screen says about sending the run to the teacher.
-export type SaveState = 'saving' | SubmitOutcome;
+// What a student's result screen says about the run's record. The server records a run itself as it judges the
+// last answer, so the result is only shown once it is kept: there is nothing in between to wait for.
+export type SaveState = 'saved';
 
 const SAVE_TEXT: Record<SaveState, string> = {
-  saving: 'Đang lưu kết quả…',
   saved: 'Đã lưu kết quả cho thầy cô ✓',
-  queued: 'Chưa gửi được kết quả, máy sẽ tự gửi lại khi có mạng.',
-  closed: 'Bài đã đóng nên kết quả này không được lưu.',
-  limit: 'Bạn đã dùng hết lượt chơi màn này, kết quả này không được lưu.',
-  rejected: 'Máy chủ không nhận kết quả này. Nếu thầy cô đã xóa tên bạn khỏi bài, hãy vào lại bằng tên khác.',
 };
 
 // The screen after a stage: the verdict against the pass mark, the questions to learn from, and where
-// to go next. For a student's assignment it also says what became of the run (`saveState`), and in the
+// to go next. For a student's assignment it also says the run was kept (`saveState`), and in the
 // teacher's preview (`preview`) that nothing is kept. A stage with no runs left (`attemptsLeft` 0) cannot be replayed.
 @Component({
   selector: 'app-gesture-stage-result',

@@ -174,8 +174,8 @@ These were the app's first lazy routes: the page, the six games and MediaPipe st
 bundle, and a player who never opens `/play` never downloads them. `OnlineStatusService` leaves every
 `/play` URL alone when the connection drops (`GESTURE_PLAY_URL` matches `/play` and anything below it, so
 `/play/:jobId`, `/play/s/:code` and `/play/preview/...` too) instead of sending the player to `/offline`,
-since a loaded game runs entirely in the browser (a student's result that cannot be sent is queued, see
-below).
+since a loaded game runs entirely in the browser (a student's run, which the server deals question by
+question, shows "Mất kết nối" with a "Thử lại" instead, see below).
 
 **The page** (`components/gesture-play/`, `GesturePlay`) is a state machine over a `screen` signal:
 `loading`/`error` (every mode but `/play`; for `/play/:jobId` the job is taken from `AiJobService.jobs()` or,
@@ -193,8 +193,8 @@ answer in with the wrong ones, stage 6 shuffles the chunks to an order that is n
 `judge`/`timeoutReveal`, `correctAnswerText`, `timeLimitFor` (the stage's seconds, ×1.5 or none, per
 `TimeMode`) and `titleFromFileName`. The page keeps the run (questions, score, streak, missed list) and
 records it with `GestureProgressService.record` when the run finishes (after the last question's feedback);
-a teacher's preview does not record, and a student's run is also reported to the server (see
-[Giao bài](#giao-bài-assignments)).
+a teacher's preview does not record. A student's run is the exception: the server deals its questions, judges
+the answers and records it, and the page only shows what it is dealt (see [Giao bài](#giao-bài-assignments)).
 
 **The engine** (`src/game/`, shared by the page and the games):
 - `stage-game.ts` is the contract between the page and a game. `StageGameBase` is an abstract directive:
@@ -221,7 +221,8 @@ a teacher's preview does not record, and a student's run is also reported to the
   `HoldSelector` (a `HoldGate` plus its sounds), `StableReading` (a pose must be reported several frames in a
   row before it counts) and the key/ring helpers. `game-audio.ts` (`GameAudio`) synthesizes every sound with
   Web Audio (no files) and must be `resume()`d from a user gesture. `stages.ts` is the `STAGES` table (game,
-  icon, hint, vision kind, option count, seconds per question), `DEFAULT_PASS_PERCENT`, `passMark(total, percent)` and `stagePosition`
+  icon, hint, vision kind, option count, seconds per question, which only time practice from a file or a job:
+  an assignment's limits are the server's `timeLimits`), `DEFAULT_PASS_PERCENT`, `passMark(total, percent)` and `stagePosition`
   (the number a stage is shown with: its position among the stages a quiz has, while the stage number stays
   the game's identity in data). The intro, the HUD and the result (`StageRunResult.position`) show it too.
 
@@ -297,11 +298,13 @@ A teacher gives a finished Game job to students, who play it by link with no acc
 (snapshot, code, player token, avatar, result and leaderboard contract, closing) are in
 [../AGENTS.md](../AGENTS.md#giao-bài-assignments). This section is the client's half. The shapes of the API
 are `src/models/assignment.ts` (`Assignment`, `AssignmentDetail`, `LeaderboardEntry`, `SharedQuiz`, `StudentBoard`,
-`NewAssignment`, `AssignmentChange`, `PlayerIdentity`, kept in step with the Go JSON by hand), and the avatar set
+`NewAssignment`, `AssignmentChange`, `PlayerIdentity`, and a student's run: `SharedRunStart`, `SharedQuestion`,
+`SharedVerdict`, `SharedStageResult`; kept in step with the Go JSON by hand), and the avatar set
 is `src/models/avatar.ts` (`AVATARS`: id, emoji, Vietnamese name and disc colour, the same ids in the same order as
 the server's `avatarIDs`; `avatarDef`, `randomAvatar`). `assignment.ts` also holds the pure helpers: `shareUrl`
-(`<origin>/play/s/<code>`), `stageCountsOf` (the question count of each stage of a parsed quiz, sent when
-assigning), `isOpenAt` and `assignmentStatusText` (recomputed from the two times, since the `open` flag is only
+(`<origin>/play/s/<code>`), `placeholderQuiz` (the `GestureQuiz` a student's page holds: each stage of the share
+answer's `stageCounts` with that many blank questions, which give the map and the intro the quiz's shape and are
+never played), `isOpenAt` and `assignmentStatusText` (recomputed from the two times, since the `open` flag is only
 as fresh as the response), `assignmentErrorMessage` (the server's plain-text bodies in Vietnamese) and
 `leaderboardCsv`.
 
@@ -322,20 +325,16 @@ routes added for this (see above for their guards).
   `Assignment not found` or `Board hidden`, is left to the caller);
   `identity(code)` and `forget(code)` over
   `localStorage['gesture-shared-players']` (`{CODE: {playerId, token, name, avatar}}`, an identity stored before
-  avatars reads as `avatar: ''`); `submit(code, {stage, correct,
-  total})` and `flush(code)` over `localStorage['gesture-shared-pending']`. `submit` never errors, its result
-  says what became of the run: `saved`; `queued` (the server could not be reached, status 0, or failed, 5xx:
-  the run goes to the pending queue); `closed` (410); `rejected` (any other final answer, such as 400 or 403,
-  or no identity on this device; a 403, which means the teacher removed the student, also forgets the
-  identity). It makes the `runId` once (`crypto.randomUUID()`, with a hex fallback because a classroom may open
-  the link over plain http on a local network, where `randomUUID` does not exist), and a queued entry keeps its
-  own token and `runId`, so a resend, even after a reload or a "Không phải bạn?", is the same run and the
-  server counts it once. `flush` resends
-  the code's queue oldest first, one at a time, re-reading the stored queue before each send (a second tab may
-  have delivered one); an answer that is final, good or bad, takes the entry out, a transient one leaves the
-  rest for next time. A successful `submit` flushes the queue by itself, and the page flushes after opening a
-  quiz the device already joined, after joining, and on the window's `online` event (shared mode only). The
-  queue holds at most 200 runs. Both values are sanitized on read and fall back to memory when `localStorage` is blocked.
+  avatars reads as `avatar: ''`; sanitized on read, and kept in memory when `localStorage` is blocked); and a
+  run, which the server plays: `startRun(code, stage)` (`POST share/{code}/runs`, emits `SharedRunStart` with the
+  first question), `nextQuestion(code, runId)` (`…/runs/{runId}/next`, emits the `SharedQuestion`) and
+  `answer(code, runId, index, choice)` (`…/runs/{runId}/answers`, `choice` null when the time ran out, emits the
+  `SharedVerdict`). All three send the token and, like `setAvatar`, fail as a 403 without a request when this
+  device has not joined, forget the identity on a server 403 and rethrow every failure. `nextQuestion` and
+  `answer` are answered the same way twice by the server, so they retry a transient failure (status 0 or 5xx)
+  twice, after 1 s and 2 s; `startRun` does not, because a second start would be a second run. Nothing is
+  queued: an older version kept unsent results in `localStorage['gesture-shared-pending']`, which the service
+  only clears.
 
 **`GesturePlay` modes.** `mode` (`local` | `job` | `shared` | `preview`) is taken from the route's parameters
 (`code`, `assignmentId`, `jobId`, none) and re-evaluated when they change under the same component:
@@ -343,17 +342,22 @@ routes added for this (see above for their guards).
 | | `local` | `job` | `shared` | `preview` |
 |---|---|---|---|---|
 | Route | `/play` | `/play/:jobId` | `/play/s/:code` | `/play/preview/:assignmentId` |
-| Quiz comes from | a file or the sample | `AiJobService` | `SharedPlayService.load` | `AssignmentService.get`, the snapshot |
+| Quiz comes from | a file or the sample | `AiJobService` | the server, one question at a time | `AssignmentService.get`, the snapshot |
 | Topbar link | Về bảng quiz, Mở quiz khác | Về lịch sử AI | none | Về bảng xếp hạng |
 | Progress key | the quiz's hash | the quiz's hash | `asg:<CODE>:<playerId>` | the quiz's hash, never written |
 | Time mode | the player's setting | the player's setting | the teacher's, fixed | the teacher's, fixed |
 | Map | locks, reset | locks, reset | locks (or all open, by the teacher's `stageLock`), no reset | every stage open, no reset |
 | Before a stage | | | the closed check | |
-| Finished run | recorded locally | recorded locally | recorded locally, reported | nothing recorded or sent |
+| Answers judged by | the page | the page | the server | the page |
+| Finished run | recorded locally | recorded locally | recorded by the server, mirrored locally | nothing recorded or sent |
 
-- **Shared mode.** `quiz` is `baseQuiz` under the key `asg:<CODE>:<playerId>` (the code upper-cased), so
-  `GestureProgressService` keeps each student's locks and bests apart from other students' and from the same
-  quiz played as a file or a job (a student who joins again under a new name starts over). A quiz the device
+- **Shared mode.** The share answer carries no question: `baseQuiz` is `placeholderQuiz` of its `stageCounts`
+  (no stage at all is the "Bài này chưa có câu hỏi nào chơi được" card). `quiz` is `baseQuiz` under the key
+  `asg:<CODE>:<playerId>` (the code upper-cased), so `GestureProgressService` keeps each student's locks and
+  bests apart from other students' and from the same quiz played as a file or a job (a student who joins again
+  under a new name starts over). That progress only mirrors the server's: `syncProgress` overwrites it with the
+  share answer's `results` (`GestureProgressService.replace`) after loading and after each stage check, so the
+  map's locks are the ones the server enforces. A quiz the device
   already joined goes straight to the map, otherwise to the `join` screen, which is `ShareJoin`
   (`gesture-play/share-join/`: inputs `title`, `label`, `closesAt`, `error`, `busy`, output `join` with a
   `JoinRequest`, the trimmed name and the avatar). It collects the name and the avatar (an `AvatarPicker`
@@ -373,28 +377,50 @@ routes added for this (see above for their guards).
   one; nothing is drawn before the first answer. The page mounts it under the map in shared mode, with
   `boardKey` as `refreshKey` (it goes up on every `saved` result and avatar change), in a preview for the
   assignment's code (the teacher sees what the class sees), and on the closed error card (`closedBoard`: shared
-  mode, the "Bài này đã đóng" message from loading, the stage check or an avatar change, and a device that joined)
-  as the final board; the route answers while the assignment is closed for that reason. A result refused as
-  closed still shows its own text on the result screen, not the card. When the teacher hid the board
+  mode, the "Bài này đã đóng" message from loading, the stage check, a run's request or an avatar change, and a
+  device that joined) as the final board; the route answers while the assignment is closed for that reason. When
+  the teacher hid the board
   (`showBoard` false), none of the three mounts it: the page keeps the setting in `assignmentShowBoard`, from the
   share answer or the preview's detail. That signal is null while unknown, which is only the closed card of a
   link that was already closed when opened (`GET share/{code}` answered 410); the board is mounted there and the
   server answers it 404 `Board hidden`, which `StudentLeaderboard` takes as final: it draws nothing and stops
   asking (polls, the tab coming back, `refreshKey`) until `code` changes.
-  The timer reads `effectiveTimeMode`, the teacher's `assignmentTimeMode` before the player's own setting.
+  The timer reads `effectiveTimeMode`, the teacher's `assignmentTimeMode` before the player's own setting, and
+  for an assignment (shared and preview) the seconds are the server's `timeLimits` (its `GAME_STAGE_SECONDS`
+  with the time mode applied), never `STAGES`' own.
   A student has no way out of the page, and the error cards (not found, closed, could not load) have no link.
 - **The check before each stage** (`guardSharedStage`, for opening a stage's intro, replaying it and "Màn tiếp
-  theo"): the stored identity must still be there (a rejected result or another tab may have removed it,
+  theo"): the stored identity must still be there (a refused request or another tab may have removed it,
   otherwise the join screen comes back), the stage must be open for this student, and the page asks the server
   again (`SharedPlayService.load`, with a 4 s timeout, behind a spinner "Đang kiểm tra bài…"). A 404 or 410
-  shows the error card ("Không tìm thấy bài này", or "Bài này đã đóng"); any other failure (offline, slow, 5xx) lets the student play,
-  because their result is queued, and an answer refreshes the label and closing time. The locks of the map are
-  the client's own (`GestureProgressService.isUnlocked`); the server does not know the order.
-- **Saving the result.** `finishRun` calls `saveResult` in shared mode, which sets `saveState` to `saving`,
-  then to the outcome of `submit`; `GestureStageResult` shows it from its `saveState` input (the texts are
-  `SAVE_TEXT`: "Đang lưu kết quả…", "Đã lưu kết quả cho thầy cô ✓", queued, closed, rejected). A counter
-  (`submitSeq`) stops a slow answer of an older run overwriting a newer run's state, and the request is not tied
-  to the page, so a student who leaves right after finishing does not cancel it.
+  shows the error card ("Không tìm thấy bài này", or "Bài này đã đóng"); any other failure (offline, slow, 5xx)
+  still opens the intro, where starting the run reports its own failure. An answer refreshes the label, the
+  closing time, the runs used and the progress, and the stage is checked again against them (the server may know
+  of fewer passes or more runs than the page did, from another tab or device).
+- **A run, played by the server.** "Bắt đầu" (`begin`, and "Chơi lại" after the stage check) calls
+  `startSharedRun`: `starting` puts the button in its loading state, and the answer's `attempts` become the runs
+  used of the stage. A 410 shows the closed card, a 403 the join screen, a 404 not found; 409 `Stage locked` goes
+  back to the map and re-reads the progress, 409 `Replay limit reached` marks the stage used up, both with a
+  notification; anything else stays on the intro with a notification. The run's questions are `PlayQuestion`s
+  built from each `SharedQuestion` with a blank answer (`sharedPlayQuestion`); `totalQuestions` is the run's
+  `total`, and only the questions dealt so far are in `questions`. A choice, or the time running out, goes to
+  `sendAnswer`: `answering` makes the page ignore further input and stops the clock, the feedback bar says
+  "Đang chờ kết quả…", and the verdict fills the question's answer and explanation in (`withVerdict`) before it
+  is revealed like a local one (a `timedOut` verdict as "Hết giờ", whatever was chosen); score, streak and the
+  missed list follow from the verdicts. "Tiếp" (`nextShared`) fetches the next question while the verdict stays
+  on screen (`advancing`), so the game component is not recreated, or, after the verdict that carried `result`,
+  shows the result with the server's numbers, mirrors them into the progress and sets `saveState` `saved`
+  ("Đã lưu kết quả cho thầy cô ✓"). Every request of the run goes through `watchRun`: a counter (`runSeq`, moved
+  by `resetRun`) drops an answer that comes back for a run the page has left or replaced. A connection failure
+  after the service's retries keeps the screen and shows "Mất kết nối" with a "Thử lại" (`retryConnection`) that
+  sends the same request again; a 404 `Run not found`, 409 `Run is over` or 400 ends the run with a notification
+  and goes back to the map.
+- **The server's clock.** `startServerClock` counts down from the question's `timeLeftMs` (none when null),
+  still waiting for a face game's calibration like a local question, but a shared question also has a hard
+  `deadline` at receipt + `timeLeftMs` + `graceMs` - 1 s (`DEADLINE_MARGIN_MS`), past which time is up whatever
+  `ready()` says; the HUD shows the smaller of the two. Because the server's clock cannot be stopped, a timed
+  shared question cannot be paused (`pauseLocked`: the button is disabled, `P` is ignored and a hidden tab does
+  not pause); during a verdict it can.
 - **Preview.** The teacher's try-out of an assignment: `loadPreview` takes `AssignmentService.get`'s snapshot
   and time mode, every stage with questions is open (`allOpen` on the map, `openIntro` skips the lock check),
   `finishRun` works the verdict out with `passMark` instead of recording, and `hasNext` is true whenever a later
@@ -411,14 +437,16 @@ routes added for this (see above for their guards).
 - **The stage lock.** An assignment's `stageLock` (`sequential` | `open`, `StageLock` in `models/assignment.ts`) reaches
   the page with the time mode (`assignmentStageLock`). `allStagesOpen` is true in a preview or when it is `open`,
   and then the map's `allOpen`, `openIntro`, `guardSharedStage` and `hasNext` skip `GestureProgressService.isUnlocked`.
-  Passing is still recorded and reported either way. `AssignDialog` offers it as a radio under the time mode.
+  Passing is still recorded either way. The server enforces the lock when a run starts; the page's check only
+  saves the student a refused start. `AssignDialog` offers it as a radio under the time mode.
 - **The pass percent and the replay limit.** `passPercents` (`passPercentOf` falls back to 70) reaches the page as
-  `assignmentPassPercents` and drives `finishRun` (also in a preview), the intro's rules line, the result's
-  `passMark` and the stage map; `AssignDialog` has one number input per stage the quiz has. `maxAttempts` (open
-  lock only) is a switch plus number in the dialog; on the page the attempts used per stage start from the share
-  answer's `attempts` (sent with the player's `X-Player-Token`) and a run finished here counts at once, so a stage
-  with none left cannot be started, the map shows "Hết lượt" / "Còn N lượt" and the result hides replay; a 409
-  `Replay limit reached` on a result marks the stage used up and is not queued. A preview is never limited.
+  `assignmentPassPercents` and drives the preview's verdict in `finishRun`, the intro's rules line, the result's
+  `passMark` and the stage map (a student's verdict is the server's `passed`); `AssignDialog` has one number input
+  per stage the quiz has. `maxAttempts` (open lock only) is a switch plus number in the dialog; on the page the
+  runs used per stage are the server's: the share answer's `attempts` (sent with the player's `X-Player-Token`),
+  then the `attempts` of each run started, since a run counts from its start. A stage with none left cannot be
+  started, the map shows "Hết lượt" / "Còn N lượt" and the result hides replay; a 409 `Replay limit reached` on a
+  start marks the stage used up. A preview is never limited.
 - **The board's visibility.** `showBoard` is the last field of `AssignDialog`, the switch "Học sinh xem bảng xếp
   hạng" (on by default, sent on every create). Off, the students get no board (see *The students' board* above)
   and the teacher's leaderboard page says "Học sinh không xem bảng xếp hạng" on its meta line.
@@ -497,14 +525,15 @@ page and the students' board:
   not run it as a formula), named `<title>[-<label>]-bang-xep-hang.csv` by `fileNameFor`.
 
 **Specs** (Karma/Jasmine): `models/assignment.spec.ts`, `services/assignment.service.spec.ts`,
-`services/shared-play.service.spec.ts` (join and identity, `setAvatar` and `leaderboard`, every `submit` outcome,
-the queue and `flush`, blocked storage), one per component under `components/assignments/` plus
+`services/shared-play.service.spec.ts` (join and identity, `setAvatar` and `leaderboard`, `startRun`,
+`nextQuestion` and `answer` with their retries, blocked storage), one per component under `components/assignments/` plus
 `assignment-leaderboard-logic.spec.ts`, `flip.spec.ts` and
 `deadline-picker-logic.spec.ts`, `gesture-play/share-join/share-join.spec.ts`,
 `gesture-play/student-leaderboard/student-leaderboard.spec.ts`, one per component under `components/leaderboard/`
 plus `podium.spec.ts` and `models/avatar.spec.ts`, and in `gesture-play.spec.ts` the
 groups "a shared quiz (a student)" (opening and joining, quizzes that cannot be opened, the map and topbar,
-progress, the check before a stage, saving a result, the avatar and the board) and "a preview (the teacher)". `GestureStageMap` and
+progress, the check before a stage, a run played against a scripted fake server: starting, verdicts, the
+clock, the failures and "Thử lại", the avatar and the board) and "a preview (the teacher)". `GestureStageMap` and
 `GestureStageResult` have no spec of their own: their new inputs are covered through the page spec.
 
 ### UI library

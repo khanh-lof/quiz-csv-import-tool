@@ -30,7 +30,6 @@ import {
   DEFAULT_ATTEMPTS_LIMIT,
   MAX_ATTEMPTS_LIMIT,
   MIN_ATTEMPTS_LIMIT,
-  stageCountsOf,
   STAGE_LOCK_LABELS,
   StageLock,
   TIME_MODE_LABELS,
@@ -209,8 +208,7 @@ export class AssignDialog {
 
   protected submit(): void {
     const job = this.job();
-    const quiz = this.quiz();
-    if (!job || !quiz || !this.canSubmit()) {
+    if (!job || !this.canSubmit()) {
       return;
     }
     this.sending.set(true);
@@ -224,7 +222,6 @@ export class AssignDialog {
       passPercents: this.passPercents(),
       maxAttempts: this.maxAttemptsSent(),
       showBoard: this.showBoard(),
-      stageCounts: stageCountsOf(quiz),
     }).pipe(
       finalize(() => this.sending.set(false)),
       takeUntilDestroyed(this.destroyRef),

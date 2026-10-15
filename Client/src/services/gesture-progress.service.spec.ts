@@ -216,6 +216,77 @@ describe('GestureProgressService', () => {
     });
   });
 
+  describe('replace', () => {
+    it('sets the passed stages and the best results from what the server holds', () => {
+      service.replace('k', { '1': { correct: 5, total: 5, passed: true }, '2': { correct: 3, total: 5, passed: false } });
+
+      expect(service.isPassed('k', 1)).toBeTrue();
+      expect(service.isPassed('k', 2)).toBeFalse();
+      expect(service.best('k', 1)).toEqual({ correct: 5, total: 5 });
+      expect(service.best('k', 2)).toEqual({ correct: 3, total: 5 });
+      expect(service.isUnlocked(quizWith([1, 2, 3]), 3)).toBeFalse();
+      expect(new GestureProgressService().isPassed('k', 1)).toBeTrue();
+    });
+
+    it('drops what was here before, a pass the server does not know of included', () => {
+      service.record('k', 1, 5, 5);
+      service.record('k', 2, 5, 5);
+
+      service.replace('k', { '1': { correct: 2, total: 5, passed: false } });
+
+      expect(service.isPassed('k', 1)).toBeFalse();
+      expect(service.isPassed('k', 2)).toBeFalse();
+      expect(service.best('k', 1)).toEqual({ correct: 2, total: 5 });
+      expect(service.best('k', 2)).toBeNull();
+    });
+
+    it('forgets the quiz when the server holds no result', () => {
+      service.record('k', 1, 5, 5);
+
+      service.replace('k', {});
+
+      expect(service.isPassed('k', 1)).toBeFalse();
+      expect(service.best('k', 1)).toBeNull();
+      expect(localStorage.getItem(STORAGE_KEY)).toBe('{}');
+    });
+
+    it("leaves the other quizzes alone, and reads the storage again so another tab's progress stays", () => {
+      const other = new GestureProgressService();
+      other.record('b', 1, 5, 5);
+
+      service.replace('a', { '1': { correct: 4, total: 5, passed: true } });
+
+      const reopened = new GestureProgressService();
+      expect(reopened.isPassed('a', 1)).toBeTrue();
+      expect(reopened.isPassed('b', 1)).toBeTrue();
+    });
+
+    it('leaves out what cannot be a result', () => {
+      service.replace('k', {
+        '1': { correct: 4, total: 5, passed: true },
+        '9': { correct: 1, total: 1, passed: true },
+        x: { correct: 1, total: 1, passed: true },
+        '2': { correct: 6, total: 5, passed: true },
+        '3': { correct: -1, total: 5, passed: false },
+      });
+
+      expect(service.isPassed('k', 1)).toBeTrue();
+      expect(service.isPassed('k', 9)).toBeFalse();
+      expect(service.isPassed('k', 2)).toBeFalse();
+      expect(service.best('k', 2)).toBeNull();
+      expect(service.best('k', 3)).toBeNull();
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).k.best).toEqual({ 1: { correct: 4, total: 5 } });
+    });
+
+    it('shows a change through the same instance at once, even when the storage is blocked', () => {
+      spyOn(Storage.prototype, 'setItem').and.throwError('blocked');
+
+      service.replace('k', { '1': { correct: 5, total: 5, passed: true } });
+
+      expect(service.isPassed('k', 1)).toBeTrue();
+    });
+  });
+
   describe('reset', () => {
     it('forgets one quiz and leaves the others', () => {
       const quiz = quizWith([1, 2], 'a');

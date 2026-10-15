@@ -23,6 +23,11 @@ Module `quiz-csv-import-tool/server`, laid out as:
   templates (all embedded from `prompts/*.txt`), the embedded lesson documents of four textbooks
   (`textbooks/`), and the OpenAI-compatible client
   (`/chat/completions` for the formatted mode, `/responses` for the creative mode).
+- `internal/gesturequiz` — the Game quiz as the server reads it: `ExtractCSV` and `SplitRows` (ports of the
+  client's `extractCsvContent` and `parseCsvRows`), `Parse` (a port of `parseGestureQuiz`, the same rules and
+  the same `skipped` count), the stage table (option counts, seconds per question, `TimeLimit` per time mode)
+  and `ShuffleChunks`. The client's versions are the reference; `quiz_test.go` ports the client's parser cases,
+  and a rule changed on one side must be changed on the other.
 
 ## Commands
 
@@ -59,6 +64,11 @@ without them.
 - `LLM_TIMEOUT_SECONDS` (280) — per-call LLM deadline; kept under Vercel's 300 s function limit so
   the handler answers 504 itself. The HTTP server's write timeout is derived from it
 - `CALL_COUNT_ACCEPTED_IN_A_ROUND` (2), `ROUND_MINUTES` (1) — AI-call rate limit per user
+- `GAME_STAGE_SECONDS` (`12,12,15,15,20,45`) — the seconds per question of the Game's stages 1–6, in order, for
+  assignments: exactly 6 whole numbers, 5–600 each, else the server refuses to start. The run handlers time
+  answers by it (with the assignment's time mode applied) and the share answer and every assignment view send the
+  result as `timeLimits`, so a student's browser holds no time table of its own that matters. The client's
+  `STAGES` seconds only time practice played from a file or a job.
 
 ## Architecture
 
@@ -97,17 +107,19 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   wrapped like the csv routes (`csvRoute`, i.e. `authenticate` + `requireRole`). Every lookup is scoped to the
   caller's username, so someone else's assignment is a 404 `Assignment not found`, never a 403. The order of
   `createAssignment`'s checks is part of the contract: the payload first (`readJSON`'s 400s, then label ≤ 60
-  runes, time mode, stage lock, closing time in the future and ≤ 180 days ahead, stage counts, pass percents,
-  replay limit, board setting: 400 `Label is too long.`, `Invalid time mode.`, `Invalid stage lock.`, `Invalid
-  closing time.`, `Invalid stage counts.`, `Invalid pass percents.`, `Invalid replay limit.`, `Invalid board
+  runes, time mode, stage lock, closing time in the future and ≤ 180 days ahead, pass percents (keys `"1"`–`"6"`,
+  plain integers 10–100), replay limit, board setting: 400 `Label is too long.`, `Invalid time mode.`, `Invalid
+  stage lock.`, `Invalid closing time.`, `Invalid pass percents.`, `Invalid replay limit.`, `Invalid board
   setting.`), before anything is read from the database. `showBoard` is read raw (`parseShowBoard`): absent or
   `null` is `true`, a JSON boolean is kept, anything else (`"false"`, `0`, an object) is the 400. Then the
   100-per-user cap (409 `Too many assignments.`); then the job through `Jobs.Get` (404
   `Job not found`, or 409 `Job is not a finished gesture quiz.` unless it is `done`, `creative` and
-  `exportType` GestureQuiz). So a user at the cap gets the 409 even for a job id that does not exist. It copies `job.Title` and `job.CSV`, draws the id (`newJobID`) and the code
-  (`newShareCode`: 10 characters of Crockford base32 from `crypto/rand`) and retries on `ErrDuplicate` up to
-  3 times. The server never parses the CSV: `stageCounts` is the client's count of each stage, checked for
-  shape only (keys `"1"`–`"6"`, 1–50 each). `listAssignments` leaves the CSV out and adds each `playerCount`;
+  `exportType` GestureQuiz, and the same 409 when `gesturequiz.Parse` finds no playable question in its CSV). So
+  a user at the cap gets the 409 even for a job id that does not exist. `stageCounts` is the server's own count
+  of each stage from that parse (a `stageCounts` in the body, which older pages send, is ignored), and a pass
+  percent for a stage the quiz does not have is dropped. It copies `job.Title` and `job.CSV`, draws the id
+  (`newJobID`) and the code (`newShareCode`: 10 characters of Crockford base32 from `crypto/rand`) and retries on
+  `ErrDuplicate` up to 3 times. `listAssignments` leaves the CSV out and adds each `playerCount`;
   `getAssignment` adds the CSV and `buildLeaderboard`'s output (`leaderboard.go`, one `leaderboardEntry` per
   player, with the player's `avatar`) to the same view, and both answer
   `Cache-Control: no-store`, as the client polls the detail. `patchAssignment` reads the body as a map of raw
@@ -117,14 +129,20 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   closing time that would remain, the old one or the one in the same request, is not in the future.
   `deleteAssignmentPlayer` loads the assignment first only to check the caller owns it, since the store's
   player methods do not know owners.
-- **Share** (`share_handlers.go`, the students' side): `GET share/{code}`, `POST share/{code}/players`,
-  `POST share/{code}/results`, `PATCH share/{code}/player` and `GET share/{code}/leaderboard`. They are
-  registered bare, with no `authenticate`, and must never answer 401
+- **Share** (`share_handlers.go` and `run_handlers.go`, the students' side): `GET share/{code}`,
+  `POST share/{code}/players`, `PATCH share/{code}/player`, `GET share/{code}/leaderboard` and a run's three
+  routes, `POST share/{code}/runs`, `POST share/{code}/runs/{runId}/next` and `POST share/{code}/runs/{runId}/answers`.
+  They are registered bare, with no `authenticate`, and must never answer 401
   (the SPA's interceptor would answer that with a token refresh): a student's credentials are the code and,
-  for results, the `X-Player-Token` header. The order of checks, which decides the status when several
-  things are wrong: the code is trimmed and upper-cased and looked up (404 `Assignment not found`) in all
-  three. `getShared` then answers 410 `Assignment closed` unless `OpenAt(now)`, else `{title, label, csv,
-  timeMode, stageLock, passPercents, maxAttempts, showBoard, attempts, closesAt}`, with `no-store` on every answer, errors included, since a close must show at once.
+  for everything done as a student, the `X-Player-Token` header. The order of checks, which decides the status
+  when several things are wrong: the code is trimmed and upper-cased and looked up (404 `Assignment not found`)
+  in all of them. `getShared` then answers 410 `Assignment closed` unless `OpenAt(now)`, else `{title, label,
+  timeMode, stageLock, stageCounts, passPercents, maxAttempts, showBoard, attempts, results, closesAt}`, with
+  `no-store` on every answer, errors included, since a close must show at once. It holds no question: the CSV
+  never reaches a student. With a known token, `attempts` is the player's runs started per stage
+  (`max(Started[s], Stages[s].Attempts)`, the second for players from before runs were dealt by the server) and
+  `results` their best finished run of each stage of the assignment, `{correct, total, passed}`; both are `{}`
+  for no or an unknown token.
   `joinShared` refuses a closed assignment (410) before it reads the body, then `cleanPlayerName` (400
   `Invalid name.`: trimmed, whitespace runs folded, 1–40 runes, no control characters), then the optional
   `avatar` (400 `Invalid avatar.` when it is not empty and not in `avatarIDs`, `avatars.go`, so a bad avatar on
@@ -156,17 +174,41 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   `{rank, name, avatar, stagesPassed, correct, you}`; `you` is the reader's own `{rank, name, avatar,
   stagesPassed, correct}` with `rank` null when they have no result, or null for no or an unknown token;
   `possible` is the sum of the stage counts, `stageCount` their number, `playerCount` everyone who joined. No
-  player id appears anywhere in it. `reportResult` refuses
-  with 410 once `AcceptsResultsAt(now)` is false (open, or within `store.ResultGrace`, 5 minutes, of the
-  effective close), then 403 `Unknown player` for a missing header or a token no player of this assignment
-  holds, *before* the body is read, then 400 `Invalid result.` (`runId` not `^[A-Za-z0-9-]{8,64}$`, stage not in
-  `stageCounts`, `total` not that stage's count, `correct` outside `0..total`), then works out `passed` with
-  `passMark(n, percent) = (percent*n+99)/100` with the assignment's percent for the stage (`passPercentOf`, 70 when
-  unset; at 70 equal to the client's `Math.ceil(0.7 * n)`, `TestPassMark` checks up to 300); before recording it
-  answers 409 `Replay limit reached` when `maxAttempts` is set, the `runId` is new and the player's attempts in
-  that stage have reached it, and
-  calls `RecordResult`, answering 204; an `ErrNotFound` from it (the teacher removed the student meanwhile) is
-  also 403. Nothing limits joins by IP, by design; the 300 cap and unique names are the only brakes.
+  player id appears anywhere in it. Nothing limits joins by IP, by design; the 300 cap and unique names are the
+  only brakes.
+- **Runs** (`run_handlers.go`): the server plays a student's stage, so the browser never holds an answer, a
+  clock it could change or a score it could make up. Every answer is `no-store`, and the checks run in this
+  order: the code (404), the assignment (410 `Assignment closed`: `startRun` needs `OpenAt(now)`, `nextQuestion`
+  and `answerQuestion` only `AcceptsResultsAt(now)`, the 5-minute `store.ResultGrace`, so a run in progress at
+  the close can finish), the token (`requestPlayer`: 403 `Unknown player` when missing or unknown), then the
+  route's own. Each change goes through `Assignments.UpdatePlayer` on fresh data, with the handler's sentinels
+  (`errStageLocked`, `errReplayLimit`, `errRunGone`, `errRunOver`, `errInvalidAnswer`, `errAlreadyAnswered`)
+  coming back unchanged; its `ErrNotFound` (the teacher removed the student meanwhile) is 403 too.
+  - `startRun` (`POST share/{code}/runs`, `{stage}`): 400 `Invalid stage.` for a stage not in `stageCounts` or
+    with no question in `gesturequiz.Parse(a.CSV)`; then, inside the update, 409 `Stage locked` (`sequential`
+    lock and a lower stage of the assignment not passed, `lowerStagesPassed`) and 409 `Replay limit reached`
+    (runs used, `max(Started[s], Stages[s].Attempts)`, at `maxAttempts`). `dealRun` shuffles the questions
+    (`math/rand/v2`), the options of stages 2–5 and the chunks of stage 6 (`ShuffleChunks`), keeps stage 1 as
+    `Đúng`, `Sai`, and serves the first question now; the run replaces `Player.Run`, `Started[s]` goes up by one
+    and the answer is 201 `{runId, stage, total, attempts, question}`.
+  - `nextQuestion` (`POST …/runs/{runId}/next`): 404 `Run not found` unless the run is the player's `Run`, 409
+    `Run is over` once it finished; serves the first unanswered question, writing its `ServedAt` only the first
+    time, so asking again never resets its clock. 200 `{question}`.
+  - `answerQuestion` (`POST …/runs/{runId}/answers`, `{index, choice}`, both read raw): 404 `Run not found`, then
+    400 `Invalid answer.` for an index or choice that is not an integer / null / array of strings (a missing
+    `choice` key too) or an index that is neither answered nor the served question in play. An answered index
+    is a resend: `writeVerdict` rebuilds its stored verdict and nothing is written. Otherwise `judgeAnswer`
+    times it (`timedOut` for a null choice, or later than `ServedAt` + the stage's limit (`GAME_STAGE_SECONDS` with the time mode applied) +
+    `answerGrace`, 5 s), compares it with the parsed question found by `RunQuestion.Item` (`isRightChoice`: the
+    option shown at that index, or the chunks in order as text) and, on the last question, finishes the run in
+    the same write: `resultOf` counts it, `passed` is `correct >= passMark(total, percent)` with the assignment's
+    percent for the stage (`passPercentOf`, 70 when unset; `passMark(n, percent) = (percent*n+99)/100`, at 70
+    equal to the client's `Math.ceil(0.7 * n)`, `TestPassMark` checks up to 300), and `store.MergeRun` keeps the
+    best. The answer is `{correct, timedOut, correctIndex | correctOrder, answer, explanation, result}`, `result`
+    only on the last question of a finished run.
+  - A question as dealt (`sharedQuestion`) is `{index, question, options, chunks, timeLeftMs, graceMs}`: never
+    the answer or the explanation. A run whose `Item`s no longer match the parse (only a parser change between
+    deployments could do it) is logged and answered 404 `Run not found`, which makes the page start over.
 
 `Server.Now` is the clock the assignment and share handlers read (nil means `time.Now`; they call `s.now()`),
 so a test can step through a closing time or the grace period without waiting. The other handlers still read
@@ -188,13 +230,19 @@ follow the same rule: the client matches some of their bodies as strings (`TEACH
 Tests of "Giao bài": `store/assignments_test.go` runs one contract (`testAssignments`) against both stores
 (`TestMemoryAssignments`; `TestMongoAssignments` only when `MONGODB_TEST_URI` is set, in a throwaway database,
 with `TestMongoAssignmentsWithoutIndexes` and `TestMongoAssignmentDocuments` for uniqueness without indexes and
-the stored field names) beside unit tests of `OpenAt`, `EffectiveClose`, `AcceptsResultsAt` and `mergeResult`;
+the stored field names) beside unit tests of `OpenAt`, `EffectiveClose`, `AcceptsResultsAt`, `UpdatePlayer`
+(concurrent writers, an error that writes nothing, the fields it writes) and `MergeRun`;
 `jobs_test.go` covers `Jobs.Get`. `api/assignments_api_test.go` drives the HTTP handlers over the memory stores
-with a `testClock` (`env.clock.Advance`) as `Server.Now`: the whole flow (create, share, join, results with a
-repeated `runId`, leaderboard, close, the grace period, reopen, remove a student, delete), every error status and
+with a `testClock` (`env.clock.Advance`) as `Server.Now`: the whole flow (create, share, join, play, leaderboard,
+close, the grace period, reopen, remove a student, delete), every error status and
 body, ownership, `TestTeacherRoutesNeedALogin`, `TestStudentRoutesNeverAnswer401` (with bad `Authorization`
-headers too, the avatar and student-leaderboard routes included), the limits, `TestPassMark`, the avatar rules of
+headers too, the avatar, student-leaderboard and run routes included), the limits, `TestPassMark`, the avatar rules of
 joining and of `PATCH share/{code}/player`, the students' board end to end (hidden too) and store failures answering 500.
+`api/runs_api_test.go` plays runs of all six games: no answer or explanation before the verdict, the shuffles,
+right, wrong, null and late answers (at the limit plus the grace, the `extra` and `unlimited` modes), resends,
+`next` asked twice, a run replaced by another, the stage lock, the replay limit with runs left unfinished, the
+grace after a close, racing duplicates and store failures.
+`gesturequiz/quiz_test.go` ports the client's parser spec.
 `api/leaderboard_test.go` tests `buildLeaderboard` and `newStudentBoard` as plain Go, `api/avatars_test.go`
 pins the avatar ids, and `config/config_test.go` the new collection settings.
 
@@ -302,32 +350,41 @@ newest-30 prune, cannot break a live link. `OpenAt(now)` is "`closedAt` unset an
 close plus `ResultGrace` (5 minutes). A `Player` (collection `MONGODB_PLAYERS_COLLECTION`) is a student of one
 assignment: `assignmentId`, `name`, `avatar` (the id of the avatar the student picked; left out of the document when
 empty, which is also how a player from before avatars reads), `nameKey` (the lower-cased name, unique within the
-assignment), `tokenHash` (never the token), `joinedAt`, `lastPlayedAt`, `stages` (the best result of each stage: `correct`, `total`,
-`attempts`, `passed`, `bestAt`), the last 50 `runIds` and a `version`. Players are a collection of their own,
+assignment), `tokenHash` (never the token), `joinedAt`, `lastPlayedAt`, `stages` (the best finished run of each stage:
+`correct`, `total`, `attempts`, `passed`, `bestAt`), `started` (stage → runs started, which is what the replay
+limit counts; left out while empty), `run` (the latest `Run`, active or finished: its `id`, `stage`, `startedAt`,
+`finishedAt` and the `questions` in the order asked, each with the `item` it is in the stage's parsed list, the
+`options` or `chunks` as shown, `servedAt`, `answeredAt`, `correct` and `timedOut`; no answer text, which is
+looked up in the quiz by `item`) and a `version`. Documents from before runs may still hold a `runIds` array,
+which nothing reads. Players are a collection of their own,
 not an array on the assignment, so many students finishing a stage at the same moment write different
 documents. The interface's teacher-side methods (`Get`, `List`, `Count`, `Update`, `Delete`) take the owner's
 username, so another user's assignment is `ErrNotFound`; `GetByCode` and the player methods (`CreatePlayer`,
-`CountPlayers`, `ListPlayers`, `PlayerByToken`, `RecordResult`, `SetPlayerAvatar`, `DeletePlayer`) work from the public code or the
-token and leave authorization to the handlers. `List` leaves the CSV out; `Delete` removes the players too
+`CountPlayers`, `ListPlayers`, `PlayerByToken`, `UpdatePlayer`, `SetPlayerAvatar`, `DeletePlayer`) work from the public code or the
+token and leave authorization to the handlers. `List` leaves the CSV out, and `ListPlayers` the `run` (Mongo
+projects it out; the leaderboard never needs it); `Delete` removes the players too
 (in Mongo only after the assignment itself went, so deleting someone else's cannot wipe its players); `Update`
 takes an `AssignmentUpdate` where each time is a `TimeChange{Set, Value}` (not set: unchanged; set with a nil
 value: cleared, i.e. `$unset`).
 
-- `RecordResult` merges one run through `mergeResult`, shared by both implementations so the rules cannot
-  drift: an already-recorded `runId` changes nothing (and returns nil, which is what makes a resend safe), else
-  `attempts` counts it, the stage's `correct` rises only if the run beat it (`bestAt` moves then), a pass once
-  made stays (and sets `bestAt` when it first happens), and the last 50 run ids are kept. Mongo does it like
-  `UpdateSessions`: read the player, merge, write back only where `version` is unchanged (`$inc`), retry up to
-  5 times, else `ErrConflict`; this keeps two runs of one student reported at the same moment (two tabs, a
-  queue being flushed) from overwriting each other's merge. The memory store does it under its mutex.
+- `UpdatePlayer(ctx, assignmentID, playerID, change)` is the one read-modify-write of a player's play: it reads
+  the player, calls `change` on a copy (with non-nil `Stages` and `Started`), and writes back `stages`,
+  `started`, `run` and `lastPlayedAt` only. Mongo does it like `UpdateSessions`: write only where `version` is
+  unchanged (`$inc`), `$unset` a field that came out empty, retry up to 5 times, else `ErrConflict`; this keeps
+  two requests of one student at the same moment (two tabs, a double tap, an answer racing the next question)
+  from overwriting each other. The memory store does it under its mutex. `change` may run more than once, and
+  an error from it writes nothing and comes back unchanged, which is how the run handlers refuse on fresh data.
+- `MergeRun` folds a finished run into `stages`, the same on both stores: the stage's `correct` rises only if
+  the run beat it (`bestAt` moves then), a pass once made stays (and sets `bestAt` when it first happens), and
+  `attempts` becomes the runs started (`max` with what it was, for players from before `started`).
 - `SetPlayerAvatar` replaces the avatar and nothing else, `ErrNotFound` when that player is not in that
-  assignment. Mongo does it as one `UpdateOne` with `$set: {avatar}` and no version bump: `RecordResult` `$set`s
-  only `stages`, `runIds` and `lastPlayedAt`, so the two writes touch different fields and cannot undo each other.
+  assignment. Mongo does it as one `UpdateOne` with `$set: {avatar}` and no version bump: `UpdatePlayer` `$set`s
+  only `stages`, `started`, `run` and `lastPlayedAt`, so the two writes touch different fields and cannot undo each other.
   The store keeps whatever avatar it is given; the API validates against `avatarIDs`.
 - Times are stored as UTC milliseconds (`storedTime`), the precision MongoDB keeps, and both implementations
   copy and normalize through `Assignment.stored()`/`Player.stored()`, so a value reads back the same from
   either (and empty maps and slices are stored as `{}` and `[]`, not `null`). `MemoryAssignments.Now` exists for
-  parity with the other memory stores but no method reads it: `RecordResult` takes its time from the caller.
+  parity with the other memory stores but no method reads it: `UpdatePlayer`'s `change` takes its time from the caller.
 - Uniqueness of the code and of a name within an assignment is **checked before inserting** (`Create`,
   `CreatePlayer`), so it holds even where no index was ever created (`TestMongoAssignmentsWithoutIndexes`); the
   unique indexes only close the race between two simultaneous inserts. `MongoAssignments.EnsureIndexes` defines,

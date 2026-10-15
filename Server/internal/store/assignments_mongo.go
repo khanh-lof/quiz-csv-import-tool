@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -212,9 +211,12 @@ func (m *MongoAssignments) CountPlayers(ctx context.Context, assignmentIDs []str
 	return counts, nil
 }
 
+// ListPlayers leaves out each player's run: it is the bulk of a document that is being written all the
+// time, and the leaderboard it is read for never needs it.
 func (m *MongoAssignments) ListPlayers(ctx context.Context, assignmentID string) ([]Player, error) {
 	cursor, err := m.players.Find(ctx, bson.M{"assignmentId": assignmentID},
-		options.Find().SetSort(bson.D{{Key: "joinedAt", Value: 1}, {Key: "_id", Value: 1}}))
+		options.Find().SetSort(bson.D{{Key: "joinedAt", Value: 1}, {Key: "_id", Value: 1}}).
+			SetProjection(bson.M{"run": 0}))
 	if err != nil {
 		return nil, err
 	}
@@ -237,43 +239,68 @@ func (m *MongoAssignments) PlayerByToken(ctx context.Context, assignmentID, toke
 	return &p, nil
 }
 
-// RecordResult follows UpdateSessions: read the player, merge the run, and write back only if the
-// version is still the one that was read, so two runs reported at the same moment (two tabs, or a
-// queue being flushed) cannot overwrite each other's merge.
-func (m *MongoAssignments) RecordResult(ctx context.Context, assignmentID, playerID, runID, stage string, correct, total int, passed bool, now time.Time) error {
+// UpdatePlayer follows UpdateSessions: read the player, let change work on a copy, and write back only if
+// the version is still the one that was read, so two requests of one player at the same moment (two tabs,
+// a double tap, an answer racing the next question) cannot overwrite each other's run. Only stages,
+// started, run and lastPlayedAt are written, and a field that came out empty is $unset, so the document
+// never holds a null where a reader expects a map or a run.
+func (m *MongoAssignments) UpdatePlayer(ctx context.Context, assignmentID, playerID string, change func(p *Player) error) (*Player, error) {
 	for range maxUpdateAttempts {
-		var p Player
-		err := m.players.FindOne(ctx, bson.M{"_id": playerID, "assignmentId": assignmentID}).Decode(&p)
+		var read Player
+		err := m.players.FindOne(ctx, bson.M{"_id": playerID, "assignmentId": assignmentID}).Decode(&read)
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return ErrNotFound
+			return nil, ErrNotFound
 		}
 		if err != nil {
-			return err
+			return nil, err
 		}
 
+		p := read.stored()
+		if p.Started == nil {
+			p.Started = map[string]int{}
+		}
+		if err := change(&p); err != nil {
+			return nil, err
+		}
 		p = p.stored()
-		if !mergeResult(&p, runID, stage, correct, total, passed, now) {
-			return nil
+
+		set, unset := bson.M{"stages": p.Stages}, bson.M{}
+		if len(p.Started) > 0 {
+			set["started"] = p.Started
+		} else {
+			unset["started"] = ""
+		}
+		if p.Run != nil {
+			set["run"] = p.Run
+		} else {
+			unset["run"] = ""
+		}
+		if p.LastPlayedAt != nil {
+			set["lastPlayedAt"] = *p.LastPlayedAt
+		} else {
+			unset["lastPlayedAt"] = ""
+		}
+		update := bson.M{"$set": set, "$inc": bson.M{"version": 1}}
+		if len(unset) > 0 {
+			// MongoDB rejects an empty $unset, so the operator is only sent when there is something to remove.
+			update["$unset"] = unset
 		}
 
 		res, err := m.players.UpdateOne(ctx,
-			bson.M{"_id": playerID, "assignmentId": assignmentID, "version": p.Version},
-			bson.M{
-				"$set": bson.M{"stages": p.Stages, "runIds": p.RunIDs, "lastPlayedAt": *p.LastPlayedAt},
-				"$inc": bson.M{"version": 1},
-			})
+			bson.M{"_id": playerID, "assignmentId": assignmentID, "version": read.Version}, update)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if res.MatchedCount == 1 {
-			return nil
+			p.Version = read.Version + 1
+			return &p, nil
 		}
 		// A concurrent write bumped the version first: re-read and retry.
 	}
-	return fmt.Errorf("recording a result of player %q: %w", playerID, ErrConflict)
+	return nil, fmt.Errorf("updating player %q: %w", playerID, ErrConflict)
 }
 
-// SetPlayerAvatar is a plain $set of the one field. RecordResult $sets only the results and the run ids,
+// SetPlayerAvatar is a plain $set of the one field. UpdatePlayer $sets only the results and the run,
 // never the avatar, so the two writes cannot undo each other and the version needs no bump.
 func (m *MongoAssignments) SetPlayerAvatar(ctx context.Context, assignmentID, playerID, avatar string) error {
 	res, err := m.players.UpdateOne(ctx, bson.M{"_id": playerID, "assignmentId": assignmentID},

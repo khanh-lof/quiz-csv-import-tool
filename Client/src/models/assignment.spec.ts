@@ -14,11 +14,10 @@ import {
   MAX_ATTEMPTS_LIMIT,
   MIN_ATTEMPTS_LIMIT,
   passPercentOf,
+  placeholderQuiz,
   shareUrl,
-  stageCountsOf,
   TIME_MODE_LABELS,
 } from './assignment';
-import { GestureQuiz } from './gesture-quiz';
 
 // A time in the browser's own zone, as an RFC 3339 string: the formatting is local, so the specs build
 // their times the same way and pass in any time zone.
@@ -29,7 +28,7 @@ function local(y: number, mo: number, d: number, h = 0, mi = 0): string {
 function assignment(overrides: Partial<Assignment> = {}): Assignment {
   return {
     id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: '', timeMode: 'standard', stageLock: 'sequential',
-    passPercents: {'1': 70, '2': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5, '2': 5}, createdAt: local(2026, 10, 14, 8), closesAt: null, closedAt: null,
+    passPercents: {'1': 70, '2': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5, '2': 5}, timeLimits: {'1': 12, '2': 12}, createdAt: local(2026, 10, 14, 8), closesAt: null, closedAt: null,
     open: true, playerCount: 0, ...overrides,
   };
 }
@@ -47,18 +46,6 @@ function detail(players: LeaderboardEntry[], overrides: Partial<AssignmentDetail
   return {...assignment(), csv: '', players, ...overrides};
 }
 
-function quizWith(counts: Record<number, number>): GestureQuiz {
-  return {
-    title: 'Quiz',
-    key: 'gq-1',
-    stages: new Map(Object.entries(counts).map(([stage, count]) => [
-      Number(stage),
-      Array.from({length: count}, () => ({stage: Number(stage), question: 'Q', correct: 'A', wrong: [], explanation: ''})),
-    ])),
-    skipped: 0,
-  };
-}
-
 describe('shareUrl', () => {
   it('puts the code after /play/s/ on the given origin', () => {
     expect(shareUrl('K7M2X9QD4P', 'https://quiz.example')).toBe('https://quiz.example/play/s/K7M2X9QD4P');
@@ -69,13 +56,26 @@ describe('shareUrl', () => {
   });
 });
 
-describe('stageCountsOf', () => {
-  it('lists only the stages that have questions, keyed by number', () => {
-    expect(stageCountsOf(quizWith({1: 5, 2: 0, 4: 10, 6: 3}))).toEqual({'1': 5, '4': 10, '6': 3});
+describe('placeholderQuiz', () => {
+  it('holds as many blank questions in each stage as the counts say, in stage order', () => {
+    const quiz = placeholderQuiz('HSK1 bài 1', 'asg:K7M2X9QD4P', {'6': 3, '1': 5, '4': 10});
+
+    expect([...quiz.stages.keys()]).toEqual([1, 4, 6]);
+    expect([...quiz.stages.values()].map(questions => questions.length)).toEqual([5, 10, 3]);
+    expect(quiz.stages.get(4)![0]).toEqual({stage: 4, question: '', correct: '', wrong: [], explanation: ''});
+    expect(quiz.title).toBe('HSK1 bài 1');
+    expect(quiz.key).toBe('asg:K7M2X9QD4P');
+    expect(quiz.skipped).toBe(0);
   });
 
-  it('is empty for a quiz without questions', () => {
-    expect(stageCountsOf(quizWith({}))).toEqual({});
+  it('leaves out what is not a stage or has no whole positive count', () => {
+    const quiz = placeholderQuiz('Quiz', 'k', {'0': 5, '2': 0, '3': -1, '4': 2.5, '5': 4, '7': 5, x: 5});
+
+    expect([...quiz.stages.keys()]).toEqual([5]);
+  });
+
+  it('has no stages for no counts', () => {
+    expect(placeholderQuiz('Quiz', 'k', {}).stages.size).toBe(0);
   });
 });
 

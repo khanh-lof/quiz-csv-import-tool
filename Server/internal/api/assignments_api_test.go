@@ -10,7 +10,6 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -19,9 +18,6 @@ import (
 	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/store"
 )
-
-// gestureCSV is what the seeded job holds; the assignment must copy it as it is.
-const gestureCSV = "1,Đúng hay sai?,Đúng,,,,Giải thích\n2,A hay B?,A,B,,,Giải thích\n"
 
 // ---- helpers ----
 
@@ -81,14 +77,14 @@ func jsonOf(v any) string {
 // omit, as an override of createBody, removes the key from the request.
 type omit struct{}
 
-// createBody is a valid POST /api/assignments body for the seeded job, with some keys replaced.
+// createBody is a valid POST /api/assignments body for the seeded job, with some keys replaced. It has no
+// stage counts: the server counts the questions itself.
 func createBody(overrides map[string]any) string {
 	body := map[string]any{
-		"jobId":       "job1",
-		"label":       "",
-		"closesAt":    nil,
-		"timeMode":    "standard",
-		"stageCounts": map[string]int{"1": 5, "2": 10},
+		"jobId":    "job1",
+		"label":    "",
+		"closesAt": nil,
+		"timeMode": "standard",
 	}
 	for k, v := range overrides {
 		if _, drop := v.(omit); drop {
@@ -98,10 +94,6 @@ func createBody(overrides map[string]any) string {
 		}
 	}
 	return jsonOf(body)
-}
-
-func resultBody(runID string, stage, correct, total int) string {
-	return jsonOf(map[string]any{"runId": runID, "stage": stage, "correct": correct, "total": total})
 }
 
 func entryRank(e leaderboardEntry) int {
@@ -128,11 +120,13 @@ func (e *testEnv) seedJob(t *testing.T, username, id string, edit func(*store.Jo
 	}
 }
 
-// classroom is alice with one assignment (job "job1", stage 1 of 5 questions and stage 2 of 10).
+// classroom is alice with one assignment (job "job1", stage 1 of 5 questions and stage 2 of 10, unless
+// csv says another quiz, see newClassroomCSV).
 type classroom struct {
 	*testEnv
 	token string
 	a     assignmentView
+	csv   string
 }
 
 func newClassroom(t *testing.T, createOverrides map[string]any) *classroom {
@@ -198,20 +192,6 @@ func (c *classroom) join(t *testing.T, name string) (id, token string) {
 	return body.PlayerID, body.Token
 }
 
-func (c *classroom) report(token, body string) *httptest.ResponseRecorder {
-	return c.send(http.MethodPost, "/api/share/"+c.a.Code+"/results", body, header("X-Player-Token", token))
-}
-
-// finish reports a run that must be accepted.
-func (c *classroom) finish(t *testing.T, token, runID string, stage, correct, total int) {
-	t.Helper()
-	rec := c.report(token, resultBody(runID, stage, correct, total))
-	wantStatus(t, rec, http.StatusNoContent)
-	if rec.Body.Len() != 0 {
-		t.Fatalf("a 204 carries a body: %q", rec.Body)
-	}
-}
-
 func keysOf(m map[string]any) []string {
 	return slices.Sorted(maps.Keys(m))
 }
@@ -236,7 +216,7 @@ func TestAssignmentFlow(t *testing.T) {
 	}
 	created := decode[map[string]any](t, rec)
 	wantKeys := []string{"closedAt", "closesAt", "code", "createdAt", "id", "jobId", "label", "maxAttempts", "open", "passPercents", "playerCount",
-		"showBoard", "stageCounts", "stageLock", "timeMode", "title"}
+		"showBoard", "stageCounts", "stageLock", "timeLimits", "timeMode", "title"}
 	if got := keysOf(created); !slices.Equal(got, wantKeys) {
 		t.Fatalf("keys %v, want %v", got, wantKeys)
 	}
@@ -246,6 +226,10 @@ func TestAssignmentFlow(t *testing.T) {
 		created["closedAt"] != nil || created["open"] != true || created["playerCount"] != float64(0) || created["showBoard"] != true ||
 		len(counts) != 2 || counts["1"] != float64(5) || counts["2"] != float64(10) {
 		t.Fatalf("created %v", created)
+	}
+	// Extra time, told as seconds per stage: 12 s become 18.
+	if limits, _ := created["timeLimits"].(map[string]any); len(limits) != 2 || limits["1"] != float64(18) || limits["2"] != float64(18) {
+		t.Fatalf("created time limits %v", created["timeLimits"])
 	}
 	code, _ := created["code"].(string)
 	if len(code) != 10 || strings.Trim(code, shareCodeAlphabet) != "" {
@@ -259,6 +243,9 @@ func TestAssignmentFlow(t *testing.T) {
 	if err != nil || stored.CSV != gestureCSV || stored.Username != "alice" || stored.Code != code {
 		t.Fatalf("stored %+v, %v", stored, err)
 	}
+	if !maps.Equal(stored.StageCounts, map[string]int{"1": 5, "2": 10}) {
+		t.Fatalf("stored counts %v", stored.StageCounts)
+	}
 
 	// The list has it, newest first, without a CSV.
 	rec = c.teacher(http.MethodGet, "/api/assignments", "")
@@ -271,18 +258,25 @@ func TestAssignmentFlow(t *testing.T) {
 		t.Fatalf("list %v", list)
 	}
 
-	// A student opens the link, typed in lower case.
+	// A student opens the link, typed in lower case. What they get holds the settings and the counts but
+	// neither the quiz nor any answer.
 	rec = env.send(http.MethodGet, "/api/share/"+strings.ToLower(code), "")
 	wantStatus(t, rec, http.StatusOK)
 	if rec.Header().Get("Cache-Control") != "no-store" {
 		t.Errorf("share is cacheable: %v", rec.Header())
 	}
+	if strings.Contains(rec.Body.String(), "EXPL") || strings.Contains(rec.Body.String(), "Q1-1") {
+		t.Errorf("the share answer holds the quiz: %s", rec.Body)
+	}
 	shared := decode[map[string]any](t, rec)
-	if got, want := keysOf(shared), []string{"attempts", "closesAt", "csv", "label", "maxAttempts", "passPercents", "showBoard", "stageLock", "timeMode", "title"}; !slices.Equal(got, want) {
+	if got, want := keysOf(shared), []string{"attempts", "closesAt", "label", "maxAttempts", "passPercents", "results", "showBoard", "stageCounts", "stageLock", "timeLimits", "timeMode", "title"}; !slices.Equal(got, want) {
 		t.Fatalf("share keys %v, want %v", got, want)
 	}
-	if shared["title"] != "HSK3-Bai5" || shared["label"] != "Lớp 6A" || shared["csv"] != gestureCSV ||
-		shared["timeMode"] != "extra" || shared["stageLock"] != "open" || shared["closesAt"] != inTime(closes) || shared["showBoard"] != true {
+	sharedCounts, _ := shared["stageCounts"].(map[string]any)
+	sharedResults, _ := shared["results"].(map[string]any)
+	if shared["title"] != "HSK3-Bai5" || shared["label"] != "Lớp 6A" ||
+		shared["timeMode"] != "extra" || shared["stageLock"] != "open" || shared["closesAt"] != inTime(closes) || shared["showBoard"] != true ||
+		len(sharedCounts) != 2 || sharedCounts["1"] != float64(5) || sharedCounts["2"] != float64(10) || sharedResults == nil || len(sharedResults) != 0 {
 		t.Fatalf("share %v", shared)
 	}
 
@@ -309,16 +303,15 @@ func TestAssignmentFlow(t *testing.T) {
 		}
 	}
 
-	// Lan passes stage 1 (4 of 5), plays it again worse, resends the first run, then fails stage 2.
-	c.finish(t, lanToken, "run-lan-0001", 1, 4, 5)
+	// Lan passes stage 1 (4 of 5), plays it again worse, then fails stage 2.
+	c.finish(t, lanToken, 1, 4)
 	env.clock.Advance(time.Minute)
-	c.finish(t, lanToken, "run-lan-0002", 1, 2, 5)
-	c.finish(t, lanToken, "run-lan-0001", 1, 4, 5)
-	c.finish(t, lanToken, "run-lan-0003", 2, 6, 10)
+	c.finish(t, lanToken, 1, 2)
+	c.finish(t, lanToken, 2, 6)
 	// Mai, a minute later, passes both stages.
 	env.clock.Advance(time.Minute)
-	c.finish(t, maiToken, "run-mai-0001", 1, 5, 5)
-	c.finish(t, maiToken, "run-mai-0002", 2, 7, 10)
+	c.finish(t, maiToken, 1, 5)
+	c.finish(t, maiToken, 2, 7)
 
 	rec = c.teacher(http.MethodGet, "/api/assignments/"+c.a.ID, "")
 	wantStatus(t, rec, http.StatusOK)
@@ -347,7 +340,7 @@ func TestAssignmentFlow(t *testing.T) {
 		mai.ReachedAt == nil || !mai.ReachedAt.Equal(start.Add(2*time.Minute)) {
 		t.Errorf("mai %+v", mai)
 	}
-	// The worse second run did not lower the best, and the resent run counted once.
+	// The worse second run did not lower the best.
 	if lan.StagesPassed != 1 || lan.Correct != 10 || lan.Possible != 15 || lan.Attempts != 3 ||
 		lan.ReachedAt == nil || !lan.ReachedAt.Equal(start.Add(time.Minute)) {
 		t.Errorf("lan %+v", lan)
@@ -399,48 +392,60 @@ func TestEmptyAssignmentListIsAnArray(t *testing.T) {
 
 // ---- closing and reopening ----
 
-func TestClosingStopsOpeningAndJoiningButResultsGetAGrace(t *testing.T) {
-	c := newClassroom(t, nil)
+func TestClosingStopsOpeningJoiningAndStartingButARunInProgressGetsAGrace(t *testing.T) {
+	c := newClassroom(t, map[string]any{"timeMode": "unlimited"})
 	_, lanToken := c.join(t, "Lan")
+	_, maiToken := c.join(t, "Mai")
+	lanRun := c.start(t, lanToken, 1)
+	maiRun := c.start(t, maiToken, 1)
 
 	closedAt := c.clock.Now()
 	rec := c.patch(`{"closed":true}`)
 	wantStatus(t, rec, http.StatusOK)
 	closed := decode[assignmentView](t, rec)
-	if closed.Open || closed.ClosedAt == nil || !closed.ClosedAt.Equal(closedAt) || closed.PlayerCount != 1 {
+	if closed.Open || closed.ClosedAt == nil || !closed.ClosedAt.Equal(closedAt) || closed.PlayerCount != 2 {
 		t.Fatalf("closed %+v", closed)
 	}
 
 	wantError(t, c.shareGet(), http.StatusGone, "Assignment closed")
-	wantError(t, c.tryJoin("Mai"), http.StatusGone, "Assignment closed")
+	wantError(t, c.tryJoin("Zed"), http.StatusGone, "Assignment closed")
+	// A new run does not start, in the grace period or out of it.
+	wantError(t, c.startRun(lanToken, 1), http.StatusGone, "Assignment closed")
 
-	// A student in the middle of a stage at the deadline still gets the result in, for 5 minutes.
+	// A student in the middle of a stage at the deadline still gets to finish it, for 5 minutes.
 	c.clock.Advance(4 * time.Minute)
-	c.finish(t, lanToken, "run-lan-0001", 1, 5, 5)
+	c.complete(t, lanToken, lanRun, 5)
 	c.clock.Advance(time.Minute) // exactly 5 minutes after: still inside the grace
-	c.finish(t, lanToken, "run-lan-0002", 2, 7, 10)
+	if q := c.next(t, maiToken, maiRun.RunID); q.Index != 0 {
+		t.Fatalf("question %+v", q)
+	}
+	wantStatus(t, c.answer(maiToken, maiRun.RunID, 0, c.choice(t, 1, maiRun.Question, true)), http.StatusOK)
+	wantError(t, c.startRun(maiToken, 1), http.StatusGone, "Assignment closed")
 	c.clock.Advance(time.Second)
-	wantError(t, c.report(lanToken, resultBody("run-lan-0003", 2, 10, 10)), http.StatusGone, "Assignment closed")
+	wantError(t, c.nextQuestion(maiToken, maiRun.RunID), http.StatusGone, "Assignment closed")
+	wantError(t, c.answer(maiToken, maiRun.RunID, 1, 0), http.StatusGone, "Assignment closed")
 	c.clock.Advance(time.Minute) // 6 minutes: long past it
-	wantError(t, c.report(lanToken, resultBody("run-lan-0004", 2, 10, 10)), http.StatusGone, "Assignment closed")
+	wantError(t, c.nextQuestion(lanToken, lanRun.RunID), http.StatusGone, "Assignment closed")
 
-	// The teacher still sees everything, and what arrived in time counted.
+	// The teacher still sees everything, and the run that finished in time counted.
 	detail := c.detail(t)
-	if detail.Open || len(detail.Players) != 1 || detail.Players[0].StagesPassed != 2 || detail.Players[0].Attempts != 2 {
+	if detail.Open || len(detail.Players) != 2 || detail.Players[0].Name != "Lan" || detail.Players[0].StagesPassed != 1 || detail.Players[0].Attempts != 1 ||
+		len(detail.Players[1].Stages) != 0 || detail.Players[1].Attempts != 1 {
 		t.Fatalf("detail %+v %+v", detail.assignmentView, detail.Players)
 	}
 }
-
 func TestClosingTimePasses(t *testing.T) {
-	c := newClassroom(t, map[string]any{"closesAt": inTime(testClockStart.Add(30 * time.Minute))})
+	c := newClassroom(t, map[string]any{"closesAt": inTime(testClockStart.Add(30 * time.Minute)), "timeMode": "unlimited"})
 	_, lanToken := c.join(t, "Lan")
 	wantStatus(t, c.shareGet(), http.StatusOK)
 
 	c.clock.Advance(29*time.Minute + 59*time.Second)
 	wantStatus(t, c.shareGet(), http.StatusOK)
+	run := c.start(t, lanToken, 1)
 	c.clock.Advance(time.Second) // the closing time itself is already closed
 	wantError(t, c.shareGet(), http.StatusGone, "Assignment closed")
 	wantError(t, c.tryJoin("Mai"), http.StatusGone, "Assignment closed")
+	wantError(t, c.startRun(lanToken, 1), http.StatusGone, "Assignment closed")
 
 	rec := c.teacher(http.MethodGet, "/api/assignments", "")
 	if list := decode[struct{ Assignments []assignmentView }](t, rec).Assignments; len(list) != 1 || list[0].Open {
@@ -448,11 +453,11 @@ func TestClosingTimePasses(t *testing.T) {
 	}
 
 	c.clock.Advance(5 * time.Minute)
-	c.finish(t, lanToken, "run-lan-0001", 1, 5, 5)
+	c.complete(t, lanToken, run, 5)
 	c.clock.Advance(time.Second)
-	wantError(t, c.report(lanToken, resultBody("run-lan-0002", 1, 5, 5)), http.StatusGone, "Assignment closed")
+	wantError(t, c.nextQuestion(lanToken, run.RunID), http.StatusGone, "Assignment closed")
+	wantError(t, c.answer(lanToken, run.RunID, 0, 0), http.StatusGone, "Assignment closed")
 }
-
 func TestClosingAgainKeepsTheFirstMoment(t *testing.T) {
 	c := newClassroom(t, nil)
 	first := decode[assignmentView](t, c.patch(`{"closed":true}`))
@@ -483,7 +488,7 @@ func TestReopening(t *testing.T) {
 		t.Fatalf("reopened %+v", reopened)
 	}
 	wantStatus(t, c.shareGet(), http.StatusOK)
-	c.finish(t, lanToken, "run-lan-0001", 1, 5, 5)
+	c.finish(t, lanToken, 1, 5)
 
 	// Reopening with a new closing time works too, and keeps that time.
 	wantStatus(t, c.patch(`{"closed":true}`), http.StatusOK)
@@ -589,7 +594,6 @@ func TestCreateAssignmentErrors(t *testing.T) {
 		{"no body", "", 400, "Missing body"},
 		{"not json", "nope", 400, "Invalid payload"},
 		{"wrong type", `{"jobId":5}`, 400, "Invalid payload"},
-		{"stage count not a number", `{"jobId":"job1","timeMode":"standard","stageCounts":{"1":"5"}}`, 400, "Invalid payload"},
 		{"label too long", createBody(map[string]any{"label": strings.Repeat("ă", 61)}), 400, "Label is too long."},
 		{"label too long with trailing spaces", createBody(map[string]any{"label": strings.Repeat("x", 61) + "   "}), 400, "Label is too long."},
 		{"time mode other", createBody(map[string]any{"timeMode": "fast"}), 400, "Invalid time mode."},
@@ -597,9 +601,11 @@ func TestCreateAssignmentErrors(t *testing.T) {
 		{"time mode missing", createBody(map[string]any{"timeMode": omit{}}), 400, "Invalid time mode."},
 		{"stage lock other", createBody(map[string]any{"stageLock": "free"}), 400, "Invalid stage lock."},
 		{"stage lock case", createBody(map[string]any{"stageLock": "Open"}), 400, "Invalid stage lock."},
-		{"pass percent stage not in quiz", createBody(map[string]any{"passPercents": map[string]int{"3": 70}}), 400, "Invalid pass percents."},
 		{"pass percent stage 7", createBody(map[string]any{"passPercents": map[string]int{"7": 70}}), 400, "Invalid pass percents."},
 		{"pass percent stage not a number", createBody(map[string]any{"passPercents": map[string]int{"one": 70}}), 400, "Invalid pass percents."},
+		{"pass percent stage 0", createBody(map[string]any{"passPercents": map[string]int{"0": 70}}), 400, "Invalid pass percents."},
+		{"pass percent stage spelled oddly", createBody(map[string]any{"passPercents": map[string]int{"01": 70}}), 400, "Invalid pass percents."},
+		{"pass percent stage with a space", createBody(map[string]any{"passPercents": map[string]int{" 1": 70}}), 400, "Invalid pass percents."},
 		{"pass percent 9", createBody(map[string]any{"passPercents": map[string]int{"1": 9}}), 400, "Invalid pass percents."},
 		{"pass percent 101", createBody(map[string]any{"passPercents": map[string]int{"1": 101}}), 400, "Invalid pass percents."},
 		{"pass percent 0", createBody(map[string]any{"passPercents": map[string]int{"1": 0}}), 400, "Invalid pass percents."},
@@ -611,7 +617,6 @@ func TestCreateAssignmentErrors(t *testing.T) {
 		{"pass percents an array", createBody(map[string]any{"passPercents": []int{70}}), 400, "Invalid pass percents."},
 		{"pass percents a number", createBody(map[string]any{"passPercents": 70}), 400, "Invalid pass percents."},
 		{"one bad pass percent among good ones", createBody(map[string]any{"passPercents": map[string]int{"1": 70, "2": 5}}), 400, "Invalid pass percents."},
-		{"stage counts before pass percents", createBody(map[string]any{"stageCounts": omit{}, "passPercents": map[string]int{"1": 5}}), 400, "Invalid stage counts."},
 		{"replay limit with sequential lock", createBody(map[string]any{"stageLock": "sequential", "maxAttempts": 3}), 400, "Invalid replay limit."},
 		{"replay limit with lock omitted", createBody(map[string]any{"maxAttempts": 3}), 400, "Invalid replay limit."},
 		{"replay limit 0", createBody(map[string]any{"stageLock": "open", "maxAttempts": 0}), 400, "Invalid replay limit."},
@@ -636,17 +641,6 @@ func TestCreateAssignmentErrors(t *testing.T) {
 		{"closes not a time", createBody(map[string]any{"closesAt": "next week"}), 400, "Invalid closing time."},
 		{"closes without zone", createBody(map[string]any{"closesAt": "2026-10-15T09:00:00"}), 400, "Invalid closing time."},
 		{"closes a number", createBody(map[string]any{"closesAt": 5}), 400, "Invalid payload"},
-		{"no stage counts", createBody(map[string]any{"stageCounts": omit{}}), 400, "Invalid stage counts."},
-		{"null stage counts", createBody(map[string]any{"stageCounts": nil}), 400, "Invalid stage counts."},
-		{"empty stage counts", createBody(map[string]any{"stageCounts": map[string]int{}}), 400, "Invalid stage counts."},
-		{"stage 0", createBody(map[string]any{"stageCounts": map[string]int{"0": 5}}), 400, "Invalid stage counts."},
-		{"stage 7", createBody(map[string]any{"stageCounts": map[string]int{"7": 5}}), 400, "Invalid stage counts."},
-		{"stage not a number", createBody(map[string]any{"stageCounts": map[string]int{"one": 5}}), 400, "Invalid stage counts."},
-		{"stage spelled oddly", createBody(map[string]any{"stageCounts": map[string]int{"01": 5}}), 400, "Invalid stage counts."},
-		{"one bad stage among good ones", createBody(map[string]any{"stageCounts": map[string]int{"1": 5, "9": 5}}), 400, "Invalid stage counts."},
-		{"no questions", createBody(map[string]any{"stageCounts": map[string]int{"1": 0}}), 400, "Invalid stage counts."},
-		{"negative questions", createBody(map[string]any{"stageCounts": map[string]int{"1": -1}}), 400, "Invalid stage counts."},
-		{"too many questions", createBody(map[string]any{"stageCounts": map[string]int{"1": 51}}), 400, "Invalid stage counts."},
 		{"job unknown", createBody(map[string]any{"jobId": "nope"}), 404, "Job not found"},
 		{"job missing", createBody(map[string]any{"jobId": omit{}}), 404, "Job not found"},
 		// The payload is judged before the database is asked about the job.
@@ -654,7 +648,6 @@ func TestCreateAssignmentErrors(t *testing.T) {
 		// Checks run in the order of the contract.
 		{"label before time mode", createBody(map[string]any{"label": strings.Repeat("x", 61), "timeMode": "fast"}), 400, "Label is too long."},
 		{"time mode before closing time", createBody(map[string]any{"timeMode": "fast", "closesAt": "x"}), 400, "Invalid time mode."},
-		{"closing time before stage counts", createBody(map[string]any{"closesAt": "x", "stageCounts": omit{}}), 400, "Invalid closing time."},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -667,13 +660,84 @@ func TestCreateAssignmentErrors(t *testing.T) {
 		t.Fatalf("%d assignments after only failures", n)
 	}
 
-	// The limits themselves are allowed: 60 runes, 180 days, 50 questions, all six stages.
+	// The limits themselves are allowed: 60 runes, 180 days, all six stages.
+	env.seedJob(t, "alice", "big", func(j *store.Job) { j.CSV = quizCSV(map[int]int{1: 1, 2: 50, 3: 5, 4: 5, 5: 5, 6: 5}) })
 	rec := env.send(http.MethodPost, "/api/assignments", createBody(map[string]any{
-		"label":       strings.Repeat("ă", 60),
-		"closesAt":    inTime(now.Add(180 * 24 * time.Hour)),
-		"stageCounts": map[string]int{"1": 1, "2": 50, "3": 5, "4": 5, "5": 5, "6": 5},
+		"jobId":    "big",
+		"label":    strings.Repeat("ă", 60),
+		"closesAt": inTime(now.Add(180 * 24 * time.Hour)),
 	}), bearer(token))
 	wantStatus(t, rec, http.StatusCreated)
+	if got := decode[assignmentView](t, rec).StageCounts; !maps.Equal(got, map[string]int{"1": 1, "2": 50, "3": 5, "4": 5, "5": 5, "6": 5}) {
+		t.Fatalf("counts %v", got)
+	}
+}
+
+// The server counts the questions of each stage itself, with the parser it plays them with, and takes
+// nothing from the client: a stageCounts in the body (an older page still sends one) is ignored.
+func TestCreateAssignmentCountsTheQuizItself(t *testing.T) {
+	env := newEnv(t)
+	env.seedJob(t, "alice", "job1", nil)
+	token, _ := env.login(t, "alice", "pw")
+	bom := string(rune(0xFEFF))
+	jobs := map[string]struct {
+		csv  string
+		want map[string]int
+	}{
+		"plain": {gestureCSV, map[string]int{"1": 5, "2": 10}},
+		"fenced, with a header and rows that are dropped": {
+			"Here is the quiz:\n```csv\nStage,Question,Correct Answer,Wrong Answer 1,Wrong Answer 2,Wrong Answer 3,Explanation\n" +
+				"1,Q,Đúng,,,,e\n1,Q,True,,,,e\n1,Q,Có,,,,e\n2,Q,A,B,,,e\n4,Q,A,B,C,,e\n4,Q,A,,,,e\n6,Q,我 / 是,,,,\n9,Q,A,B,,,\n```\nEnjoy!",
+			map[string]int{"1": 2, "2": 1, "4": 1, "6": 1},
+		},
+		"with a byte order mark and CRLF": {bom + "3,Q,A,B,C,,e\r\n5,Q,A,B,C,D,e\r\n", map[string]int{"3": 1, "5": 1}},
+		"stages out of order":             {"6,Q,a / b,,,,\n2,Q,A,B,,,\n6,Q,c / d,,,,\n", map[string]int{"2": 1, "6": 2}},
+	}
+	for name, tt := range jobs {
+		id := strings.ReplaceAll(name, " ", "-")
+		env.seedJob(t, "alice", id, func(j *store.Job) { j.CSV = tt.csv })
+		// Whatever the client claims, the counts are the server's.
+		rec := env.send(http.MethodPost, "/api/assignments", createBody(map[string]any{
+			"jobId": id, "stageCounts": map[string]int{"1": 99, "3": 7, "6": 50},
+		}), bearer(token))
+		wantStatus(t, rec, http.StatusCreated)
+		if got := decode[assignmentView](t, rec).StageCounts; !maps.Equal(got, tt.want) {
+			t.Errorf("%s: counts %v, want %v", name, got, tt.want)
+		}
+		stored, err := env.assignments.Get(context.Background(), "alice", decode[assignmentView](t, rec).ID)
+		if err != nil || !maps.Equal(stored.StageCounts, tt.want) || stored.CSV != tt.csv {
+			t.Errorf("%s: stored %+v, %v", name, stored, err)
+		}
+	}
+
+	// Counts of any shape in the body are ignored, wrong types included: they are not read at all.
+	for name, counts := range map[string]any{"a string": "five", "a wrong type": map[string]string{"1": "5"}, "null": nil, "empty": map[string]int{}} {
+		rec := env.send(http.MethodPost, "/api/assignments", createBody(map[string]any{"stageCounts": counts}), bearer(token))
+		if rec.Code != http.StatusCreated || !maps.Equal(decode[assignmentView](t, rec).StageCounts, map[string]int{"1": 5, "2": 10}) {
+			t.Errorf("%s: %d %q", name, rec.Code, rec.Body)
+		}
+	}
+
+	// A pass percent for a stage the quiz does not have is dropped without a word, not refused; the stages
+	// it has keep theirs, with 70 for the rest. The assignment stores only what it keeps.
+	rec := env.send(http.MethodPost, "/api/assignments", createBody(map[string]any{
+		"passPercents": map[string]int{"1": 60, "3": 50, "6": 90},
+	}), bearer(token))
+	wantStatus(t, rec, http.StatusCreated)
+	created := decode[assignmentView](t, rec)
+	if want := map[string]int{"1": 60, "2": 70}; !maps.Equal(created.PassPercents, want) {
+		t.Fatalf("pass percents %v, want %v", created.PassPercents, want)
+	}
+	stored, _ := env.assignments.Get(context.Background(), "alice", created.ID)
+	if !maps.Equal(stored.PassPercents, map[string]int{"1": 60}) {
+		t.Fatalf("stored pass percents %v", stored.PassPercents)
+	}
+	// Where every key is of a stage the quiz lacks, nothing is stored and everything reads as 70.
+	rec = env.send(http.MethodPost, "/api/assignments", createBody(map[string]any{"passPercents": map[string]int{"4": 50}}), bearer(token))
+	wantStatus(t, rec, http.StatusCreated)
+	if got := decode[assignmentView](t, rec).PassPercents; !maps.Equal(got, map[string]int{"1": 70, "2": 70}) {
+		t.Fatalf("pass percents %v", got)
+	}
 }
 
 func TestCreateAssignmentNeedsAFinishedGestureQuiz(t *testing.T) {
@@ -687,6 +751,12 @@ func TestCreateAssignmentNeedsAFinishedGestureQuiz(t *testing.T) {
 		"gimkit":         func(j *store.Job) { j.ExportType = ptr(int(csvgen.GimKit)) },
 		"wayground":      func(j *store.Job) { j.ExportType = ptr(int(csvgen.Wayground)) },
 		"not creative":   func(j *store.Job) { j.Creative = false },
+		// A finished job whose CSV holds nothing the game can play is no quiz to hand out.
+		"empty csv":         func(j *store.Job) { j.CSV = "" },
+		"prose":             func(j *store.Job) { j.CSV = "Sorry, I could not read the photos." },
+		"only a header":     func(j *store.Job) { j.CSV = "Stage,Question,Correct Answer\n" },
+		"only broken rows":  func(j *store.Job) { j.CSV = "1,Q,Có,,,,\n2,Q,A,,,,\n9,Q,A,B,,," },
+		"formatted columns": func(j *store.Job) { j.CSV = "Câu hỏi,Đáp án\nxin chào,你好\n" },
 	}
 	for id, edit := range jobs {
 		env.seedJob(t, "alice", id, edit)
@@ -707,14 +777,18 @@ func TestAssignmentSnapshotsTheJob(t *testing.T) {
 		t.Fatal(err)
 	}
 	shared := decode[map[string]any](t, c.shareGet())
-	if shared["csv"] != gestureCSV || shared["title"] != "HSK3-Bai5" {
+	if shared["title"] != "HSK3-Bai5" {
 		t.Fatalf("share after deleting the job: %v", shared)
 	}
 	if detail := c.detail(t); detail.CSV != gestureCSV || detail.JobID != "job1" {
 		t.Fatalf("detail after deleting the job: %+v", detail.assignmentView)
 	}
+	// And the students can still play it: the server deals the questions from its own copy.
+	_, token := c.join(t, "Lan")
+	if run := c.start(t, token, 1); run.Total != 5 {
+		t.Fatalf("run %+v", run)
+	}
 }
-
 func TestJoinNameRules(t *testing.T) {
 	c := newClassroom(t, nil)
 	tests := []struct {
@@ -758,79 +832,6 @@ func TestJoinNameRules(t *testing.T) {
 	wantError(t, c.tryJoin("MAI 🐸"), http.StatusConflict, "Name taken")
 }
 
-func TestReportResultValidation(t *testing.T) {
-	c := newClassroom(t, nil) // stage 1 has 5 questions, stage 2 has 10
-	_, token := c.join(t, "Lan")
-
-	tests := []struct {
-		name string
-		body string
-	}{
-		{"run id missing", `{"stage":1,"correct":3,"total":5}`},
-		{"run id too short", resultBody("abcdefg", 1, 3, 5)},
-		{"run id too long", resultBody(strings.Repeat("a", 65), 1, 3, 5)},
-		{"run id with a space", resultBody("run id 0001", 1, 3, 5)},
-		{"run id with an underscore", resultBody("run_id_0001", 1, 3, 5)},
-		{"run id with a slash", resultBody("run/id/0001", 1, 3, 5)},
-		{"run id with a newline", resultBody("run-id-0001\n", 1, 3, 5)},
-		{"stage missing", `{"runId":"run-0000001","correct":3,"total":5}`},
-		{"stage 0", resultBody("run-0000001", 0, 3, 5)},
-		{"stage negative", resultBody("run-0000001", -1, 3, 5)},
-		{"stage 7", resultBody("run-0000001", 7, 3, 5)},
-		{"stage the assignment lacks", resultBody("run-0000001", 3, 3, 5)},
-		{"total smaller than the stage", resultBody("run-0000001", 1, 3, 4)},
-		{"total larger than the stage", resultBody("run-0000001", 1, 3, 6)},
-		{"total of another stage", resultBody("run-0000001", 1, 3, 10)},
-		{"total missing", `{"runId":"run-0000001","stage":1,"correct":0}`},
-		{"total zero", resultBody("run-0000001", 1, 0, 0)},
-		{"correct negative", resultBody("run-0000001", 1, -1, 5)},
-		{"correct above total", resultBody("run-0000001", 1, 6, 5)},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			wantError(t, c.report(token, tt.body), http.StatusBadRequest, "Invalid result.")
-		})
-	}
-
-	// Wrong JSON types and a missing body are payload errors, not result errors.
-	wantError(t, c.report(token, `{"runId":"run-0000001","stage":"1","correct":3,"total":5}`), http.StatusBadRequest, "Invalid payload")
-	wantError(t, c.report(token, `{"runId":"run-0000001","stage":1.5,"correct":3,"total":5}`), http.StatusBadRequest, "Invalid payload")
-	wantError(t, c.report(token, `nope`), http.StatusBadRequest, "Invalid payload")
-	wantError(t, c.report(token, ``), http.StatusBadRequest, "Missing body")
-
-	// None of the failures recorded anything.
-	if p := c.detail(t).Players; len(p) != 1 || len(p[0].Stages) != 0 || p[0].Attempts != 0 {
-		t.Fatalf("players %+v", p)
-	}
-
-	// The edges of a valid result: shortest and longest run id, nothing right, everything right.
-	c.finish(t, token, "abcd-123", 1, 0, 5)
-	c.finish(t, token, strings.Repeat("a", 64), 1, 5, 5)
-	c.finish(t, token, "RUN-0000-UPPER", 2, 10, 10)
-}
-
-func TestReportResultNeedsAKnownPlayer(t *testing.T) {
-	c := newClassroom(t, nil)
-	_, lanToken := c.join(t, "Lan")
-	body := resultBody("run-0000001", 1, 5, 5)
-
-	wantError(t, c.send(http.MethodPost, "/api/share/"+c.a.Code+"/results", body), http.StatusForbidden, "Unknown player")
-	wantError(t, c.report("", body), http.StatusForbidden, "Unknown player")
-	wantError(t, c.report("not-a-token", body), http.StatusForbidden, "Unknown player")
-	// The token is checked before the body is read.
-	wantError(t, c.report("", "nope"), http.StatusForbidden, "Unknown player")
-	// The hash is not the token.
-	players, _ := c.assignments.ListPlayers(context.Background(), c.a.ID)
-	wantError(t, c.report(players[0].TokenHash, body), http.StatusForbidden, "Unknown player")
-
-	// A token is good for its own assignment only.
-	other := decode[assignmentView](t, c.teacher(http.MethodPost, "/api/assignments", createBody(nil)))
-	rec := c.send(http.MethodPost, "/api/share/"+other.Code+"/results", body, header("X-Player-Token", lanToken))
-	wantError(t, rec, http.StatusForbidden, "Unknown player")
-
-	c.finish(t, lanToken, "run-0000001", 1, 5, 5)
-}
-
 func TestShareRoutesAnswer404ForAnUnknownCode(t *testing.T) {
 	c := newClassroom(t, nil)
 	_, token := c.join(t, "Lan")
@@ -839,7 +840,9 @@ func TestShareRoutesAnswer404ForAnUnknownCode(t *testing.T) {
 		for _, rt := range []struct{ method, path, body string }{
 			{http.MethodGet, "/api/share/" + code, ""},
 			{http.MethodPost, "/api/share/" + code + "/players", `{"name":"Mai"}`},
-			{http.MethodPost, "/api/share/" + code + "/results", resultBody("run-0000001", 1, 5, 5)},
+			{http.MethodPost, "/api/share/" + code + "/runs", `{"stage":1}`},
+			{http.MethodPost, "/api/share/" + code + "/runs/abc/next", ""},
+			{http.MethodPost, "/api/share/" + code + "/runs/abc/answers", `{"index":0,"choice":0}`},
 			{http.MethodPatch, "/api/share/" + code + "/player", `{"avatar":"fox"}`},
 			{http.MethodGet, "/api/share/" + code + "/leaderboard", ""},
 		} {
@@ -891,15 +894,15 @@ func TestPassMark(t *testing.T) {
 }
 
 func TestResultPassesAtTheMark(t *testing.T) {
-	c := newClassroom(t, nil)
+	c := newClassroom(t, map[string]any{"stageLock": "open"})
 	_, token := c.join(t, "Lan")
-	c.finish(t, token, "run-0000001", 1, 3, 5) // one short of 4
-	c.finish(t, token, "run-0000002", 2, 7, 10)
+	c.finish(t, token, 1, 3) // one short of 4
+	c.finish(t, token, 2, 7)
 	lan := c.detail(t).Players[0]
 	if lan.Stages["1"].Passed || !lan.Stages["2"].Passed || lan.StagesPassed != 1 {
 		t.Fatalf("lan %+v", lan)
 	}
-	c.finish(t, token, "run-0000003", 1, 4, 5)
+	c.finish(t, token, 1, 4)
 	if lan = c.detail(t).Players[0]; !lan.Stages["1"].Passed || lan.StagesPassed != 2 || lan.Stages["1"].Attempts != 2 {
 		t.Fatalf("lan %+v", lan)
 	}
@@ -933,7 +936,7 @@ func TestAssignmentsBelongToTheirTeacher(t *testing.T) {
 	if !detail.Open || len(detail.Players) != 1 || detail.Players[0].ID != playerID {
 		t.Fatalf("detail %+v", detail)
 	}
-	c.finish(t, lanToken, "run-0000001", 1, 5, 5)
+	c.finish(t, lanToken, 1, 5)
 
 	// A job of bob's cannot be assigned by alice, and his job is not found rather than refused.
 	c.seedJob(t, "bob", "bobjob", nil)
@@ -980,37 +983,60 @@ func TestStudentRoutesNeverAnswer401(t *testing.T) {
 	closedOne := decode[assignmentView](t, c.teacher(http.MethodPost, "/api/assignments", createBody(nil)))
 	wantStatus(t, c.teacher(http.MethodPatch, "/api/assignments/"+closedOne.ID, `{"closed":true}`), http.StatusOK)
 	hiddenBoard := decode[assignmentView](t, c.teacher(http.MethodPost, "/api/assignments", createBody(map[string]any{"showBoard": false})))
+	_, token := c.join(t, "Runner")
 
 	authorizations := []string{"Bearer garbage", "Bearer", "Basic dXNlcjpwYXNz", "garbage", "Bearer " + c.token + "x"}
 	for i, authorization := range authorizations {
 		auth := header("Authorization", authorization)
+		// A run to ask about; the row that starts another one comes last, as it replaces this.
+		runID := c.start(t, token, 1).RunID
 		tests := []struct {
 			name   string
 			method string
 			path   string
 			body   string
+			token  string
 			status int
 		}{
-			{"get", http.MethodGet, "/api/share/" + c.a.Code, "", 200},
-			{"join", http.MethodPost, "/api/share/" + c.a.Code + "/players", fmt.Sprintf(`{"name":"Zed %d"}`, i), 201},
-			{"result without a player", http.MethodPost, "/api/share/" + c.a.Code + "/results", resultBody("run-0000001", 1, 5, 5), 403},
-			{"get unknown", http.MethodGet, "/api/share/ZZZZZZZZZZ", "", 404},
-			{"join unknown", http.MethodPost, "/api/share/ZZZZZZZZZZ/players", `{"name":"Zed"}`, 404},
-			{"result unknown", http.MethodPost, "/api/share/ZZZZZZZZZZ/results", resultBody("run-0000001", 1, 5, 5), 404},
-			{"get closed", http.MethodGet, "/api/share/" + closedOne.Code, "", 410},
-			{"join closed", http.MethodPost, "/api/share/" + closedOne.Code + "/players", `{"name":"Zed"}`, 410},
-			{"join with an avatar", http.MethodPost, "/api/share/" + c.a.Code + "/players", fmt.Sprintf(`{"name":"Avatar %d","avatar":"fox"}`, i), 201},
-			{"join with a bad avatar", http.MethodPost, "/api/share/" + c.a.Code + "/players", `{"name":"Zed","avatar":"cow"}`, 400},
-			{"avatar without a player", http.MethodPatch, "/api/share/" + c.a.Code + "/player", `{"avatar":"fox"}`, 403},
-			{"avatar unknown", http.MethodPatch, "/api/share/ZZZZZZZZZZ/player", `{"avatar":"fox"}`, 404},
-			{"avatar closed", http.MethodPatch, "/api/share/" + closedOne.Code + "/player", `{"avatar":"fox"}`, 410},
-			{"leaderboard", http.MethodGet, "/api/share/" + c.a.Code + "/leaderboard", "", 200},
-			{"leaderboard unknown", http.MethodGet, "/api/share/ZZZZZZZZZZ/leaderboard", "", 404},
-			{"leaderboard closed", http.MethodGet, "/api/share/" + closedOne.Code + "/leaderboard", "", 200},
-			{"leaderboard hidden", http.MethodGet, "/api/share/" + hiddenBoard.Code + "/leaderboard", "", 404},
+			{"get", http.MethodGet, "/api/share/" + c.a.Code, "", "", 200},
+			{"get with a player", http.MethodGet, "/api/share/" + c.a.Code, "", token, 200},
+			{"join", http.MethodPost, "/api/share/" + c.a.Code + "/players", fmt.Sprintf(`{"name":"Zed %d"}`, i), "", 201},
+			{"start without a player", http.MethodPost, "/api/share/" + c.a.Code + "/runs", `{"stage":1}`, "", 403},
+			{"start with a bad token", http.MethodPost, "/api/share/" + c.a.Code + "/runs", `{"stage":1}`, "garbage", 403},
+			{"start a stage the quiz lacks", http.MethodPost, "/api/share/" + c.a.Code + "/runs", `{"stage":5}`, token, 400},
+			{"start a locked stage", http.MethodPost, "/api/share/" + c.a.Code + "/runs", `{"stage":2}`, token, 409},
+			{"start with a bad body", http.MethodPost, "/api/share/" + c.a.Code + "/runs", `nope`, token, 400},
+			{"next without a player", http.MethodPost, "/api/share/" + c.a.Code + "/runs/" + runID + "/next", "", "", 403},
+			{"next a run that is not there", http.MethodPost, "/api/share/" + c.a.Code + "/runs/nope/next", "", token, 404},
+			{"answer without a player", http.MethodPost, "/api/share/" + c.a.Code + "/runs/" + runID + "/answers", `{"index":0,"choice":0}`, "", 403},
+			{"answer a run that is not there", http.MethodPost, "/api/share/" + c.a.Code + "/runs/nope/answers", `{"index":0,"choice":0}`, token, 404},
+			{"answer something invalid", http.MethodPost, "/api/share/" + c.a.Code + "/runs/" + runID + "/answers", `{"index":3}`, token, 400},
+			{"get unknown", http.MethodGet, "/api/share/ZZZZZZZZZZ", "", "", 404},
+			{"join unknown", http.MethodPost, "/api/share/ZZZZZZZZZZ/players", `{"name":"Zed"}`, "", 404},
+			{"start unknown", http.MethodPost, "/api/share/ZZZZZZZZZZ/runs", `{"stage":1}`, token, 404},
+			{"next unknown", http.MethodPost, "/api/share/ZZZZZZZZZZ/runs/" + runID + "/next", "", token, 404},
+			{"answer unknown", http.MethodPost, "/api/share/ZZZZZZZZZZ/runs/" + runID + "/answers", `{"index":0,"choice":0}`, token, 404},
+			{"get closed", http.MethodGet, "/api/share/" + closedOne.Code, "", "", 410},
+			{"join closed", http.MethodPost, "/api/share/" + closedOne.Code + "/players", `{"name":"Zed"}`, "", 410},
+			{"start closed", http.MethodPost, "/api/share/" + closedOne.Code + "/runs", `{"stage":1}`, token, 410},
+			{"join with an avatar", http.MethodPost, "/api/share/" + c.a.Code + "/players", fmt.Sprintf(`{"name":"Avatar %d","avatar":"fox"}`, i), "", 201},
+			{"join with a bad avatar", http.MethodPost, "/api/share/" + c.a.Code + "/players", `{"name":"Zed","avatar":"cow"}`, "", 400},
+			{"avatar without a player", http.MethodPatch, "/api/share/" + c.a.Code + "/player", `{"avatar":"fox"}`, "", 403},
+			{"avatar unknown", http.MethodPatch, "/api/share/ZZZZZZZZZZ/player", `{"avatar":"fox"}`, "", 404},
+			{"avatar closed", http.MethodPatch, "/api/share/" + closedOne.Code + "/player", `{"avatar":"fox"}`, "", 410},
+			{"leaderboard", http.MethodGet, "/api/share/" + c.a.Code + "/leaderboard", "", "", 200},
+			{"leaderboard unknown", http.MethodGet, "/api/share/ZZZZZZZZZZ/leaderboard", "", "", 404},
+			{"leaderboard closed", http.MethodGet, "/api/share/" + closedOne.Code + "/leaderboard", "", "", 200},
+			{"leaderboard hidden", http.MethodGet, "/api/share/" + hiddenBoard.Code + "/leaderboard", "", "", 404},
+			{"start", http.MethodPost, "/api/share/" + c.a.Code + "/runs", `{"stage":1}`, token, 201},
+			{"the removed results route", http.MethodPost, "/api/share/" + c.a.Code + "/results", `{"runId":"run-0000001","stage":1,"correct":5,"total":5}`, token, 404},
 		}
 		for _, tt := range tests {
-			rec := c.send(tt.method, tt.path, tt.body, auth)
+			opts := []reqOpt{auth}
+			if tt.token != "" {
+				opts = append(opts, header(playerTokenHeader, tt.token))
+			}
+			rec := c.send(tt.method, tt.path, tt.body, opts...)
 			if rec.Code != tt.status {
 				t.Errorf("%q: %s: got %d %q, want %d", authorization, tt.name, rec.Code, rec.Body, tt.status)
 			}
@@ -1090,8 +1116,9 @@ func TestDeletePlayer(t *testing.T) {
 	c := newClassroom(t, nil)
 	lanID, lanToken := c.join(t, "Lan")
 	maiID, maiToken := c.join(t, "Mai")
-	c.finish(t, lanToken, "run-0000001", 1, 5, 5)
-	c.finish(t, maiToken, "run-0000002", 1, 4, 5)
+	c.finish(t, lanToken, 1, 5)
+	c.finish(t, maiToken, 1, 4)
+	maiRun := c.start(t, maiToken, 2)
 
 	base := "/api/assignments/" + c.a.ID + "/players/"
 	wantStatus(t, c.teacher(http.MethodDelete, base+lanID, ""), http.StatusNoContent)
@@ -1100,7 +1127,7 @@ func TestDeletePlayer(t *testing.T) {
 	wantError(t, c.teacher(http.MethodDelete, "/api/assignments/nope/players/"+maiID, ""), http.StatusNotFound, "Assignment not found")
 
 	// Lan's token is worth nothing now, and the leaderboard has only Mai.
-	wantError(t, c.report(lanToken, resultBody("run-0000003", 1, 5, 5)), http.StatusForbidden, "Unknown player")
+	wantError(t, c.startRun(lanToken, 1), http.StatusForbidden, "Unknown player")
 	detail := c.detail(t)
 	if detail.PlayerCount != 1 || len(detail.Players) != 1 || detail.Players[0].Name != "Mai" || entryRank(detail.Players[0]) != 1 {
 		t.Fatalf("detail %+v %+v", detail.assignmentView, detail.Players)
@@ -1113,13 +1140,14 @@ func TestDeletePlayer(t *testing.T) {
 	bobToken, _ := c.login(t, "bob", "pw")
 	rec := c.send(http.MethodDelete, base+maiID, "", bearer(bobToken))
 	wantError(t, rec, http.StatusNotFound, "Assignment not found")
-	c.finish(t, maiToken, "run-0000004", 2, 7, 10)
+	// Mai, whose own run was not touched, plays on.
+	c.complete(t, maiToken, maiRun, 7)
 }
 
 func TestDeleteAssignment(t *testing.T) {
 	c := newClassroom(t, nil)
 	_, lanToken := c.join(t, "Lan")
-	c.finish(t, lanToken, "run-0000001", 1, 5, 5)
+	c.finish(t, lanToken, 1, 5)
 	other := decode[assignmentView](t, c.teacher(http.MethodPost, "/api/assignments", createBody(nil)))
 	wantStatus(t, c.send(http.MethodPost, "/api/share/"+other.Code+"/players", `{"name":"Lan"}`), http.StatusCreated)
 
@@ -1131,7 +1159,9 @@ func TestDeleteAssignment(t *testing.T) {
 
 	wantError(t, c.shareGet(), http.StatusNotFound, "Assignment not found")
 	wantError(t, c.tryJoin("Mai"), http.StatusNotFound, "Assignment not found")
-	wantError(t, c.report(lanToken, resultBody("run-0000002", 1, 5, 5)), http.StatusNotFound, "Assignment not found")
+	wantError(t, c.startRun(lanToken, 1), http.StatusNotFound, "Assignment not found")
+	wantError(t, c.nextQuestion(lanToken, "any"), http.StatusNotFound, "Assignment not found")
+	wantError(t, c.answer(lanToken, "any", 0, 0), http.StatusNotFound, "Assignment not found")
 	wantError(t, c.teacher(http.MethodGet, "/api/assignments/"+c.a.ID, ""), http.StatusNotFound, "Assignment not found")
 	wantError(t, c.teacher(http.MethodDelete, "/api/assignments/"+c.a.ID, ""), http.StatusNotFound, "Assignment not found")
 	wantError(t, c.patch(`{"closed":true}`), http.StatusNotFound, "Assignment not found")
@@ -1226,7 +1256,9 @@ func TestStoreFailuresAreInternalErrors(t *testing.T) {
 		{http.MethodDelete, "/api/assignments/" + c.a.ID + "/players/x", "", teacher},
 		{http.MethodGet, "/api/share/" + c.a.Code, "", student},
 		{http.MethodPost, "/api/share/" + c.a.Code + "/players", `{"name":"Lan"}`, student},
-		{http.MethodPost, "/api/share/" + c.a.Code + "/results", resultBody("run-0000001", 1, 5, 5), student},
+		{http.MethodPost, "/api/share/" + c.a.Code + "/runs", `{"stage":1}`, student},
+		{http.MethodPost, "/api/share/" + c.a.Code + "/runs/abc/next", "", student},
+		{http.MethodPost, "/api/share/" + c.a.Code + "/runs/abc/answers", `{"index":0,"choice":0}`, student},
 		{http.MethodPatch, "/api/share/" + c.a.Code + "/player", `{"avatar":"fox"}`, student},
 		{http.MethodGet, "/api/share/" + c.a.Code + "/leaderboard", "", student},
 	} {
@@ -1317,8 +1349,8 @@ func TestPassPercentsDefaultToSeventy(t *testing.T) {
 func TestResultPassesAtTheTeachersPercent(t *testing.T) {
 	c := newClassroom(t, map[string]any{"passPercents": map[string]int{"1": 60}})
 	_, token := c.join(t, "Lan")
-	c.finish(t, token, "run-0000001", 1, 3, 5)  // 3 of 5 is 60%
-	c.finish(t, token, "run-0000002", 2, 6, 10) // the default 70% needs 7
+	c.finish(t, token, 1, 3) // 3 of 5 is 60%
+	c.finish(t, token, 2, 6) // the default 70% needs 7
 	lan := c.detail(t).Players[0]
 	if !lan.Stages["1"].Passed || lan.Stages["2"].Passed || lan.StagesPassed != 1 {
 		t.Fatalf("lan %+v", lan)
@@ -1327,19 +1359,19 @@ func TestResultPassesAtTheTeachersPercent(t *testing.T) {
 	// The same 3 of 5 does not pass where the teacher set nothing.
 	d := newClassroom(t, nil)
 	_, token = d.join(t, "Lan")
-	d.finish(t, token, "run-0000001", 1, 3, 5)
+	d.finish(t, token, 1, 3)
 	if lan = d.detail(t).Players[0]; lan.Stages["1"].Passed || lan.StagesPassed != 0 {
 		t.Fatalf("default lan %+v", lan)
 	}
 
 	// A strict stage: 100% needs every answer.
-	e := newClassroom(t, map[string]any{"passPercents": map[string]int{"2": 100}})
+	e := newClassroom(t, map[string]any{"stageLock": "open", "passPercents": map[string]int{"2": 100}})
 	_, token = e.join(t, "Lan")
-	e.finish(t, token, "run-0000001", 2, 9, 10)
+	e.finish(t, token, 2, 9)
 	if lan = e.detail(t).Players[0]; lan.Stages["2"].Passed {
 		t.Fatalf("9 of 10 passed a 100%% stage: %+v", lan)
 	}
-	e.finish(t, token, "run-0000002", 2, 10, 10)
+	e.finish(t, token, 2, 10)
 	if lan = e.detail(t).Players[0]; !lan.Stages["2"].Passed || lan.StagesPassed != 1 {
 		t.Fatalf("10 of 10 did not pass: %+v", lan)
 	}
@@ -1352,7 +1384,7 @@ func TestAssignmentWithoutPassPercentsReadsAsSeventy(t *testing.T) {
 	token, _ := env.login(t, "alice", "pw")
 	old := &store.Assignment{
 		ID: "old1", Code: "OLDCODE123", Username: "alice", JobID: "job1", Title: "HSK3-Bai5", CSV: gestureCSV,
-		TimeMode: "standard", StageCounts: map[string]int{"1": 5, "2": 10}, CreatedAt: env.clock.Now(),
+		TimeMode: "standard", StageLock: "open", StageCounts: map[string]int{"1": 5, "2": 10}, CreatedAt: env.clock.Now(),
 	}
 	if err := env.assignments.Create(context.Background(), old); err != nil {
 		t.Fatal(err)
@@ -1370,13 +1402,13 @@ func TestAssignmentWithoutPassPercentsReadsAsSeventy(t *testing.T) {
 		t.Fatalf("share %v", shared.PassPercents)
 	}
 	_, ptoken := c.join(t, "Lan")
-	c.finish(t, ptoken, "run-0000001", 1, 3, 5)
-	c.finish(t, ptoken, "run-0000002", 2, 7, 10)
+	c.finish(t, ptoken, 1, 3)
+	c.finish(t, ptoken, 2, 7)
 	lan := c.detail(t).Players[0]
 	if lan.Stages["1"].Passed || !lan.Stages["2"].Passed {
 		t.Fatalf("lan %+v", lan)
 	}
-	c.finish(t, ptoken, "run-0000003", 1, 4, 5)
+	c.finish(t, ptoken, 1, 4)
 	if lan = c.detail(t).Players[0]; !lan.Stages["1"].Passed || lan.StagesPassed != 2 {
 		t.Fatalf("lan %+v", lan)
 	}
@@ -1440,118 +1472,6 @@ func TestMaxAttemptsDefaultsToUnlimited(t *testing.T) {
 	}
 }
 
-func TestShareAnswersTheCallersAttempts(t *testing.T) {
-	c := newClassroom(t, map[string]any{"stageLock": "open", "maxAttempts": 5})
-	attemptsOf := func(opts ...reqOpt) map[string]int {
-		t.Helper()
-		rec := c.send(http.MethodGet, "/api/share/"+c.a.Code, "", opts...)
-		wantStatus(t, rec, http.StatusOK)
-		if rec.Header().Get("Cache-Control") != "no-store" {
-			t.Errorf("share is cacheable: %v", rec.Header())
-		}
-		raw := decode[map[string]any](t, rec)
-		if _, ok := raw["attempts"].(map[string]any); !ok {
-			t.Fatalf("attempts is %v, want an object", raw["attempts"])
-		}
-		return decode[struct{ Attempts map[string]int }](t, rec).Attempts
-	}
-
-	_, lan := c.join(t, "Lan")
-	_, nam := c.join(t, "Nam")
-	if got := attemptsOf(); len(got) != 0 {
-		t.Errorf("no token: %v", got)
-	}
-	if got := attemptsOf(header("X-Player-Token", lan)); len(got) != 0 {
-		t.Errorf("before any run: %v", got)
-	}
-
-	c.finish(t, lan, "run-0000001", 1, 5, 5)
-	c.finish(t, lan, "run-0000002", 1, 2, 5)
-	c.finish(t, lan, "run-0000003", 2, 7, 10)
-	c.finish(t, nam, "run-0000004", 2, 7, 10)
-	// A repeated run id is not a new attempt.
-	c.finish(t, lan, "run-0000003", 2, 7, 10)
-
-	if got, want := attemptsOf(header("X-Player-Token", lan)), map[string]int{"1": 2, "2": 1}; !maps.Equal(got, want) {
-		t.Errorf("lan %v, want %v", got, want)
-	}
-	if got, want := attemptsOf(header("X-Player-Token", nam)), map[string]int{"2": 1}; !maps.Equal(got, want) {
-		t.Errorf("nam %v, want %v", got, want)
-	}
-	for name, opts := range map[string][]reqOpt{
-		"no token":            nil,
-		"bad token":           {header("X-Player-Token", "garbage")},
-		"bad token, bad auth": {header("X-Player-Token", "garbage"), header("Authorization", "Bearer garbage")},
-	} {
-		if got := attemptsOf(opts...); len(got) != 0 {
-			t.Errorf("%s: %v", name, got)
-		}
-	}
-
-	// A token of another assignment tells nothing either.
-	other := decode[assignmentView](t, c.teacher(http.MethodPost, "/api/assignments", createBody(map[string]any{"stageLock": "open"})))
-	rec := c.send(http.MethodGet, "/api/share/"+other.Code, "", header("X-Player-Token", lan))
-	wantStatus(t, rec, http.StatusOK)
-	if got := decode[struct{ Attempts map[string]int }](t, rec).Attempts; len(got) != 0 {
-		t.Errorf("another assignment's token: %v", got)
-	}
-}
-
-func TestReplayLimit(t *testing.T) {
-	c := newClassroom(t, map[string]any{"stageLock": "open", "maxAttempts": 2})
-	_, token := c.join(t, "Lan")
-	_, other := c.join(t, "Nam")
-
-	c.finish(t, token, "run-0000001", 1, 2, 5)
-	c.finish(t, token, "run-0000002", 1, 3, 5)
-	before := c.detail(t)
-
-	// A third run of the stage is refused and recorded nowhere.
-	wantError(t, c.report(token, resultBody("run-0000003", 1, 5, 5)), http.StatusConflict, "Replay limit reached")
-	after := c.detail(t)
-	if !reflect.DeepEqual(before, after) {
-		t.Fatalf("leaderboard changed by a refused run:\n%+v\n%+v", before, after)
-	}
-	lan := after.Players[0]
-	if lan.Stages["1"].Correct != 3 || lan.Stages["1"].Attempts != 2 || lan.Stages["1"].Passed {
-		t.Fatalf("lan %+v", lan)
-	}
-	// A refused run id is not remembered: it is still refused, not 204.
-	wantError(t, c.report(token, resultBody("run-0000003", 1, 5, 5)), http.StatusConflict, "Replay limit reached")
-
-	// A run already reported is resent with its id: still 204, nothing changes.
-	wantStatus(t, c.report(token, resultBody("run-0000002", 1, 3, 5)), http.StatusNoContent)
-	wantStatus(t, c.report(token, resultBody("run-0000001", 1, 2, 5)), http.StatusNoContent)
-	if got := c.detail(t); !reflect.DeepEqual(before, got) {
-		t.Fatalf("a resent run changed the leaderboard:\n%+v\n%+v", before, got)
-	}
-
-	// The limit is per stage and per student.
-	c.finish(t, token, "run-0000004", 2, 7, 10)
-	c.finish(t, other, "run-0000005", 1, 5, 5)
-	c.finish(t, other, "run-0000006", 1, 5, 5)
-	wantError(t, c.report(other, resultBody("run-0000007", 1, 5, 5)), http.StatusConflict, "Replay limit reached")
-
-	// An invalid result is still a 400, not a 409.
-	wantError(t, c.report(token, resultBody("run-0000008", 1, 9, 5)), http.StatusBadRequest, "Invalid result.")
-}
-
-func TestNoReplayLimitAcceptsManyRuns(t *testing.T) {
-	for name, overrides := range map[string]map[string]any{
-		"sequential": nil,
-		"open":       {"stageLock": "open"},
-	} {
-		c := newClassroom(t, overrides)
-		_, token := c.join(t, "Lan")
-		for i := 0; i < 15; i++ {
-			c.finish(t, token, fmt.Sprintf("run-%07d", i), 1, 1, 5)
-		}
-		if got := c.detail(t).Players[0].Stages["1"].Attempts; got != 15 {
-			t.Errorf("%s: %d attempts", name, got)
-		}
-	}
-}
-
 // An assignment stored before the setting existed has no maxAttempts: it reads as unlimited.
 func TestAssignmentWithoutMaxAttemptsIsUnlimited(t *testing.T) {
 	env := newEnv(t)
@@ -1576,7 +1496,10 @@ func TestAssignmentWithoutMaxAttemptsIsUnlimited(t *testing.T) {
 	}
 	_, ptoken := c.join(t, "Lan")
 	for i := 0; i < 12; i++ {
-		c.finish(t, ptoken, fmt.Sprintf("run-%07d", i), 1, 3, 5)
+		c.finish(t, ptoken, 1, 3)
+	}
+	if got := c.detail(t).Players[0].Stages["1"].Attempts; got != 12 {
+		t.Fatalf("%d attempts", got)
 	}
 }
 
@@ -1768,7 +1691,7 @@ func TestUpdateSharedPlayer(t *testing.T) {
 	if got := decode[map[string]string](t, rec); got["name"] != "Lan" || got["playerId"] != lanID {
 		t.Fatalf("answer %v", got)
 	}
-	c.finish(t, lanToken, "run-0000001", 1, 5, 5)
+	c.finish(t, lanToken, 1, 5)
 	if got, want := c.avatarsOf(t), map[string]string{"Lan": "cat", "Mai": "frog"}; !maps.Equal(got, want) {
 		t.Fatalf("avatars after a result %v, want %v", got, want)
 	}
@@ -1920,9 +1843,9 @@ func classOf(t *testing.T, c *classroom, names ...string) (tokens, ids map[strin
 	for i, name := range names {
 		ids[name], tokens[name] = c.joinAs(t, name, avatarIDs[i%len(avatarIDs)])
 	}
-	for i, name := range names {
+	for _, name := range names {
 		c.clock.Advance(time.Minute)
-		c.finish(t, tokens[name], fmt.Sprintf("run-%07d", i), 1, 5, 5)
+		c.finish(t, tokens[name], 1, 5)
 	}
 	return tokens, ids
 }
@@ -1992,7 +1915,7 @@ func TestSharedLeaderboardShowsTheTopFiveAndYou(t *testing.T) {
 	}
 
 	// The board moves with the results: S7 overtakes by passing stage 2 as well.
-	c.finish(t, tokens["S7"], "run-0000099", 2, 10, 10)
+	c.finish(t, tokens["S7"], 2, 10)
 	board = boardOf(t, c.board(tokens["S7"]))
 	if got, want := boardNames(board), []string{"S7", "S1", "S2", "S3", "S4"}; !slices.Equal(got, want) {
 		t.Fatalf("names %v, want %v", got, want)
@@ -2021,13 +1944,13 @@ func TestSharedLeaderboardAnswersTiesAndTheCap(t *testing.T) {
 	c := newClassroom(t, nil)
 	classOf(t, c, "A", "B", "C", "D")
 	c.clock.Advance(time.Minute)
-	for i, name := range []string{"E", "F", "G"} {
+	for _, name := range []string{"E", "F", "G"} {
 		_, token := c.join(t, name)
-		c.finish(t, token, fmt.Sprintf("run-%07d", 100+i), 1, 5, 5)
+		c.finish(t, token, 1, 5)
 	}
 	c.clock.Advance(time.Minute)
 	_, hToken := c.join(t, "H")
-	c.finish(t, hToken, "run-0000200", 1, 5, 5)
+	c.finish(t, hToken, 1, 5)
 
 	board := boardOf(t, c.board(hToken))
 	// Those who tie are listed by when they joined, which was the same moment, so by an id that is random.
@@ -2047,7 +1970,7 @@ func TestSharedLeaderboardAnswersTiesAndTheCap(t *testing.T) {
 	c = newClassroom(t, nil)
 	for i := range 12 {
 		_, token := c.join(t, fmt.Sprintf("Tie %d", i))
-		c.finish(t, token, fmt.Sprintf("run-%07d", i), 1, 5, 5)
+		c.finish(t, token, 1, 5)
 	}
 	board = boardOf(t, c.board(""))
 	if len(board.Top) != 10 || board.PlayerCount != 12 {
@@ -2118,7 +2041,7 @@ func TestSharedLeaderboardAnswersWhileClosed(t *testing.T) {
 			t.Fatalf("you %+v", board.You)
 		}
 	}
-	wantError(t, c.report(tokens["S2"], resultBody("run-0000099", 2, 10, 10)), http.StatusGone, "Assignment closed")
+	wantError(t, c.startRun(tokens["S2"], 2), http.StatusGone, "Assignment closed")
 }
 
 func TestSharedLeaderboardHidden(t *testing.T) {
@@ -2148,7 +2071,7 @@ func TestSharedLeaderboardHidden(t *testing.T) {
 	// Everything else of the students' side works as before.
 	_, token := c.join(t, "S3")
 	c.clock.Advance(time.Minute)
-	c.finish(t, token, "run-0000099", 1, 5, 5)
+	c.finish(t, token, 1, 5)
 	wantStatus(t, c.shareGet(), http.StatusOK)
 
 	// The teacher still sees the players ranked.

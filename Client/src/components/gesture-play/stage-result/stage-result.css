@@ -45,16 +45,14 @@
   color: var(--qt-text-muted);
 }
 
-/* One quiet line about where the run went; only the two outcomes that need the student to act stand out. */
+/* One quiet line about where the run went; the one about a stage with no runs left stands out. */
 .save-state {
   margin: 8px 0 0;
   font-size: 14px;
   color: var(--qt-text-muted);
 }
 
-.save-state[data-state='queued'],
-.save-state[data-state='limit'],
-.save-state[data-state='rejected'] {
+.save-state[data-state='limit'] {
   color: var(--qt-error);
 }
 

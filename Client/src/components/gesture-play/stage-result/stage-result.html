@@ -18,7 +18,7 @@
     </p>
   }
 
-  @if (attemptsLeft() === 0 && saveState() !== 'limit') {
+  @if (attemptsLeft() === 0) {
     <p class="save-state" data-state="limit" role="status">Bạn đã dùng hết lượt chơi màn này.</p>
   }
 

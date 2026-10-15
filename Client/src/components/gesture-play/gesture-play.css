@@ -449,6 +449,13 @@
   color: var(--qt-text-muted);
 }
 
+/* The connection to the server failed while a shared run was on: its "Thử lại" button is beside it. */
+.connection {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--qt-error);
+}
+
 /* The picture from the camera is created outside this template (VisionService owns the one element),
    so it is styled through the host: it fills the stage or the preview, mirrored like a mirror. */
 :host ::ng-deep .qt-camera-video {

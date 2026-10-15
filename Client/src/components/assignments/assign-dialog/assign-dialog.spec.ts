@@ -25,7 +25,7 @@ const TWO_STAGE_CSV = DEMO_QUIZ_CSV.split('\n').filter(line => /^[25],/.test(lin
 function assignment(overrides: Partial<Assignment> = {}): Assignment {
   return {
     id: 'asg-1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'Quiz HSK 1 bài 3', label: '', timeMode: 'standard', stageLock: 'sequential',
-    passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5, '2': 5, '3': 5, '4': 5, '5': 5, '6': 5}, createdAt: '2026-10-14T00:00:00Z', closesAt: null,
+    passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5, '2': 5, '3': 5, '4': 5, '5': 5, '6': 5}, timeLimits: {'1': 12, '2': 12, '3': 12, '4': 12, '5': 12, '6': 12}, createdAt: '2026-10-14T00:00:00Z', closesAt: null,
     closedAt: null, open: true, playerCount: 0, ...overrides,
   };
 }
@@ -162,7 +162,8 @@ describe('AssignDialog', () => {
       await settle();
       const request = http.expectOne(URL);
       expect(request.request.body.passPercents).toEqual({'2': 70, '5': 70});
-      expect(request.request.body.stageCounts).toEqual({'2': 5, '5': 5});
+      // The server counts the quiz's questions itself, from the job's CSV: the dialog sends no counts.
+      expect(request.request.body.stageCounts).toBeUndefined();
       request.flush(assignment(), {status: 201, statusText: 'Created'});
       await settle();
     });
@@ -434,7 +435,6 @@ describe('AssignDialog', () => {
       passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70},
       maxAttempts: null,
       showBoard: true,
-      stageCounts: {'1': 5, '2': 5, '3': 5, '4': 5, '5': 5, '6': 5},
     });
     expect(button('Giao bài').classList).toContain('ant-btn-loading');
 

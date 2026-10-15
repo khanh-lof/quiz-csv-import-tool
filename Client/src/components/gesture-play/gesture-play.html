@@ -22,7 +22,7 @@
     @case ('loading') {
       <section class="card message">
         <nz-spin nzSimple nzSize="large"/>
-        <p>{{ checking() ? 'Đang kiểm tra bài…' : 'Đang tải quiz…' }}</p>
+        <p>{{ checking() ? 'Đang kiểm tra bài…' : starting() ? 'Đang bắt đầu màn…' : 'Đang tải quiz…' }}</p>
       </section>
     }
 
@@ -154,7 +154,7 @@
         </div>
 
         <div class="actions">
-          <button nz-button nzType="primary" nzSize="large" type="button" (click)="begin()">
+          <button nz-button nzType="primary" nzSize="large" type="button" [nzLoading]="starting()" (click)="begin()">
             <nz-icon nzType="caret-right" nzTheme="outline"/>
             Bắt đầu
           </button>
@@ -187,7 +187,8 @@
         </span>
         <span class="hud-buttons">
           <button nz-button nzShape="circle" type="button" [attr.aria-label]="paused() ? 'Chơi tiếp' : 'Tạm dừng (P)'"
-                  [title]="paused() ? 'Chơi tiếp (P)' : 'Tạm dừng (P)'" (click)="togglePause()">
+                  [title]="pauseLocked() ? 'Không tạm dừng được khi thời gian đang chạy' : paused() ? 'Chơi tiếp (P)' : 'Tạm dừng (P)'"
+                  [disabled]="pauseLocked()" (click)="togglePause()">
             <nz-icon [nzType]="paused() ? 'caret-right' : 'pause'" nzTheme="outline"/>
           </button>
           <button nz-button nzShape="circle" type="button" [attr.aria-label]="settings().sound ? 'Tắt âm thanh' : 'Bật âm thanh'"
@@ -267,7 +268,8 @@
         }
       </div>
 
-      <div class="feedback" [attr.data-kind]="verdict()?.kind ?? 'hint'" role="status" aria-live="polite">
+      <div class="feedback" [attr.data-kind]="verdict()?.kind ?? (connectionLost() ? 'wrong' : 'hint')" role="status"
+           aria-live="polite">
         @if (verdict(); as judged) {
           <div class="feedback-text">
             <div class="verdict">{{ judged.text }}</div>
@@ -275,8 +277,22 @@
             @if (current()?.source?.explanation; as explanation) {
               <div class="explanation">{{ explanation }}</div>
             }
+            @if (connectionLost()) {
+              <div class="connection">Mất kết nối. Hãy kiểm tra mạng rồi bấm Thử lại.</div>
+            }
           </div>
-          <button nz-button nzType="primary" type="button" title="Phím Enter" (click)="next()">Tiếp →</button>
+          @if (connectionLost()) {
+            <button nz-button nzType="primary" type="button" (click)="retryConnection()">Thử lại</button>
+          } @else {
+            <button nz-button nzType="primary" type="button" title="Phím Enter" [nzLoading]="advancing()" (click)="next()">Tiếp →</button>
+          }
+        } @else if (connectionLost()) {
+          <div class="feedback-text">
+            <div class="connection">Mất kết nối. Hãy kiểm tra mạng rồi bấm Thử lại.</div>
+          </div>
+          <button nz-button nzType="primary" type="button" (click)="retryConnection()">Thử lại</button>
+        } @else if (answering()) {
+          <div class="stage-hint">Đang chờ kết quả…</div>
         } @else {
           <div class="stage-hint">{{ def().hint }}</div>
         }

@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"quiz-csv-import-tool/server/internal/csvgen"
+	"quiz-csv-import-tool/server/internal/gesturequiz"
 )
 
 type Config struct {
@@ -41,6 +43,11 @@ type Config struct {
 
 	AICallsPerRound int
 	RoundDuration   time.Duration
+
+	// GameStageSeconds is how many seconds a question of each Game stage (1 to 6, in order) lasts in the
+	// standard time mode (GAME_STAGE_SECONDS, comma-separated). A shared quiz is timed by the server alone,
+	// so this is the only place the limits live; the page is told them in the replies. Always 6 values.
+	GameStageSeconds []int
 }
 
 // LLMConfig is checked lazily, per call, so the server can run auth-only without an LLM.
@@ -138,6 +145,11 @@ func FromEnv() (Config, error) {
 	if n := len(cfg.LLM.IntelligenceModels); n != 0 && n != csvgen.IntelligenceLevels {
 		errs = append(errs, fmt.Errorf("LLM_INTELLIGENCE_MODELS must list %d models, got %d", csvgen.IntelligenceLevels, n))
 	}
+	seconds, err := parseStageSeconds(os.Getenv("GAME_STAGE_SECONDS"))
+	if err != nil {
+		errs = append(errs, err)
+	}
+	cfg.GameStageSeconds = seconds
 	if cfg.MaxRefreshTokensPerUser < 1 {
 		errs = append(errs, errors.New("MAX_REFRESH_TOKENS_PER_USER must be at least 1"))
 	}
@@ -149,6 +161,32 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// parseStageSeconds reads GAME_STAGE_SECONDS: exactly one whole number of seconds per Game stage, in stage
+// order, each from gesturequiz.MinSeconds to gesturequiz.MaxSeconds. Unset or empty is the default table. On
+// an error it still returns the defaults, so the caller's configuration is whole while the error is reported.
+func parseStageSeconds(raw string) ([]int, error) {
+	defaults := gesturequiz.DefaultSeconds[:]
+	if strings.TrimSpace(raw) == "" {
+		return slices.Clone(defaults), nil
+	}
+	parts := strings.Split(raw, ",")
+	if len(parts) != gesturequiz.LastStage {
+		return slices.Clone(defaults), fmt.Errorf("GAME_STAGE_SECONDS must list %d numbers of seconds, one per stage, got %d in %q", gesturequiz.LastStage, len(parts), raw)
+	}
+	seconds := make([]int, len(parts))
+	for i, part := range parts {
+		n, err := strconv.Atoi(strings.TrimSpace(part))
+		if err != nil {
+			return slices.Clone(defaults), fmt.Errorf("GAME_STAGE_SECONDS must list whole numbers, got %q for stage %d", strings.TrimSpace(part), i+1)
+		}
+		if n < gesturequiz.MinSeconds || n > gesturequiz.MaxSeconds {
+			return slices.Clone(defaults), fmt.Errorf("GAME_STAGE_SECONDS must be %d to %d seconds per stage, got %d for stage %d", gesturequiz.MinSeconds, gesturequiz.MaxSeconds, n, i+1)
+		}
+		seconds[i] = n
+	}
+	return seconds, nil
 }
 
 func splitList(raw string) []string {

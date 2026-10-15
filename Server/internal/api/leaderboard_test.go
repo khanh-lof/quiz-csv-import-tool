@@ -476,3 +476,50 @@ func TestStudentBoardJSONShape(t *testing.T) {
 		t.Errorf("counts %v", board)
 	}
 }
+
+// A run counts as an attempt from the moment it starts, so a stage's attempts are what the player started,
+// or what the results say for a player from before runs were dealt by the server. A run that was started
+// and never finished is an attempt with no score: it adds to the attempts and ranks nobody.
+func TestLeaderboardCountsStartedRunsAsAttempts(t *testing.T) {
+	finishedOnce := testPlayer("finished-once", minute(0), map[string]store.StageResult{
+		"1": stageRun(5, 5, 1, true, minute(5)),
+	})
+	finishedOnce.Started = map[string]int{"1": 3, "2": 1, "9": 4} // two stage 1 runs left, one of stage 2, and a stage the quiz lacks
+	legacy := testPlayer("legacy", minute(1), map[string]store.StageResult{
+		"1": stageRun(4, 5, 6, true, minute(6)),
+	}) // no Started: its attempts are the ones in its results
+	ahead := testPlayer("ahead", minute(2), map[string]store.StageResult{
+		"1": stageRun(3, 5, 1, false, minute(7)),
+	})
+	ahead.Started = map[string]int{"1": 2}
+	abandoned := testPlayer("abandoned", minute(3), map[string]store.StageResult{})
+	abandoned.Started = map[string]int{"1": 2, "3": 1}
+
+	entries := buildLeaderboard([]store.Player{abandoned, ahead, legacy, finishedOnce}, leaderboardStageCounts)
+	if got, want := entryIDs(entries), []string{"finished-once", "legacy", "ahead", "abandoned"}; !slices.Equal(got, want) {
+		t.Fatalf("order %v, want %v", got, want)
+	}
+	// Ranking uses the finished runs alone: the player who only started runs is last and unranked.
+	if got, want := entryRanks(entries), []int{1, 2, 3, -1}; !slices.Equal(got, want) {
+		t.Fatalf("ranks %v, want %v", got, want)
+	}
+
+	byID := map[string]leaderboardEntry{}
+	for _, e := range entries {
+		byID[e.ID] = e
+	}
+	// Three started in stage 1 and one in stage 2 that was never finished: four attempts, one score; the
+	// run of a stage the assignment lacks is not counted.
+	if e := byID["finished-once"]; e.Attempts != 4 || e.Stages["1"].Attempts != 3 || len(e.Stages) != 1 || e.Correct != 5 {
+		t.Errorf("finished-once %+v", e)
+	}
+	if e := byID["legacy"]; e.Attempts != 6 || e.Stages["1"].Attempts != 6 {
+		t.Errorf("legacy %+v", e)
+	}
+	if e := byID["ahead"]; e.Attempts != 2 || e.Stages["1"].Attempts != 2 {
+		t.Errorf("ahead %+v", e)
+	}
+	if e := byID["abandoned"]; e.Attempts != 3 || len(e.Stages) != 0 || e.Correct != 0 || e.ReachedAt != nil || e.Rank != nil {
+		t.Errorf("abandoned %+v", e)
+	}
+}

@@ -17,7 +17,7 @@ type MemoryAssignments struct {
 	assignments map[string]Assignment
 	players     map[string]Player
 	// Now is kept for parity with the other in-memory stores; no method reads the clock, because
-	// RecordResult takes its time from the caller.
+	// UpdatePlayer's change function takes its time from the caller.
 	Now func() time.Time
 }
 
@@ -170,7 +170,9 @@ func (m *MemoryAssignments) ListPlayers(_ context.Context, assignmentID string) 
 	out := []Player{}
 	for _, p := range m.players {
 		if p.AssignmentID == assignmentID {
-			out = append(out, p.stored())
+			p = p.stored()
+			p.Run = nil // as in Mongo, where the projection leaves it out
+			out = append(out, p)
 		}
 	}
 	slices.SortFunc(out, func(a, b Player) int {
@@ -191,20 +193,30 @@ func (m *MemoryAssignments) PlayerByToken(_ context.Context, assignmentID, token
 	return nil, ErrNotFound
 }
 
-func (m *MemoryAssignments) RecordResult(_ context.Context, assignmentID, playerID, runID, stage string, correct, total int, passed bool, now time.Time) error {
+// UpdatePlayer runs change under the mutex, so no other write can get in between the read and the write
+// and the version check Mongo needs is not needed here. Like Mongo it writes back only the four fields the
+// interface promises, so what change does to anything else (the avatar, the name) is not kept.
+func (m *MemoryAssignments) UpdatePlayer(_ context.Context, assignmentID, playerID string, change func(p *Player) error) (*Player, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	stored, ok := m.players[playerID]
 	if !ok || stored.AssignmentID != assignmentID {
-		return ErrNotFound
+		return nil, ErrNotFound
 	}
 	p := stored.stored()
-	if !mergeResult(&p, runID, stage, correct, total, passed, now) {
-		return nil
+	if p.Started == nil {
+		p.Started = map[string]int{}
 	}
-	p.Version++
-	m.players[playerID] = p
-	return nil
+	if err := change(&p); err != nil {
+		return nil, err
+	}
+
+	written := stored
+	written.Stages, written.Started, written.Run, written.LastPlayedAt = p.Stages, p.Started, p.Run, p.LastPlayedAt
+	written.Version++
+	m.players[playerID] = written.stored()
+	out := written.stored()
+	return &out, nil
 }
 
 func (m *MemoryAssignments) SetPlayerAvatar(_ context.Context, assignmentID, playerID, avatar string) error {

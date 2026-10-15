@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"sync"
@@ -99,7 +100,7 @@ func TestMongoAssignmentDocuments(t *testing.T) {
 	if err := db.Collection("AssignmentPlayers").FindOne(ctx, bson.M{"_id": "p1"}).Decode(&raw); err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{"assignmentId", "name", "nameKey", "tokenHash", "joinedAt", "stages", "runIds", "version"} {
+	for _, field := range []string{"assignmentId", "name", "nameKey", "tokenHash", "joinedAt", "stages", "version"} {
 		if _, ok := raw[field]; !ok {
 			t.Errorf("stored player lacks %q: %v", field, raw)
 		}
@@ -107,8 +108,14 @@ func TestMongoAssignmentDocuments(t *testing.T) {
 	if _, ok := raw["lastPlayedAt"]; ok {
 		t.Errorf("stored player has an unset lastPlayedAt: %v", raw)
 	}
-	if arr, ok := raw["runIds"].(bson.A); !ok || len(arr) != 0 {
-		t.Errorf("runIds = %#v", raw["runIds"])
+	if _, ok := raw["runIds"]; ok {
+		t.Errorf("stored player has the run ids of the removed results route: %v", raw)
+	}
+	// A player who has started no run has no started count and no run, like one from before runs.
+	for _, field := range []string{"started", "run"} {
+		if _, ok := raw[field]; ok {
+			t.Errorf("stored player has an unset %q: %v", field, raw)
+		}
 	}
 	// A player who picked no avatar has no field for it, like a player from before avatars.
 	if _, ok := raw["avatar"]; ok {
@@ -125,9 +132,70 @@ func TestMongoAssignmentDocuments(t *testing.T) {
 	if raw["avatar"] != "panda" {
 		t.Errorf("stored avatar = %#v", raw["avatar"])
 	}
-	// Setting it is a write of that one field: the version RecordResult guards stays where it was.
+	// Setting it is a write of that one field: the version UpdatePlayer guards stays where it was.
 	if got := fmt.Sprint(raw["version"]); got != "0" {
 		t.Errorf("version = %#v after setting the avatar", raw["version"])
+	}
+
+	// A run is stored under the field names the tags promise, and an update moves the version by one.
+	served := now.Add(time.Second)
+	if _, err := a.UpdatePlayer(ctx, "a1", "p1", func(p *Player) error {
+		p.Started["2"] = 1
+		p.Run = &Run{ID: "run-1", Stage: "2", StartedAt: now, Questions: []RunQuestion{
+			{Item: 3, Options: []string{"A", "B"}, ServedAt: &served},
+			{Item: 0, Chunks: []string{"x", "y"}},
+		}}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	raw = nil
+	if err := db.Collection("AssignmentPlayers").FindOne(ctx, bson.M{"_id": "p1"}).Decode(&raw); err != nil {
+		t.Fatal(err)
+	}
+	if got := fmt.Sprint(raw["version"]); got != "1" {
+		t.Errorf("version = %#v after an update", raw["version"])
+	}
+	// Nested documents decode as bson.D or bson.M depending on the driver's defaults; look at either.
+	asDoc := func(v any) bson.M {
+		data, err := bson.Marshal(v)
+		if err != nil {
+			return nil
+		}
+		var doc bson.M
+		_ = bson.Unmarshal(data, &doc)
+		return doc
+	}
+	if started := asDoc(raw["started"]); fmt.Sprint(started["2"]) != "1" {
+		t.Errorf("started = %#v", raw["started"])
+	}
+	run := asDoc(raw["run"])
+	if run == nil {
+		t.Fatalf("run = %#v", raw["run"])
+	}
+	for _, field := range []string{"id", "stage", "startedAt", "questions"} {
+		if _, ok := run[field]; !ok {
+			t.Errorf("stored run lacks %q: %v", field, run)
+		}
+	}
+	if _, ok := run["finishedAt"]; ok {
+		t.Errorf("stored run has an unset finishedAt: %v", run)
+	}
+	questions, _ := run["questions"].(bson.A)
+	if len(questions) != 2 {
+		t.Fatalf("questions = %#v", run["questions"])
+	}
+	first := asDoc(questions[0])
+	for _, field := range []string{"item", "options", "servedAt", "correct", "timedOut"} {
+		if _, ok := first[field]; !ok {
+			t.Errorf("stored question lacks %q: %v", field, first)
+		}
+	}
+	second := asDoc(questions[1])
+	for _, field := range []string{"options", "servedAt", "answeredAt"} {
+		if _, ok := second[field]; ok {
+			t.Errorf("stored question has an unset %q: %v", field, second)
+		}
 	}
 }
 
@@ -329,7 +397,7 @@ func testAssignments(t *testing.T, store Assignments) {
 	}
 	if p := players[2]; p.Name != "Lan" || p.NameKey != "key-Lan" || p.TokenHash != "hash-p-1" || p.AssignmentID != "a1" ||
 		!p.JoinedAt.Equal(base.Add(-2*time.Minute)) || p.LastPlayedAt != nil || p.Stages == nil || len(p.Stages) != 0 ||
-		p.RunIDs == nil || len(p.RunIDs) != 0 || p.Version != 0 || p.Avatar != "" {
+		p.Started != nil || p.Run != nil || p.Version != 0 || p.Avatar != "" {
 		t.Fatalf("a new player: %+v", p)
 	}
 	if players, err = store.ListPlayers(ctx, "nothing"); err != nil || players == nil || len(players) != 0 {
@@ -399,14 +467,23 @@ func testAssignments(t *testing.T, store Assignments) {
 		t.Fatalf("a refused SetPlayerAvatar changed the player: %+v", p)
 	}
 
-	// RecordResult: the best run per stage, a pass that sticks, attempts, resent runs.
-	merges := 0
-	record := func(player, runID, stage string, correct int, passed bool, at time.Duration) {
+	// UpdatePlayer: the best run per stage, a pass that sticks, attempts, as one finished run after another.
+	// finish plays the part of the handler, which starts a run (counting it in Started) and later merges its
+	// score; here both happen in one update.
+	updates := 0
+	finish := func(player, stage string, correct int, passed bool, at time.Duration) {
 		t.Helper()
-		if err := store.RecordResult(ctx, "a1", player, runID, stage, correct, 5, passed, base.Add(at)); err != nil {
+		_, err := store.UpdatePlayer(ctx, "a1", player, func(p *Player) error {
+			p.Started[stage]++
+			MergeRun(p, stage, correct, 5, passed, base.Add(at))
+			now := base.Add(at)
+			p.LastPlayedAt = &now
+			return nil
+		})
+		if err != nil {
 			t.Fatal(err)
 		}
-		merges++
+		updates++
 	}
 	check := func(what string, p Player, stage string, want StageResult) {
 		t.Helper()
@@ -417,91 +494,208 @@ func testAssignments(t *testing.T, store Assignments) {
 		}
 	}
 	at := func(d time.Duration) time.Time { return base.Add(d) }
-	record("p-1", "run-0001", "1", 3, false, time.Second)
+	finish("p-1", "1", 3, false, time.Second)
 	p := getPlayer("a1", "p-1")
 	check("first run", p, "1", StageResult{Correct: 3, Total: 5, Attempts: 1, BestAt: at(time.Second)})
-	if !timeIs(p.LastPlayedAt, at(time.Second)) || p.Version != 1 || !slices.Equal(p.RunIDs, []string{"run-0001"}) {
+	if !timeIs(p.LastPlayedAt, at(time.Second)) || p.Version != 1 || p.Started["1"] != 1 || p.Run != nil {
 		t.Fatalf("after the first run: %+v", p)
 	}
-	record("p-1", "run-0002", "1", 4, true, 2*time.Second)
+	finish("p-1", "1", 4, true, 2*time.Second)
 	check("a better run that passes", getPlayer("a1", "p-1"), "1", StageResult{Correct: 4, Total: 5, Attempts: 2, Passed: true, BestAt: at(2 * time.Second)})
-	record("p-1", "run-0003", "1", 2, false, 3*time.Second)
+	finish("p-1", "1", 2, false, 3*time.Second)
 	p = getPlayer("a1", "p-1")
 	check("a worse run", p, "1", StageResult{Correct: 4, Total: 5, Attempts: 3, Passed: true, BestAt: at(2 * time.Second)})
 	if !timeIs(p.LastPlayedAt, at(3*time.Second)) {
 		t.Fatalf("a worse run still counts as played: %+v", p.LastPlayedAt)
 	}
-	record("p-1", "run-0004", "1", 4, true, 4*time.Second)
+	finish("p-1", "1", 4, true, 4*time.Second)
 	check("an equal run", getPlayer("a1", "p-1"), "1", StageResult{Correct: 4, Total: 5, Attempts: 4, Passed: true, BestAt: at(2 * time.Second)})
-
-	// A run id that was already recorded changes nothing, whatever it carries now.
-	before := getPlayer("a1", "p-1")
-	if err := store.RecordResult(ctx, "a1", "p-1", "run-0002", "1", 5, 5, true, at(time.Hour)); err != nil {
-		t.Fatalf("resent run: %v", err)
-	}
-	if after := getPlayer("a1", "p-1"); after.Version != before.Version || after.Stages["1"] != before.Stages["1"] ||
-		!timeIs(after.LastPlayedAt, *before.LastPlayedAt) || !slices.Equal(after.RunIDs, before.RunIDs) {
-		t.Fatalf("a resent run changed the player: %+v -> %+v", before, after)
-	}
 
 	// A stage played for the first time takes its result even at 0; a pass made with the same
 	// score as before still moves BestAt, because that is when the player passed.
-	record("p-1", "run-0005", "2", 0, false, 5*time.Second)
+	finish("p-1", "2", 0, false, 5*time.Second)
 	check("first run with no right answer", getPlayer("a1", "p-1"), "2", StageResult{Correct: 0, Total: 5, Attempts: 1, BestAt: at(5 * time.Second)})
-	record("p-1", "run-0006", "3", 4, false, 6*time.Second)
-	record("p-1", "run-0007", "3", 4, true, 7*time.Second)
+	finish("p-1", "3", 4, false, 6*time.Second)
+	finish("p-1", "3", 4, true, 7*time.Second)
 	check("a pass at the same score", getPlayer("a1", "p-1"), "3", StageResult{Correct: 4, Total: 5, Attempts: 2, Passed: true, BestAt: at(7 * time.Second)})
-	record("p-1", "run-0008", "3", 5, true, 8*time.Second)
+	finish("p-1", "3", 5, true, 8*time.Second)
 	check("a better run after a pass", getPlayer("a1", "p-1"), "3", StageResult{Correct: 5, Total: 5, Attempts: 3, Passed: true, BestAt: at(8 * time.Second)})
 	p = getPlayer("a1", "p-1")
-	if len(p.Stages) != 3 || p.Version != merges || len(p.RunIDs) != merges {
-		t.Fatalf("after the runs: stages %d, version %d, runIds %d, want 3, %d, %d", len(p.Stages), p.Version, len(p.RunIDs), merges, merges)
+	if len(p.Stages) != 3 || p.Version != updates || !maps.Equal(p.Started, map[string]int{"1": 4, "2": 1, "3": 3}) {
+		t.Fatalf("after the runs: stages %d, version %d, started %v, want 3, %d, 1:4 2:1 3:3", len(p.Stages), p.Version, p.Started, updates)
 	}
-	// The results left the avatar alone, and setting it did not count as one of the writes the version guards.
+	// The updates left the avatar alone, and setting it did not count as one of the writes the version guards.
 	if p.Avatar != "fox" {
-		t.Fatalf("recording results changed the avatar: %+v", p)
+		t.Fatalf("updating a player changed the avatar: %+v", p)
 	}
 	// Another player of the assignment is untouched.
-	if other := getPlayer("a1", "p-2"); len(other.Stages) != 0 || other.Version != 0 || other.LastPlayedAt != nil {
-		t.Fatalf("a result reached another player: %+v", other)
+	if other := getPlayer("a1", "p-2"); len(other.Stages) != 0 || other.Started != nil || other.Version != 0 || other.LastPlayedAt != nil {
+		t.Fatalf("an update reached another player: %+v", other)
 	}
 
-	// A result needs its player to be in that assignment.
-	if err := store.RecordResult(ctx, "a2", "p-1", "run-0009", "1", 5, 5, true, base); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("result for a player of another assignment: %v", err)
-	}
-	if err := store.RecordResult(ctx, "a1", "ghost", "run-0009", "1", 5, 5, true, base); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("result for an unknown player: %v", err)
-	}
-	if after := getPlayer("a1", "p-1"); after.Version != merges {
-		t.Fatalf("a refused result changed the player: %+v", after)
-	}
-
-	// Only the last 50 run ids are kept.
-	for i := range 60 {
-		if err := store.RecordResult(ctx, "a1", "p-3", fmt.Sprintf("cap-%04d", i), "1", i%6, 5, false, base.Add(time.Duration(i)*time.Second)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	p = getPlayer("a1", "p-3")
-	if len(p.RunIDs) != 50 || p.RunIDs[0] != "cap-0010" || p.RunIDs[49] != "cap-0059" || p.Stages["1"].Attempts != 60 || p.Version != 60 {
-		t.Fatalf("run ids not capped: %d kept, first %q, last %q, attempts %d, version %d",
-			len(p.RunIDs), p.RunIDs[0], p.RunIDs[len(p.RunIDs)-1], p.Stages["1"].Attempts, p.Version)
-	}
-	if err := store.RecordResult(ctx, "a1", "p-3", "cap-0059", "1", 5, 5, true, base); err != nil {
+	// The change function sees non-nil maps, even for a player that has never played, and the player
+	// that comes back is the one as written: its version moved, and it shares nothing with the store.
+	fresh := newPlayer("p-8", "a3", "Cúc", base)
+	if err := store.CreatePlayer(ctx, fresh); err != nil {
 		t.Fatal(err)
 	}
-	if again := getPlayer("a1", "p-3"); again.Stages["1"].Attempts != 60 || again.Stages["1"].Passed {
-		t.Fatalf("a recent run id counted twice: %+v", again)
+	written, err := store.UpdatePlayer(ctx, "a3", "p-8", func(p *Player) error {
+		if p.Stages == nil || p.Started == nil || p.Run != nil {
+			t.Errorf("a fresh player as change sees it: %+v", p)
+		}
+		p.Started["4"] = 1
+		return nil
+	})
+	if err != nil || written.Version != 1 || written.Started["4"] != 1 || written.ID != "p-8" || written.Name != "Cúc" {
+		t.Fatalf("UpdatePlayer returned %+v, %v", written, err)
+	}
+	written.Started["4"] = 1000
+	written.Stages["9"] = StageResult{Correct: 1}
+	if p := getPlayer("a3", "p-8"); p.Started["4"] != 1 || len(p.Stages) != 0 {
+		t.Fatalf("the returned player aliases the store's: %+v", p)
 	}
 
-	// Runs reported at the same moment are all merged.
+	// What change does to anything but the four fields is not written.
+	if _, err := store.UpdatePlayer(ctx, "a1", "p-1", func(p *Player) error {
+		p.Avatar, p.Name, p.TokenHash, p.Version = "hacked", "Hacked", "hacked", 999
+		p.Started["1"]++
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if p = getPlayer("a1", "p-1"); p.Avatar != "fox" || p.Name != "Lan" || p.TokenHash != "hash-p-1" || p.Version != updates+1 || p.Started["1"] != 5 {
+		t.Fatalf("an update wrote more than it should: %+v", p)
+	}
+	updates++
+
+	// An error from change writes nothing and comes back as it is, with the player as it was.
+	errStop := errors.New("stop")
+	before := getPlayer("a1", "p-1")
+	calls := 0
+	if _, err := store.UpdatePlayer(ctx, "a1", "p-1", func(p *Player) error {
+		calls++
+		p.Started["1"] = 99
+		p.Stages["1"] = StageResult{Correct: 5}
+		now := base.Add(time.Hour)
+		p.LastPlayedAt = &now
+		return errStop
+	}); err != errStop || calls != 1 {
+		t.Fatalf("an error from change: got %v after %d calls, want %v after 1", err, calls, errStop)
+	}
+	if after := getPlayer("a1", "p-1"); after.Version != before.Version || after.Started["1"] != before.Started["1"] ||
+		after.Stages["1"] != before.Stages["1"] || !timeIs(after.LastPlayedAt, *before.LastPlayedAt) {
+		t.Fatalf("a refused update changed the player: %+v -> %+v", before, after)
+	}
+
+	// An update needs its player to be in that assignment, and does not call change for one that is not.
+	for _, other := range []struct{ assignment, id string }{{"a2", "p-1"}, {"a1", "ghost"}, {"nothing", "p-1"}} {
+		_, err := store.UpdatePlayer(ctx, other.assignment, other.id, func(*Player) error {
+			t.Errorf("change called for %s of %s", other.id, other.assignment)
+			return nil
+		})
+		if !errors.Is(err, ErrNotFound) {
+			t.Fatalf("update of %s in %s: %v", other.id, other.assignment, err)
+		}
+	}
+	if after := getPlayer("a1", "p-1"); after.Version != updates {
+		t.Fatalf("a refused update changed the player: %+v", after)
+	}
+
+	// A run is stored whole, with its times in milliseconds, and read back by the token but not by the
+	// listing, which leaves it out. Starting another run replaces it.
+	served := base.Add(time.Minute + 1500*time.Microsecond)
+	servedAt := served
+	run := &Run{ID: "run-A", Stage: "2", StartedAt: served, Questions: []RunQuestion{
+		{Item: 2, Options: []string{"Đúng", "Sai"}, ServedAt: &servedAt},
+		{Item: 0, Chunks: []string{"a", "b"}},
+		{Item: 1, Options: []string{"x", "y", "z"}},
+	}}
+	if _, err := store.UpdatePlayer(ctx, "a1", "p-3", func(p *Player) error {
+		p.Run, p.Started["2"], p.LastPlayedAt = run, 1, &served
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// Changing what was handed in afterwards changes nothing that is stored.
+	run.Questions[0].Options[0] = "changed"
+	*run.Questions[0].ServedAt = base
+	run.Questions = run.Questions[:1]
+
+	byToken, err := store.PlayerByToken(ctx, "a1", "hash-p-3")
+	if err != nil || byToken.Run == nil || byToken.Run.ID != "run-A" || byToken.Run.Stage != "2" || len(byToken.Run.Questions) != 3 ||
+		!timeIs(&byToken.Run.StartedAt, served.Truncate(time.Millisecond)) || byToken.Run.FinishedAt != nil {
+		t.Fatalf("PlayerByToken after starting a run: %+v %v", byToken, err)
+	}
+	q := byToken.Run.Questions
+	if q[0].Item != 2 || !slices.Equal(q[0].Options, []string{"Đúng", "Sai"}) || q[0].Chunks != nil || !timeIs(q[0].ServedAt, served.Truncate(time.Millisecond)) ||
+		q[0].AnsweredAt != nil || q[0].Correct || q[0].TimedOut {
+		t.Fatalf("question 0 of the stored run: %+v", q[0])
+	}
+	if q[1].Item != 0 || q[1].Options != nil || !slices.Equal(q[1].Chunks, []string{"a", "b"}) || q[1].ServedAt != nil {
+		t.Fatalf("question 1 of the stored run: %+v", q[1])
+	}
+	if q[2].Item != 1 || !slices.Equal(q[2].Options, []string{"x", "y", "z"}) {
+		t.Fatalf("question 2 of the stored run: %+v", q[2])
+	}
+	// What PlayerByToken returns is the caller's own copy.
+	byToken.Run.Questions[0].Options[0] = "mutated"
+	byToken.Started["2"] = 50
+	if again, _ := store.PlayerByToken(ctx, "a1", "hash-p-3"); again.Run.Questions[0].Options[0] != "Đúng" || again.Started["2"] != 1 {
+		t.Fatalf("PlayerByToken returns the store's own memory: %+v", again.Run)
+	}
+	if p = getPlayer("a1", "p-3"); p.Run != nil || p.Started["2"] != 1 || p.Version != 1 || !timeIs(p.LastPlayedAt, served.Truncate(time.Millisecond)) {
+		t.Fatalf("ListPlayers shows a run, or lost the rest: %+v", p)
+	}
+
+	// Answering and finishing is another update of the same run; a finished run stays.
+	answered := served.Add(3 * time.Second)
+	if _, err := store.UpdatePlayer(ctx, "a1", "p-3", func(p *Player) error {
+		p.Run.Questions[0].AnsweredAt, p.Run.Questions[0].Correct = &answered, true
+		p.Run.FinishedAt = &answered
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if byToken, err = store.PlayerByToken(ctx, "a1", "hash-p-3"); err != nil || byToken.Run.FinishedAt == nil ||
+		!timeIs(byToken.Run.FinishedAt, answered.Truncate(time.Millisecond)) || !byToken.Run.Questions[0].Correct ||
+		!timeIs(byToken.Run.Questions[0].AnsweredAt, answered.Truncate(time.Millisecond)) || byToken.Run.Questions[0].TimedOut || byToken.Version != 2 {
+		t.Fatalf("the finished run: %+v %v", byToken, err)
+	}
+	if _, err := store.UpdatePlayer(ctx, "a1", "p-3", func(p *Player) error {
+		p.Run = &Run{ID: "run-B", Stage: "2", StartedAt: answered, Questions: []RunQuestion{{Item: 0}}}
+		p.Started["2"]++
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if byToken, err = store.PlayerByToken(ctx, "a1", "hash-p-3"); err != nil || byToken.Run.ID != "run-B" || len(byToken.Run.Questions) != 1 ||
+		byToken.Run.FinishedAt != nil || byToken.Run.Questions[0].ServedAt != nil || byToken.Started["2"] != 2 {
+		t.Fatalf("a new run did not replace the old one: %+v %v", byToken, err)
+	}
+	// A run that is cleared, and the other fields with it, is gone from the document, not stored as null.
+	if _, err := store.UpdatePlayer(ctx, "a1", "p-3", func(p *Player) error {
+		p.Run, p.Started, p.LastPlayedAt = nil, nil, nil
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if byToken, err = store.PlayerByToken(ctx, "a1", "hash-p-3"); err != nil || byToken.Run != nil || byToken.Started != nil || byToken.LastPlayedAt != nil || byToken.Stages == nil {
+		t.Fatalf("a cleared run: %+v %v", byToken, err)
+	}
+
+	// Updates made at the same moment are all applied: each one that finds another got there first
+	// reads again and tries again.
 	const writers = 4
 	var wg sync.WaitGroup
 	errs := make(chan error, writers)
 	for i := range writers {
 		wg.Go(func() {
-			errs <- store.RecordResult(ctx, "a1", "p-2", fmt.Sprintf("par-%04d", i), "2", i, 5, false, base.Add(time.Duration(i)*time.Second))
+			_, err := store.UpdatePlayer(ctx, "a1", "p-2", func(p *Player) error {
+				p.Started["2"]++
+				MergeRun(p, "2", i, 5, false, base.Add(time.Duration(i)*time.Second))
+				return nil
+			})
+			errs <- err
 		})
 	}
 	wg.Wait()
@@ -511,8 +705,8 @@ func testAssignments(t *testing.T, store Assignments) {
 			t.Fatal(err)
 		}
 	}
-	if p = getPlayer("a1", "p-2"); p.Stages["2"].Attempts != writers || p.Stages["2"].Correct != writers-1 || len(p.RunIDs) != writers || p.Version != writers {
-		t.Fatalf("concurrent results lost: %+v", p)
+	if p = getPlayer("a1", "p-2"); p.Stages["2"].Attempts != writers || p.Stages["2"].Correct != writers-1 || p.Started["2"] != writers || p.Version != writers {
+		t.Fatalf("concurrent updates lost: %+v", p)
 	}
 
 	// DeletePlayer is scoped to the assignment.
@@ -651,34 +845,109 @@ func TestAssignmentAcceptsResultsAt(t *testing.T) {
 
 func ptr[T any](v T) *T { return &v }
 
-func TestMergeResult(t *testing.T) {
-	now := time.Date(2026, 3, 1, 10, 0, 0, 123456789, time.FixedZone("UTC+7", 7*3600))
-	p := &Player{}
-	if !mergeResult(p, "run-0001", "1", 3, 5, false, now) {
-		t.Fatal("the first run was not merged")
-	}
+func TestMergeRun(t *testing.T) {
+	zone := time.FixedZone("UTC+7", 7*3600)
+	now := time.Date(2026, 3, 1, 10, 0, 0, 123456789, zone)
 	want := now.UTC().Truncate(time.Millisecond)
+
+	// A first run, on a player with no results map at all.
+	p := &Player{Started: map[string]int{"1": 1}}
+	MergeRun(p, "1", 3, 5, false, now)
 	if r := p.Stages["1"]; r.Correct != 3 || r.Total != 5 || r.Attempts != 1 || r.Passed || !r.BestAt.Equal(want) || r.BestAt.Location() != time.UTC {
 		t.Fatalf("stage after the first run: %+v", r)
 	}
-	if !timeIs(p.LastPlayedAt, want) || !slices.Equal(p.RunIDs, []string{"run-0001"}) {
-		t.Fatalf("player after the first run: %+v", p)
+	if p.LastPlayedAt != nil {
+		t.Errorf("MergeRun set LastPlayedAt: %v", p.LastPlayedAt)
 	}
 
-	// A run id already seen changes nothing.
-	snapshot := *p
-	if mergeResult(p, "run-0001", "1", 5, 5, true, now.Add(time.Hour)) {
-		t.Fatal("a resent run was merged")
+	// A worse run keeps the best and its time; the attempts follow what was started.
+	p.Started["1"] = 2
+	MergeRun(p, "1", 2, 5, false, now.Add(time.Minute))
+	if r := p.Stages["1"]; r.Correct != 3 || r.Attempts != 2 || r.Passed || !r.BestAt.Equal(want) {
+		t.Fatalf("after a worse run: %+v", r)
 	}
-	if p.Stages["1"].Attempts != 1 || p.LastPlayedAt != snapshot.LastPlayedAt || len(p.RunIDs) != 1 {
-		t.Fatalf("a resent run changed the player: %+v", p)
+	// An equal run changes neither the best nor when it was reached.
+	p.Started["1"] = 3
+	MergeRun(p, "1", 3, 5, false, now.Add(2*time.Minute))
+	if r := p.Stages["1"]; r.Correct != 3 || r.Attempts != 3 || !r.BestAt.Equal(want) {
+		t.Fatalf("after an equal run: %+v", r)
+	}
+	// A pass at the same score moves BestAt, because that is when the player passed.
+	p.Started["1"] = 4
+	MergeRun(p, "1", 3, 5, true, now.Add(3*time.Minute))
+	passedAt := now.Add(3 * time.Minute).UTC().Truncate(time.Millisecond)
+	if r := p.Stages["1"]; r.Correct != 3 || !r.Passed || !r.BestAt.Equal(passedAt) {
+		t.Fatalf("after the pass: %+v", r)
+	}
+	// A later run, worse and not passing, takes nothing back: not the pass, not the score, not the time.
+	p.Started["1"] = 5
+	MergeRun(p, "1", 0, 5, false, now.Add(4*time.Minute))
+	if r := p.Stages["1"]; r.Correct != 3 || !r.Passed || !r.BestAt.Equal(passedAt) || r.Attempts != 5 {
+		t.Fatalf("after a failing run: %+v", r)
+	}
+	// A better run raises the score and moves the time again, and a second pass leaves the time alone.
+	p.Started["1"] = 6
+	MergeRun(p, "1", 5, 5, true, now.Add(5*time.Minute))
+	if r := p.Stages["1"]; r.Correct != 5 || !r.Passed || !r.BestAt.Equal(now.Add(5*time.Minute).UTC().Truncate(time.Millisecond)) {
+		t.Fatalf("after the best run: %+v", r)
 	}
 
-	// The window of remembered runs slides.
-	for i := range 2 * maxRunIDs {
-		mergeResult(p, fmt.Sprintf("slide-%04d", i), "2", 0, 5, false, now)
+	// A first run that gets nothing right is still the player's result for the stage.
+	MergeRun(p, "2", 0, 5, false, now)
+	if r, ok := p.Stages["2"]; !ok || r.Correct != 0 || r.Total != 5 || r.Attempts != 0 || !r.BestAt.Equal(want) {
+		t.Fatalf("stage 2: %+v %v", r, ok)
 	}
-	if len(p.RunIDs) != maxRunIDs || p.RunIDs[0] != fmt.Sprintf("slide-%04d", maxRunIDs) || p.Stages["2"].Attempts != 2*maxRunIDs {
-		t.Fatalf("run ids: %d kept, first %q, attempts %d", len(p.RunIDs), p.RunIDs[0], p.Stages["2"].Attempts)
+
+	// Attempts never go down: a player from before the server dealt the runs has its count in Attempts and
+	// nothing in Started, and one whose Started is ahead takes that.
+	legacy := &Player{Stages: map[string]StageResult{"3": {Correct: 4, Total: 5, Attempts: 7, Passed: true, BestAt: want}}}
+	MergeRun(legacy, "3", 2, 5, false, now.Add(time.Hour))
+	if r := legacy.Stages["3"]; r.Attempts != 7 || r.Correct != 4 || !r.BestAt.Equal(want) {
+		t.Fatalf("legacy player, nothing started: %+v", r)
+	}
+	legacy.Started = map[string]int{"3": 8}
+	MergeRun(legacy, "3", 2, 5, false, now.Add(time.Hour))
+	if r := legacy.Stages["3"]; r.Attempts != 8 {
+		t.Fatalf("legacy player, 8 started: %+v", r)
+	}
+	legacy.Started["3"] = 3
+	MergeRun(legacy, "3", 2, 5, false, now.Add(time.Hour))
+	if r := legacy.Stages["3"]; r.Attempts != 8 {
+		t.Fatalf("a lower Started lowered the attempts: %+v", r)
+	}
+}
+
+func TestPlayerStoredCopiesTheRun(t *testing.T) {
+	served := time.Date(2026, 3, 1, 10, 0, 0, 123456789, time.FixedZone("UTC+7", 7*3600))
+	p := Player{
+		Started: map[string]int{"1": 2},
+		Run: &Run{ID: "r", Stage: "1", StartedAt: served, Questions: []RunQuestion{
+			{Item: 1, Options: []string{"a", "b"}, ServedAt: &served},
+			{Item: 0, Options: []string{}, Chunks: []string{}},
+		}},
+	}
+	got := p.stored()
+
+	// Times are UTC milliseconds, empty slices read as nil, and nothing is shared with the original.
+	want := served.UTC().Truncate(time.Millisecond)
+	if !got.Run.StartedAt.Equal(want) || got.Run.StartedAt.Location() != time.UTC || !got.Run.Questions[0].ServedAt.Equal(want) {
+		t.Fatalf("times: %+v", got.Run)
+	}
+	if got.Run.Questions[1].Options != nil || got.Run.Questions[1].Chunks != nil {
+		t.Fatalf("empty slices: %+v", got.Run.Questions[1])
+	}
+	got.Run.Questions[0].Options[0] = "changed"
+	*got.Run.Questions[0].ServedAt = served.Add(time.Hour)
+	got.Run.ID = "other"
+	got.Started["1"] = 9
+	if p.Run.Questions[0].Options[0] != "a" || !p.Run.Questions[0].ServedAt.Equal(served) || p.Run.ID != "r" || p.Started["1"] != 2 {
+		t.Fatalf("stored() aliases the original: %+v", p.Run)
+	}
+	// Doing it again changes nothing, and an empty Started and a missing Run stay as they are.
+	if again := got.stored(); again.Run.ID != "other" || again.Started["1"] != 9 {
+		t.Fatalf("stored() twice: %+v", again)
+	}
+	if empty := (Player{Started: map[string]int{}}).stored(); empty.Started != nil || empty.Run != nil || empty.Stages == nil {
+		t.Fatalf("an empty player: %+v", empty)
 	}
 }

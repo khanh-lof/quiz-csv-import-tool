@@ -6,9 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
-	"regexp"
-	"slices"
-	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -24,11 +21,9 @@ const (
 	playerTokenHeader = "X-Player-Token"
 )
 
-// runIDPattern is what a browser's crypto.randomUUID() looks like, with some room.
-var runIDPattern = regexp.MustCompile(`^[A-Za-z0-9-]{8,64}$`)
-
 // getShared handles GET /api/share/{code}: what a student's page needs to play, while the assignment
-// is open. Every answer of it, errors included, is marked uncacheable, since closing it must show at once.
+// is open. It holds no question and no answer: the server deals those one at a time, see run_handlers.go.
+// Every answer of it, errors included, is marked uncacheable, since closing it must show at once.
 func (s *Server) getShared(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	a, ok := s.sharedAssignment(w, r)
@@ -39,16 +34,27 @@ func (s *Server) getShared(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusGone, "Assignment closed")
 		return
 	}
-	// The player's own run counts, for a student's page to show the replays left. The token is
-	// optional here and a bad one is not an error: this route never answers 401 or 403.
+	// The player's own runs count, for a student's page to show the replays left and the stages passed.
+	// The token is optional here and a bad one is not an error: this route never answers 401 or 403.
 	attempts := map[string]int{}
+	results := map[string]sharedStageResult{}
 	if token := r.Header.Get(playerTokenHeader); token != "" {
 		player, err := s.Assignments.PlayerByToken(r.Context(), a.ID, hashPlayerToken(token))
 		switch {
 		case err == nil:
+			// A run counts the moment it starts, finished or not, so the attempts are what was started,
+			// or what the results say for a player from before runs were dealt by the server.
 			for stage, res := range player.Stages {
-				if res.Attempts > 0 {
-					attempts[stage] = res.Attempts
+				if n := max(res.Attempts, player.Started[stage]); n > 0 {
+					attempts[stage] = n
+				}
+				if _, has := a.StageCounts[stage]; has {
+					results[stage] = sharedStageResult{Correct: res.Correct, Total: res.Total, Passed: res.Passed}
+				}
+			}
+			for stage, started := range player.Started {
+				if started > attempts[stage] {
+					attempts[stage] = started
 				}
 			}
 		case !errors.Is(err, store.ErrNotFound):
@@ -56,22 +62,35 @@ func (s *Server) getShared(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	counts := a.StageCounts
+	if counts == nil {
+		counts = map[string]int{}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"title":        a.Title,
 		"label":        a.Label,
-		"csv":          a.CSV,
 		"timeMode":     a.TimeMode,
 		"stageLock":    stageLockOf(a),
+		"stageCounts":  counts,
+		"timeLimits":   s.timeLimits(a),
 		"passPercents": passPercentsOf(a),
 		"maxAttempts":  a.MaxAttempts,
 		"showBoard":    !a.HideBoard,
 		"attempts":     attempts,
+		"results":      results,
 		"closesAt":     utcPtr(a.ClosesAt),
 	})
 }
 
+// sharedStageResult is a student's best finished run of one stage, as getShared tells them.
+type sharedStageResult struct {
+	Correct int  `json:"correct"`
+	Total   int  `json:"total"`
+	Passed  bool `json:"passed"`
+}
+
 // joinShared handles POST /api/share/{code}/players: a student picks a name, and may pick an avatar, and
-// gets a token that proves, on every later result, that it is the same student. The token is the only
+// gets a token that proves, on every later request, that it is the same student. The token is the only
 // credential the student has, so only its hash is kept.
 func (s *Server) joinShared(w http.ResponseWriter, r *http.Request) {
 	a, ok := s.sharedAssignment(w, r)
@@ -234,77 +253,6 @@ func (s *Server) sharedLeaderboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, newStudentBoard(buildLeaderboard(players, a.StageCounts), youID, a.StageCounts))
-}
-
-// reportResult handles POST /api/share/{code}/results: the browser reports one finished stage run.
-// The server cannot prove it was played honestly, but it rejects what could not have happened in the
-// quiz (a stage it does not have, a different number of questions, more right answers than questions).
-// Results are taken for a grace period after the assignment closes, see store.ResultGrace.
-func (s *Server) reportResult(w http.ResponseWriter, r *http.Request) {
-	a, ok := s.sharedAssignment(w, r)
-	if !ok {
-		return
-	}
-	now := s.now()
-	if !a.AcceptsResultsAt(now) {
-		writeText(w, http.StatusGone, "Assignment closed")
-		return
-	}
-
-	token := r.Header.Get(playerTokenHeader)
-	if token == "" {
-		writeText(w, http.StatusForbidden, "Unknown player")
-		return
-	}
-	player, err := s.Assignments.PlayerByToken(r.Context(), a.ID, hashPlayerToken(token))
-	if errors.Is(err, store.ErrNotFound) {
-		writeText(w, http.StatusForbidden, "Unknown player")
-		return
-	}
-	if err != nil {
-		s.internalError(w, r, "looking up player failed", err)
-		return
-	}
-
-	var req struct {
-		RunID   string `json:"runId"`
-		Stage   int    `json:"stage"`
-		Correct int    `json:"correct"`
-		Total   int    `json:"total"`
-	}
-	if !s.readJSON(w, r, &req) {
-		return
-	}
-	stage := strconv.Itoa(req.Stage)
-	questions, hasStage := a.StageCounts[stage]
-	if !runIDPattern.MatchString(req.RunID) || !hasStage || req.Total != questions ||
-		req.Correct < 0 || req.Correct > req.Total {
-		writeText(w, http.StatusBadRequest, "Invalid result.")
-		return
-	}
-
-	// The replay limit. A run id the player already reported is resent, not new: it is answered 204
-	// below like any repeat (RecordResult ignores it), even at the limit. The check and the write are
-	// not atomic, so two runs of one player racing at the limit could both get through; at classroom
-	// scale (one student, one browser) that is accepted.
-	if a.MaxAttempts != nil && !slices.Contains(player.RunIDs, req.RunID) &&
-		player.Stages[stage].Attempts >= *a.MaxAttempts {
-		writeText(w, http.StatusConflict, "Replay limit reached")
-		return
-	}
-
-	passed := req.Correct >= passMark(req.Total, passPercentOf(a, stage))
-	err = s.Assignments.RecordResult(r.Context(), a.ID, player.ID, req.RunID, stage, req.Correct, req.Total, passed, now)
-	if errors.Is(err, store.ErrNotFound) {
-		// The teacher removed the student between the token check and now.
-		writeText(w, http.StatusForbidden, "Unknown player")
-		return
-	}
-	if err != nil {
-		s.internalError(w, r, "recording result failed", err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // sharedAssignment finds the assignment a student's link points at, or answers 404. The code is

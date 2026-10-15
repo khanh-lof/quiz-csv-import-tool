@@ -9,7 +9,9 @@ export type GameKind =
   | 'word-order';
 
 // One stage of the gesture quiz. `optionCount` is how many answers the player picks from (0 for the
-// sentence-ordering stage, which has chunks instead) and `seconds` the time allowed per question.
+// sentence-ordering stage, which has chunks instead) and `seconds` the time allowed per question. The seconds are
+// only the defaults for practice, a quiz played from a file or from one of the user's jobs: an assignment's limits
+// are the server's (`timeLimits` of its answers), because a page could change this table.
 export interface StageDef {
   stage: number;
   game: GameKind;

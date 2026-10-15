@@ -93,6 +93,7 @@ func run(logger *slog.Logger) error {
 		AICallsPerRound: cfg.AICallsPerRound,
 		RoundDuration:   cfg.RoundDuration,
 		LLMTimeout:      cfg.LLM.Timeout,
+		StageSeconds:    cfg.GameStageSeconds,
 		Logger:          logger,
 	}
 

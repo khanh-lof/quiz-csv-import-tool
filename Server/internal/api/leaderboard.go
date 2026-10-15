@@ -46,7 +46,8 @@ type leaderboardEntry struct {
 // stages passed, then by the sum of their best correct counts, then by who reached that score first;
 // players equal on all three share a rank (1, 1, 3, like a race), and those still tied are listed by
 // when they joined. Players without a result follow in the order they joined, unranked. Only the
-// stages in stageCounts count, so a result for a stage the assignment does not have is ignored.
+// stages in stageCounts count, so a result for a stage the assignment does not have is ignored. Ranking
+// uses only the finished runs; a run that was started and left is an attempt and no score.
 func buildLeaderboard(players []store.Player, stageCounts map[string]int) []leaderboardEntry {
 	possible := possibleOf(stageCounts)
 
@@ -95,14 +96,27 @@ func scorePlayer(p store.Player, stageCounts map[string]int, possible int) leade
 		if _, ok := stageCounts[stage]; !ok {
 			continue
 		}
-		row.Stages[stage] = stageScore{Correct: r.Correct, Total: r.Total, Passed: r.Passed, Attempts: r.Attempts}
+		// A run counts as an attempt from the moment it starts, so a stage's attempts are what was
+		// started, or what its results say for a player from before the server dealt the runs.
+		attempts := max(r.Attempts, p.Started[stage])
+		row.Stages[stage] = stageScore{Correct: r.Correct, Total: r.Total, Passed: r.Passed, Attempts: attempts}
 		row.Correct += r.Correct
-		row.Attempts += r.Attempts
+		row.Attempts += attempts
 		if r.Passed {
 			row.StagesPassed++
 		}
 		if at := r.BestAt.UTC(); row.ReachedAt == nil || at.After(*row.ReachedAt) {
 			row.ReachedAt = &at
+		}
+	}
+	// A run that was started and never finished is an attempt too, but it records no score: it adds to the
+	// attempts and to nothing else, so the player is not ranked for it.
+	for stage, started := range p.Started {
+		if _, ok := stageCounts[stage]; !ok {
+			continue
+		}
+		if _, finished := p.Stages[stage]; !finished {
+			row.Attempts += started
 		}
 	}
 	return row

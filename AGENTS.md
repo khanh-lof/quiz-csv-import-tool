@@ -69,7 +69,8 @@ no configurable backend URL:
 | `AssignmentService.update` | `PATCH assignments/{id}` (`assignment_handlers.go`) |
 | `AssignmentService.remove` / `.removePlayer` | `DELETE assignments/{id}`, `DELETE assignments/{id}/players/{playerId}` (`assignment_handlers.go`) |
 | `SharedPlayService.load` / `.join` | `GET share/{code}`, `POST share/{code}/players` (`internal/api/share_handlers.go`, anonymous) |
-| `SharedPlayService.submit` / `.flush` | `POST share/{code}/results` (`share_handlers.go`, anonymous, `X-Player-Token` header) |
+| `SharedPlayService.startRun` | `POST share/{code}/runs` (`internal/api/run_handlers.go`, anonymous, `X-Player-Token` header) |
+| `SharedPlayService.nextQuestion` / `.answer` | `POST share/{code}/runs/{runId}/next`, `POST share/{code}/runs/{runId}/answers` (`run_handlers.go`, anonymous, `X-Player-Token` header) |
 | `SharedPlayService.setAvatar` | `PATCH share/{code}/player` (`share_handlers.go`, anonymous, `X-Player-Token` header) |
 | `SharedPlayService.leaderboard` | `GET share/{code}/leaderboard` (`share_handlers.go`, anonymous, optional `X-Player-Token` header) |
 
@@ -86,7 +87,7 @@ Three things make the wiring non-obvious:
   half of [Giao bài](#giao-bài-assignments)), via the `authenticate` + `requireRole` middleware wrapped
   around that route (`Server/internal/api/middleware.go`).
   The refresh token lives only in the cookie and is never in a JSON body.
-- **The student routes are anonymous and never answer 401.** `share/{code}` and its four sub-routes are
+- **The student routes are anonymous and never answer 401.** `share/{code}` and its sub-routes are
   registered bare, with no `authenticate`: the link's code and the student's own token are their only
   credentials. A 401 would be wrong for a student, because `AuthInterceptor` answers every 401 by calling
   `auth/refresh` and retrying, and a student has no session to refresh. So a refusal there is always a 400,
@@ -272,8 +273,9 @@ offer this platform: its rows have no stages. Progress (stages passed, best resu
 `localStorage` per quiz, keyed by a hash of the questions rather than the title, so a job and the file
 downloaded from it share it; nothing about the quiz or the player goes to the server, except when a teacher
 hands the quiz out: the job also gets "Giao bài" (see [Giao bài](#giao-bài-assignments)), and a student who
-opens its link plays the same game on `/play/s/<code>` (no login), which reports each finished stage to the
-server under the name the student typed. The teacher's own try-out of an assignment is
+opens its link plays the same game on `/play/s/<code>` (no login), through the server: under the name the
+student typed, the server deals the questions one at a time and judges the answers, so the student's browser
+never holds the answers. The teacher's own try-out of an assignment is
 `/play/preview/<assignment id>` (login required, all stages open, nothing saved).
 
 The camera needs HTTPS (or localhost) and the player's permission, and the two MediaPipe models are
@@ -288,35 +290,39 @@ prompt's in [Server/AGENTS.md](Server/AGENTS.md).
 
 A teacher (any logged-in user) gives a finished Game job to students: the AI jobs table's "Giao bài"
 makes an *assignment*, a link `<origin>/play/s/<code>` that anyone can open. A student types a name, picks an
-avatar, plays the six-stage game above, and the browser reports each finished stage run; the teacher sees the
+avatar, plays the six-stage game above, dealt and judged question by question by the server; the teacher sees the
 leaderboard ("Bảng xếp hạng") on `/assignments/<id>`, can close and reopen the assignment, set a closing time,
 preview it, remove a student and download the leaderboard as CSV, and the students see its top five and their
 own place on their stage map, unless the teacher hid it from them. A teacher may assign the same quiz several times (one per class), each with its
-own link, label and leaderboard. The server half is `Server/internal/api/{assignment,share}_handlers.go`,
-`leaderboard.go` and `avatars.go` over `store.Assignments`, the client's `AssignmentService` and `SharedPlayService`; the rules
-below are decided by the server, and the client repeats a few of them (the pass mark, whether an assignment is
-open, the result grace) only to show the right screen without a round trip.
+own link, label and leaderboard. The server half is `Server/internal/api/{assignment,share,run}_handlers.go`,
+`leaderboard.go` and `avatars.go` over `store.Assignments`, with the quiz parser `Server/internal/gesturequiz`; the
+client's is `AssignmentService` and `SharedPlayService`. The rules below are decided by the server, and the client
+repeats a few of them (the pass mark, the stage lock, whether an assignment is open, the result grace) only to show
+the right screen without a round trip.
 
 - **The assignment is a snapshot.** Creating one copies the job's `title` and raw `csv` into the assignment
   (`POST assignments` takes a `jobId`, but only to read it: the job must be the caller's own, `done`,
   `creative` and `exportType` GestureQuiz, else 409 `Job is not a finished gesture quiz.`). The copy is why a
   live link survives the teacher deleting the job or the table pruning it (the newest 30 kept per user): the
-  students' game needs a quiz that cannot disappear under it. The server does not parse the quiz: the client
-  counts the questions of each stage with `parseGestureQuiz` (`stageCountsOf`) and sends them as `stageCounts`
-  (`{"1": 5, …}`, only the stages that have questions; keys `"1"`–`"6"`, 1–50 each), which the server checks
-  for shape and then keeps as what a result is checked against. The dialog refuses a quiz with no questions.
+  students' game needs a quiz that cannot disappear under it. The server parses the copy itself
+  (`gesturequiz.Parse`, a port of the client's `parseGestureQuiz` with the same rules, see *The server plays the
+  quiz* below) and keeps the number of questions of each stage as `stageCounts` (`{"1": 5, …}`, only the stages
+  that have questions); a `stageCounts` sent by an older client is ignored, and a job with no playable question
+  is 409 `Job is not a finished gesture quiz.`. The dialog counts the same way to show the numbers, and refuses a
+  quiz with no questions.
 - **The code** is 10 characters of Crockford base32 (digits and letters without `I L O U`, so it can be read
   out or typed from a projector), drawn from `crypto/rand` (`newShareCode`), 50 random bits; a clash with an
   existing code redraws, up to 3 attempts. It is stored upper-case and matched case-insensitively (a student's
-  typing is trimmed and upper-cased). It is the only credential for opening the quiz: whoever has it can read
-  the quiz, answers included, from `GET share/{code}`, since the browser plays it. There is no IP restriction.
+  typing is trimmed and upper-cased). It is the only credential for opening the quiz: whoever has it can join
+  and play. It never gives the quiz away: `GET share/{code}` sends no question at all, and a run deals them one
+  at a time without their answers (see below). There is no IP restriction.
 - **A student is a name, an avatar and a token, no account.** `POST share/{code}/players` takes `{name,
   avatar}`, creates the player and answers `{playerId, token, name, avatar}`. The token is 32 random bytes, base64url; only its SHA-256 (base64url, the same
   scheme as the refresh tokens) is stored, so reading the database does not let anyone play as somebody else.
   The browser keeps the identity per code in `localStorage` and sends the token as the `X-Player-Token`
-  header on every result, which is what makes a reload resume as the same student. "Không phải bạn?" forgets
-  it on that device and the old player stays on the leaderboard until the teacher removes it; a 403 on a result
-  (the teacher removed the player) also makes the client forget it.
+  header on every request of a run, which is what makes a reload resume as the same student. "Không phải bạn?"
+  forgets it on that device and the old player stays on the leaderboard until the teacher removes it; a 403 on a
+  run or an avatar change (the teacher removed the player) also makes the client forget it.
 - **Avatars** are picked from a fixed set of 24 animals, never uploaded: only the id travels and is stored
   (`Player.Avatar`). The ids are `avatarIDs` in `Server/internal/api/avatars.go` and `AVATARS` in
   `Client/src/models/avatar.ts` (which also has each one's emoji, Vietnamese name and disc colour), the same
@@ -330,21 +336,54 @@ open, the result grace) only to show the right screen without a round trip.
   characters, and must be unique within the assignment as `strings.ToLower(name)` (`nameKey`: accents are
   kept, so "Nam" and "Năm" are different students, "Lan" and "lan" are not): 409 `Name taken`. The
   assignment takes at most 300 players (409 `Assignment is full`).
-- **A result** is `POST share/{code}/results` with `{runId, stage, correct, total}` and the token header, and
-  answers 204. The server accepts what could have happened in this quiz: `stage` is one of the assignment's
-  `stageCounts` and `total` equals that stage's count, `0 ≤ correct ≤ total`, `runId` matches
-  `^[A-Za-z0-9-]{8,64}$` (else 400 `Invalid result.`). A `runId` the player has already reported (the last 50
-  are remembered) is answered 204 and changes nothing: the client creates the id once per finished run and
-  queues a run it could not deliver with the same id, so resending is safe and never counts a run twice.
-  Whether the stage was **passed** is decided by the server, not reported: `correct >= passMark(total, percent)`
+- **The server plays the quiz.** A student's browser never gets the CSV, an answer or an explanation before
+  answering, and never reports a score: the server keeps the quiz, deals it out and judges it, so devtools cannot
+  read the answers, lengthen the clock, skip a lock or a replay limit, or post full marks. All three run routes
+  take the token header and their checks run in this order: 404 `Assignment not found`, 410 `Assignment closed`,
+  403 `Unknown player`, then the route's own.
+  - `POST share/{code}/runs` with `{stage}` starts a run of one stage. It needs the assignment open (410 with no
+    grace), then 400 `Invalid stage.` for a stage the assignment does not have, 409 `Stage locked` when the
+    stage lock is `sequential` and an earlier stage of the assignment is not passed, 409 `Replay limit reached`
+    when the replay limit is used up. The run's questions are shuffled, and so are the options of stages 2–5 and
+    the chunks of stage 6 (to an order that is not the answer, like the page's `shuffleChunks`); stage 1 is always
+    `Đúng`, `Sai`. It answers 201 `{runId, stage, total, attempts, question}` with the first question already
+    dealt. A question is `{index, question, options, chunks, timeLeftMs, graceMs}`: what the game shows and the
+    time left on the server's clock (null without a time limit), never the answer.
+  - `POST share/{code}/runs/{runId}/next` deals the next question; asked again before it is answered, it sends the
+    same one with its clock still running. 404 `Run not found` when the run is not the player's latest, 409 `Run is
+    over` after its last question.
+  - `POST share/{code}/runs/{runId}/answers` with `{index, choice}` (the option's index, the stage-6 chunks in the
+    order picked, or `null` when the browser's time ran out) judges the question being asked and answers `{correct,
+    timedOut, correctIndex | correctOrder, answer, explanation, result}`; `result` is `{correct, total, passed}` on
+    the last question, whose answer also records the run. 404 `Run not found` as above, 400 `Invalid answer.` for
+    an index that is not the question being asked or a choice of another JSON type. An index already answered is a
+    resend (a lost answer): it gets its stored verdict and changes nothing, so the client may retry freely.
+  - **The clock is the server's.** The seconds per question of each stage are the server's setting
+    (`GAME_STAGE_SECONDS`, default `12,12,15,15,20,45`), and an assignment's limit is the teacher's time mode
+    applied to them (`standard`, `extra` = ×1.5 rounded, `unlimited` = none). `GET share/{code}` and every
+    assignment view send the result as `timeLimits` (stage → seconds, null when unlimited), which the page shows
+    and the teacher's preview plays by; the client's own `STAGES` seconds only time practice from a file or a job.
+    A question is timed from the moment it is dealt; an answer that arrives after the limit plus `graceMs` (5 s,
+    `answerGrace`, for the network and a face game's calibration) is a timeout whatever it chose. The client counts
+    down from `timeLeftMs` and gives up by itself at `timeLeftMs + graceMs - 1 s`, so an honest player never sees
+    a late answer refused.
+  - **One run at a time.** A player has one run, the latest: starting another replaces it, so a second tab cannot
+    learn the answers in one run and use them in another, and the replaced run's requests get 404 `Run not
+    found`. A run counts as an attempt the moment it starts (its first question is dealt then), finished or not;
+    a run left unfinished records no score.
+  - **The parser is on both sides.** The server's `gesturequiz` (the port of `parseGestureQuiz` together with
+    `extractCsvContent` and `parseCsvRows`, and the stages' option counts of `STAGES`, `game/stages.ts`) is kept in
+    step with the client's by hand: a rule changed on one side and not the other makes the server deal a quiz the
+    teacher's dialog counted differently.
+  Whether the stage was **passed** is decided by the server: `correct >= passMark(total, percent)`
   where `percent` is the assignment's pass percent for that stage (70 unless the teacher set another, see
   below) and `passMark(n, p) = (p*n+99)/100` in integer division, which is the client's
   `passMark(total, percent)` (`Math.floor((percent*total+99)/100)`, `game/stages.ts`); `TestPassMark` checks the
   70% case against `ceil(0.7n)` for every `n` up to 300. Changing the pass rule on one side means changing the other.
-- **Best run per stage.** A player's results are merged by `mergeResult` (`store/assignments.go`, used by both
-  stores): each stage keeps the best `correct` so far, a pass once made stays, `attempts` counts every
-  accepted run, and `bestAt` is when the best score was reached (or the pass made), which is what breaks
-  ties. A replay can only raise a score, and a student can replay until the assignment closes, or until the
+- **Best run per stage.** A finished run is merged into the player's results by one helper of
+  `store/assignments.go`, which both stores use: each stage keeps the best `correct` so far, a pass once made
+  stays, `attempts` counts every run started (`Player.Started`), and `bestAt` is when the best score was reached
+  (or the pass made), which is what breaks ties. A replay can only raise a score, and a student can replay until the assignment closes, or until the
   stage's replay limit is used up (see `maxAttempts` below).
 - **The leaderboard** (`buildLeaderboard`, `api/leaderboard.go`, computed on every `GET assignments/{id}` and
   `GET share/{code}/leaderboard`) orders players who
@@ -366,10 +405,10 @@ open, the result grace) only to show the right screen without a round trip.
   the future and at most 180 days ahead): it is *open* while `closedAt` is unset and `closesAt` is unset or
   still ahead. The server computes `open` for each response, and the client recomputes it from the two times
   (`isOpenAt`), since a page left open goes stale. Opening the link (`GET share/{code}`) and joining are
-  refused with 410 `Assignment closed` the moment it is not open, but **results get a 5 minute grace**
-  (`store.ResultGrace`, counted from the earlier of the two times; the leaderboard page repeats it as
-  `RESULT_GRACE_MS` to know how long to keep polling) so a student in the middle of a stage at the deadline
-  does not lose it; after that a result is a 410 too. `PATCH assignments/{id}` takes any of
+  refused with 410 `Assignment closed` the moment it is not open, and so is starting a run, but **a run in
+  progress gets a 5 minute grace** (`store.ResultGrace`, counted from the earlier of the two times, for `next`
+  and `answers`; the leaderboard page repeats it as `RESULT_GRACE_MS` to know how long to keep polling) so a
+  student in the middle of a stage at the deadline does not lose it; after that they are a 410 too. `PATCH assignments/{id}` takes any of
   `label`, `closesAt` (null removes it) and `closed` (`true` closes now, keeping the first moment if it was
   already closed; `false` reopens), and a key left out stays as it is. A reopen is refused (400 `Invalid
   closing time.`) when the closing time that would remain is already past, because it would close again
@@ -377,9 +416,11 @@ open, the result grace) only to show the right screen without a round trip.
   again before each stage and shows the closed card if it closed meanwhile.
 - **Limits:** 100 assignments per user (409 `Too many assignments.`), 300 players per assignment, a label of
   at most 60 characters. Assignments are not AI calls: they use none of the rate-limit quota.
-- **Results are reported by the student's browser**, so the server can only check that they are plausible (the
-  rules above); a student who tampers with their own browser can post full marks, and stage locks are enforced
-  by the client alone. That is accepted for a classroom: do not treat the leaderboard as proof.
+- **What is still possible.** The server decides every score, lock and limit, but it cannot see the classroom:
+  a student can join under a second name to see the answers before playing under their own (the teacher sees
+  both names and can remove one), get help from a neighbour, or use the 5 s of grace per question. Each run asks
+  the questions in a new order, so answers learnt from one run have to be matched by their question text. That is
+  accepted for a classroom: the leaderboard is a game's, not an exam's.
 - **The contract is hand-kept, like the others.** `Client/src/models/assignment.ts` mirrors the JSON of
   `assignmentView`, `assignmentDetailView` (the assignment plus `csv` and the players in leaderboard order),
   `leaderboardEntry` (`LeaderboardEntry`), the students' board (`StudentBoard`) and the share answers; the
@@ -391,24 +432,26 @@ open, the result grace) only to show the right screen without a round trip.
   before the setting reads as) opens each stage once the one before it is passed, `open` lets the student play
   every stage from the start. It is sent on `POST assignments` (absent means `sequential`, any other value is
   400 `Invalid stage lock.`, checked right after the time mode), fixed for the assignment's life, and returned
-  by `assignmentView` and `GET share/{code}`. Like every lock it is enforced by the client alone; the server
-  does not check the order of results.
+  by `assignmentView` and `GET share/{code}`. The server enforces it when a run starts (409 `Stage locked`); the
+  client's map shows the same locks from the student's results, which `GET share/{code}` returns as `results`
+  (stage → `{correct, total, passed}`, the best of each stage, for the token's player; `{}` for none).
   The teacher also picks, per stage, the **pass percent** `passPercents` (stage `"1"`–`"6"` → integer 10–100):
   the share of a stage's questions that must be right to pass it, 70 for a stage not sent. It is sent on
-  `POST assignments` (400 `Invalid pass percents.` for a key that is not one of the `stageCounts`, or a value that
-  is not a plain integer 10–100, checked after `stageCounts`), fixed for the assignment's life, and returned as a
-  complete map for exactly the stages of `stageCounts` by `assignmentView` and `GET share/{code}`. The server
-  uses it to decide `passed` when a result arrives; the client uses it for the stage verdict, the unlock, the
-  rules line and the leaderboard page. Assignments stored without it read as all 70.
-  With the `open` lock the teacher can also set a **replay limit** `maxAttempts` (1–10 finished runs per stage;
+  `POST assignments` (400 `Invalid pass percents.` for a key that is not `"1"`–`"6"` or a value that is not a
+  plain integer 10–100, checked after the closing time; a key for a stage the quiz does not have is dropped),
+  fixed for the assignment's life, and returned as a complete map for exactly the stages of `stageCounts` by
+  `assignmentView` and `GET share/{code}`. The server uses it to decide `passed` when a run finishes; the client
+  uses it for the rules line, the stage map and the leaderboard page (and for the verdict of a teacher's
+  preview, which is played in the browser). Assignments stored without it read as all 70.
+  With the `open` lock the teacher can also set a **replay limit** `maxAttempts` (1–10 runs per stage;
   null, the default, is unlimited). It is sent on `POST assignments` (400 `Invalid replay limit.` when it is not a
   plain integer 1–10 or the stage lock is not `open`), fixed for the assignment's life, and returned by
-  `assignmentView` and `GET share/{code}` (`null` when unlimited). Unlike the locks it is also enforced by the
-  server: `POST share/{code}/results` answers 409 `Replay limit reached` when the player already has
-  `maxAttempts` accepted runs in that stage, except for a `runId` already recorded, which is still 204. To let a
-  reload or another device know the count, `GET share/{code}` returns `attempts` (stage → accepted runs) for the
-  player named by the optional `X-Player-Token` header, `{}` for no or an unknown token (never 401/403). The
-  check and the record are not atomic, so two simultaneous runs could both get in: acceptable for a classroom.
+  `assignmentView` and `GET share/{code}` (`null` when unlimited). The server enforces it when a run starts:
+  409 `Replay limit reached` when the player has already started `maxAttempts` runs of that stage, finished or
+  not, since a run shows its questions from the start. To let a reload or another device know the count,
+  `GET share/{code}` returns `attempts` (stage → runs started) for the player named by the optional
+  `X-Player-Token` header, `{}` for no or an unknown token (never 401/403). The check and the count are one
+  write guarded by the player's version, so two runs started at the same moment cannot both slip past it.
   The teacher also decides whether the students see the board, **`showBoard`** (true by default, and what an
   assignment from before the setting reads as), for a class whose students should not be compared with each
   other. It is sent on `POST assignments` (absent or null means true; anything but a JSON boolean is 400

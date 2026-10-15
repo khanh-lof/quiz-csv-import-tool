@@ -1,33 +1,29 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { catchError, defer, map, Observable, of, switchMap, tap, throwError } from 'rxjs';
-import { PlayerIdentity, SharedQuiz, StageSubmission, StudentBoard, SubmitOutcome } from '../models/assignment';
+import { catchError, map, Observable, retry, tap, throwError, timer } from 'rxjs';
+import { Choice } from '../game/stage-game';
+import {
+  PlayerIdentity,
+  SharedQuestion,
+  SharedQuiz,
+  SharedRunStart,
+  SharedVerdict,
+  StudentBoard,
+} from '../models/assignment';
 
 const IDENTITY_KEY = 'gesture-shared-players';
-const PENDING_KEY = 'gesture-shared-pending';
-// A device cannot have more runs waiting than a student could play, so this only stops a runaway queue
-// from filling the storage.
-const MAX_PENDING = 200;
-
-// A finished run that could not be delivered yet. It carries its own token and runId, so a resend after a
-// forget or a reload is still the same run, and the server counts it once.
-interface PendingResult {
-  code: string;
-  token: string;
-  runId: string;
-  stage: number;
-  correct: number;
-  total: number;
-}
+// Where an older version of the page queued the results it could not deliver. Results are no longer reported
+// by the browser, so nothing reads this any more: it is only cleared, once, from the devices that have it.
+const OLD_PENDING_KEY = 'gesture-shared-pending';
+// A transient failure of a request the server answers the same way twice is retried this many times, after
+// one second and then after two.
+const RETRY_COUNT = 2;
+const RETRY_STEP_MS = 1000;
 
 type IdentityStore = Record<string, PlayerIdentity>;
 
 function isText(value: unknown): value is string {
   return typeof value === 'string' && value !== '';
-}
-
-function isWholeNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
 // Keeps only what looks like a stored identity: anything else (a hand-edited or older value) is dropped.
@@ -43,21 +39,6 @@ function sanitizeIdentities(raw: unknown): IdentityStore {
     }
   }
   return store;
-}
-
-function sanitizePending(raw: unknown): PendingResult[] {
-  if (!Array.isArray(raw)) {
-    return [];
-  }
-  const list: PendingResult[] = [];
-  for (const value of raw) {
-    const {code, token, runId, stage, correct, total} = (value ?? {}) as Partial<Record<keyof PendingResult, unknown>>;
-    if (isText(code) && isText(token) && isText(runId) && isWholeNumber(stage) && isWholeNumber(correct)
-      && isWholeNumber(total) && correct <= total) {
-      list.push({code: code.toUpperCase(), token, runId, stage, correct, total});
-    }
-  }
-  return list.slice(-MAX_PENDING);
 }
 
 // A value kept in localStorage. Blocked or full storage does not break the page: the value is then kept
@@ -101,41 +82,40 @@ class StoredValue<T> {
   }
 }
 
-// A runId must be unique per finished run and match the server's ^[A-Za-z0-9-]{8,64}$. randomUUID exists
-// only on HTTPS and localhost, and a classroom may well open the link over plain http on a local network.
-function newRunId(): string {
-  if (typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
 function normalizeCode(code: string): string {
   return code.trim().toUpperCase();
 }
 
-// A result is worth sending again when the server could not be reached or failed; any other answer, good
-// or bad, is final.
-function isTransient(status: number): boolean {
+// The server could not be reached (status 0, which is what a lost connection is) or failed: the same request may
+// well work a moment later. Any other answer is final.
+function isTransient(err: unknown): boolean {
+  const status = err instanceof HttpErrorResponse ? err.status : 0;
   return status === 0 || status >= 500;
 }
 
 // The student's side of "Giao bài": opening a shared quiz, joining it by name and avatar, changing the
-// avatar, reading the leaderboard, and reporting each finished stage. The student has no account, so the server knows a device by the token it handed out on joining,
-// which is kept here. Only the lazy play page uses this service.
+// avatar, reading the leaderboard, and playing a stage, which the server runs itself: it starts a run, deals the
+// questions one at a time without their answers and judges each answer. The student has no account, so the server
+// knows a device by the token it handed out on joining, which is kept here. Only the lazy play page uses this
+// service.
 @Injectable({providedIn: 'root'})
 export class SharedPlayService {
   private readonly baseUrl = '/api/share';
 
   private readonly identities = new StoredValue<IdentityStore>(IDENTITY_KEY, sanitizeIdentities);
-  private readonly pending = new StoredValue<PendingResult[]>(PENDING_KEY, sanitizePending);
 
   constructor(private readonly http: HttpClient) {
+    try {
+      localStorage.removeItem(OLD_PENDING_KEY);
+    } catch {
+      // Blocked storage has nothing to clear.
+    }
   }
 
   // 404 (no such code) and 410 (closed) are left for the page to read from the error. A device that has
-  // joined sends its token, so the answer's `attempts` are this student's own; the token is optional on this
-  // route, and one the server does not know is not an error, only an empty `attempts`.
+  // joined sends its token, so the answer's `attempts` and `results` are this student's own; the token is
+  // optional on this route, and one the server does not know is not an error, only an empty `attempts` and
+  // `results`.
   load(code: string): Observable<SharedQuiz> {
     const token = this.identity(code)?.token;
     return this.http.get<SharedQuiz>(`${this.baseUrl}/${encodeURIComponent(code)}`,
@@ -154,8 +134,8 @@ export class SharedPlayService {
 
   // Changes the avatar of the student this device joined as, and emits the identity as it is stored now. A
   // device that has not joined has no token to send, so it fails like the server would, with a 403 and no
-  // request. A 403 from the server (the teacher removed the student) forgets the identity, like a result
-  // does; every failure is rethrown for the page to explain: 400, 404, 410 (closed) or no connection.
+  // request. A 403 from the server (the teacher removed the student) forgets the identity, like a run
+  // request does; every failure is rethrown for the page to explain: 400, 404, 410 (closed) or no connection.
   setAvatar(code: string, avatar: string): Observable<PlayerIdentity> {
     const identity = this.identity(code);
     if (!identity) {
@@ -204,107 +184,56 @@ export class SharedPlayService {
     this.identities.write(rest);
   }
 
-  // Reports a finished stage. It never errors: the outcome says what became of the run.
-  // The run gets its id here, once, and a failed send is not retried on its own: a run that could not be
-  // delivered is queued with that same id, and the server counts an id it has seen only once.
-  submit(code: string, submission: StageSubmission): Observable<SubmitOutcome> {
+  // Starts a run of `stage` (1 to 6) and emits its first question. The server counts the run toward the replay
+  // limit from this moment, so a lost answer is not retried by itself: starting again would be a second run.
+  // Failures are rethrown for the page to explain: 410 (closed), 403 (unknown student, which also forgets the
+  // identity), 404, 400 `Invalid stage.`, 409 `Stage locked` or `Replay limit reached`, or no connection. A
+  // device that has not joined has no token to send, so it fails like the server would, with no request.
+  startRun(code: string, stage: number): Observable<SharedRunStart> {
+    return this.asStudent(code, token => this.http.post<SharedRunStart>(
+      `${this.baseUrl}/${encodeURIComponent(code)}/runs`, {stage}, {headers: {'X-Player-Token': token}}), false);
+  }
+
+  // The question after the one just answered. The server deals it the same way twice (a question already dealt
+  // is sent again with its clock still running), so a transient failure is retried before it is reported.
+  // Failures as for `startRun`, plus 404 `Run not found` and 409 `Run is over`.
+  nextQuestion(code: string, runId: string): Observable<SharedQuestion> {
+    return this.asStudent(code, token => this.http.post<{question: SharedQuestion}>(
+      `${this.baseUrl}/${encodeURIComponent(code)}/runs/${encodeURIComponent(runId)}/next`, null,
+      {headers: {'X-Player-Token': token}}).pipe(map(answer => answer.question)), true);
+  }
+
+  // Sends the answer to question `index` of the run and emits the server's verdict: `choice` is the option's
+  // number, the sentence stage's pieces in the order picked, or null when the player's time ran out. An answer
+  // already given is answered again with the same verdict and nothing is changed, so a transient failure is
+  // retried before it is reported. Failures as for `nextQuestion`, plus 400 `Invalid answer.`
+  answer(code: string, runId: string, index: number, choice: Choice | null): Observable<SharedVerdict> {
+    return this.asStudent(code, token => this.http.post<SharedVerdict>(
+      `${this.baseUrl}/${encodeURIComponent(code)}/runs/${encodeURIComponent(runId)}/answers`, {index, choice},
+      {headers: {'X-Player-Token': token}}), true);
+  }
+
+  // A request made as the student this device joined as. Without an identity it fails as a 403 and sends
+  // nothing, like the server would. A 403 from the server (the teacher removed the student) forgets the
+  // identity, as it does for `setAvatar`; every failure is rethrown. `idempotent` requests are retried when the
+  // failure is transient, after one second and then two.
+  private asStudent<T>(code: string, send: (token: string) => Observable<T>, idempotent: boolean): Observable<T> {
     const identity = this.identity(code);
     if (!identity) {
-      return of('rejected');
+      return throwError(() => new HttpErrorResponse({status: 403, statusText: 'Forbidden', error: 'Unknown player'}));
     }
-    const entry: PendingResult = {
-      code: normalizeCode(code), token: identity.token, runId: newRunId(),
-      stage: submission.stage, correct: submission.correct, total: submission.total,
-    };
-    return this.post(entry).pipe(
-      map((status): SubmitOutcome => {
-        if (status >= 200 && status < 300) {
-          // The server is reachable: this is the moment to send what was left behind.
-          this.flush(entry.code).subscribe();
-          return 'saved';
-        }
-        if (isTransient(status)) {
-          this.enqueue(entry);
-          return 'queued';
-        }
-        if (status === 410) {
-          return 'closed';
-        }
-        if (status === 409) {
-          // `Replay limit reached`, the only conflict a result can meet: final, so it is not queued.
-          return 'limit';
-        }
-        if (status === 403) {
-          // The token is unknown to the server (the teacher removed this student): the identity is useless.
-          this.forget(code);
-        }
-        return 'rejected';
-      }));
-  }
-
-  // Sends the runs queued for `code`, oldest first, one at a time. An answer that is final (stored, or
-  // refused for good) takes the run out of the queue; when the server cannot be reached the rest stays
-  // queued for next time. Never errors.
-  flush(code: string): Observable<void> {
-    return defer(() => this.flushNext(normalizeCode(code)));
-  }
-
-  pendingCount(code: string): number {
-    const key = normalizeCode(code);
-    return this.pending.read().filter(entry => entry.code === key).length;
-  }
-
-  // The runs of each stage ("1" to "6") that this device's student has waiting in the queue. The server has not
-  // counted them yet, so the page adds them to the server's `attempts` to count a run played offline.
-  pendingByStage(code: string): Record<string, number> {
-    const identity = this.identity(code);
-    const key = normalizeCode(code);
-    const counts: Record<string, number> = {};
-    if (identity) {
-      for (const entry of this.pending.read()) {
-        if (entry.code === key && entry.token === identity.token) {
-          counts[String(entry.stage)] = (counts[String(entry.stage)] ?? 0) + 1;
-        }
+    const request = send(identity.token);
+    return (idempotent
+      ? request.pipe(retry({
+        count: RETRY_COUNT,
+        delay: (err, attempt) => isTransient(err) ? timer(RETRY_STEP_MS * attempt) : throwError(() => err),
+      }))
+      : request
+    ).pipe(catchError(err => {
+      if (err instanceof HttpErrorResponse && err.status === 403 && this.identity(code)?.token === identity.token) {
+        this.forget(code);
       }
-    }
-    return counts;
-  }
-
-  // Reads the queue again before each send, so a second tab flushing the same queue does not make this one
-  // resend what that tab already delivered.
-  private flushNext(code: string): Observable<void> {
-    const next = this.pending.read().find(entry => entry.code === code);
-    if (!next) {
-      return of(undefined);
-    }
-    return this.post(next).pipe(
-      switchMap(status => {
-        if (isTransient(status)) {
-          return of(undefined);
-        }
-        this.dequeue(next.runId);
-        return this.flushNext(code);
-      }));
-  }
-
-  // The HTTP status of a result post, whatever it was: 0 stands for no answer at all (offline, a
-  // dropped connection). It never errors, because every status has a meaning to the callers.
-  private post(entry: PendingResult): Observable<number> {
-    return this.http.post(`${this.baseUrl}/${encodeURIComponent(entry.code)}/results`,
-      {runId: entry.runId, stage: entry.stage, correct: entry.correct, total: entry.total},
-      {headers: {'X-Player-Token': entry.token}, observe: 'response'}).pipe(
-      map(response => response.status),
-      catchError(err => of(err instanceof HttpErrorResponse ? err.status : 0)));
-  }
-
-  private enqueue(entry: PendingResult): void {
-    const queue = this.pending.read();
-    if (!queue.some(queued => queued.runId === entry.runId)) {
-      this.pending.write([...queue, entry].slice(-MAX_PENDING));
-    }
-  }
-
-  private dequeue(runId: string): void {
-    this.pending.write(this.pending.read().filter(entry => entry.runId !== runId));
+      return throwError(() => err);
+    }));
   }
 }

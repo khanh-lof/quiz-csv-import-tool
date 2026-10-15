@@ -1,19 +1,22 @@
-import { TestBed } from '@angular/core/testing';
-import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
-import { PlayerIdentity, StudentBoard, SubmitOutcome } from '../models/assignment';
+import { fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { HttpClient, HttpErrorResponse, provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { PlayerIdentity, SharedQuestion, SharedRunStart, SharedVerdict, StudentBoard } from '../models/assignment';
 import { SharedPlayService } from './shared-play.service';
 
 const IDENTITY_KEY = 'gesture-shared-players';
-const PENDING_KEY = 'gesture-shared-pending';
+const OLD_PENDING_KEY = 'gesture-shared-pending';
 const CODE = 'K7M2X9QD4P';
-const RESULTS_URL = `/api/share/${CODE}/results`;
+const RUNS_URL = `/api/share/${CODE}/runs`;
 
 const LAN: PlayerIdentity = {playerId: 'p1', token: 'tok-lan', name: 'Lan', avatar: 'cat'};
 
-function storedPending(): { code: string; token: string; runId: string; stage: number; correct: number; total: number }[] {
-  return JSON.parse(localStorage.getItem(PENDING_KEY) ?? '[]');
-}
+const QUESTION: SharedQuestion = {
+  index: 0, question: '你好', options: ['Xin chào', 'Tạm biệt'], chunks: null, timeLeftMs: 12000, graceMs: 5000,
+};
+const VERDICT: SharedVerdict = {
+  correct: true, timedOut: false, correctIndex: 0, answer: 'Xin chào', explanation: '你好 là xin chào.', result: null,
+};
 
 describe('SharedPlayService', () => {
   let service: SharedPlayService;
@@ -21,7 +24,7 @@ describe('SharedPlayService', () => {
 
   beforeEach(() => {
     localStorage.removeItem(IDENTITY_KEY);
-    localStorage.removeItem(PENDING_KEY);
+    localStorage.removeItem(OLD_PENDING_KEY);
     TestBed.configureTestingModule({providers: [provideHttpClient(), provideHttpClientTesting()]});
     service = TestBed.inject(SharedPlayService);
     http = TestBed.inject(HttpTestingController);
@@ -30,32 +33,12 @@ describe('SharedPlayService', () => {
   afterEach(() => {
     http.verify();
     localStorage.removeItem(IDENTITY_KEY);
-    localStorage.removeItem(PENDING_KEY);
+    localStorage.removeItem(OLD_PENDING_KEY);
   });
 
   // Gives this device an identity for CODE without going through a join.
   function joined(identity: PlayerIdentity = LAN): void {
     localStorage.setItem(IDENTITY_KEY, JSON.stringify({[CODE]: identity}));
-  }
-
-  function submitStage(stage = 1, correct = 4, total = 5): SubmitOutcome[] {
-    const outcomes: SubmitOutcome[] = [];
-    service.submit(CODE, {stage, correct, total}).subscribe(outcome => outcomes.push(outcome));
-    return outcomes;
-  }
-
-  function answerResult(status: number): TestRequest {
-    const req = http.expectOne(RESULTS_URL);
-    if (status >= 200 && status < 300) {
-      req.flush(null, {status, statusText: 'OK'});
-    } else {
-      req.flush('no', {status, statusText: 'Error'});
-    }
-    return req;
-  }
-
-  function failResult(): void {
-    http.expectOne(RESULTS_URL).error(new ProgressEvent('error'), {status: 0});
   }
 
   describe('load', () => {
@@ -65,7 +48,7 @@ describe('SharedPlayService', () => {
 
       const req = http.expectOne(`/api/share/${CODE}`);
       expect(req.request.method).toBe('GET');
-      req.flush({title: 'HSK1 bài 1', label: '6A', csv: '', timeMode: 'standard', stageLock: 'sequential', passPercents: {'1': 70}, maxAttempts: null, showBoard: true, attempts: {}, closesAt: null});
+      req.flush({title: 'HSK1 bài 1', label: '6A', timeMode: 'standard', stageLock: 'sequential', passPercents: {'1': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5}, attempts: {}, results: {}, closesAt: null});
       expect(title).toBe('HSK1 bài 1');
     });
 
@@ -77,15 +60,20 @@ describe('SharedPlayService', () => {
       req.flush({});
     });
 
-    it('sends the stored token, so the answer holds the attempts of this student', () => {
+    it('sends the stored token, so the answer holds the attempts and the results of this student', () => {
       joined();
       let attempts: Record<string, number> = {};
-      service.load(CODE.toLowerCase()).subscribe(quiz => attempts = quiz.attempts);
+      let results: Record<string, unknown> = {};
+      service.load(CODE.toLowerCase()).subscribe(quiz => {
+        attempts = quiz.attempts;
+        results = quiz.results;
+      });
 
       const req = http.expectOne(`/api/share/${CODE.toLowerCase()}`);
       expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
-      req.flush({title: 'HSK1 bài 1', maxAttempts: 3, attempts: {'1': 2, '4': 1}});
+      req.flush({title: 'HSK1 bài 1', maxAttempts: 3, attempts: {'1': 2, '4': 1}, results: {'1': {correct: 4, total: 5, passed: true}}});
       expect(attempts).toEqual({'1': 2, '4': 1});
+      expect(results).toEqual({'1': {correct: 4, total: 5, passed: true}});
     });
 
     it('sends no header again once the device forgot the student', () => {
@@ -405,301 +393,336 @@ describe('SharedPlayService', () => {
     });
   });
 
-  describe('submit', () => {
-    it('is rejected without a request when this device has not joined', () => {
-      expect(submitStage()).toEqual(['rejected']);
-      http.expectNone(RESULTS_URL);
+  describe('the old queue of results', () => {
+    it('is cleared from the device when the service starts, and nothing else is touched', () => {
+      localStorage.setItem(OLD_PENDING_KEY, JSON.stringify([{code: CODE, token: 't', runId: 'r', stage: 1, correct: 1, total: 5}]));
+      joined();
+
+      new SharedPlayService(TestBed.inject(HttpClient));
+
+      expect(localStorage.getItem(OLD_PENDING_KEY)).toBeNull();
+      expect(localStorage.getItem(IDENTITY_KEY)).not.toBeNull();
     });
 
-    it('posts the run with the token in a header and a fresh runId, and says saved', () => {
-      joined();
-      const outcomes = submitStage(2, 4, 5);
+    it('does not break a service started with the storage blocked', () => {
+      const removeItem = spyOn(Storage.prototype, 'removeItem').and.throwError('blocked');
 
-      const req = http.expectOne(RESULTS_URL);
-      expect(req.request.method).toBe('POST');
-      expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
-      expect(req.request.body.stage).toBe(2);
-      expect(req.request.body.correct).toBe(4);
-      expect(req.request.body.total).toBe(5);
-      expect(req.request.body.runId).toMatch(/^[A-Za-z0-9-]{8,64}$/);
-      expect(Object.keys(req.request.body).sort()).toEqual(['correct', 'runId', 'stage', 'total']);
-      req.flush(null, {status: 204, statusText: 'No Content'});
-
-      expect(outcomes).toEqual(['saved']);
-      expect(service.pendingCount(CODE)).toBe(0);
-    });
-
-    it('gives every run its own runId', () => {
-      joined();
-      submitStage(1);
-      const first = http.expectOne(RESULTS_URL);
-      first.flush(null, {status: 204, statusText: 'No Content'});
-      submitStage(1);
-      const second = http.expectOne(RESULTS_URL);
-      second.flush(null, {status: 204, statusText: 'No Content'});
-
-      expect(first.request.body.runId).not.toBe(second.request.body.runId);
-    });
-
-    it('makes a valid runId where randomUUID does not exist (plain http)', () => {
-      joined();
-      Object.defineProperty(crypto, 'randomUUID', {value: undefined, configurable: true});
-      try {
-        submitStage();
-      } finally {
-        delete (crypto as { randomUUID?: unknown }).randomUUID;
-      }
-
-      const req = http.expectOne(RESULTS_URL);
-      expect(req.request.body.runId).toMatch(/^[A-Za-z0-9-]{8,64}$/);
-      req.flush(null, {status: 204, statusText: 'No Content'});
-    });
-
-    it('queues the run on the device when the server cannot be reached', () => {
-      joined();
-      const outcomes = submitStage(3, 7, 10);
-      failResult();
-
-      expect(outcomes).toEqual(['queued']);
-      expect(service.pendingCount(CODE)).toBe(1);
-      const [entry] = storedPending();
-      expect(entry).toEqual(jasmine.objectContaining({code: CODE, token: 'tok-lan', stage: 3, correct: 7, total: 10}));
-      expect(entry.runId).toMatch(/^[A-Za-z0-9-]{8,64}$/);
-    });
-
-    it('queues the run on a server error', () => {
-      joined();
-      for (const status of [500, 502, 503, 504]) {
-        const outcomes = submitStage();
-        answerResult(status);
-        expect(outcomes).toEqual(['queued']);
-      }
-      expect(service.pendingCount(CODE)).toBe(4);
-    });
-
-    it('does not retry a failed send by itself', () => {
-      joined();
-      submitStage();
-      failResult();
-
-      http.expectNone(RESULTS_URL);
-      expect(service.pendingCount(CODE)).toBe(1);
-    });
-
-    it('says closed on a 410 and does not queue the run', () => {
-      joined();
-      const outcomes = submitStage();
-      answerResult(410);
-
-      expect(outcomes).toEqual(['closed']);
-      expect(service.pendingCount(CODE)).toBe(0);
-      expect(service.identity(CODE)).toEqual(LAN);
-    });
-
-    it('says limit on a 409, without queueing the run or forgetting the student', () => {
-      joined();
-      const outcomes = submitStage();
-      http.expectOne(RESULTS_URL).flush('Replay limit reached', {status: 409, statusText: 'Conflict'});
-
-      expect(outcomes).toEqual(['limit']);
-      expect(service.pendingCount(CODE)).toBe(0);
-      expect(service.identity(CODE)).toEqual(LAN);
-    });
-
-    it('forgets the identity on a 403 and says rejected', () => {
-      joined();
-      const outcomes = submitStage();
-      answerResult(403);
-
-      expect(outcomes).toEqual(['rejected']);
-      expect(service.identity(CODE)).toBeNull();
-      expect(service.pendingCount(CODE)).toBe(0);
-    });
-
-    it('says rejected on other client errors, without queueing or forgetting', () => {
-      joined();
-      for (const status of [400, 404, 422]) {
-        const outcomes = submitStage();
-        answerResult(status);
-        expect(outcomes).toEqual(['rejected']);
-      }
-      expect(service.pendingCount(CODE)).toBe(0);
-      expect(service.identity(CODE)).toEqual(LAN);
-    });
-
-    it('starts sending what was queued once a run is saved', () => {
-      joined();
-      localStorage.setItem(PENDING_KEY, JSON.stringify([
-        {code: CODE, token: 'tok-lan', runId: 'old-run-0001', stage: 1, correct: 5, total: 5},
-      ]));
-
-      const outcomes = submitStage(2);
-      const fresh = http.expectOne(RESULTS_URL);
-      fresh.flush(null, {status: 204, statusText: 'No Content'});
-      expect(outcomes).toEqual(['saved']);
-
-      const old = http.expectOne(RESULTS_URL);
-      expect(old.request.body.runId).toBe('old-run-0001');
-      old.flush(null, {status: 204, statusText: 'No Content'});
-      expect(service.pendingCount(CODE)).toBe(0);
-    });
-
-    it('does not flush after a run that was only queued', () => {
-      joined();
-      submitStage();
-      failResult();
-
-      http.expectNone(RESULTS_URL);
-      expect(service.pendingCount(CODE)).toBe(1);
+      expect(() => new SharedPlayService(TestBed.inject(HttpClient))).not.toThrow();
+      // The specs' own cleanup removes items too.
+      removeItem.and.callThrough();
     });
   });
 
-  describe('flush', () => {
-    function queue(...entries: Partial<ReturnType<typeof storedPending>[number]>[]): void {
-      localStorage.setItem(PENDING_KEY, JSON.stringify(entries.map((entry, i) => ({
-        code: CODE, token: 'tok-lan', runId: `run-0000${i}`, stage: i + 1, correct: 4, total: 5, ...entry,
-      }))));
+  // The server runs a stage itself: the browser starts a run, is dealt one question at a time and sends each
+  // answer, and the server judges it.
+  describe('startRun', () => {
+    const START: SharedRunStart = {runId: 'run-1', stage: 2, total: 5, attempts: 1, question: QUESTION};
+
+    function start(stage = 2): { starts: SharedRunStart[]; errors: HttpErrorResponse[] } {
+      const result = {starts: [] as SharedRunStart[], errors: [] as HttpErrorResponse[]};
+      service.startRun(CODE, stage).subscribe({
+        next: run => result.starts.push(run),
+        error: (e: HttpErrorResponse) => result.errors.push(e),
+      });
+      return result;
     }
 
-    it('sends the queue in order, each run with its own token and runId, and empties it', () => {
-      queue({token: 'tok-a'}, {token: 'tok-b'}, {token: 'tok-c'});
-      let done = false;
-      service.flush(CODE).subscribe(() => done = true);
+    it('posts the stage with the token in a header and emits the run with its first question', () => {
+      joined();
+      const result = start(2);
 
-      for (const [i, token] of ['tok-a', 'tok-b', 'tok-c'].entries()) {
-        const req = http.expectOne(RESULTS_URL);
-        expect(req.request.headers.get('X-Player-Token')).toBe(token);
-        expect(req.request.body).toEqual({runId: `run-0000${i}`, stage: i + 1, correct: 4, total: 5});
-        req.flush(null, {status: 204, statusText: 'No Content'});
+      const req = http.expectOne(RUNS_URL);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
+      expect(req.request.body).toEqual({stage: 2});
+      req.flush(START, {status: 201, statusText: 'Created'});
+
+      expect(result.starts).toEqual([START]);
+    });
+
+    it('finds the identity whatever the case of the code', () => {
+      joined();
+
+      service.startRun(CODE.toLowerCase(), 1).subscribe();
+
+      const req = http.expectOne(`/api/share/${CODE.toLowerCase()}/runs`);
+      expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
+      req.flush(START);
+    });
+
+    it('fails with a 403 and sends nothing when this device has not joined', () => {
+      const result = start();
+
+      http.expectNone(RUNS_URL);
+      expect(result.starts).toEqual([]);
+      expect(result.errors.length).toBe(1);
+      expect(result.errors[0] instanceof HttpErrorResponse).toBeTrue();
+      expect(result.errors[0].status).toBe(403);
+    });
+
+    it('forgets the identity on a 403 (the teacher removed the student) and rethrows it', () => {
+      joined();
+      const result = start();
+
+      http.expectOne(RUNS_URL).flush('Unknown player', {status: 403, statusText: 'Forbidden'});
+
+      expect(result.errors.map(e => [e.status, e.error])).toEqual([[403, 'Unknown player']]);
+      expect(service.identity(CODE)).toBeNull();
+    });
+
+    it('does not forget another student the device switched to while the request was out', () => {
+      joined();
+      start();
+      const nam: PlayerIdentity = {playerId: 'p2', token: 'tok-nam', name: 'Nam', avatar: 'owl'};
+      joined(nam);
+
+      http.expectOne(RUNS_URL).flush('Unknown player', {status: 403, statusText: 'Forbidden'});
+
+      expect(service.identity(CODE)).toEqual(nam);
+    });
+
+    it('rethrows every other failure unchanged and keeps the identity', () => {
+      joined();
+      for (const [status, body] of [[410, 'Assignment closed'], [404, 'Assignment not found'], [400, 'Invalid stage.'],
+        [409, 'Stage locked'], [409, 'Replay limit reached']] as const) {
+        const result = start();
+        http.expectOne(RUNS_URL).flush(body, {status, statusText: 'x'});
+        expect(result.errors.map(e => [e.status, e.error])).toEqual([[status, body]]);
       }
-
-      expect(done).toBeTrue();
-      expect(service.pendingCount(CODE)).toBe(0);
-      expect(storedPending()).toEqual([]);
+      expect(service.identity(CODE)).toEqual(LAN);
     });
 
-    it('does nothing, and still completes, when nothing is queued', () => {
-      let done = false;
-      service.flush(CODE).subscribe(() => done = true);
+    it('does not retry a failure by itself, since another start would be another run', fakeAsync(() => {
+      joined();
 
-      expect(done).toBeTrue();
-    });
+      const lost = start();
+      http.expectOne(RUNS_URL).error(new ProgressEvent('error'), {status: 0});
+      tick(10000);
+      http.expectNone(RUNS_URL);
+      expect(lost.errors.map(e => e.status)).toEqual([0]);
 
-    it('stops at the first run the server cannot take and keeps it and the rest', () => {
-      queue({}, {}, {});
-      let done = false;
-      service.flush(CODE).subscribe(() => done = true);
-
-      http.expectOne(RESULTS_URL).flush(null, {status: 204, statusText: 'No Content'});
-      http.expectOne(RESULTS_URL).flush('down', {status: 503, statusText: 'Unavailable'});
-
-      http.expectNone(RESULTS_URL);
-      expect(done).toBeTrue();
-      expect(storedPending().map(entry => entry.runId)).toEqual(['run-00001', 'run-00002']);
-    });
-
-    it('stops on a lost connection too', () => {
-      queue({}, {});
-      service.flush(CODE).subscribe();
-
-      failResult();
-
-      http.expectNone(RESULTS_URL);
-      expect(service.pendingCount(CODE)).toBe(2);
-    });
-
-    it('drops a run the server refuses for good and goes on with the next', () => {
-      queue({}, {}, {});
-      service.flush(CODE).subscribe();
-
-      http.expectOne(RESULTS_URL).flush('closed', {status: 410, statusText: 'Gone'});
-      http.expectOne(RESULTS_URL).flush('bad', {status: 400, statusText: 'Bad Request'});
-      http.expectOne(RESULTS_URL).flush('who', {status: 403, statusText: 'Forbidden'});
-
-      expect(service.pendingCount(CODE)).toBe(0);
-    });
-
-    it('sends only the runs of that code', () => {
-      queue({}, {code: 'OTHER00000', token: 'tok-other'}, {});
-      service.flush(CODE.toLowerCase()).subscribe();
-
-      http.expectOne(RESULTS_URL).flush(null, {status: 204, statusText: 'No Content'});
-      http.expectOne(RESULTS_URL).flush(null, {status: 204, statusText: 'No Content'});
-
-      http.expectNone('/api/share/OTHER00000/results');
-      expect(service.pendingCount(CODE)).toBe(0);
-      expect(service.pendingCount('OTHER00000')).toBe(1);
-    });
-
-    it('ignores queued entries that are not valid runs', () => {
-      localStorage.setItem(PENDING_KEY, JSON.stringify([
-        {code: CODE, token: 'tok-lan', runId: 'run-00000', stage: 1, correct: 6, total: 5},
-        {code: CODE, token: 'tok-lan', stage: 1, correct: 1, total: 5},
-        'junk',
-        {code: CODE, token: 'tok-lan', runId: 'run-00003', stage: 2, correct: 4, total: 5},
-      ]));
-
-      expect(service.pendingCount(CODE)).toBe(1);
-      service.flush(CODE).subscribe();
-      const req = http.expectOne(RESULTS_URL);
-      expect(req.request.body.runId).toBe('run-00003');
-      req.flush(null, {status: 204, statusText: 'No Content'});
-    });
+      const failed = start();
+      http.expectOne(RUNS_URL).flush('boom', {status: 500, statusText: 'Server Error'});
+      tick(10000);
+      http.expectNone(RUNS_URL);
+      expect(failed.errors.map(e => e.status)).toEqual([500]);
+    }));
   });
 
-  describe('pendingByStage', () => {
-    it('counts the queued runs of this student for each stage', () => {
+  describe('nextQuestion', () => {
+    const NEXT_URL = `${RUNS_URL}/run-1/next`;
+
+    function next(): { questions: SharedQuestion[]; errors: HttpErrorResponse[] } {
+      const result = {questions: [] as SharedQuestion[], errors: [] as HttpErrorResponse[]};
+      service.nextQuestion(CODE, 'run-1').subscribe({
+        next: question => result.questions.push(question),
+        error: (e: HttpErrorResponse) => result.errors.push(e),
+      });
+      return result;
+    }
+
+    it('posts with the token and no body, and emits the question of the answer', () => {
       joined();
-      expect(service.pendingByStage(CODE)).toEqual({});
+      const result = next();
 
-      submitStage(1);
-      failResult();
-      submitStage(1);
-      failResult();
-      submitStage(4);
-      failResult();
+      const req = http.expectOne(NEXT_URL);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
+      expect(req.request.body).toBeNull();
+      req.flush({question: {...QUESTION, index: 1}});
 
-      expect(service.pendingByStage(CODE)).toEqual({'1': 2, '4': 1});
-      expect(service.pendingByStage('OTHER00000')).toEqual({});
+      expect(result.questions).toEqual([{...QUESTION, index: 1}]);
     });
 
-    it('leaves out the runs of another student who used this device, and is empty without an identity', () => {
+    it('escapes the run id in the URL', () => {
       joined();
-      submitStage(2);
-      failResult();
 
-      joined({playerId: 'p2', token: 'tok-nam', name: 'Nam', avatar: ''});
-      expect(service.pendingByStage(CODE)).toEqual({});
+      service.nextQuestion(CODE, 'a/b c').subscribe();
 
-      service.forget(CODE);
-      expect(service.pendingByStage(CODE)).toEqual({});
+      const req = http.expectOne(`${RUNS_URL}/a%2Fb%20c/next`);
+      expect(req.request.url).toBe(`${RUNS_URL}/a%2Fb%20c/next`);
+      req.flush({question: QUESTION});
     });
+
+    it('fails with a 403 and sends nothing when this device has not joined', () => {
+      const result = next();
+
+      http.expectNone(NEXT_URL);
+      expect(result.errors.map(e => e.status)).toEqual([403]);
+    });
+
+    it('forgets the identity on a 403 and rethrows it, without retrying', fakeAsync(() => {
+      joined();
+      const result = next();
+
+      http.expectOne(NEXT_URL).flush('Unknown player', {status: 403, statusText: 'Forbidden'});
+      tick(10000);
+
+      http.expectNone(NEXT_URL);
+      expect(result.errors.map(e => [e.status, e.error])).toEqual([[403, 'Unknown player']]);
+      expect(service.identity(CODE)).toBeNull();
+    }));
+
+    it('rethrows a final failure at once, without retrying', fakeAsync(() => {
+      joined();
+      for (const [status, body] of [[410, 'Assignment closed'], [404, 'Run not found'], [409, 'Run is over']] as const) {
+        const result = next();
+        http.expectOne(NEXT_URL).flush(body, {status, statusText: 'x'});
+        tick(10000);
+        http.expectNone(NEXT_URL);
+        expect(result.errors.map(e => [e.status, e.error])).toEqual([[status, body]]);
+      }
+    }));
+
+    it('retries a lost connection after 1 s and then after 2 s, and emits what finally comes', fakeAsync(() => {
+      joined();
+      const result = next();
+
+      http.expectOne(NEXT_URL).error(new ProgressEvent('error'), {status: 0});
+      tick(999);
+      http.expectNone(NEXT_URL);
+      tick(1);
+      http.expectOne(NEXT_URL).flush('boom', {status: 503, statusText: 'Service Unavailable'});
+      tick(1999);
+      http.expectNone(NEXT_URL);
+      tick(1);
+      http.expectOne(NEXT_URL).flush({question: QUESTION});
+
+      expect(result.questions).toEqual([QUESTION]);
+      expect(result.errors).toEqual([]);
+    }));
+
+    it('gives up after two retries and rethrows the last failure', fakeAsync(() => {
+      joined();
+      const result = next();
+
+      http.expectOne(NEXT_URL).error(new ProgressEvent('error'), {status: 0});
+      tick(1000);
+      http.expectOne(NEXT_URL).error(new ProgressEvent('error'), {status: 0});
+      tick(2000);
+      http.expectOne(NEXT_URL).flush('boom', {status: 500, statusText: 'Server Error'});
+      tick(10000);
+
+      http.expectNone(NEXT_URL);
+      expect(result.errors.map(e => e.status)).toEqual([500]);
+      expect(service.identity(CODE)).toEqual(LAN);
+    }));
   });
 
-  describe('pendingCount', () => {
-    it('counts the runs queued for a code', () => {
-      expect(service.pendingCount(CODE)).toBe(0);
+  describe('answer', () => {
+    const ANSWERS_URL = `${RUNS_URL}/run-1/answers`;
 
+    function answer(index = 0, choice: number | string[] | null = 1): { verdicts: SharedVerdict[]; errors: HttpErrorResponse[] } {
+      const result = {verdicts: [] as SharedVerdict[], errors: [] as HttpErrorResponse[]};
+      service.answer(CODE, 'run-1', index, choice).subscribe({
+        next: verdict => result.verdicts.push(verdict),
+        error: (e: HttpErrorResponse) => result.errors.push(e),
+      });
+      return result;
+    }
+
+    it('posts the question\'s number and the choice with the token, and emits the verdict', () => {
       joined();
-      submitStage(1);
-      failResult();
-      submitStage(2);
-      failResult();
+      const result = answer(3, 1);
 
-      expect(service.pendingCount(CODE)).toBe(2);
-      expect(service.pendingCount('OTHER00000')).toBe(0);
+      const req = http.expectOne(ANSWERS_URL);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
+      expect(req.request.body).toEqual({index: 3, choice: 1});
+      req.flush(VERDICT);
+
+      expect(result.verdicts).toEqual([VERDICT]);
     });
 
-    it('keeps the queue in memory when the storage is blocked', () => {
+    it("sends null when the player's time ran out", () => {
       joined();
-      expect(service.identity(CODE)).toEqual(LAN); // read once while the storage still works
-      spyOn(Storage.prototype, 'getItem').and.throwError('blocked');
-      spyOn(Storage.prototype, 'setItem').and.throwError('blocked');
 
-      submitStage();
-      failResult();
+      answer(1, null);
 
-      expect(service.pendingCount(CODE)).toBe(1);
+      const req = http.expectOne(ANSWERS_URL);
+      expect(req.request.body).toEqual({index: 1, choice: null});
+      req.flush({...VERDICT, correct: false, timedOut: true});
     });
+
+    it('sends the pieces of a sentence in the order they were picked', () => {
+      joined();
+
+      answer(0, ['我', '是', '兰']);
+
+      const req = http.expectOne(ANSWERS_URL);
+      expect(req.request.body).toEqual({index: 0, choice: ['我', '是', '兰']});
+      req.flush(VERDICT);
+    });
+
+    it('fails with a 403 and sends nothing when this device has not joined', () => {
+      const result = answer();
+
+      http.expectNone(ANSWERS_URL);
+      expect(result.errors.map(e => e.status)).toEqual([403]);
+    });
+
+    it('forgets the identity on a 403 and rethrows it', () => {
+      joined();
+      const result = answer();
+
+      http.expectOne(ANSWERS_URL).flush('Unknown player', {status: 403, statusText: 'Forbidden'});
+
+      expect(result.errors.map(e => [e.status, e.error])).toEqual([[403, 'Unknown player']]);
+      expect(service.identity(CODE)).toBeNull();
+    });
+
+    it('rethrows a final failure at once, without retrying', fakeAsync(() => {
+      joined();
+      for (const [status, body] of [[410, 'Assignment closed'], [404, 'Run not found'], [400, 'Invalid answer.']] as const) {
+        const result = answer();
+        http.expectOne(ANSWERS_URL).flush(body, {status, statusText: 'x'});
+        tick(10000);
+        http.expectNone(ANSWERS_URL);
+        expect(result.errors.map(e => [e.status, e.error])).toEqual([[status, body]]);
+      }
+    }));
+
+    it('retries a transient failure with the same body after 1 s and then after 2 s', fakeAsync(() => {
+      joined();
+      const result = answer(2, 0);
+
+      http.expectOne(ANSWERS_URL).flush('boom', {status: 502, statusText: 'Bad Gateway'});
+      tick(1000);
+      const second = http.expectOne(ANSWERS_URL);
+      expect(second.request.body).toEqual({index: 2, choice: 0});
+      second.error(new ProgressEvent('error'), {status: 0});
+      tick(2000);
+      http.expectOne(ANSWERS_URL).flush(VERDICT);
+
+      expect(result.verdicts).toEqual([VERDICT]);
+      expect(result.errors).toEqual([]);
+    }));
+
+    it('gives up after two retries, rethrows the last failure and keeps the identity', fakeAsync(() => {
+      joined();
+      const result = answer();
+
+      http.expectOne(ANSWERS_URL).error(new ProgressEvent('error'), {status: 0});
+      tick(1000);
+      http.expectOne(ANSWERS_URL).error(new ProgressEvent('error'), {status: 0});
+      tick(2000);
+      http.expectOne(ANSWERS_URL).error(new ProgressEvent('error'), {status: 0});
+      tick(10000);
+
+      http.expectNone(ANSWERS_URL);
+      expect(result.errors.map(e => e.status)).toEqual([0]);
+      expect(service.identity(CODE)).toEqual(LAN);
+    }));
+
+    it('does not retry once the subscriber is gone', fakeAsync(() => {
+      joined();
+      const subscription = service.answer(CODE, 'run-1', 0, 1).subscribe({error: () => undefined});
+
+      http.expectOne(ANSWERS_URL).error(new ProgressEvent('error'), {status: 0});
+      subscription.unsubscribe();
+      tick(10000);
+
+      expect(http.match(ANSWERS_URL)).toEqual([]);
+    }));
   });
 });

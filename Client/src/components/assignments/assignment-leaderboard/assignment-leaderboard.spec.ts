@@ -42,7 +42,7 @@ const LAN_SECOND = {...LAN, rank: 2, stagesPassed: 1, correct: 7, stages: MINH.s
 function detail(overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
   return {
     id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: 'Lớp 6A', timeMode: 'standard', stageLock: 'sequential',
-    passPercents: {'1': 70, '2': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5, '2': 5}, createdAt: iso(-60 * MINUTE), closesAt: null, closedAt: null, open: true,
+    passPercents: {'1': 70, '2': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5, '2': 5}, timeLimits: {'1': 12, '2': 12}, createdAt: iso(-60 * MINUTE), closesAt: null, closedAt: null, open: true,
     playerCount: 3, csv: '', players: [LAN, MINH, HOA], ...overrides,
   };
 }

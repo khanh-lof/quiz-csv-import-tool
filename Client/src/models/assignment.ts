@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TimeMode } from '../components/gesture-play/gesture-settings.service';
 import { DEFAULT_PASS_PERCENT, STAGES, stagePosition } from '../game/stages';
 import { Utils } from '../utils';
-import { GestureQuiz } from './gesture-quiz';
+import { GestureQuestion, GestureQuiz } from './gesture-quiz';
 
 export { DEFAULT_PASS_PERCENT, MAX_PASS_PERCENT, MIN_PASS_PERCENT } from '../game/stages';
 
@@ -32,6 +32,10 @@ export interface Assignment {
   // Whether the students see the board, the top five and their own place. Fixed for the assignment's life.
   showBoard: boolean;
   stageCounts: Record<string, number>;
+  // The seconds each question of a stage ("1" to "6", one key per stage of `stageCounts`) lasts, with the time
+  // mode already applied, or null when the time mode is unlimited. They are the server's, from its configuration,
+  // and may differ from the `seconds` of `STAGES`: the page uses them instead of those for an assignment.
+  timeLimits: Record<string, number | null>;
   createdAt: string;
   closesAt: string | null;
   closedAt: string | null;
@@ -72,11 +76,18 @@ export interface AssignmentDetail extends Assignment {
   players: LeaderboardEntry[];
 }
 
-// GET /api/share/{code}: what a student's page needs to play.
+// A student's best run of one stage, as the server holds it (GET share/{code}'s `results`).
+export interface SharedStageResult {
+  correct: number;
+  total: number;
+  passed: boolean;
+}
+
+// GET /api/share/{code}: what a student's page needs to play. It carries no questions: the server keeps the
+// quiz and deals one question at a time (see `SharedQuestion`), so `stageCounts` is all the page knows of it.
 export interface SharedQuiz {
   title: string;
   label: string;
-  csv: string;
   timeMode: TimeMode;
   stageLock: StageLock;
   passPercents: Record<string, number>;
@@ -84,10 +95,54 @@ export interface SharedQuiz {
   maxAttempts: number | null;
   // Whether the students see the board, the top five and their own place (GET share/{code}/leaderboard).
   showBoard: boolean;
-  // How many runs of each stage ("1" to "6") the student who sent the X-Player-Token header has had accepted;
-  // empty without a valid token.
+  // How many questions each stage ("1" to "6") has, only the stages the quiz has.
+  stageCounts: Record<string, number>;
+  // The seconds each question of a stage lasts, time mode applied, null for no limit: the server's, from its
+  // configuration, which the page uses instead of the `seconds` of `STAGES` for an assignment.
+  timeLimits: Record<string, number | null>;
+  // The runs of each stage ("1" to "6") the student who sent the X-Player-Token header has started (a run
+  // counts the moment it starts); empty without a valid token.
   attempts: Record<string, number>;
+  // That student's best result of each stage that has one; empty without a valid token.
+  results: Record<string, SharedStageResult>;
   closesAt: string | null;
+}
+
+// One question the server dealt (POST share/{code}/runs and .../next). `index` is its place in the run
+// (0 to total - 1), `options` the answers as shown (empty for the sentence stage, whose `chunks` are the
+// shuffled pieces; `chunks` is null for the others). The answer is not in it. `timeLeftMs` is how long the
+// player has from the moment the server dealt it (null: no time limit) and `graceMs` the extra time the
+// server allows for the network on top of that.
+export interface SharedQuestion {
+  index: number;
+  question: string;
+  options: string[];
+  chunks?: string[] | null;
+  timeLeftMs: number | null;
+  graceMs: number;
+}
+
+// POST share/{code}/runs: the run that was started, how many questions it has, the runs of this stage the
+// student has used now (this one included) and its first question.
+export interface SharedRunStart {
+  runId: string;
+  stage: number;
+  total: number;
+  attempts: number;
+  question: SharedQuestion;
+}
+
+// POST share/{code}/runs/{runId}/answers: what the server made of an answer. `correctIndex` is set for the
+// option stages and `correctOrder` for the sentence stage; `answer` is the right answer's text and
+// `explanation` the teacher's sentence about it. `result` is only on the run's last question.
+export interface SharedVerdict {
+  correct: boolean;
+  timedOut: boolean;
+  correctIndex?: number | null;
+  correctOrder?: string[] | null;
+  answer: string;
+  explanation: string;
+  result: SharedStageResult | null;
 }
 
 // The body of POST /api/assignments.
@@ -103,7 +158,6 @@ export interface NewAssignment {
   maxAttempts?: number | null;
   // Whether the students see the board; the dialog always sends it (the server reads a missing one as true).
   showBoard: boolean;
-  stageCounts: Record<string, number>;
 }
 
 // The body of PATCH /api/assignments/{id}: a key left out stays unchanged, `closesAt: null` removes
@@ -146,18 +200,6 @@ export interface StudentBoard {
   playerCount: number;
 }
 
-// One finished run of a stage, as the browser reports it.
-export interface StageSubmission {
-  stage: number;
-  correct: number;
-  total: number;
-}
-
-// What became of a reported run: stored on the server, kept on the device to be resent, refused because
-// the assignment is over, refused because the student had used all the runs of that stage (`limit`), or
-// refused as invalid (or as coming from an unknown student).
-export type SubmitOutcome = 'saved' | 'queued' | 'closed' | 'limit' | 'rejected';
-
 export const TIME_MODE_LABELS: Record<TimeMode, string> = {
   standard: 'Bình thường',
   extra: 'Thêm thời gian (×1.5)',
@@ -187,15 +229,20 @@ export function shareUrl(code: string, origin: string = location.origin): string
   return `${origin}/play/s/${code}`;
 }
 
-// The stages that have questions, by number ("1" to "6"), as the server wants them on create.
-export function stageCountsOf(quiz: GestureQuiz): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const [stage, questions] of quiz.stages) {
-    if (questions.length > 0) {
-      counts[String(stage)] = questions.length;
+// The quiz a student's page holds before it has played anything: each stage the assignment has (`stageCounts`,
+// "1" to "6") with that many blank placeholder questions. Their text is never shown or played, the server deals
+// the real questions one at a time; they only give the map, the intro and the locks the shape of the quiz. A key
+// that is not a stage, or a count that is not a positive whole number, is left out.
+export function placeholderQuiz(title: string, key: string, stageCounts: Record<string, number>): GestureQuiz {
+  const stages = new Map<number, GestureQuestion[]>();
+  for (const { stage } of STAGES) {
+    const count = stageCounts[String(stage)];
+    if (Number.isInteger(count) && count > 0) {
+      stages.set(stage, Array.from({ length: count }, (): GestureQuestion =>
+        ({ stage, question: '', correct: '', wrong: [], explanation: '' })));
     }
   }
-  return counts;
+  return { title, key, stages, skipped: 0 };
 }
 
 // Same rule as the server's Assignment.OpenAt: not closed by hand and not past its closing time. The
@@ -256,10 +303,9 @@ const TEACHER_ERRORS: Record<string, string> = {
   'Job not found': 'Không tìm thấy quiz này, có thể nó đã bị xóa khỏi bảng lịch sử.',
   'Player not found': 'Học sinh này đã được xóa rồi.',
   'Too many assignments.': 'Bạn đã có 100 bài giao. Hãy xóa bớt bài cũ ở trang Bài đã giao.',
-  'Job is not a finished gesture quiz.': 'Chỉ giao được Game đã tạo xong.',
+  'Job is not a finished gesture quiz.': 'Chỉ giao được Game đã tạo xong và có câu hỏi hợp lệ.',
   'Invalid closing time.': 'Giờ đóng phải ở tương lai (tối đa 180 ngày).',
   'Label is too long.': 'Tên lớp/nhóm dài tối đa 60 ký tự.',
-  'Invalid stage counts.': 'Quiz này không có câu hỏi hợp lệ để giao.',
   'Invalid pass percents.': 'Điểm qua màn phải là số nguyên từ 10% đến 100%.',
   'Invalid replay limit.': 'Số lần chơi mỗi màn phải từ 1 đến 10, và chỉ đặt được khi mở tất cả các màn.',
   'Invalid board setting.': 'Cài đặt bảng xếp hạng cho học sinh không hợp lệ.',
