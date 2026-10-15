@@ -1,0 +1,8 @@
+@if (scrolling()) {
+  <span class="track">
+    <span class="copy">{{ text() }}</span>
+    <span class="copy" aria-hidden="true">{{ text() }}</span>
+  </span>
+} @else {
+  <span class="plain">{{ text() }}</span>
+}

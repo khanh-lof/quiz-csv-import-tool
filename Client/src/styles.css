@@ -50,6 +50,15 @@
   --play-charge-glow: rgba(250, 204, 21, 0.7);
   --play-ink: #1f2937;
   --play-ink-muted: #4b5563;
+
+  /* The leaderboard's medals for ranks 1 to 3 (the podium, rank badges and avatar rings): the metal's colour
+     and a soft fill of it for plinths and highlighted rows. */
+  --qt-gold: #f5b301;
+  --qt-gold-soft: #fff4cc;
+  --qt-silver: #a8b2c1;
+  --qt-silver-soft: #eef1f5;
+  --qt-bronze: #cd7f4a;
+  --qt-bronze-soft: #fbe7da;
 }
 
 body {

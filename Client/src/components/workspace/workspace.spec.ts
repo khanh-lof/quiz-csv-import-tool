@@ -11,7 +11,7 @@ describe('breadcrumbFor', () => {
     expect(breadcrumbFor('/assignments')).toEqual([{label: 'Game'}, {label: 'Bài đã giao'}]);
   });
 
-  it('links an assignment ranking back to the list', () => {
+  it('links an assignment leaderboard back to the list', () => {
     expect(breadcrumbFor('/assignments/abc123')).toEqual([
       {label: 'Game'},
       {label: 'Bài đã giao', link: '/assignments'},

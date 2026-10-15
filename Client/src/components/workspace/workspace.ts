@@ -74,7 +74,7 @@ export const NAV: NavEntry[] = [
 ];
 
 // The breadcrumb of a URL inside the frame: the menu group (plain text, it is no page), the page, and for an
-// assignment's ranking one more level below its list.
+// assignment's leaderboard one more level below its list.
 export function breadcrumbFor(url: string): Crumb[] {
   const path = url.split(/[?#]/)[0];
   for (const entry of NAV) {

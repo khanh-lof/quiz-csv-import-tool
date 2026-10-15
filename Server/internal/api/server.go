@@ -75,6 +75,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/share/{code}", s.getShared)
 	mux.HandleFunc("POST /api/share/{code}/players", s.joinShared)
 	mux.HandleFunc("POST /api/share/{code}/results", s.reportResult)
+	mux.HandleFunc("PATCH /api/share/{code}/player", s.updateSharedPlayer)
+	mux.HandleFunc("GET /api/share/{code}/leaderboard", s.sharedLeaderboard)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeText(w, http.StatusOK, "ok")
 	})

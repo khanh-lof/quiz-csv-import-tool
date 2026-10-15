@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
-import { PlayerIdentity, SubmitOutcome } from '../models/assignment';
+import { PlayerIdentity, StudentBoard, SubmitOutcome } from '../models/assignment';
 import { SharedPlayService } from './shared-play.service';
 
 const IDENTITY_KEY = 'gesture-shared-players';
@@ -9,7 +9,7 @@ const PENDING_KEY = 'gesture-shared-pending';
 const CODE = 'K7M2X9QD4P';
 const RESULTS_URL = `/api/share/${CODE}/results`;
 
-const LAN: PlayerIdentity = {playerId: 'p1', token: 'tok-lan', name: 'Lan'};
+const LAN: PlayerIdentity = {playerId: 'p1', token: 'tok-lan', name: 'Lan', avatar: 'cat'};
 
 function storedPending(): { code: string; token: string; runId: string; stage: number; correct: number; total: number }[] {
   return JSON.parse(localStorage.getItem(PENDING_KEY) ?? '[]');
@@ -117,13 +117,13 @@ describe('SharedPlayService', () => {
   });
 
   describe('join and identity', () => {
-    it('posts the name, returns the identity and remembers it on the device', () => {
+    it('posts the name and the avatar, returns the identity and remembers it on the device', () => {
       let identity: PlayerIdentity | undefined;
-      service.join(CODE, 'Lan').subscribe(i => identity = i);
+      service.join(CODE, 'Lan', 'cat').subscribe(i => identity = i);
 
       const req = http.expectOne(`/api/share/${CODE}/players`);
       expect(req.request.method).toBe('POST');
-      expect(req.request.body).toEqual({name: 'Lan'});
+      expect(req.request.body).toEqual({name: 'Lan', avatar: 'cat'});
       req.flush(LAN, {status: 201, statusText: 'Created'});
 
       expect(identity).toEqual(LAN);
@@ -131,16 +131,38 @@ describe('SharedPlayService', () => {
       expect(JSON.parse(localStorage.getItem(IDENTITY_KEY)!)).toEqual({[CODE]: LAN});
     });
 
+    it('sends an empty avatar when none is given, and stores what the server answers', () => {
+      let identity: PlayerIdentity | undefined;
+      service.join(CODE, 'Lan').subscribe(i => identity = i);
+
+      const req = http.expectOne(`/api/share/${CODE}/players`);
+      expect(req.request.body).toEqual({name: 'Lan', avatar: ''});
+      req.flush({...LAN, avatar: ''}, {status: 201, statusText: 'Created'});
+
+      expect(identity?.avatar).toBe('');
+      expect(service.identity(CODE)?.avatar).toBe('');
+    });
+
+    it('reads an answer without an avatar (an older server) as no avatar', () => {
+      let identity: PlayerIdentity | undefined;
+      service.join(CODE, 'Lan', 'cat').subscribe(i => identity = i);
+
+      http.expectOne(`/api/share/${CODE}/players`).flush({playerId: 'p1', token: 'tok-lan', name: 'Lan'});
+
+      expect(identity).toEqual({...LAN, avatar: ''});
+      expect(service.identity(CODE)).toEqual({...LAN, avatar: ''});
+    });
+
     it('rethrows the failures with their status and body', () => {
       const errors: HttpErrorResponse[] = [];
       for (const [status, body] of [[409, 'Name taken'], [409, 'Assignment is full'], [410, 'Assignment closed'],
-        [404, 'Assignment not found'], [400, 'Invalid name.']] as const) {
+        [404, 'Assignment not found'], [400, 'Invalid name.'], [400, 'Invalid avatar.']] as const) {
         service.join(CODE, 'Lan').subscribe({error: (e: HttpErrorResponse) => errors.push(e)});
         http.expectOne(`/api/share/${CODE}/players`).flush(body, {status, statusText: 'x'});
       }
       expect(errors.map(e => [e.status, e.error])).toEqual([
         [409, 'Name taken'], [409, 'Assignment is full'], [410, 'Assignment closed'],
-        [404, 'Assignment not found'], [400, 'Invalid name.'],
+        [404, 'Assignment not found'], [400, 'Invalid name.'], [400, 'Invalid avatar.'],
       ]);
       expect(service.identity(CODE)).toBeNull();
     });
@@ -164,6 +186,16 @@ describe('SharedPlayService', () => {
       expect(service.identity(CODE)).toBeNull();
       expect(service.identity('OTHER00000')?.name).toBe('Minh');
       expect(Object.keys(JSON.parse(localStorage.getItem(IDENTITY_KEY)!))).toEqual(['OTHER00000']);
+    });
+
+    it('reads an identity stored before avatars existed as one with no avatar', () => {
+      localStorage.setItem(IDENTITY_KEY, JSON.stringify({
+        [CODE]: {playerId: 'p1', token: 'tok-lan', name: 'Lan'},
+        OTHER00000: {playerId: 'p2', token: 'tok-minh', name: 'Minh', avatar: 42},
+      }));
+
+      expect(service.identity(CODE)).toEqual({playerId: 'p1', token: 'tok-lan', name: 'Lan', avatar: ''});
+      expect(service.identity('OTHER00000')?.avatar).toBe('');
     });
 
     it('drops stored entries that are not identities', () => {
@@ -195,6 +227,181 @@ describe('SharedPlayService', () => {
       expect(service.identity(CODE)).toEqual(LAN);
       service.forget(CODE);
       expect(service.identity(CODE)).toBeNull();
+    });
+  });
+
+  describe('setAvatar', () => {
+    const PLAYER_URL = `/api/share/${CODE}/player`;
+
+    function change(avatar = 'dragon'): { identities: PlayerIdentity[]; errors: HttpErrorResponse[] } {
+      const result = {identities: [] as PlayerIdentity[], errors: [] as HttpErrorResponse[]};
+      service.setAvatar(CODE, avatar).subscribe({
+        next: identity => result.identities.push(identity),
+        error: (e: HttpErrorResponse) => result.errors.push(e),
+      });
+      return result;
+    }
+
+    it('patches the avatar with the token in a header', () => {
+      joined();
+      change('dragon');
+
+      const req = http.expectOne(PLAYER_URL);
+      expect(req.request.method).toBe('PATCH');
+      expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
+      expect(req.request.body).toEqual({avatar: 'dragon'});
+      req.flush({playerId: 'p1', name: 'Lan', avatar: 'dragon'});
+    });
+
+    it('emits the identity with the new avatar and stores it on the device', () => {
+      joined();
+      const result = change('dragon');
+
+      http.expectOne(PLAYER_URL).flush({playerId: 'p1', name: 'Lan', avatar: 'dragon'});
+
+      const updated: PlayerIdentity = {...LAN, avatar: 'dragon'};
+      expect(result.identities).toEqual([updated]);
+      expect(result.errors).toEqual([]);
+      expect(service.identity(CODE)).toEqual(updated);
+      expect(JSON.parse(localStorage.getItem(IDENTITY_KEY)!)).toEqual({[CODE]: updated});
+    });
+
+    it('finds the identity whatever the case of the code, and leaves the other codes alone', () => {
+      localStorage.setItem(IDENTITY_KEY, JSON.stringify({[CODE]: LAN, OTHER00000: {playerId: 'p2', token: 't2', name: 'Minh', avatar: 'owl'}}));
+
+      service.setAvatar(CODE.toLowerCase(), 'fox').subscribe();
+      http.expectOne(`/api/share/${CODE.toLowerCase()}/player`).flush({playerId: 'p1', name: 'Lan', avatar: 'fox'});
+
+      expect(service.identity(CODE)?.avatar).toBe('fox');
+      expect(service.identity('OTHER00000')?.avatar).toBe('owl');
+    });
+
+    it('fails with a 403 and sends nothing when this device has not joined', () => {
+      const result = change();
+
+      http.expectNone(PLAYER_URL);
+      expect(result.identities).toEqual([]);
+      expect(result.errors.length).toBe(1);
+      expect(result.errors[0] instanceof HttpErrorResponse).toBeTrue();
+      expect(result.errors[0].status).toBe(403);
+    });
+
+    it('forgets the identity on a 403 (the teacher removed the student) and rethrows it', () => {
+      joined();
+      const result = change();
+
+      http.expectOne(PLAYER_URL).flush('Unknown player', {status: 403, statusText: 'Forbidden'});
+
+      expect(result.identities).toEqual([]);
+      expect(result.errors.map(e => [e.status, e.error])).toEqual([[403, 'Unknown player']]);
+      expect(service.identity(CODE)).toBeNull();
+    });
+
+    it('rethrows every other failure unchanged and keeps the identity', () => {
+      joined();
+      for (const [status, body] of [[400, 'Invalid avatar.'], [404, 'Assignment not found'], [410, 'Assignment closed'],
+        [500, 'boom']] as const) {
+        const result = change();
+        http.expectOne(PLAYER_URL).flush(body, {status, statusText: 'x'});
+        expect(result.errors.map(e => [e.status, e.error])).toEqual([[status, body]]);
+      }
+      expect(service.identity(CODE)).toEqual(LAN);
+    });
+
+    it('rethrows a lost connection and keeps the identity', () => {
+      joined();
+      const result = change();
+
+      http.expectOne(PLAYER_URL).error(new ProgressEvent('error'), {status: 0});
+
+      expect(result.errors.map(e => e.status)).toEqual([0]);
+      expect(service.identity(CODE)).toEqual(LAN);
+    });
+
+    it('does not touch another student the device switched to while the request was out', () => {
+      joined();
+      const result = change('dragon');
+      const nam: PlayerIdentity = {playerId: 'p2', token: 'tok-nam', name: 'Nam', avatar: 'owl'};
+      joined(nam);
+
+      http.expectOne(PLAYER_URL).flush({playerId: 'p1', name: 'Lan', avatar: 'dragon'});
+
+      expect(result.identities).toEqual([{...LAN, avatar: 'dragon'}]);
+      expect(service.identity(CODE)).toEqual(nam);
+    });
+
+    it('keeps the new avatar for the session when the storage is blocked', () => {
+      joined();
+      expect(service.identity(CODE)).toEqual(LAN); // read once while the storage still works
+      spyOn(Storage.prototype, 'getItem').and.throwError('blocked');
+      spyOn(Storage.prototype, 'setItem').and.throwError('blocked');
+
+      change('dragon');
+      http.expectOne(PLAYER_URL).flush({playerId: 'p1', name: 'Lan', avatar: 'dragon'});
+
+      expect(service.identity(CODE)?.avatar).toBe('dragon');
+    });
+  });
+
+  describe('leaderboard', () => {
+    const BOARD: StudentBoard = {
+      top: [{rank: 1, name: 'Lan', avatar: 'cat', stagesPassed: 2, correct: 9, you: true}],
+      you: {rank: 1, name: 'Lan', avatar: 'cat', stagesPassed: 2, correct: 9},
+      possible: 10, stageCount: 2, playerCount: 3,
+    };
+
+    it('gets the board of the code and returns it', () => {
+      let board: StudentBoard | undefined;
+      service.leaderboard(CODE).subscribe(b => board = b);
+
+      const req = http.expectOne(`/api/share/${CODE}/leaderboard`);
+      expect(req.request.method).toBe('GET');
+      req.flush(BOARD);
+      expect(board).toEqual(BOARD);
+    });
+
+    it('sends no player header from a device that has not joined', () => {
+      service.leaderboard(CODE).subscribe();
+
+      const req = http.expectOne(`/api/share/${CODE}/leaderboard`);
+      expect(req.request.headers.has('X-Player-Token')).toBeFalse();
+      req.flush({...BOARD, you: null});
+    });
+
+    it('sends the stored token so the answer holds the student\'s own row', () => {
+      joined();
+      service.leaderboard(CODE.toLowerCase()).subscribe();
+
+      const req = http.expectOne(`/api/share/${CODE.toLowerCase()}/leaderboard`);
+      expect(req.request.headers.get('X-Player-Token')).toBe('tok-lan');
+      req.flush(BOARD);
+    });
+
+    it('sends no header again once the device forgot the student', () => {
+      joined();
+      service.forget(CODE);
+      service.leaderboard(CODE).subscribe();
+
+      const req = http.expectOne(`/api/share/${CODE}/leaderboard`);
+      expect(req.request.headers.has('X-Player-Token')).toBeFalse();
+      req.flush(BOARD);
+    });
+
+    it('escapes the code in the URL', () => {
+      service.leaderboard('a/b c').subscribe();
+
+      const req = http.expectOne('/api/share/a%2Fb%20c/leaderboard');
+      expect(req.request.url).toBe('/api/share/a%2Fb%20c/leaderboard');
+      req.flush(BOARD);
+    });
+
+    it('leaves a 404 for the caller to read', () => {
+      const statuses: number[] = [];
+      service.leaderboard(CODE).subscribe({error: (e: HttpErrorResponse) => statuses.push(e.status)});
+
+      http.expectOne(`/api/share/${CODE}/leaderboard`).flush('Assignment not found', {status: 404, statusText: 'Not Found'});
+
+      expect(statuses).toEqual([404]);
     });
   });
 
@@ -461,7 +668,7 @@ describe('SharedPlayService', () => {
       submitStage(2);
       failResult();
 
-      joined({playerId: 'p2', token: 'tok-nam', name: 'Nam'});
+      joined({playerId: 'p2', token: 'tok-nam', name: 'Nam', avatar: ''});
       expect(service.pendingByStage(CODE)).toEqual({});
 
       service.forget(CODE);

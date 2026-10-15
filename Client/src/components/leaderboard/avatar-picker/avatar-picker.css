@@ -1,0 +1,65 @@
+/* The host is the container the avatars are sized against (cqw), so six of them fit however narrow the
+   dialog or phone is: about 11% of the width each, from 22px up to the 40px of a roomy dialog. */
+:host {
+  display: block;
+  container-type: inline-size;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 52px));
+  justify-content: center;
+  gap: 4px;
+}
+
+.cell {
+  --avatar-size: clamp(22px, 11cqw, 40px);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  transition: transform var(--qt-transition);
+}
+
+.cell:hover {
+  transform: scale(1.08);
+}
+
+.cell:focus-visible {
+  outline: 2px solid var(--qt-focus);
+  outline-offset: 2px;
+}
+
+.cell.is-selected {
+  border-color: var(--qt-pink);
+}
+
+/* The ring alone is a colour; the tick says "picked" to everyone. */
+.check {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  background: var(--qt-pink);
+  border-radius: 50%;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}

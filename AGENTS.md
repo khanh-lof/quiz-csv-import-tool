@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 QuizTool turns photos of a Chinese (HSK) lesson into a quiz file that can be imported into GimKit,
 Blooket, or Wayground, or into a quiz that QuizTool plays itself as a webcam gesture game
 ("Game"). A teacher can also hand a Game to students as a link ("Giao bài"): they play it
-with no account and the teacher watches their ranking. It is one git repo holding two independently built
+with no account and the teacher watches their leaderboard. It is one git repo holding two independently built
 and independently deployed projects, plus an optional browser extension:
 
 - `Client/` — Angular 22 SPA (standalone components, ng-zorro-antd).
@@ -70,6 +70,8 @@ no configurable backend URL:
 | `AssignmentService.remove` / `.removePlayer` | `DELETE assignments/{id}`, `DELETE assignments/{id}/players/{playerId}` (`assignment_handlers.go`) |
 | `SharedPlayService.load` / `.join` | `GET share/{code}`, `POST share/{code}/players` (`internal/api/share_handlers.go`, anonymous) |
 | `SharedPlayService.submit` / `.flush` | `POST share/{code}/results` (`share_handlers.go`, anonymous, `X-Player-Token` header) |
+| `SharedPlayService.setAvatar` | `PATCH share/{code}/player` (`share_handlers.go`, anonymous, `X-Player-Token` header) |
+| `SharedPlayService.leaderboard` | `GET share/{code}/leaderboard` (`share_handlers.go`, anonymous, optional `X-Player-Token` header) |
 
 Three things make the wiring non-obvious:
 
@@ -84,7 +86,7 @@ Three things make the wiring non-obvious:
   half of [Giao bài](#giao-bài-assignments)), via the `authenticate` + `requireRole` middleware wrapped
   around that route (`Server/internal/api/middleware.go`).
   The refresh token lives only in the cookie and is never in a JSON body.
-- **The student routes are anonymous and never answer 401.** `share/{code}` and its two sub-routes are
+- **The student routes are anonymous and never answer 401.** `share/{code}` and its four sub-routes are
   registered bare, with no `authenticate`: the link's code and the student's own token are their only
   credentials. A 401 would be wrong for a student, because `AuthInterceptor` answers every 401 by calling
   `auth/refresh` and retrying, and a student has no session to refresh. So a refusal there is always a 400,
@@ -260,7 +262,7 @@ stages a quiz has are read from its CSV.
 **The stage number stays the game's identity** everywhere it is stored or sent (the CSV's Stage column, the
 progress, an assignment's `stageCounts`, results), so a quiz of Chém hoa quả and Xếp câu has rows with Stage 4
 and 6. Only what a person reads is renumbered by position (`stagePosition` in `game/stages.ts`): that quiz
-shows "Màn 1" and "Màn 2" on the map, in the game, on its result and in an assignment's ranking.
+shows "Màn 1" and "Màn 2" on the map, in the game, on its result and on an assignment's leaderboard.
 
 **Entry points.** On a finished GestureQuiz job the AI jobs table shows "Chơi ngay", which navigates to
 `/play/<job id>` (login required; the page takes the job from `AiJobService`), and "Tải file", which
@@ -285,12 +287,13 @@ prompt's in [Server/AGENTS.md](Server/AGENTS.md).
 ## Giao bài (assignments)
 
 A teacher (any logged-in user) gives a finished Game job to students: the AI jobs table's "Giao bài"
-makes an *assignment*, a link `<origin>/play/s/<code>` that anyone can open. A student types a name, plays the
-six-stage game above, and the browser reports each finished stage run; the teacher sees a ranking on
-`/assignments/<id>`, can close and reopen the assignment, set a closing time, preview it, remove a student and
-download the ranking as CSV. A teacher may assign the same quiz several times (one per class), each with its
-own link, label and ranking. The server half is `Server/internal/api/{assignment,share}_handlers.go` and
-`ranking.go` over `store.Assignments`, the client's `AssignmentService` and `SharedPlayService`; the rules
+makes an *assignment*, a link `<origin>/play/s/<code>` that anyone can open. A student types a name, picks an
+avatar, plays the six-stage game above, and the browser reports each finished stage run; the teacher sees the
+leaderboard ("Bảng xếp hạng") on `/assignments/<id>`, can close and reopen the assignment, set a closing time,
+preview it, remove a student and download the leaderboard as CSV, and the students see its top five and their
+own place on their stage map. A teacher may assign the same quiz several times (one per class), each with its
+own link, label and leaderboard. The server half is `Server/internal/api/{assignment,share}_handlers.go`,
+`leaderboard.go` and `avatars.go` over `store.Assignments`, the client's `AssignmentService` and `SharedPlayService`; the rules
 below are decided by the server, and the client repeats a few of them (the pass mark, whether an assignment is
 open, the result grace) only to show the right screen without a round trip.
 
@@ -307,13 +310,22 @@ open, the result grace) only to show the right screen without a round trip.
   existing code redraws, up to 3 attempts. It is stored upper-case and matched case-insensitively (a student's
   typing is trimmed and upper-cased). It is the only credential for opening the quiz: whoever has it can read
   the quiz, answers included, from `GET share/{code}`, since the browser plays it. There is no IP restriction.
-- **A student is a name and a token, no account.** `POST share/{code}/players` creates the player and answers
-  `{playerId, token, name}`. The token is 32 random bytes, base64url; only its SHA-256 (base64url, the same
+- **A student is a name, an avatar and a token, no account.** `POST share/{code}/players` takes `{name,
+  avatar}`, creates the player and answers `{playerId, token, name, avatar}`. The token is 32 random bytes, base64url; only its SHA-256 (base64url, the same
   scheme as the refresh tokens) is stored, so reading the database does not let anyone play as somebody else.
   The browser keeps the identity per code in `localStorage` and sends the token as the `X-Player-Token`
   header on every result, which is what makes a reload resume as the same student. "Không phải bạn?" forgets
-  it on that device and the old player stays in the ranking until the teacher removes it; a 403 on a result
+  it on that device and the old player stays on the leaderboard until the teacher removes it; a 403 on a result
   (the teacher removed the player) also makes the client forget it.
+- **Avatars** are picked from a fixed set of 24 animals, never uploaded: only the id travels and is stored
+  (`Player.Avatar`). The ids are `avatarIDs` in `Server/internal/api/avatars.go` and `AVATARS` in
+  `Client/src/models/avatar.ts` (which also has each one's emoji, Vietnamese name and disc colour), the same
+  ids in the same order, kept in step by hand and pinned by a test on each side. On join the avatar is optional
+  (empty for none, as from a page older than avatars), and a non-empty unknown id is 400 `Invalid avatar.`,
+  checked right after the name. A student changes it later with `PATCH share/{code}/player` (`{avatar}` and the
+  token header; checks in order: 404, 410 `Assignment closed`, 403 `Unknown player` for a missing or unknown
+  token, the body, 400 `Invalid avatar.` for an empty or unknown id), which answers `{playerId, name, avatar}`.
+  The client draws an empty or unknown id as the name's first letter on a neutral disc.
 - **Names** are trimmed, with inner whitespace collapsed to one space, 1–40 characters, no control
   characters, and must be unique within the assignment as `strings.ToLower(name)` (`nameKey`: accents are
   kept, so "Nam" and "Năm" are different students, "Lan" and "lan" are not): 409 `Name taken`. The
@@ -334,18 +346,27 @@ open, the result grace) only to show the right screen without a round trip.
   accepted run, and `bestAt` is when the best score was reached (or the pass made), which is what breaks
   ties. A replay can only raise a score, and a student can replay until the assignment closes, or until the
   stage's replay limit is used up (see `maxAttempts` below).
-- **The ranking** (`rankPlayers`, `api/ranking.go`, computed on every `GET assignments/{id}`) orders players who
+- **The leaderboard** (`buildLeaderboard`, `api/leaderboard.go`, computed on every `GET assignments/{id}` and
+  `GET share/{code}/leaderboard`) orders players who
   have results by stages passed, then total correct (the sum of the best of each stage), then who reached that
   score first (`reachedAt`, the latest `bestAt` over the player's stages), then who joined first. Players equal
   on all three share a rank, like a race (1, 1, 3). Players who joined but have no result come last, in the
   order they joined, with `rank: null`. Only the assignment's stages count, and `possible` is the sum of the
-  stage counts. The client shows the order as it arrives and never sorts.
+  stage counts. The client shows the order as it arrives and never sorts. The teacher gets every player with
+  the per-stage detail (`players` of `assignmentDetailView`, each a `leaderboardEntry` with its `avatar`).
+- **The students' board** is `GET share/{code}/leaderboard` (`newStudentBoard`), anonymous like every share route,
+  with an optional `X-Player-Token`: `{top, you, possible, stageCount, playerCount}`. `top` is the ranked
+  players with rank 1 to 5 in leaderboard order, at most 10 rows (a tie for fifth can add some), each
+  `{rank, name, avatar, stagesPassed, correct, you}`; `you` is the caller's own place (`rank` null before a
+  result), or null for a missing or unknown token, which is never a 401 or 403. It carries no player ids: the
+  whole class reads it. Unlike opening the link it answers while the assignment is closed, so the closed card
+  can show the final board; it is `no-store`, since every result changes it.
 - **Open, closed, closing time.** An assignment is closed by hand (`closedAt`) or scheduled (`closesAt`, in
   the future and at most 180 days ahead): it is *open* while `closedAt` is unset and `closesAt` is unset or
   still ahead. The server computes `open` for each response, and the client recomputes it from the two times
   (`isOpenAt`), since a page left open goes stale. Opening the link (`GET share/{code}`) and joining are
   refused with 410 `Assignment closed` the moment it is not open, but **results get a 5 minute grace**
-  (`store.ResultGrace`, counted from the earlier of the two times; the ranking page repeats it as
+  (`store.ResultGrace`, counted from the earlier of the two times; the leaderboard page repeats it as
   `RESULT_GRACE_MS` to know how long to keep polling) so a student in the middle of a stage at the deadline
   does not lose it; after that a result is a 410 too. `PATCH assignments/{id}` takes any of
   `label`, `closesAt` (null removes it) and `closed` (`true` closes now, keeping the first moment if it was
@@ -357,10 +378,11 @@ open, the result grace) only to show the right screen without a round trip.
   at most 60 characters. Assignments are not AI calls: they use none of the rate-limit quota.
 - **Results are reported by the student's browser**, so the server can only check that they are plausible (the
   rules above); a student who tampers with their own browser can post full marks, and stage locks are enforced
-  by the client alone. That is accepted for a classroom: do not treat the ranking as proof.
+  by the client alone. That is accepted for a classroom: do not treat the leaderboard as proof.
 - **The contract is hand-kept, like the others.** `Client/src/models/assignment.ts` mirrors the JSON of
-  `assignmentView`, `assignmentDetailView` (the assignment plus `csv` and the ranked players), `rankedPlayer`
-  and the three share answers; the plain-text error bodies are matched by the client as strings
+  `assignmentView`, `assignmentDetailView` (the assignment plus `csv` and the players in leaderboard order),
+  `leaderboardEntry` (`LeaderboardEntry`), the students' board (`StudentBoard`) and the share answers; the
+  plain-text error bodies are matched by the client as strings
   (`TEACHER_ERRORS` in the model, `GesturePlay`'s join messages for `Name taken` and `Assignment is full`);
   the time mode (`standard`, `extra`, `unlimited`) travels by name and is the same `TimeMode` the game's
   settings use. The teacher picks one time mode per assignment, which replaces the student's own setting.
@@ -376,7 +398,7 @@ open, the result grace) only to show the right screen without a round trip.
   is not a plain integer 10–100, checked after `stageCounts`), fixed for the assignment's life, and returned as a
   complete map for exactly the stages of `stageCounts` by `assignmentView` and `GET share/{code}`. The server
   uses it to decide `passed` when a result arrives; the client uses it for the stage verdict, the unlock, the
-  rules line and the ranking page. Assignments stored without it read as all 70.
+  rules line and the leaderboard page. Assignments stored without it read as all 70.
   With the `open` lock the teacher can also set a **replay limit** `maxAttempts` (1–10 finished runs per stage;
   null, the default, is unlimited). It is sent on `POST assignments` (400 `Invalid replay limit.` when it is not a
   plain integer 1–10 or the stage lock is not `open`), fixed for the assignment's life, and returned by

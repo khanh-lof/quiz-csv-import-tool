@@ -273,6 +273,20 @@ func (m *MongoAssignments) RecordResult(ctx context.Context, assignmentID, playe
 	return fmt.Errorf("recording a result of player %q: %w", playerID, ErrConflict)
 }
 
+// SetPlayerAvatar is a plain $set of the one field. RecordResult $sets only the results and the run ids,
+// never the avatar, so the two writes cannot undo each other and the version needs no bump.
+func (m *MongoAssignments) SetPlayerAvatar(ctx context.Context, assignmentID, playerID, avatar string) error {
+	res, err := m.players.UpdateOne(ctx, bson.M{"_id": playerID, "assignmentId": assignmentID},
+		bson.M{"$set": bson.M{"avatar": avatar}})
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (m *MongoAssignments) DeletePlayer(ctx context.Context, assignmentID, playerID string) error {
 	res, err := m.players.DeleteOne(ctx, bson.M{"_id": playerID, "assignmentId": assignmentID})
 	if err != nil {

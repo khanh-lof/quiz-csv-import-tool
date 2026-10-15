@@ -1,0 +1,43 @@
+@if (board(); as current) {
+  <section class="board" aria-labelledby="student-board-title">
+    <header class="head">
+      <h2 id="student-board-title" class="title"><span aria-hidden="true">🏆</span> Bảng xếp hạng</h2>
+      <app-marquee-pause-button [compact]="true"/>
+    </header>
+
+    @if (current.top.length === 0) {
+      <p class="note">Chưa ai có kết quả.</p>
+    } @else {
+      <ol class="rows">
+        @for (row of rows(); track $index) {
+          @if (row.gapBefore) {
+            <li class="gap" aria-hidden="true">⋯</li>
+          }
+          <li class="row" [class.is-you]="row.you">
+            @if (isMedal(row.entry.rank)) {
+              <span class="rank" role="img" [attr.aria-label]="'Hạng ' + row.entry.rank">{{ badge(row.entry.rank) }}</span>
+            } @else {
+              <span class="rank">{{ badge(row.entry.rank) }}</span>
+            }
+            <app-player-avatar [avatar]="row.entry.avatar" [name]="row.entry.name" size="md"/>
+            <span class="info">
+              <span class="who">
+                <app-marquee-text [text]="row.entry.name"/>
+                @if (row.you) {
+                  <span class="you-tag">Bạn</span>
+                }
+              </span>
+              <span class="score">
+                {{ row.entry.stagesPassed }}/{{ current.stageCount }} màn · {{ row.entry.correct }}/{{ current.possible }} câu
+              </span>
+            </span>
+          </li>
+        }
+      </ol>
+    }
+
+    @if (unranked()) {
+      <p class="note">Bạn chưa có kết quả, chơi màn đầu tiên nhé!</p>
+    }
+  </section>
+}

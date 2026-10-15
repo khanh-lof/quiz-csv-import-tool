@@ -1,0 +1,422 @@
+/* Inside the workspace's column, which already limits the width to 1200px. */
+:host {
+  display: block;
+  flex: none;
+}
+
+nz-card {
+  display: block;
+}
+
+.head-card {
+  margin-bottom: 16px;
+}
+
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--qt-text);
+  word-break: break-word;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 8px 0 16px;
+  color: var(--qt-text-muted);
+}
+
+/* The buttons wrap onto more lines on a narrow screen instead of squeezing. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.board-extra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 12px;
+}
+
+.empty {
+  padding: 8px 0;
+}
+
+.empty-text {
+  margin: 0 0 16px;
+  color: var(--qt-text-muted);
+}
+
+/* The board: a podium, then the ranked list as one grid. Each row is a subgrid of the list, so the columns
+   line up from row to row whatever the names and scores are. The rows and the podium style no library
+   component, so they own their colours, like the stage map's cards. */
+.podium {
+  margin-bottom: 16px;
+}
+
+/* The rows fit themselves to the board's own width, not the window's: the side menu, open or folded, and
+   the projector's full screen change it as much as the device does. */
+.board {
+  container-type: inline-size;
+}
+
+.entries {
+  display: grid;
+  grid-template-columns: 44px auto minmax(120px, 1fr) auto auto auto auto auto;
+  column-gap: 12px;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  list-style: none;
+}
+
+.entry {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.entry:hover {
+  background: var(--qt-gradient-soft);
+}
+
+/* A left accent in the medal's metal for the first three places (the number is the rank, so ties share it). */
+.entry[data-rank='1'] {
+  box-shadow: inset 4px 0 0 var(--qt-gold);
+}
+
+.entry[data-rank='2'] {
+  box-shadow: inset 4px 0 0 var(--qt-silver);
+}
+
+.entry[data-rank='3'] {
+  box-shadow: inset 4px 0 0 var(--qt-bronze);
+}
+
+.rank {
+  justify-self: center;
+  font-size: 1.4em;
+  line-height: 1;
+}
+
+.rank.is-number {
+  display: grid;
+  place-items: center;
+  width: 1.9em;
+  height: 1.9em;
+  font-size: 0.85em;
+  font-weight: 700;
+  color: var(--qt-text-muted);
+  background: #f3f4f6;
+  border-radius: 50%;
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.move {
+  flex: none;
+  font-size: 0.85em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.move.up {
+  color: var(--play-ok-dark);
+}
+
+.move.down {
+  color: var(--play-bad-dark);
+}
+
+.pips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.pip {
+  padding: 1px 8px;
+  font-size: 0.9em;
+  white-space: nowrap;
+  color: var(--qt-text-muted);
+  background: #f3f4f6;
+  border-radius: 10px;
+}
+
+.pip.played {
+  color: var(--play-ink);
+  background: color-mix(in srgb, var(--play-charge) 28%, #fff);
+}
+
+.pip.passed {
+  color: var(--play-ok-dark);
+  background: color-mix(in srgb, var(--play-ok) 20%, #fff);
+}
+
+.score {
+  display: grid;
+  gap: 3px;
+  min-width: 4.5em;
+  text-align: right;
+}
+
+.score-text {
+  font-weight: 700;
+}
+
+.bar {
+  height: 4px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 2px;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--play-ok);
+}
+
+.attempts,
+.played-at,
+.joined {
+  color: var(--qt-text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Students without a result are not last place, just not started: the same rows in muted text, as a list of
+   their own under a divider with a line. */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 4px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--qt-text-muted);
+}
+
+.divider::after {
+  flex: 1;
+  height: 1px;
+  content: '';
+  background: #e5e7eb;
+}
+
+.waiting {
+  display: block;
+}
+
+.waiting .entry {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  column-gap: 12px;
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.big-emoji {
+  font-size: 48px;
+}
+
+.message-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.message-text {
+  margin: 0 0 8px;
+  color: var(--qt-text-muted);
+}
+
+.message-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.qr-modal {
+  text-align: center;
+}
+
+.qr-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.qr-label {
+  margin: 4px 0 0;
+  font-size: 18px;
+  color: var(--qt-text-muted);
+}
+
+.qr-modal app-share-link {
+  margin-top: 16px;
+  text-align: left;
+}
+
+.deadline-help {
+  margin: 0 0 12px;
+}
+
+/* The projector view: the card fills the screen on white, with larger type so a class can read it from
+   the back of the room. Its own scrollbar takes over when the leaderboard is longer than the screen. */
+.board.is-fullscreen {
+  overflow: auto;
+  border: none;
+  border-radius: 0;
+  background: #fff;
+  backdrop-filter: none;
+}
+
+.big-title {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.big-tag {
+  font-size: 18px;
+  line-height: 32px;
+}
+
+.board.is-fullscreen .entries {
+  grid-template-columns: 64px auto minmax(80px, 1fr) auto auto;
+  column-gap: 20px;
+  font-size: 24px;
+}
+
+.board.is-fullscreen .entry {
+  padding: 12px 16px;
+}
+
+.board.is-fullscreen .attempts,
+.board.is-fullscreen .played-at {
+  display: none;
+}
+
+.board.is-fullscreen .divider {
+  font-size: 18px;
+}
+
+.board.is-fullscreen .empty-text {
+  font-size: 24px;
+}
+
+@media (max-width: 767px) {
+  .title {
+    font-size: 19px;
+  }
+
+  .qr-title {
+    font-size: 22px;
+  }
+}
+
+/* A narrower board leaves the name its room by dropping the attempts and the time (the CSV still has them). */
+@container (max-width: 900px) {
+  .entries {
+    grid-template-columns: 44px auto minmax(120px, 1fr) auto auto auto;
+  }
+
+  .attempts,
+  .played-at {
+    display: none;
+  }
+}
+
+@container (max-width: 600px) {
+  /* Two lines a row: rank, avatar and name (with the way to remove) above, the stages and the score below.
+     The grid's areas are named only here; on a wide board the cells follow one another. */
+  .entries {
+    display: block;
+  }
+
+  .entry {
+    grid-template-areas:
+      'rank avatar who remove'
+      'pips pips pips score';
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    gap: 6px 8px;
+  }
+
+  .rank {
+    grid-area: rank;
+  }
+
+  app-player-avatar {
+    grid-area: avatar;
+  }
+
+  .who {
+    grid-area: who;
+  }
+
+  .remove {
+    grid-area: remove;
+  }
+
+  .pips {
+    grid-area: pips;
+  }
+
+  .score {
+    grid-area: score;
+  }
+
+  .attempts,
+  .played-at {
+    display: none;
+  }
+
+  .waiting .entry {
+    grid-template-areas: 'avatar who joined remove';
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+  }
+
+  .joined {
+    grid-area: joined;
+  }
+}

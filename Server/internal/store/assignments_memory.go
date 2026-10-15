@@ -207,6 +207,18 @@ func (m *MemoryAssignments) RecordResult(_ context.Context, assignmentID, player
 	return nil
 }
 
+func (m *MemoryAssignments) SetPlayerAvatar(_ context.Context, assignmentID, playerID, avatar string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	p, ok := m.players[playerID]
+	if !ok || p.AssignmentID != assignmentID {
+		return ErrNotFound
+	}
+	p.Avatar = avatar
+	m.players[playerID] = p
+	return nil
+}
+
 func (m *MemoryAssignments) DeletePlayer(_ context.Context, assignmentID, playerID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

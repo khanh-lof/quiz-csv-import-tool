@@ -45,7 +45,7 @@ export const routes: Routes = [
       {path: 'ai', component: AiGeneration, canActivate: [authGuard]},
       // The history of the AI generations is its own page (and tab), apart from the form that starts them.
       {path: 'ai-history', component: AiJobs, canActivate: [authGuard]},
-      // The teacher's assignments and their rankings: lazy, like the game, since only a teacher opens them.
+      // The teacher's assignments and their leaderboards: lazy, like the game, since only a teacher opens them.
       {
         path: 'assignments',
         loadComponent: () => import('../components/assignments/assignment-list/assignment-list')
@@ -54,8 +54,8 @@ export const routes: Routes = [
       },
       {
         path: 'assignments/:id',
-        loadComponent: () => import('../components/assignments/assignment-ranking/assignment-ranking')
-          .then(m => m.AssignmentRanking),
+        loadComponent: () => import('../components/assignments/assignment-leaderboard/assignment-leaderboard')
+          .then(m => m.AssignmentLeaderboard),
         canActivate: [authGuard]
       }
     ]

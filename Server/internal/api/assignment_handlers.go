@@ -82,12 +82,12 @@ func utcPtr(t *time.Time) *time.Time {
 	return &v
 }
 
-// assignmentDetailView is the ranking page's answer: the assignment, the quiz it snapshotted and the
-// ranked players.
+// assignmentDetailView is the leaderboard page's answer: the assignment, the quiz it snapshotted and the
+// players in leaderboard order.
 type assignmentDetailView struct {
 	assignmentView
-	CSV     string         `json:"csv"`
-	Players []rankedPlayer `json:"players"`
+	CSV     string             `json:"csv"`
+	Players []leaderboardEntry `json:"players"`
 }
 
 // createAssignment handles POST /api/assignments: it snapshots one of the caller's finished Quiz cử
@@ -233,7 +233,7 @@ func (s *Server) listAssignments(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"assignments": views})
 }
 
-// getAssignment handles GET /api/assignments/{id}: the ranking page's data, which the page polls.
+// getAssignment handles GET /api/assignments/{id}: the leaderboard page's data, which the page polls.
 func (s *Server) getAssignment(w http.ResponseWriter, r *http.Request) {
 	claims, _ := auth.FromContext(r.Context())
 	a, err := s.Assignments.Get(r.Context(), claims.Username(), r.PathValue("id"))
@@ -254,7 +254,7 @@ func (s *Server) getAssignment(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, assignmentDetailView{
 		assignmentView: newAssignmentView(a, s.now(), len(players)),
 		CSV:            a.CSV,
-		Players:        rankPlayers(players, a.StageCounts),
+		Players:        buildLeaderboard(players, a.StageCounts),
 	})
 }
 

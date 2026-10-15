@@ -263,7 +263,7 @@ export class AssignDialog {
     window.open('/play/preview/' + encodeURIComponent(assignment.id), '_blank', 'noopener');
   }
 
-  protected showRanking(assignment: Assignment): void {
+  protected showLeaderboard(assignment: Assignment): void {
     this.router.navigateByUrl('/assignments/' + encodeURIComponent(assignment.id));
     this.close();
   }

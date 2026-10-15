@@ -9,7 +9,7 @@ import {
 } from '../models/assignment';
 
 // The teacher's side of "Giao bài": the assignments of the signed-in user. It holds no state, every page
-// asks the server for what it shows, so a ranking page and the list never disagree about an old copy.
+// asks the server for what it shows, so a leaderboard page and the list never disagree about an old copy.
 @Injectable({providedIn: 'root'})
 export class AssignmentService {
   private readonly endpointUrl = '/api/assignments';
@@ -26,7 +26,7 @@ export class AssignmentService {
     return this.http.get<{ assignments: Assignment[] }>(this.endpointUrl).pipe(map(body => body.assignments));
   }
 
-  // The assignment with the quiz it snapshotted and its ranking.
+  // The assignment with the quiz it snapshotted and its leaderboard.
   get(id: string): Observable<AssignmentDetail> {
     return this.http.get<AssignmentDetail>(`${this.endpointUrl}/${encodeURIComponent(id)}`);
   }

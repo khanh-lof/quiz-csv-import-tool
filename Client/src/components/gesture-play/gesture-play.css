@@ -39,12 +39,70 @@
   border-radius: var(--qt-radius);
 }
 
-/* A student's line above the stage map (projected into it, so it lines up with the map). */
+/* A student's line above the stage map (projected into it, so it lines up with the map): the avatar that
+   opens the picker, the name (it scrolls when long), then the way to be someone else and the closing time. */
 .share-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
   margin: 0 0 8px;
   font-size: 14px;
   color: var(--qt-text-muted);
-  overflow-wrap: anywhere;
+}
+
+.share-name {
+  max-width: min(240px, 45vw);
+  font-weight: 600;
+  color: var(--qt-text);
+}
+
+.avatar-button {
+  position: relative;
+  display: inline-flex;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+}
+
+.avatar-button:focus-visible {
+  outline: 2px solid var(--qt-focus);
+  outline-offset: 2px;
+}
+
+/* The pencil says the picture can be changed: on hover and focus, always where there is no hover. */
+.avatar-edit {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--qt-text);
+  background: var(--qt-pink);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity var(--qt-transition);
+}
+
+.avatar-button:hover .avatar-edit,
+.avatar-button:focus-visible .avatar-edit {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .avatar-edit {
+    opacity: 1;
+  }
+}
+
+/* The final board under the closed card is as wide as the card. */
+.closed-board {
+  max-width: 480px;
 }
 
 /* Scrolls on its own when a screen is taller than the window (a phone's stage map); the playing screen

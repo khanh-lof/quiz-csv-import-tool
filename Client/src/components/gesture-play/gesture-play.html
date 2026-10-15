@@ -34,6 +34,9 @@
           <a nz-button nzType="primary" [routerLink]="link.url">{{ link.text }}</a>
         }
       </section>
+      @if (closedBoard()) {
+        <app-student-leaderboard class="closed-board" [code]="boardCode()"/>
+      }
     }
 
     @case ('join') {
@@ -85,13 +88,23 @@
                                [attemptsLeft]="attemptsLeftByStage()" (start)="openIntro($event)">
           @if (mode() === 'shared') {
             <p class="share-line">
-              👤 {{ playerName() }} · <a href="#" (click)="switchPlayer($event)">Không phải bạn?</a>
+              <button type="button" class="avatar-button" aria-label="Đổi hình đại diện" title="Đổi hình đại diện"
+                      (click)="openAvatarPicker()">
+                <app-player-avatar [avatar]="playerAvatar()" [name]="playerName()" size="md"/>
+                <span class="avatar-edit" aria-hidden="true">✎</span>
+              </button>
+              <app-marquee-text class="share-name" [text]="playerName()"/>
+              <span aria-hidden="true">·</span>
+              <a href="#" (click)="switchPlayer($event)">Không phải bạn?</a>
               @if (closeText()) {
-                · Bài đóng lúc {{ closeText() }}
+                <span>· Bài đóng lúc {{ closeText() }}</span>
               }
             </p>
           }
         </app-gesture-stage-map>
+        @if (mode() === 'shared' || (mode() === 'preview' && boardCode())) {
+          <app-student-leaderboard [code]="boardCode()" [refreshKey]="boardKey()"/>
+        }
       }
     }
 
@@ -278,3 +291,15 @@
     }
   }
 </main>
+
+@if (mode() === 'shared') {
+  <!-- While the change is on its way the dialog cannot be dismissed, or its answer would land in a closed one. -->
+  <nz-modal [nzVisible]="avatarOpen()" (nzVisibleChange)="avatarOpen.set($event)" (nzOnCancel)="closeAvatarPicker()"
+            nzTitle="Đổi hình đại diện" nzOkText="Lưu" nzCancelText="Hủy" [nzOkLoading]="avatarSaving()"
+            [nzCancelDisabled]="avatarSaving()" [nzClosable]="!avatarSaving()" [nzMaskClosable]="!avatarSaving()"
+            [nzKeyboard]="!avatarSaving()" (nzOnOk)="saveAvatar()" nzWidth="min(420px, 95vw)">
+    <ng-container *nzModalContent>
+      <app-avatar-picker [(value)]="avatarDraft"/>
+    </ng-container>
+  </nz-modal>
+}

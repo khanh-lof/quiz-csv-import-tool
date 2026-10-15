@@ -1,0 +1,25 @@
+@if (steps().length > 0) {
+  <ol class="podium" aria-label="Ba hạng đầu">
+    @for (step of steps(); track step.rank) {
+      <li class="step" [attr.data-rank]="step.rank" [style.grid-column]="step.column">
+        <span class="sr-only">Hạng {{ step.rank }}: </span>
+        @if (step.rank === 1) {
+          <span class="crown" aria-hidden="true">👑</span>
+        }
+        <div class="avatars">
+          @for (entry of step.shown; track entry.key) {
+            <app-player-avatar [avatar]="entry.avatar" [name]="entry.name" [size]="step.avatarSize" [ring]="step.ring"/>
+          }
+          @if (step.extra > 0) {
+            <span class="more" aria-hidden="true">+{{ step.extra }}</span>
+          }
+        </div>
+        <app-marquee-text class="names" [text]="step.names"/>
+        <p class="meta">{{ step.meta }}</p>
+        <div class="plinth" aria-hidden="true">
+          <span class="place">{{ medal(step.rank) }}</span>
+        </div>
+      </li>
+    }
+  </ol>
+}

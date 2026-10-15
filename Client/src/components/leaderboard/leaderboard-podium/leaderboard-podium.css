@@ -1,0 +1,151 @@
+/* The podium is drawn at --scale 1 and the projector's full-screen size at 1.5: every length that matters is
+   a px value times --scale, and the type follows the host's font-size. */
+:host {
+  --scale: 1;
+  display: block;
+  font-size: 14px;
+}
+
+:host(.is-large) {
+  --scale: 1.5;
+  font-size: 21px;
+}
+
+.podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 0 calc(8px * var(--scale));
+  max-width: calc(560px * var(--scale));
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+/* Every step is on the one row: auto-placement would send a step whose column is before the last one's to the
+   next row (the DOM order is 1, 2, 3 but the columns are 2, 1, 3). The medal of each step is the metal for
+   its top edge and rings, and a soft fill for the plinth. */
+.step {
+  grid-row: 1;
+  --medal: var(--qt-gold);
+  --medal-soft: var(--qt-gold-soft);
+  --plinth-height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  text-align: center;
+}
+
+.step[data-rank='2'] {
+  --medal: var(--qt-silver);
+  --medal-soft: var(--qt-silver-soft);
+  --plinth-height: 70px;
+}
+
+.step[data-rank='3'] {
+  --medal: var(--qt-bronze);
+  --medal-soft: var(--qt-bronze-soft);
+  --plinth-height: 54px;
+}
+
+.crown {
+  margin-bottom: calc(-4px * var(--scale));
+  font-size: calc(26px * var(--scale));
+  line-height: 1;
+}
+
+/* The avatars' size is set here, so the phone's smaller one (one size down) and the full-screen one are
+   a matter of this stylesheet; each avatar overlaps the one before it by a third of its width. */
+.avatars {
+  --avatar-size: calc(56px * var(--scale));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: calc(6px * var(--scale));
+}
+
+.step[data-rank='1'] .avatars {
+  --avatar-size: calc(88px * var(--scale));
+}
+
+.avatars > * + * {
+  margin-left: calc(var(--avatar-size) * -0.3);
+}
+
+.avatars app-player-avatar {
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.avatars > .more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  flex: none;
+  min-width: calc(var(--avatar-size) * 0.5);
+  height: calc(var(--avatar-size) * 0.5);
+  padding: 0 0.4em;
+  margin-left: calc(var(--avatar-size) * -0.1);
+  font-size: 0.85em;
+  font-weight: 700;
+  color: var(--qt-text);
+  background: var(--medal-soft);
+  border: 2px solid var(--medal);
+  border-radius: 999px;
+}
+
+.names {
+  width: 100%;
+  font-size: 1.05em;
+  font-weight: 700;
+}
+
+.meta {
+  margin: 2px 0 calc(8px * var(--scale));
+  font-size: 0.85em;
+  color: var(--qt-text-muted);
+}
+
+.plinth {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: calc(var(--plinth-height) * var(--scale));
+  padding-top: calc(6px * var(--scale));
+  background: var(--medal-soft);
+  border-top: calc(4px * var(--scale)) solid var(--medal);
+  border-radius: calc(10px * var(--scale)) calc(10px * var(--scale)) 0 0;
+}
+
+.place {
+  font-size: calc(32px * var(--scale));
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--qt-text);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .avatars {
+    --avatar-size: calc(36px * var(--scale));
+  }
+
+  .step[data-rank='1'] .avatars {
+    --avatar-size: calc(56px * var(--scale));
+  }
+
+  .podium {
+    gap: 0 calc(4px * var(--scale));
+  }
+}

@@ -7,7 +7,7 @@ import { NzQRCodeComponent } from 'ng-zorro-antd/qr-code';
 import { shareUrl } from '../../../models/assignment';
 
 // What a teacher hands to the students: the link of an assignment to copy, its code, and a QR code of the
-// link for a phone or a projector. Compact, so it fits in a dialog and on the ranking page.
+// link for a phone or a projector. Compact, so it fits in a dialog and on the leaderboard page.
 @Component({
   selector: 'app-share-link',
   imports: [NzButtonComponent, NzIconDirective, NzInputDirective, NzQRCodeComponent],

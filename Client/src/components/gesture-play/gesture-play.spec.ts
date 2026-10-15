@@ -4,6 +4,7 @@ import { signal, Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { NzModalComponent } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 import { DEMO_QUIZ_CSV } from '../../game/demo-quiz';
@@ -11,7 +12,7 @@ import { GameAudio } from '../../game/game-audio';
 import { StageGameBase, VisionKind } from '../../game/stage-game';
 import { CameraState, ModelState, VisionService } from '../../game/vision.service';
 import { AiJob } from '../../models/ai-job';
-import { AssignmentDetail, PlayerIdentity, SharedQuiz, SubmitOutcome } from '../../models/assignment';
+import { AssignmentDetail, PlayerIdentity, SharedQuiz, StudentBoard, SubmitOutcome } from '../../models/assignment';
 import { ExportType } from '../../models/export-type';
 import { parseGestureQuiz } from '../../models/gesture-quiz';
 import { AiJobService } from '../../services/ai-job.service';
@@ -83,6 +84,11 @@ function assignmentDetail(overrides: Partial<AssignmentDetail> = {}): Assignment
 const httpError = (status: number, body = '') =>
   throwError(() => new HttpErrorResponse({ status, error: body || null }));
 
+// What the leaderboard under the map reads: nobody has played, unless a spec says otherwise.
+function studentBoard(overrides: Partial<StudentBoard> = {}): StudentBoard {
+  return { top: [], you: null, possible: 30, stageCount: 6, playerCount: 0, ...overrides };
+}
+
 describe('GesturePlay', () => {
   let fixture: ComponentFixture<GesturePlay>;
   let vision: FakeVision;
@@ -107,17 +113,23 @@ describe('GesturePlay', () => {
     jobs = { jobs: signal<AiJob[]>([]), refresh: jasmine.createSpy('refresh').and.returnValue(of([])) };
     stored = null;
     shared = jasmine.createSpyObj<SharedPlayService>(
-      'SharedPlayService', ['load', 'join', 'identity', 'forget', 'submit', 'flush', 'pendingCount', 'pendingByStage']);
+      'SharedPlayService',
+      ['load', 'join', 'identity', 'forget', 'submit', 'flush', 'pendingCount', 'pendingByStage', 'setAvatar', 'leaderboard']);
     shared.load.and.callFake(() => of(sharedQuiz()));
     shared.identity.and.callFake(() => stored);
     shared.forget.and.callFake(() => {
       stored = null;
     });
-    shared.join.and.callFake((_code: string, name: string) => {
-      const identity: PlayerIdentity = { playerId: `p-${name.toLowerCase()}`, token: 'token', name };
+    shared.join.and.callFake((_code: string, name: string, avatar = '') => {
+      const identity: PlayerIdentity = { playerId: `p-${name.toLowerCase()}`, token: 'token', name, avatar };
       stored = identity;
       return of(identity);
     });
+    shared.setAvatar.and.callFake((_code: string, avatar: string) => {
+      stored = { ...stored!, avatar };
+      return of(stored);
+    });
+    shared.leaderboard.and.callFake(() => of(studentBoard()));
     shared.submit.and.returnValue(of<SubmitOutcome>('saved'));
     shared.flush.and.returnValue(of(undefined));
     shared.pendingCount.and.returnValue(0);
@@ -235,6 +247,14 @@ describe('GesturePlay', () => {
       expect(text()).toContain('Chơi thử quiz mẫu');
       expect(element().querySelector('app-usage-guide')).not.toBeNull();
       expect(element().querySelector('input[type="file"]')?.getAttribute('accept')).toContain('.csv');
+    });
+
+    it('has no leaderboard and no avatar, which belong to an assignment', () => {
+      playDemo();
+
+      expect(element().querySelector('app-student-leaderboard')).toBeNull();
+      expect(element().querySelector('.avatar-button')).toBeNull();
+      expect(shared.leaderboard).not.toHaveBeenCalled();
     });
 
     it('opens the sample quiz as a map of six stages with only the first one open', () => {
@@ -784,7 +804,7 @@ describe('GesturePlay', () => {
   // A student on /play/s/:code. `stored` is who this device joined the quiz as before, if anyone.
   describe('a shared quiz (a student)', () => {
     const SAVED_KEY = `asg:${CODE}:p-lan`;
-    const lan: PlayerIdentity = { playerId: 'p-lan', token: 'token', name: 'Lan' };
+    const lan: PlayerIdentity = { playerId: 'p-lan', token: 'token', name: 'Lan', avatar: 'cat' };
 
     function openShared(identity: PlayerIdentity | null = null): void {
       stored = identity;
@@ -793,10 +813,15 @@ describe('GesturePlay', () => {
       open();
     }
 
-    function joinAs(name: string): void {
-      fixture.debugElement.query(By.directive(ShareJoin)).componentInstance.join.emit(name);
+    function joinAs(name: string, avatar = 'cat'): void {
+      fixture.debugElement.query(By.directive(ShareJoin)).componentInstance.join.emit({ name, avatar });
       fixture.detectChanges();
     }
+
+    // The student's line above the map, and the parts of it.
+    const shareLine = (): string =>
+      Array.from(element().querySelector('.share-line')?.children ?? []).map(part => part.textContent?.trim()).join(' ');
+    const avatarButton = (): HTMLButtonElement | null => element().querySelector('.avatar-button');
 
     const stageCards = (): HTMLButtonElement[] =>
       Array.from(element().querySelectorAll<HTMLButtonElement>('.stage-card'));
@@ -818,10 +843,10 @@ describe('GesturePlay', () => {
 
         joinAs('Lan');
 
-        expect(shared.join).toHaveBeenCalledWith(CODE, 'Lan');
+        expect(shared.join).toHaveBeenCalledWith(CODE, 'Lan', 'cat');
         expect(element().querySelector('app-share-join')).toBeNull();
         expect(stageCards().length).toBe(6);
-        expect(text()).toContain('👤 Lan · Không phải bạn?');
+        expect(shareLine()).toContain('Lan · Không phải bạn?');
         // Whatever an earlier visit left in the queue is sent now that the student is known.
         expect(shared.flush).toHaveBeenCalledWith(CODE);
       });
@@ -831,7 +856,7 @@ describe('GesturePlay', () => {
 
         expect(element().querySelector('app-share-join')).toBeNull();
         expect(stageCards().length).toBe(6);
-        expect(text()).toContain('👤 Lan');
+        expect(shareLine()).toContain('Lan');
         expect(shared.flush).toHaveBeenCalledOnceWith(CODE);
       });
 
@@ -953,6 +978,352 @@ describe('GesturePlay', () => {
         click('.stage-card', 'Màn 1');
 
         expect(text()).toContain('18 giây mỗi câu');
+      });
+    });
+
+    describe('the avatar and the leaderboard', () => {
+      const BOARD = studentBoard({
+        top: [
+          { rank: 1, name: 'Minh', avatar: 'dragon', stagesPassed: 3, correct: 14 },
+          { rank: 2, name: 'Lan', avatar: 'cat', stagesPassed: 2, correct: 9, you: true },
+        ],
+        you: { rank: 2, name: 'Lan', avatar: 'cat', stagesPassed: 2, correct: 9 },
+        playerCount: 2,
+      });
+
+      // The dialog is a modal: its content is in the overlay at the end of <body>, and appears a tick later.
+      const dialog = (): HTMLElement | null => document.body.querySelector('.ant-modal-content');
+      const radio = (label: string): HTMLButtonElement =>
+        dialog()!.querySelector<HTMLButtonElement>(`button[role="radio"][aria-label="${label}"]`)!;
+      const dialogOpen = (): boolean =>
+        fixture.debugElement.query(By.directive(NzModalComponent)).componentInstance.nzVisible;
+      const boardRows = (): string[] =>
+        Array.from(element().querySelectorAll('app-student-leaderboard li.row'))
+          .map(row => (row.querySelector('app-marquee-text')?.textContent ?? '').trim());
+
+      async function pause(): Promise<void> {
+        fixture.detectChanges();
+        await new Promise(resolve => setTimeout(resolve, 30));
+        fixture.detectChanges();
+      }
+
+      async function openDialog(): Promise<void> {
+        click('.avatar-button');
+        await pause();
+      }
+
+      async function save(): Promise<void> {
+        document.body.querySelector<HTMLButtonElement>('.ant-modal-footer .ant-btn-primary')!.click();
+        await pause();
+      }
+
+      beforeEach(() => {
+        shared.leaderboard.and.callFake(() => of(BOARD));
+      });
+
+      describe('on the join screen', () => {
+        it('joins with the avatar that was picked, and the map shows it', () => {
+          openShared();
+
+          joinAs('Lan', 'dragon');
+
+          expect(shared.join).toHaveBeenCalledOnceWith(CODE, 'Lan', 'dragon');
+          expect(avatarButton()!.textContent).toContain('🐲');
+        });
+
+        it('has the picker and the big avatar for the student to choose with', () => {
+          openShared();
+
+          expect(element().querySelector('app-share-join app-avatar-picker')).not.toBeNull();
+          expect(element().querySelector('app-share-join .hero app-player-avatar')).not.toBeNull();
+        });
+      });
+
+      describe('the map\'s line', () => {
+        it('shows the avatar as a button to change it, then the name, "Không phải bạn?" and the closing time', () => {
+          shared.load.and.returnValue(of(sharedQuiz({ closesAt: new Date(2026, 9, 14, 21, 30).toISOString() })));
+          openShared(lan);
+
+          const button = avatarButton()!;
+          expect(button.type).toBe('button');
+          expect(button.getAttribute('aria-label')).toBe('Đổi hình đại diện');
+          expect(button.getAttribute('title')).toBe('Đổi hình đại diện');
+          expect(button.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐱');
+          expect(button.textContent).toContain('✎');
+          expect(element().querySelector('.share-line app-marquee-text')?.textContent?.trim()).toBe('Lan');
+          expect(shareLine()).toContain('Lan · Không phải bạn? · Bài đóng lúc 21:30 14/10');
+        });
+
+        it('draws a letter for a student who joined without an avatar', () => {
+          openShared({ ...lan, avatar: '' });
+
+          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('L');
+        });
+
+        it('carries a long name in full in its tooltip, to scroll', () => {
+          const long = 'Nguyễn Hoàng Bảo Ngọc Lan Phương Thảo Vy';
+          openShared({ ...lan, name: long });
+
+          expect(element().querySelector('.share-line app-marquee-text')?.getAttribute('title')).toBe(long);
+        });
+      });
+
+      describe('the leaderboard', () => {
+        it('is read for the quiz\'s code and shown below the map', () => {
+          openShared(lan);
+
+          expect(shared.leaderboard).toHaveBeenCalledWith(CODE);
+          const board = element().querySelector('app-student-leaderboard')!;
+          const map = element().querySelector('app-gesture-stage-map')!;
+          expect(board.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+          expect(boardRows()).toEqual(['Minh', 'Lan']);
+          expect(board.querySelector('.you-tag')?.textContent).toContain('Bạn');
+        });
+
+        it('is not on the join screen', () => {
+          openShared();
+
+          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+          expect(shared.leaderboard).not.toHaveBeenCalled();
+        });
+
+        it('is read again when a result is saved while the map is on screen', () => {
+          openShared(lan);
+          const answer = new Subject<SubmitOutcome>();
+          shared.submit.and.returnValue(answer);
+          playStageOne(rightChoice);
+          click('button', 'Về bản đồ');
+          expect(element().querySelector('app-student-leaderboard')).not.toBeNull();
+          shared.leaderboard.calls.reset();
+
+          answer.next('saved');
+          fixture.detectChanges();
+
+          expect(shared.leaderboard).toHaveBeenCalledOnceWith(CODE);
+        });
+
+        it('is not read again for a result that was only queued', () => {
+          openShared(lan);
+          const answer = new Subject<SubmitOutcome>();
+          shared.submit.and.returnValue(answer);
+          playStageOne(rightChoice);
+          click('button', 'Về bản đồ');
+          shared.leaderboard.calls.reset();
+
+          answer.next('queued');
+          fixture.detectChanges();
+
+          expect(shared.leaderboard).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('changing the avatar', () => {
+        it('opens a dialog with the picker on the current avatar, "Lưu" and "Hủy"', async () => {
+          openShared(lan);
+
+          await openDialog();
+
+          expect(dialogOpen()).toBeTrue();
+          expect(dialog()!.textContent).toContain('Đổi hình đại diện');
+          expect(dialog()!.textContent).toContain('Hủy');
+          expect(document.body.querySelector('.ant-modal-footer .ant-btn-primary')?.textContent?.trim()).toBe('Lưu');
+          expect(radio('Mèo').getAttribute('aria-checked')).toBe('true');
+          expect(dialog()!.querySelectorAll('button[aria-checked="true"]').length).toBe(1);
+        });
+
+        it('sends the new avatar, updates the line and the board, and closes', async () => {
+          openShared(lan);
+          shared.leaderboard.calls.reset();
+          await openDialog();
+
+          radio('Rồng').click();
+          await save();
+
+          expect(shared.setAvatar).toHaveBeenCalledOnceWith(CODE, 'dragon');
+          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐲');
+          expect(dialogOpen()).toBeFalse();
+          expect(shared.leaderboard).toHaveBeenCalledOnceWith(CODE);
+          expect(notifications.error).not.toHaveBeenCalled();
+        });
+
+        it('only closes when the avatar was not changed', async () => {
+          openShared(lan);
+          await openDialog();
+
+          await save();
+
+          expect(shared.setAvatar).not.toHaveBeenCalled();
+          expect(dialogOpen()).toBeFalse();
+        });
+
+        it('closes without sending when "Hủy" is pressed, and starts again from the avatar next time', async () => {
+          openShared(lan);
+          await openDialog();
+          radio('Rồng').click();
+          fixture.detectChanges();
+
+          const cancel = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.ant-modal-footer button'))
+            .find(candidate => candidate.textContent?.trim() === 'Hủy')!;
+          cancel.click();
+          await pause();
+
+          expect(shared.setAvatar).not.toHaveBeenCalled();
+          expect(dialogOpen()).toBeFalse();
+          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐱');
+          await openDialog();
+          expect(radio('Mèo').getAttribute('aria-checked')).toBe('true');
+        });
+
+        it('offers a random avatar to a student who has none, and sends it on "Lưu"', async () => {
+          spyOn(Math, 'random').and.returnValue(0);
+          openShared({ ...lan, avatar: '' });
+
+          await openDialog();
+          expect(radio('Chuột').getAttribute('aria-checked')).toBe('true');
+          await save();
+
+          expect(shared.setAvatar).toHaveBeenCalledOnceWith(CODE, 'rat');
+          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐭');
+        });
+
+        it('shows it is saving and cannot be saved twice while the answer is awaited', async () => {
+          openShared(lan);
+          const answer = new Subject<PlayerIdentity>();
+          shared.setAvatar.and.returnValue(answer);
+          await openDialog();
+          radio('Rồng').click();
+
+          await save();
+          await save();
+
+          expect(shared.setAvatar).toHaveBeenCalledTimes(1);
+          expect(document.body.querySelector('.ant-modal-footer .ant-btn-primary')?.classList).toContain('ant-btn-loading');
+          expect(dialogOpen()).toBeTrue();
+
+          answer.next({ ...lan, avatar: 'dragon' });
+          await pause();
+          expect(dialogOpen()).toBeFalse();
+          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐲');
+        });
+
+        it('sends a student the teacher removed to the join screen on a 403', async () => {
+          openShared(lan);
+          shared.setAvatar.and.callFake(() => {
+            // The service forgets the student on a 403 before it rethrows.
+            stored = null;
+            return httpError(403, 'Unknown player');
+          });
+          await openDialog();
+          radio('Rồng').click();
+
+          await save();
+
+          expect(dialogOpen()).toBeFalse();
+          expect(element().querySelector('app-share-join')).not.toBeNull();
+          expect(stageCards().length).toBe(0);
+          expect(notifications.error).not.toHaveBeenCalled();
+        });
+
+        it('shows the closed card, and the final board, on a 410', async () => {
+          openShared(lan);
+          shared.setAvatar.and.returnValue(httpError(410, 'Assignment closed'));
+          await openDialog();
+          radio('Rồng').click();
+          shared.leaderboard.calls.reset();
+
+          await save();
+
+          expect(dialogOpen()).toBeFalse();
+          expect(text()).toContain('Bài này đã đóng. Cảm ơn bạn đã tham gia!');
+          expect(stageCards().length).toBe(0);
+          expect(element().querySelector('main a')).toBeNull();
+          expect(shared.leaderboard).toHaveBeenCalledWith(CODE);
+          expect(boardRows()).toEqual(['Minh', 'Lan']);
+        });
+
+        it('keeps the dialog and says so on any other failure, leaving the avatar as it was', async () => {
+          openShared(lan);
+          shared.setAvatar.and.returnValue(httpError(500));
+          await openDialog();
+          radio('Rồng').click();
+
+          await save();
+
+          expect(notifications.error).toHaveBeenCalledOnceWith('Chưa đổi được hình', 'Thử lại nhé.', jasmine.anything());
+          expect(dialogOpen()).toBeTrue();
+          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐱');
+          expect(stageCards().length).toBe(6);
+          expect(document.body.querySelector('.ant-modal-footer .ant-btn-primary')?.classList).not.toContain('ant-btn-loading');
+        });
+
+        it('says so too when the server cannot be reached, and works on a retry', async () => {
+          openShared(lan);
+          shared.setAvatar.and.returnValue(httpError(0));
+          await openDialog();
+          radio('Rồng').click();
+          await save();
+          expect(notifications.error).toHaveBeenCalledTimes(1);
+
+          shared.setAvatar.and.callFake((_code: string, avatar: string) => of({ ...lan, avatar }));
+          await save();
+
+          expect(shared.setAvatar).toHaveBeenCalledTimes(2);
+          expect(dialogOpen()).toBeFalse();
+          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐲');
+        });
+      });
+
+      describe('the closed card', () => {
+        it('shows the final board under the message when the quiz is closed and this device joined', () => {
+          shared.load.and.returnValue(httpError(410, 'Assignment closed'));
+          openShared(lan);
+
+          expect(text()).toContain('Bài này đã đóng. Cảm ơn bạn đã tham gia!');
+          expect(shared.leaderboard).toHaveBeenCalledWith(CODE);
+          expect(boardRows()).toEqual(['Minh', 'Lan']);
+          expect(element().querySelector('.closed-board')).not.toBeNull();
+          expect(element().querySelector('main a')).toBeNull();
+        });
+
+        it('shows it when the quiz closes before a stage too', () => {
+          openShared(lan);
+          shared.load.and.returnValue(httpError(410, 'Assignment closed'));
+          shared.leaderboard.calls.reset();
+
+          click('.stage-card', 'Màn 1');
+
+          expect(text()).toContain('Bài này đã đóng.');
+          expect(shared.leaderboard).toHaveBeenCalledWith(CODE);
+          expect(boardRows()).toEqual(['Minh', 'Lan']);
+        });
+
+        it('has no board for a device that never joined', () => {
+          shared.load.and.returnValue(httpError(410, 'Assignment closed'));
+          openShared();
+
+          expect(text()).toContain('Bài này đã đóng.');
+          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+          expect(shared.leaderboard).not.toHaveBeenCalled();
+        });
+
+        it('has no board when the closed quiz is the answer to a join', () => {
+          openShared();
+          shared.join.and.returnValue(httpError(410, 'Assignment closed'));
+
+          joinAs('Lan');
+
+          expect(text()).toContain('Bài này đã đóng.');
+          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+        });
+
+        it('has no board on the other error cards', () => {
+          shared.load.and.returnValue(httpError(404, 'Assignment not found'));
+          openShared(lan);
+
+          expect(text()).toContain('Không tìm thấy bài này.');
+          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+          expect(shared.leaderboard).not.toHaveBeenCalled();
+        });
       });
     });
 
@@ -1462,7 +1833,37 @@ describe('GesturePlay', () => {
       expect(element().querySelector('.title')?.textContent).toContain('HSK1 bài 1 · Lớp 6A');
     });
 
-    it('goes back to the ranking from the topbar', () => {
+    it('shows the board students see under the map, read by the assignment\'s code', () => {
+      shared.leaderboard.and.returnValue(of(studentBoard({
+        top: [{ rank: 1, name: 'Minh', avatar: 'dragon', stagesPassed: 3, correct: 14 }],
+      })));
+      openPreview();
+
+      expect(shared.leaderboard).toHaveBeenCalledOnceWith(CODE);
+      const board = element().querySelector('app-student-leaderboard')!;
+      expect(board).not.toBeNull();
+      expect(board.textContent).toContain('Bảng xếp hạng');
+      expect(board.querySelector('li.row')?.textContent).toContain('Minh');
+      expect(element().querySelector('app-gesture-stage-map')!.compareDocumentPosition(board)
+        & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('has no avatar button or "Không phải bạn?", since the teacher is nobody\'s student', () => {
+      openPreview();
+
+      expect(element().querySelector('.avatar-button')).toBeNull();
+      expect(text()).not.toContain('Không phải bạn?');
+    });
+
+    it('does not read the board when the assignment could not be loaded', () => {
+      assignments.get.and.returnValue(httpError(500));
+      openPreview();
+
+      expect(element().querySelector('app-student-leaderboard')).toBeNull();
+      expect(shared.leaderboard).not.toHaveBeenCalled();
+    });
+
+    it('goes back to the leaderboard from the topbar', () => {
       openPreview();
 
       const back = element().querySelector<HTMLAnchorElement>('.back-link')!;
@@ -1561,7 +1962,7 @@ describe('GesturePlay', () => {
       expect(text()).toContain('Xem thử: mọi màn đều mở');
     });
 
-    it('offers the ranking when the assignment cannot be loaded', () => {
+    it('offers the leaderboard when the assignment cannot be loaded', () => {
       assignments.get.and.returnValue(httpError(500));
       openPreview();
 

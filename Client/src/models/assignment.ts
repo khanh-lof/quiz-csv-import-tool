@@ -45,11 +45,13 @@ export interface StageScore {
   attempts: number;
 }
 
-// One row of the ranking. `rank` is null for a student who has joined but has no result yet (such
-// students come last); `reachedAt` is when the student's current score was reached.
-export interface RankedPlayer {
+// One row of the leaderboard. `rank` is null for a student who has joined but has no result yet (such
+// students come last); `reachedAt` is when the student's current score was reached. `avatar` is the id of
+// one of `AVATARS` (models/avatar.ts), or '' for a student who joined without picking one.
+export interface LeaderboardEntry {
   id: string;
   name: string;
+  avatar: string;
   rank: number | null;
   stagesPassed: number;
   correct: number;
@@ -61,10 +63,11 @@ export interface RankedPlayer {
   reachedAt: string | null;
 }
 
-// GET /api/assignments/{id}: the assignment, the quiz it snapshotted (the AI's raw CSV) and the ranking.
+// GET /api/assignments/{id}: the assignment, the quiz it snapshotted (the AI's raw CSV) and the leaderboard
+// (the JSON key stays `players`).
 export interface AssignmentDetail extends Assignment {
   csv: string;
-  players: RankedPlayer[];
+  players: LeaderboardEntry[];
 }
 
 // GET /api/share/{code}: what a student's page needs to play.
@@ -106,10 +109,35 @@ export interface AssignmentChange {
 }
 
 // What the server gave a student who joined, kept on the device so a reload resumes as the same student.
+// `avatar` is '' for a student who joined without one, and for an identity stored before avatars existed.
 export interface PlayerIdentity {
   playerId: string;
   token: string;
   name: string;
+  avatar: string;
+}
+
+// One row of the board a student sees (GET /api/share/{code}/leaderboard). It carries no player id, only what
+// is shown: `rank` is null for the student's own row when they have no result yet, and `you` marks, in
+// `top`, the row of the student who sent the X-Player-Token header.
+export interface StudentBoardEntry {
+  rank: number | null;
+  name: string;
+  avatar: string;
+  stagesPassed: number;
+  correct: number;
+  you?: boolean;
+}
+
+// What a student sees of the leaderboard: the ranked players of rank 5 or better (`top`, in order, a tie at
+// 5th may add rows, at most 10), the student's own row (`you`, null without a valid token), the points
+// possible, how many stages the assignment has and how many students joined.
+export interface StudentBoard {
+  top: StudentBoardEntry[];
+  you: StudentBoardEntry | null;
+  possible: number;
+  stageCount: number;
+  playerCount: number;
 }
 
 // One finished run of a stage, as the browser reports it.
@@ -181,7 +209,7 @@ export function formatClose(time: Date | string): string {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())} ${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`;
 }
 
-// 'dd/MM/yyyy HH:mm' in the browser's time zone, for the downloaded ranking.
+// 'dd/MM/yyyy HH:mm' in the browser's time zone, for the downloaded leaderboard.
 export function formatStamp(time: Date | string): string {
   const d = typeof time === 'string' ? new Date(time) : time;
   return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
@@ -200,7 +228,7 @@ function stageKeys(stageCounts: Record<string, number>): string[] {
   return Object.keys(stageCounts).sort((a, b) => Number(a) - Number(b));
 }
 
-// The header of a stage's column in the ranking: the stage's position among the assignment's stages and
+// The header of a stage's column in the leaderboard: the stage's position among the assignment's stages and
 // the game played there, "Màn 2 (Xếp câu)". The stage number (the key) is only the game's identity.
 function stageHeader(keys: string[], key: string): string {
   const position = stagePosition(keys.map(Number), Number(key));
@@ -245,9 +273,10 @@ export function assignmentErrorMessage(err: unknown): string {
   return TEACHER_ERRORS[body] ?? (err.status === 400 ? 'Yêu cầu chưa hợp lệ.' : 'Có lỗi xảy ra, vui lòng thử lại.');
 }
 
-// The ranking as a CSV file, rows in the order given (the server's ranking order). It starts with a BOM so
-// Excel reads the UTF-8 (the Vietnamese headers and names) correctly, and uses CRLF line ends.
-export function rankingCsv(detail: AssignmentDetail): string {
+// The leaderboard as a CSV file, rows in the order given (the server's leaderboard order). It starts with a BOM
+// so Excel reads the UTF-8 (the Vietnamese headers and names) correctly, and uses CRLF line ends. It has no
+// avatar column: a picture means nothing in a spreadsheet.
+export function leaderboardCsv(detail: AssignmentDetail): string {
   const stages = stageKeys(detail.stageCounts);
   const header = ['Hạng', 'Tên', 'Màn đã qua', 'Câu đúng', ...stages.map(stage => stageHeader(stages, stage)), 'Lần chơi', 'Cập nhật'];
   const rows = detail.players.map((player): (string | number)[] => [

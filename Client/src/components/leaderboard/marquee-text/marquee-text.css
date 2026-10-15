@@ -1,0 +1,51 @@
+:host {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Not scrolling: the name as far as it fits, ending in an ellipsis (a name that fits shows no ellipsis). */
+.plain {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Scrolling: the text twice, so when the first copy has left (the distance is its width plus the gap) the
+   second one is where the first began and the loop has no seam. The ends fade a few pixels instead of
+   cutting the letters. */
+:host(.is-scrolling) {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6px, #000 calc(100% - 6px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6px, #000 calc(100% - 6px), transparent);
+}
+
+.track {
+  display: inline-flex;
+  gap: 40px;
+  /* Top-aligned, so the line is no taller than the plain span's and the box does not jump when it starts. */
+  vertical-align: top;
+  will-change: transform;
+  animation: marquee-scroll var(--marquee-duration) linear infinite;
+}
+
+.copy {
+  flex: none;
+}
+
+:host(:hover) .track {
+  animation-play-state: paused;
+}
+
+/* Only the transform moves. The first 12% holds still so a name can be read from its start, and the
+   duration is set so the rest runs at 40px a second. */
+@keyframes marquee-scroll {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(calc(-1 * var(--marquee-distance)));
+  }
+}

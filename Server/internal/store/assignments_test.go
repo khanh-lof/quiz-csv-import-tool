@@ -109,6 +109,25 @@ func TestMongoAssignmentDocuments(t *testing.T) {
 	if arr, ok := raw["runIds"].(bson.A); !ok || len(arr) != 0 {
 		t.Errorf("runIds = %#v", raw["runIds"])
 	}
+	// A player who picked no avatar has no field for it, like a player from before avatars.
+	if _, ok := raw["avatar"]; ok {
+		t.Errorf("stored player has an unset avatar: %v", raw)
+	}
+
+	if err := a.SetPlayerAvatar(ctx, "a1", "p1", "panda"); err != nil {
+		t.Fatal(err)
+	}
+	raw = nil
+	if err := db.Collection("AssignmentPlayers").FindOne(ctx, bson.M{"_id": "p1"}).Decode(&raw); err != nil {
+		t.Fatal(err)
+	}
+	if raw["avatar"] != "panda" {
+		t.Errorf("stored avatar = %#v", raw["avatar"])
+	}
+	// Setting it is a write of that one field: the version RecordResult guards stays where it was.
+	if got := fmt.Sprint(raw["version"]); got != "0" {
+		t.Errorf("version = %#v after setting the avatar", raw["version"])
+	}
 }
 
 func timeIs(got *time.Time, want time.Time) bool {
@@ -309,7 +328,7 @@ func testAssignments(t *testing.T, store Assignments) {
 	}
 	if p := players[2]; p.Name != "Lan" || p.NameKey != "key-Lan" || p.TokenHash != "hash-p-1" || p.AssignmentID != "a1" ||
 		!p.JoinedAt.Equal(base.Add(-2*time.Minute)) || p.LastPlayedAt != nil || p.Stages == nil || len(p.Stages) != 0 ||
-		p.RunIDs == nil || len(p.RunIDs) != 0 || p.Version != 0 {
+		p.RunIDs == nil || len(p.RunIDs) != 0 || p.Version != 0 || p.Avatar != "" {
 		t.Fatalf("a new player: %+v", p)
 	}
 	if players, err = store.ListPlayers(ctx, "nothing"); err != nil || players == nil || len(players) != 0 {
@@ -330,6 +349,53 @@ func testAssignments(t *testing.T, store Assignments) {
 	}
 	if _, err := store.PlayerByToken(ctx, "a1", "unknown"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("PlayerByToken with an unknown token: %v", err)
+	}
+
+	// SetPlayerAvatar: a player is created with the avatar it carries, and the avatar can be replaced,
+	// for that assignment's player only. Every way of reading a player sees it.
+	withAvatar := newPlayer("p-7", "a3", "Hoa", base)
+	withAvatar.Avatar = "owl"
+	if err := store.CreatePlayer(ctx, withAvatar); err != nil {
+		t.Fatal(err)
+	}
+	if p := getPlayer("a3", "p-7"); p.Avatar != "owl" {
+		t.Fatalf("a player created with an avatar: %+v", p)
+	}
+	if err := store.SetPlayerAvatar(ctx, "a1", "p-1", "panda"); err != nil {
+		t.Fatal(err)
+	}
+	if p := getPlayer("a1", "p-1"); p.Avatar != "panda" || p.Name != "Lan" || p.TokenHash != "hash-p-1" || p.Version != 0 {
+		t.Fatalf("after setting an avatar: %+v", p)
+	}
+	if p, err := store.PlayerByToken(ctx, "a1", "hash-p-1"); err != nil || p.Avatar != "panda" {
+		t.Fatalf("PlayerByToken after setting an avatar: %+v %v", p, err)
+	}
+	if err := store.SetPlayerAvatar(ctx, "a1", "p-1", "fox"); err != nil { // replaced, not added
+		t.Fatal(err)
+	}
+	if p := getPlayer("a1", "p-1"); p.Avatar != "fox" {
+		t.Fatalf("after replacing the avatar: %+v", p)
+	}
+	for _, other := range []struct{ assignment, id string }{{"a1", "p-2"}, {"a1", "p-3"}, {"a2", "p-4"}, {"a3", "p-7"}} {
+		want := ""
+		if other.id == "p-7" {
+			want = "owl"
+		}
+		if p := getPlayer(other.assignment, other.id); p.Avatar != want {
+			t.Fatalf("setting an avatar reached %s: %+v", other.id, p)
+		}
+	}
+	if err := store.SetPlayerAvatar(ctx, "a2", "p-1", "cat"); !errors.Is(err, ErrNotFound) { // another assignment's id
+		t.Fatalf("SetPlayerAvatar in another assignment: %v", err)
+	}
+	if err := store.SetPlayerAvatar(ctx, "a1", "ghost", "cat"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("SetPlayerAvatar of an unknown player: %v", err)
+	}
+	if err := store.SetPlayerAvatar(ctx, "nothing", "p-1", "cat"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("SetPlayerAvatar in an unknown assignment: %v", err)
+	}
+	if p := getPlayer("a1", "p-1"); p.Avatar != "fox" {
+		t.Fatalf("a refused SetPlayerAvatar changed the player: %+v", p)
 	}
 
 	// RecordResult: the best run per stage, a pass that sticks, attempts, resent runs.
@@ -389,6 +455,10 @@ func testAssignments(t *testing.T, store Assignments) {
 	p = getPlayer("a1", "p-1")
 	if len(p.Stages) != 3 || p.Version != merges || len(p.RunIDs) != merges {
 		t.Fatalf("after the runs: stages %d, version %d, runIds %d, want 3, %d, %d", len(p.Stages), p.Version, len(p.RunIDs), merges, merges)
+	}
+	// The results left the avatar alone, and setting it did not count as one of the writes the version guards.
+	if p.Avatar != "fox" {
+		t.Fatalf("recording results changed the avatar: %+v", p)
 	}
 	// Another player of the assignment is untouched.
 	if other := getPlayer("a1", "p-2"); len(other.Stages) != 0 || other.Version != 0 || other.LastPlayedAt != nil {
@@ -456,6 +526,9 @@ func testAssignments(t *testing.T, store Assignments) {
 	}
 	if _, err := store.PlayerByToken(ctx, "a1", "hash-p-3"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("a deleted player's token still works: %v", err)
+	}
+	if err := store.SetPlayerAvatar(ctx, "a1", "p-3", "cat"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("SetPlayerAvatar of a deleted player: %v", err)
 	}
 	if counts, _ = store.CountPlayers(ctx, []string{"a1"}); counts["a1"] != 2 {
 		t.Fatalf("CountPlayers after DeletePlayer: %v", counts)

@@ -105,7 +105,8 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   (`newShareCode`: 10 characters of Crockford base32 from `crypto/rand`) and retries on `ErrDuplicate` up to
   3 times. The server never parses the CSV: `stageCounts` is the client's count of each stage, checked for
   shape only (keys `"1"`–`"6"`, 1–50 each). `listAssignments` leaves the CSV out and adds each `playerCount`;
-  `getAssignment` adds the CSV and `rankPlayers`' output (`ranking.go`) to the same view, and both answer
+  `getAssignment` adds the CSV and `buildLeaderboard`'s output (`leaderboard.go`, one `leaderboardEntry` per
+  player, with the player's `avatar`) to the same view, and both answer
   `Cache-Control: no-store`, as the client polls the detail. `patchAssignment` reads the body as a map of raw
   values, so an absent key (leave it) differs from `null` (clear `closesAt`; a `null` label or `closed` is
   a 400 `Invalid payload`); `closed: true` closes now unless it was already closed by hand (the first moment is
@@ -114,17 +115,40 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   `deleteAssignmentPlayer` loads the assignment first only to check the caller owns it, since the store's
   player methods do not know owners.
 - **Share** (`share_handlers.go`, the students' side): `GET share/{code}`, `POST share/{code}/players`,
-  `POST share/{code}/results`. They are registered bare, with no `authenticate`, and must never answer 401
+  `POST share/{code}/results`, `PATCH share/{code}/player` and `GET share/{code}/leaderboard`. They are
+  registered bare, with no `authenticate`, and must never answer 401
   (the SPA's interceptor would answer that with a token refresh): a student's credentials are the code and,
   for results, the `X-Player-Token` header. The order of checks, which decides the status when several
   things are wrong: the code is trimmed and upper-cased and looked up (404 `Assignment not found`) in all
   three. `getShared` then answers 410 `Assignment closed` unless `OpenAt(now)`, else `{title, label, csv,
   timeMode, stageLock, passPercents, maxAttempts, attempts, closesAt}`, with `no-store` on every answer, errors included, since a close must show at once.
   `joinShared` refuses a closed assignment (410) before it reads the body, then `cleanPlayerName` (400
-  `Invalid name.`: trimmed, whitespace runs folded, 1–40 runes, no control characters), then the 300-player cap
+  `Invalid name.`: trimmed, whitespace runs folded, 1–40 runes, no control characters), then the optional
+  `avatar` (400 `Invalid avatar.` when it is not empty and not in `avatarIDs`, `avatars.go`, so a bad avatar on
+  a full assignment is a 400, not a 409), then the 300-player cap
   (409 `Assignment is full`), then `CreatePlayer` (409 `Name taken` on `ErrDuplicate`); it mints a token of 32
   random bytes (base64url), stores only `hashPlayerToken(token)` (SHA-256, base64url, the same as the refresh
-  tokens; `auth` keeps its helper unexported) and answers 201 `{playerId, token, name}`. `reportResult` refuses
+  tokens; `auth` keeps its helper unexported) and answers 201 `{playerId, token, name, avatar}` (`avatar` is `""`
+  when none was sent). The avatar set is the 24 animal ids of `avatarIDs`, which the client's `AVATARS`
+  (`Client/src/models/avatar.ts`) mirrors in the same order, kept in step by hand; `validAvatar` matches an id
+  exactly and `TestAvatarIDsAreThePinnedSet` pins the list. `updateSharedPlayer` (`PATCH share/{code}/player`) is
+  a student changing their own avatar; its checks run in this order: the code (404 `Assignment not found`),
+  `OpenAt(now)` (410 `Assignment closed`; no result grace here), the `X-Player-Token` header (403 `Unknown
+  player` when missing or unknown), `readJSON`'s 400s, then 400 `Invalid avatar.` unless the avatar is in the
+  set (unlike joining, empty is refused: there is no way back to none), then `SetPlayerAvatar`, where
+  `ErrNotFound` (the teacher removed the student meanwhile) is also 403, and 200 `{playerId, name, avatar}`.
+  The player is always the token's, never one named in the body. `sharedLeaderboard`
+  (`GET share/{code}/leaderboard`) is the class's board for a student: `Cache-Control: no-store` on every
+  answer, 404 for an unknown code and **no open check**, so a closed assignment still answers and the students'
+  closed card can show the final board. An optional `X-Player-Token` names the reader; a missing or unknown
+  one only makes `you` null (never 401/403; a store error other than `ErrNotFound` is a 500). It answers 200
+  `{top, you, possible, stageCount, playerCount}` from `newStudentBoard` (`leaderboard.go`, pure and tested
+  on its own): `top` is the ranked entries with rank 1 to 5 in leaderboard order, at most 10 rows (a tie for
+  5th adds rows, and a class tied for 1st is cut at 10), `[]` when nobody has a result, each row
+  `{rank, name, avatar, stagesPassed, correct, you}`; `you` is the reader's own `{rank, name, avatar,
+  stagesPassed, correct}` with `rank` null when they have no result, or null for no or an unknown token;
+  `possible` is the sum of the stage counts, `stageCount` their number, `playerCount` everyone who joined. No
+  player id appears anywhere in it. `reportResult` refuses
   with 410 once `AcceptsResultsAt(now)` is false (open, or within `store.ResultGrace`, 5 minutes, of the
   effective close), then 403 `Unknown player` for a missing header or a token no player of this assignment
   holds, *before* the body is read, then 400 `Invalid result.` (`runId` not `^[A-Za-z0-9-]{8,64}$`, stage not in
@@ -159,10 +183,12 @@ with `TestMongoAssignmentsWithoutIndexes` and `TestMongoAssignmentDocuments` for
 the stored field names) beside unit tests of `OpenAt`, `EffectiveClose`, `AcceptsResultsAt` and `mergeResult`;
 `jobs_test.go` covers `Jobs.Get`. `api/assignments_api_test.go` drives the HTTP handlers over the memory stores
 with a `testClock` (`env.clock.Advance`) as `Server.Now`: the whole flow (create, share, join, results with a
-repeated `runId`, ranking, close, the grace period, reopen, remove a student, delete), every error status and
+repeated `runId`, leaderboard, close, the grace period, reopen, remove a student, delete), every error status and
 body, ownership, `TestTeacherRoutesNeedALogin`, `TestStudentRoutesNeverAnswer401` (with bad `Authorization`
-headers too), the limits, `TestPassMark` and store failures answering 500. `api/ranking_test.go` tests
-`rankPlayers` as plain Go, and `config/config_test.go` the new collection settings.
+headers too, the avatar and student-leaderboard routes included), the limits, `TestPassMark`, the avatar rules of
+joining and of `PATCH share/{code}/player`, the students' board end to end and store failures answering 500.
+`api/leaderboard_test.go` tests `buildLeaderboard` and `newStudentBoard` as plain Go, `api/avatars_test.go`
+pins the avatar ids, and `config/config_test.go` the new collection settings.
 
 There is no CORS handling: the API is only ever called from the SPA's own origin (Vercel Services in
 production, the `ng serve` proxy locally), which is also why the refresh cookie can be
@@ -266,13 +292,14 @@ hand), left out of the document when unset. It is copied rather than referenced 
 newest-30 prune, cannot break a live link. `OpenAt(now)` is "`closedAt` unset and `closesAt` unset or ahead";
 `EffectiveClose` is the earlier of the two, and `AcceptsResultsAt(now)` is open, or no later than the effective
 close plus `ResultGrace` (5 minutes). A `Player` (collection `MONGODB_PLAYERS_COLLECTION`) is a student of one
-assignment: `assignmentId`, `name`, `nameKey` (the lower-cased name, unique within the assignment), `tokenHash`
-(never the token), `joinedAt`, `lastPlayedAt`, `stages` (the best result of each stage: `correct`, `total`,
+assignment: `assignmentId`, `name`, `avatar` (the id of the avatar the student picked; left out of the document when
+empty, which is also how a player from before avatars reads), `nameKey` (the lower-cased name, unique within the
+assignment), `tokenHash` (never the token), `joinedAt`, `lastPlayedAt`, `stages` (the best result of each stage: `correct`, `total`,
 `attempts`, `passed`, `bestAt`), the last 50 `runIds` and a `version`. Players are a collection of their own,
 not an array on the assignment, so many students finishing a stage at the same moment write different
 documents. The interface's teacher-side methods (`Get`, `List`, `Count`, `Update`, `Delete`) take the owner's
 username, so another user's assignment is `ErrNotFound`; `GetByCode` and the player methods (`CreatePlayer`,
-`CountPlayers`, `ListPlayers`, `PlayerByToken`, `RecordResult`, `DeletePlayer`) work from the public code or the
+`CountPlayers`, `ListPlayers`, `PlayerByToken`, `RecordResult`, `SetPlayerAvatar`, `DeletePlayer`) work from the public code or the
 token and leave authorization to the handlers. `List` leaves the CSV out; `Delete` removes the players too
 (in Mongo only after the assignment itself went, so deleting someone else's cannot wipe its players); `Update`
 takes an `AssignmentUpdate` where each time is a `TimeChange{Set, Value}` (not set: unchanged; set with a nil
@@ -285,6 +312,10 @@ value: cleared, i.e. `$unset`).
   `UpdateSessions`: read the player, merge, write back only where `version` is unchanged (`$inc`), retry up to
   5 times, else `ErrConflict`; this keeps two runs of one student reported at the same moment (two tabs, a
   queue being flushed) from overwriting each other's merge. The memory store does it under its mutex.
+- `SetPlayerAvatar` replaces the avatar and nothing else, `ErrNotFound` when that player is not in that
+  assignment. Mongo does it as one `UpdateOne` with `$set: {avatar}` and no version bump: `RecordResult` `$set`s
+  only `stages`, `runIds` and `lastPlayedAt`, so the two writes touch different fields and cannot undo each other.
+  The store keeps whatever avatar it is given; the API validates against `avatarIDs`.
 - Times are stored as UTC milliseconds (`storedTime`), the precision MongoDB keeps, and both implementations
   copy and normalize through `Assignment.stored()`/`Player.stored()`, so a value reads back the same from
   either (and empty maps and slices are stored as `{}` and `[]`, not `null`). `MemoryAssignments.Now` exists for

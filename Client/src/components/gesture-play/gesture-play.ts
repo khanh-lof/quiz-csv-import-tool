@@ -19,6 +19,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
 import { Observable, Observer, Subscription, timeout } from 'rxjs';
@@ -29,6 +30,7 @@ import { passMark, STAGES, stageDef, stagePosition } from '../../game/stages';
 import { VisionService } from '../../game/vision.service';
 import { AiJob } from '../../models/ai-job';
 import { attemptsLeft, formatClose, passPercentOf, PlayerIdentity, SharedQuiz, StageLock } from '../../models/assignment';
+import { avatarDef, randomAvatar } from '../../models/avatar';
 import { ExportType } from '../../models/export-type';
 import { GestureQuiz, parseGestureQuiz, questionCount } from '../../models/gesture-quiz';
 import { AiCsvService } from '../../services/ai-csv.service';
@@ -37,6 +39,9 @@ import { AssignmentService } from '../../services/assignment.service';
 import { CsvImportService } from '../../services/csv-import.service';
 import { GestureProgressService, POINTS_PER_CORRECT } from '../../services/gesture-progress.service';
 import { SharedPlayService } from '../../services/shared-play.service';
+import { AvatarPicker } from '../leaderboard/avatar-picker/avatar-picker';
+import { MarqueeText } from '../leaderboard/marquee-text/marquee-text';
+import { PlayerAvatar } from '../leaderboard/player-avatar/player-avatar';
 import { UsageGuide } from '../usage-guide/usage-guide';
 import {
   correctAnswerText,
@@ -56,7 +61,8 @@ import { HeadTiltGame } from './games/head-tilt-game/head-tilt-game';
 import { TrueFalseGame } from './games/true-false-game/true-false-game';
 import { WordOrderGame } from './games/word-order-game/word-order-game';
 import { GestureStageMap } from './stage-map/stage-map';
-import { ShareJoin } from './share-join/share-join';
+import { JoinRequest, ShareJoin } from './share-join/share-join';
+import { StudentLeaderboard } from './student-leaderboard/student-leaderboard';
 import { GestureStageResult, MissedQuestion, SaveState, StageRunResult } from './stage-result/stage-result';
 
 // 'join' is a student's first screen on a shared quiz: the name to play under.
@@ -127,11 +133,16 @@ const STAND_TIP: Record<VisionKind, string> = {
     RouterLink,
     NzButtonComponent,
     NzIconDirective,
+    NzModalModule,
     NzSpinComponent,
+    AvatarPicker,
+    MarqueeText,
+    PlayerAvatar,
     UsageGuide,
     GestureStageMap,
     GestureStageResult,
     ShareJoin,
+    StudentLeaderboard,
     TrueFalseGame,
     HeadTiltGame,
     FrogBiteGame,
@@ -166,6 +177,8 @@ export class GesturePlay implements OnInit, OnDestroy {
   // The assignment being previewed (the teacher), and the code of the shared quiz, upper-cased (a student).
   protected readonly assignmentId = signal<string | null>(null);
   protected readonly shareCode = signal('');
+  // The code of the assignment being previewed: the board under its map is read by it, as a student's is.
+  private readonly previewCode = signal('');
   // The quiz as it was loaded, and the student playing it. What is played (`quiz`) is the same quiz under
   // a key of its own for that student, so GestureProgressService keeps each student's locks and bests
   // apart from other students' and from the same quiz played as a file or a job.
@@ -179,6 +192,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       : base;
   });
   protected readonly playerName = computed(() => this.player()?.name ?? '');
+  protected readonly playerAvatar = computed(() => this.player()?.avatar ?? '');
   protected readonly shared = signal<SharedInfo | null>(null);
   protected readonly closeText = computed(() => {
     const closesAt = this.shared()?.closesAt;
@@ -223,6 +237,16 @@ export class GesturePlay implements OnInit, OnDestroy {
   protected readonly joining = signal(false);
   // What became of the last finished run of a shared quiz, for its result screen.
   protected readonly saveState = signal<SaveState | null>(null);
+  // The leaderboard under the map and on the closed card: whose code it reads (a student's, or the previewed
+  // assignment's), the count that tells it a result was saved and the board should be read again, and whether
+  // the error card is the closed one of a student who joined, which shows the final board under its message.
+  protected readonly boardCode = computed(() => this.mode() === 'preview' ? this.previewCode() : this.shareCode());
+  protected readonly boardKey = signal(0);
+  protected readonly closedBoard = signal(false);
+  // The avatar dialog: whether it is open, the avatar picked in it so far and whether the change is being sent.
+  protected readonly avatarOpen = signal(false);
+  protected readonly avatarDraft = signal('');
+  protected readonly avatarSaving = signal(false);
 
   protected readonly settings = this.settingsService.settings;
   protected readonly effectiveTimeMode = computed(() => this.assignmentTimeMode() ?? this.settings().timeMode);
@@ -417,6 +441,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       this.jobId.set(id);
       this.assignmentId.set(assignmentId);
       this.shareCode.set(code?.trim().toUpperCase() ?? '');
+      this.previewCode.set('');
       this.mode.set(code ? 'shared' : assignmentId ? 'preview' : id ? 'job' : 'local');
       this.baseQuiz.set(null);
       this.player.set(null);
@@ -431,6 +456,9 @@ export class GesturePlay implements OnInit, OnDestroy {
       this.joining.set(false);
       this.joinError.set('');
       this.saveState.set(null);
+      this.closedBoard.set(false);
+      this.avatarOpen.set(false);
+      this.avatarSaving.set(false);
       if (code) {
         this.loadShared();
       } else if (assignmentId) {
@@ -578,6 +606,7 @@ export class GesturePlay implements OnInit, OnDestroy {
         this.assignmentTimeMode.set(detail.timeMode);
         this.assignmentStageLock.set(detail.stageLock);
         this.assignmentPassPercents.set(detail.passPercents);
+        this.previewCode.set(detail.code.toUpperCase());
         this.shared.set({ label: detail.label, closesAt: detail.closesAt });
         this.openCsv(this.aiCsvService.extractCsvContent(detail.csv), detail.title);
       },
@@ -602,8 +631,11 @@ export class GesturePlay implements OnInit, OnDestroy {
   // get their own card, with a way back for the two signed-in modes (a student has none).
   private fail(message: string, missing = false): void {
     this.problem.set(message);
+    // A student who joined sees the final board under "closed": the leaderboard route answers after the close.
+    this.closedBoard.set(
+      message === SHARED_CLOSED && this.mode() === 'shared' && this.sharedPlay.identity(this.shareCode()) !== null);
     this.screen.set(this.mode() === 'local' ? 'load' : 'error');
-    // An assignment that is gone has no ranking page to return to, only the list.
+    // An assignment that is gone has no leaderboard page to return to, only the list.
     this.errorLink.set(missing ? { url: '/assignments', text: 'Về danh sách bài đã giao' } : this.backLink());
   }
 
@@ -617,13 +649,13 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.screen.set('join');
   }
 
-  protected joinQuiz(name: string): void {
+  protected joinQuiz(request: JoinRequest): void {
     if (this.joining()) {
       return;
     }
     this.joining.set(true);
     this.joinError.set('');
-    this.watch(this.sharedPlay.join(this.shareCode(), name), {
+    this.watch(this.sharedPlay.join(this.shareCode(), request.name, request.avatar), {
       next: identity => {
         this.joining.set(false);
         this.player.set(identity);
@@ -669,6 +701,64 @@ export class GesturePlay implements OnInit, OnDestroy {
     event.preventDefault();
     this.sharedPlay.forget(this.shareCode());
     this.askToJoin();
+  }
+
+  // The avatar button on the map's line opens the picker with the student's own avatar chosen (or a random one,
+  // for a student who has none yet).
+  protected openAvatarPicker(): void {
+    const own = this.playerAvatar();
+    this.avatarDraft.set(avatarDef(own) ? own : randomAvatar());
+    this.avatarOpen.set(true);
+  }
+
+  protected closeAvatarPicker(): void {
+    this.avatarOpen.set(false);
+  }
+
+  // "Lưu" in the avatar dialog. The device's identity is the truth, kept by the service: a 403 means the teacher
+  // removed this student (the service has forgotten them already), so the join screen comes back, and a 410
+  // means the assignment closed, so the closed card does. Any other failure keeps the dialog for another try.
+  protected saveAvatar(): void {
+    const draft = this.avatarDraft();
+    if (this.avatarSaving()) {
+      return;
+    }
+    if (draft === this.playerAvatar()) {
+      this.avatarOpen.set(false);
+      return;
+    }
+    const code = this.shareCode();
+    this.avatarSaving.set(true);
+    this.sharedPlay.setAvatar(code, draft).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: identity => {
+        if (code !== this.shareCode()) {
+          return;
+        }
+        this.avatarSaving.set(false);
+        this.avatarOpen.set(false);
+        if (identity.playerId === this.player()?.playerId) {
+          this.player.set(identity);
+        }
+        // The board shows the new picture.
+        this.boardKey.update(key => key + 1);
+      },
+      error: err => {
+        if (code !== this.shareCode()) {
+          return;
+        }
+        this.avatarSaving.set(false);
+        const status = err instanceof HttpErrorResponse ? err.status : 0;
+        if (status === 403) {
+          this.avatarOpen.set(false);
+          this.askToJoin();
+        } else if (status === 410) {
+          this.avatarOpen.set(false);
+          this.fail(SHARED_CLOSED);
+        } else {
+          this.notificationService.error('Chưa đổi được hình', 'Thử lại nhé.', { nzPlacement: 'top' });
+        }
+      },
+    });
   }
 
   // Sends the results that could not be delivered earlier. Not tied to a student: each queued result
@@ -955,6 +1045,10 @@ export class GesturePlay implements OnInit, OnDestroy {
       }
       if (seq === this.submitSeq) {
         this.saveState.set(outcome);
+      }
+      if (outcome === 'saved') {
+        // The leaderboard on the map may be on screen by now (the student left the result before the answer).
+        this.boardKey.update(key => key + 1);
       }
     });
   }

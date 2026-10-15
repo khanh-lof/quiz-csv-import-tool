@@ -94,7 +94,7 @@ type StageResult struct {
 	Total    int  `bson:"total"`
 	Attempts int  `bson:"attempts"`
 	Passed   bool `bson:"passed"`
-	// BestAt is when the best score was reached, or the pass made: the ranking breaks ties by it.
+	// BestAt is when the best score was reached, or the pass made: the leaderboard breaks ties by it.
 	BestAt time.Time `bson:"bestAt"`
 }
 
@@ -104,6 +104,9 @@ type Player struct {
 	ID           string `bson:"_id"`
 	AssignmentID string `bson:"assignmentId"`
 	Name         string `bson:"name"`
+	// Avatar is the id of the avatar the student picked; empty for none, and for a player from before
+	// avatars existed. The API's avatarIDs lists the valid ids; the store keeps whatever it is given.
+	Avatar string `bson:"avatar,omitempty"`
 	// NameKey is the lower-cased name, unique within the assignment, so "Lan" and "lan" cannot both join.
 	NameKey      string     `bson:"nameKey"`
 	TokenHash    string     `bson:"tokenHash"`
@@ -172,6 +175,9 @@ type Assignments interface {
 	// same player was written first, like Users.UpdateSessions, and fails with ErrConflict if that
 	// keeps happening; ErrNotFound when the player is not in that assignment.
 	RecordResult(ctx context.Context, assignmentID, playerID, runID, stage string, correct, total int, passed bool, now time.Time) error
+	// SetPlayerAvatar replaces the player's avatar; ErrNotFound when the assignment has no such player.
+	// It writes the avatar alone, so it cannot lose a result being recorded at the same moment.
+	SetPlayerAvatar(ctx context.Context, assignmentID, playerID, avatar string) error
 	// DeletePlayer removes one player; ErrNotFound when the assignment has no such player.
 	DeletePlayer(ctx context.Context, assignmentID, playerID string) error
 }
@@ -179,7 +185,7 @@ type Assignments interface {
 // mergeResult folds one reported run into the player's results and reports whether it changed
 // anything: false means the run id was already recorded. Both implementations use it, so the rules
 // cannot drift apart. A worse run never lowers the best and a pass is never taken back; BestAt moves
-// only when the best score improves or the pass is made, which is what the ranking's tie-break needs.
+// only when the best score improves or the pass is made, which is what the leaderboard's tie-break needs.
 func mergeResult(p *Player, runID, stage string, correct, total int, passed bool, now time.Time) bool {
 	if slices.Contains(p.RunIDs, runID) {
 		return false

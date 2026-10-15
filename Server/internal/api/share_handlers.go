@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	// maxPlayersPerAssignment bounds one class's ranking (and the work of every poll of it).
+	// maxPlayersPerAssignment bounds one class's leaderboard (and the work of every poll of it).
 	maxPlayersPerAssignment = 300
 	maxNameRunes            = 40
 	// playerTokenHeader carries the token the server gave a student when they joined.
@@ -69,9 +69,9 @@ func (s *Server) getShared(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// joinShared handles POST /api/share/{code}/players: a student picks a name and gets a token that
-// proves, on every later result, that it is the same student. The token is the only credential the
-// student has, so only its hash is kept.
+// joinShared handles POST /api/share/{code}/players: a student picks a name, and may pick an avatar, and
+// gets a token that proves, on every later result, that it is the same student. The token is the only
+// credential the student has, so only its hash is kept.
 func (s *Server) joinShared(w http.ResponseWriter, r *http.Request) {
 	a, ok := s.sharedAssignment(w, r)
 	if !ok {
@@ -85,6 +85,8 @@ func (s *Server) joinShared(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Name string `json:"name"`
+		// Avatar is optional: a page from before avatars, or a student who picked none, sends nothing.
+		Avatar string `json:"avatar"`
 	}
 	if !s.readJSON(w, r, &req) {
 		return
@@ -92,6 +94,10 @@ func (s *Server) joinShared(w http.ResponseWriter, r *http.Request) {
 	name, ok := cleanPlayerName(req.Name)
 	if !ok {
 		writeText(w, http.StatusBadRequest, "Invalid name.")
+		return
+	}
+	if req.Avatar != "" && !validAvatar(req.Avatar) {
+		writeText(w, http.StatusBadRequest, "Invalid avatar.")
 		return
 	}
 
@@ -112,6 +118,7 @@ func (s *Server) joinShared(w http.ResponseWriter, r *http.Request) {
 		ID:           newJobID(),
 		AssignmentID: a.ID,
 		Name:         name,
+		Avatar:       req.Avatar,
 		NameKey:      strings.ToLower(name),
 		TokenHash:    hashPlayerToken(token),
 		JoinedAt:     now.UTC(),
@@ -125,7 +132,95 @@ func (s *Server) joinShared(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "creating player failed", err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]string{"playerId": player.ID, "token": token, "name": player.Name})
+	writeJSON(w, http.StatusCreated, map[string]string{
+		"playerId": player.ID, "token": token, "name": player.Name, "avatar": player.Avatar,
+	})
+}
+
+// updateSharedPlayer handles PATCH /api/share/{code}/player: a student changes their own avatar. The
+// player is the one whose token the X-Player-Token header carries, never one named in the body, so a
+// student can only ever change themselves. Like joining, it needs the assignment to be open, and like
+// every student route it never answers 401.
+func (s *Server) updateSharedPlayer(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.sharedAssignment(w, r)
+	if !ok {
+		return
+	}
+	if !a.OpenAt(s.now()) {
+		writeText(w, http.StatusGone, "Assignment closed")
+		return
+	}
+
+	token := r.Header.Get(playerTokenHeader)
+	if token == "" {
+		writeText(w, http.StatusForbidden, "Unknown player")
+		return
+	}
+	player, err := s.Assignments.PlayerByToken(r.Context(), a.ID, hashPlayerToken(token))
+	if errors.Is(err, store.ErrNotFound) {
+		writeText(w, http.StatusForbidden, "Unknown player")
+		return
+	}
+	if err != nil {
+		s.internalError(w, r, "looking up player failed", err)
+		return
+	}
+
+	var req struct {
+		Avatar string `json:"avatar"`
+	}
+	if !s.readJSON(w, r, &req) {
+		return
+	}
+	// Unlike joining, a change has to name an avatar: there is no way back to none.
+	if !validAvatar(req.Avatar) {
+		writeText(w, http.StatusBadRequest, "Invalid avatar.")
+		return
+	}
+
+	err = s.Assignments.SetPlayerAvatar(r.Context(), a.ID, player.ID, req.Avatar)
+	if errors.Is(err, store.ErrNotFound) {
+		// The teacher removed the student between the token check and now.
+		writeText(w, http.StatusForbidden, "Unknown player")
+		return
+	}
+	if err != nil {
+		s.internalError(w, r, "setting avatar failed", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"playerId": player.ID, "name": player.Name, "avatar": req.Avatar})
+}
+
+// sharedLeaderboard handles GET /api/share/{code}/leaderboard: the top of the class and the caller's own
+// place, for a student's page. It answers while the assignment is closed too, unlike getShared, so the
+// closed card can show the final board. The X-Player-Token header is optional and a missing or unknown
+// token only means no "you": this route never answers 401 or 403. Every answer is uncacheable, since the
+// board changes with every result.
+func (s *Server) sharedLeaderboard(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	a, ok := s.sharedAssignment(w, r)
+	if !ok {
+		return
+	}
+
+	youID := ""
+	if token := r.Header.Get(playerTokenHeader); token != "" {
+		player, err := s.Assignments.PlayerByToken(r.Context(), a.ID, hashPlayerToken(token))
+		switch {
+		case err == nil:
+			youID = player.ID
+		case !errors.Is(err, store.ErrNotFound):
+			s.internalError(w, r, "looking up player failed", err)
+			return
+		}
+	}
+
+	players, err := s.Assignments.ListPlayers(r.Context(), a.ID)
+	if err != nil {
+		s.internalError(w, r, "listing players failed", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, newStudentBoard(buildLeaderboard(players, a.StageCounts), youID, a.StageCounts))
 }
 
 // reportResult handles POST /api/share/{code}/results: the browser reports one finished stage run.

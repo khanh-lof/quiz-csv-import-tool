@@ -9,11 +9,11 @@ import {
   formatClose,
   formatStamp,
   isOpenAt,
+  LeaderboardEntry,
+  leaderboardCsv,
   MAX_ATTEMPTS_LIMIT,
   MIN_ATTEMPTS_LIMIT,
   passPercentOf,
-  RankedPlayer,
-  rankingCsv,
   shareUrl,
   stageCountsOf,
   TIME_MODE_LABELS,
@@ -34,16 +34,16 @@ function assignment(overrides: Partial<Assignment> = {}): Assignment {
   };
 }
 
-function player(overrides: Partial<RankedPlayer> = {}): RankedPlayer {
+function player(overrides: Partial<LeaderboardEntry> = {}): LeaderboardEntry {
   return {
-    id: 'p1', name: 'Lan', rank: 1, stagesPassed: 1, correct: 9, possible: 10, attempts: 2,
+    id: 'p1', name: 'Lan', avatar: 'cat', rank: 1, stagesPassed: 1, correct: 9, possible: 10, attempts: 2,
     stages: {'1': {correct: 5, total: 5, passed: true, attempts: 1}, '2': {correct: 4, total: 5, passed: false, attempts: 1}},
     joinedAt: local(2026, 10, 14, 8, 1), lastPlayedAt: local(2026, 10, 14, 8, 5), reachedAt: local(2026, 10, 14, 8, 5),
     ...overrides,
   };
 }
 
-function detail(players: RankedPlayer[], overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
+function detail(players: LeaderboardEntry[], overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
   return {...assignment(), csv: '', players, ...overrides};
 }
 
@@ -146,7 +146,7 @@ describe('TIME_MODE_LABELS', () => {
   });
 });
 
-describe('rankingCsv', () => {
+describe('leaderboardCsv', () => {
   // The line begins with `prefix`: the failure shows the beginning of the line, not just "false".
   function expectStart(line: string, prefix: string): void {
     expect(line.slice(0, prefix.length)).toBe(prefix);
@@ -156,21 +156,30 @@ describe('rankingCsv', () => {
     return csv.slice(1).split('\r\n');
   }
 
+  it('has no avatar column, whatever avatars the students picked', () => {
+    const csv = leaderboardCsv(detail([player({avatar: 'dragon'}), player({id: 'p2', name: 'Minh', avatar: ''})]));
+    const [header, first, second] = lines(csv);
+    expect(header).toBe('Hạng,Tên,Màn đã qua,Câu đúng,Màn 1 (Đúng hay sai),Màn 2 (Nghiêng đầu),Lần chơi,Cập nhật');
+    expect(first).toBe('1,Lan,1/2,9/10,5/5 ✓,4/5,2,14/10/2026 08:05');
+    expect(second).toContain('1,Minh,1/2,9/10,');
+    expect(csv).not.toContain('dragon');
+  });
+
   it('starts with a BOM and ends every line with CRLF', () => {
-    const csv = rankingCsv(detail([player()]));
+    const csv = leaderboardCsv(detail([player()]));
     expect(csv.charCodeAt(0)).toBe(0xfeff);
     expect(csv.endsWith('\r\n')).toBeTrue();
     expect(csv).not.toMatch(/[^\r]\n/);
   });
 
   it('has a column per stage of the assignment, in order, headed with its position and its game', () => {
-    const csv = rankingCsv(detail([], {stageCounts: {'4': 5, '1': 5, '6': 10}}));
+    const csv = leaderboardCsv(detail([], {stageCounts: {'4': 5, '1': 5, '6': 10}}));
     expect(lines(csv)[0]).toBe(
       'Hạng,Tên,Màn đã qua,Câu đúng,Màn 1 (Đúng hay sai),Màn 2 (Chém hoa quả),Màn 3 (Xếp câu),Lần chơi,Cập nhật');
   });
 
   it('numbers the stage columns by position, not by stage number', () => {
-    const csv = rankingCsv(detail([player({stages: {'6': {correct: 4, total: 5, passed: true, attempts: 1}}})],
+    const csv = leaderboardCsv(detail([player({stages: {'6': {correct: 4, total: 5, passed: true, attempts: 1}}})],
       {stageCounts: {'4': 5, '6': 5}}));
     const [header, row] = lines(csv);
     expect(header).toBe('Hạng,Tên,Màn đã qua,Câu đúng,Màn 1 (Chém hoa quả),Màn 2 (Xếp câu),Lần chơi,Cập nhật');
@@ -179,7 +188,7 @@ describe('rankingCsv', () => {
   });
 
   it('writes one row per student, in the order given', () => {
-    const csv = rankingCsv(detail([
+    const csv = leaderboardCsv(detail([
       player({id: 'a', name: 'Lan', rank: 1}),
       player({id: 'b', name: 'Minh', rank: 2, stagesPassed: 0, correct: 3, attempts: 1}),
     ]));
@@ -192,24 +201,24 @@ describe('rankingCsv', () => {
   });
 
   it('leaves the rank, the stages and the time empty for a student who has not played', () => {
-    const csv = rankingCsv(detail([
+    const csv = leaderboardCsv(detail([
       player({name: 'Bảo', rank: null, stagesPassed: 0, correct: 0, attempts: 0, stages: {}, lastPlayedAt: null, reachedAt: null}),
     ]));
     expect(lines(csv)[1]).toBe(',Bảo,0/2,0/10,,,0,');
   });
 
   it('counts the stages the assignment has, not six', () => {
-    const csv = rankingCsv(detail([player({stagesPassed: 3, correct: 40, possible: 45})], {stageCounts: {'1': 5, '3': 10, '5': 30}}));
+    const csv = leaderboardCsv(detail([player({stagesPassed: 3, correct: 40, possible: 45})], {stageCounts: {'1': 5, '3': 10, '5': 30}}));
     expectStart(lines(csv)[1], '1,Lan,3/3,40/45,');
   });
 
   it('quotes fields that contain a comma, a quote or a line break', () => {
-    const csv = rankingCsv(detail([player({name: 'Lan, "Bé"\nNhỏ'})]));
+    const csv = leaderboardCsv(detail([player({name: 'Lan, "Bé"\nNhỏ'})]));
     expect(csv).toContain('1,"Lan, ""Bé""\nNhỏ",1/2');
   });
 
   it('keeps a name that starts like a formula from running in a spreadsheet', () => {
-    const csv = rankingCsv(detail([player({name: '=HYPERLINK("http://x")'}), player({name: '-Lan'}), player({name: 'Lan-2'})]));
+    const csv = leaderboardCsv(detail([player({name: '=HYPERLINK("http://x")'}), player({name: '-Lan'}), player({name: 'Lan-2'})]));
     const rows = lines(csv);
     expectStart(rows[1], `1,"'=HYPERLINK(""http://x"")",`);
     expectStart(rows[2], `1,'-Lan,`);

@@ -60,7 +60,7 @@
           Mở lại
         </button>
       }
-      <button nz-button nzType="default" type="button" [disabled]="d.players.length === 0" (click)="downloadRanking()">
+      <button nz-button nzType="default" type="button" [disabled]="d.players.length === 0" (click)="downloadLeaderboard()">
         <nz-icon nzType="download" nzTheme="outline"/>
         Tải bảng điểm
       </button>
@@ -71,8 +71,8 @@
     </div>
   </nz-card>
 
-  <!-- The card that goes full screen on a projector: in that mode it shows the quiz's title, a larger
-       table and no action but the way out. -->
+  <!-- The card that goes full screen on a projector: in that mode it shows the quiz's title, larger type and
+       no action but the way out. The podium, the ranked list and the students without a result share it. -->
   <nz-card #board class="board" [class.is-fullscreen]="fullscreen()" [nzTitle]="boardTitle" [nzExtra]="boardExtra">
     @if (d.players.length === 0) {
       <div class="empty">
@@ -82,59 +82,71 @@
         }
       </div>
     } @else {
-      <nz-table #rankTable nzSize="small" class="rank-table" [nzData]="d.players" [nzFrontPagination]="false"
-                [nzShowPagination]="false" [nzScroll]="{ x: 'max-content' }">
-        <thead>
-          <tr>
-            <th>Hạng</th>
-            <th>Tên</th>
-            <th>Màn đã qua</th>
-            <th>Câu đúng</th>
-            @for (column of stages(); track column.key) {
-              <th [title]="column.name + ' · qua màn từ ' + column.percent + '%'">{{ column.icon }} Màn {{ column.position }}</th>
-            }
-            <th>Lần chơi</th>
-            <th>Cập nhật</th>
-            @if (!fullscreen()) {
-              <th></th>
-            }
-          </tr>
-        </thead>
-        <tbody>
-          @for (player of rankTable.data; track player.id) {
-            <tr [class.unranked]="player.rank === null">
-              <td class="rank">{{ medal(player.rank) }}</td>
-              <td class="player-name">{{ player.name }}</td>
-              <td>{{ player.stagesPassed }}/{{ stages().length }}</td>
-              <td>{{ player.correct }}/{{ player.possible }}</td>
-              @for (column of stages(); track column.key) {
-                <td>
-                  @if (stageCell(player, column.key); as cell) {
-                    <span class="stage" [class.passed]="cell.passed">{{ cell.text }}</span>
-                  } @else {
-                    –
-                  }
-                </td>
-              }
-              <td>{{ player.attempts }}</td>
-              <td>{{ player.lastPlayedAt ? (player.lastPlayedAt | date:'HH:mm') : '–' }}</td>
+      @if (podium().length > 0) {
+        <app-leaderboard-podium class="podium" [entries]="podium()" [stageCount]="stages().length"
+                                [possible]="possible()" [large]="fullscreen()"/>
+      }
+      @if (ranked().length > 0) {
+        <ol class="entries" role="list" aria-label="Bảng xếp hạng">
+          @for (row of ranked(); track row.player.id) {
+            <li class="entry" [attr.data-player-id]="row.player.id" [attr.data-rank]="row.player.rank">
+              <span class="rank" [class.is-number]="(row.player.rank ?? 0) > 3">{{ medal(row.player.rank) }}</span>
+              <app-player-avatar [avatar]="row.player.avatar" [name]="row.player.name"
+                                 [size]="fullscreen() ? 'lg' : 'md'"/>
+              <span class="who">
+                <app-marquee-text class="name" [text]="row.player.name"/>
+                @if (row.move; as move) {
+                  <span class="move" role="img" [class.up]="move.up" [class.down]="!move.up"
+                        [attr.aria-label]="move.label">{{ move.text }}</span>
+                }
+              </span>
+              <span class="pips">
+                @for (pip of row.pips; track pip.key) {
+                  <span class="pip" [class.passed]="pip.state === 'passed'" [class.played]="pip.state === 'played'"
+                        [attr.title]="pip.title"><span aria-hidden="true">{{ pip.icon }}</span> {{ pip.text }}</span>
+                }
+              </span>
+              <span class="score">
+                <span class="score-text">{{ row.player.correct }}/{{ row.player.possible }}</span>
+                <span class="bar" aria-hidden="true"><span class="fill" [style.width.%]="row.percent"></span></span>
+              </span>
+              <span class="attempts">{{ row.player.attempts }} lần</span>
+              <span class="played-at">{{ row.player.lastPlayedAt ? (row.player.lastPlayedAt | date:'HH:mm') : '–' }}</span>
               @if (!fullscreen()) {
-                <td class="remove">
-                  <button nz-button nzType="default" nzDanger nzSize="small" type="button"
-                          [attr.aria-label]="'Xóa ' + player.name" title="Xóa khỏi bảng xếp hạng"
-                          nz-popconfirm [nzPopconfirmTitle]="'Xóa ' + player.name + ' khỏi bảng xếp hạng?'"
-                          nzOkText="Xóa" nzCancelText="Hủy" nzPopconfirmPlacement="left"
-                          (nzOnConfirm)="removePlayer(player)">
-                    <nz-icon nzType="delete" nzTheme="outline"/>
-                  </button>
-                </td>
+                <ng-container *ngTemplateOutlet="removeButton; context: {$implicit: row.player}"/>
               }
-            </tr>
+            </li>
           }
-        </tbody>
-      </nz-table>
+        </ol>
+      }
+      @if (waiting().length > 0) {
+        <!-- Not last place: they have simply not finished a stage yet. -->
+        <h3 class="divider" id="waiting-title">Chưa có kết quả ({{ waiting().length }})</h3>
+        <ul class="entries waiting" role="list" aria-labelledby="waiting-title">
+          @for (player of waiting(); track player.id) {
+            <li class="entry" [attr.data-player-id]="player.id">
+              <app-player-avatar [avatar]="player.avatar" [name]="player.name" [size]="fullscreen() ? 'lg' : 'md'"/>
+              <span class="who"><app-marquee-text class="name" [text]="player.name"/></span>
+              <span class="joined">Vào lúc {{ player.joinedAt | date:'HH:mm' }}</span>
+              @if (!fullscreen()) {
+                <ng-container *ngTemplateOutlet="removeButton; context: {$implicit: player}"/>
+              }
+            </li>
+          }
+        </ul>
+      }
     }
   </nz-card>
+
+  <ng-template #removeButton let-player>
+    <button nz-button nzType="default" nzDanger nzSize="small" type="button" class="remove"
+            [attr.aria-label]="'Xóa ' + player.name" title="Xóa khỏi bảng xếp hạng"
+            nz-popconfirm [nzPopconfirmTitle]="'Xóa ' + player.name + ' khỏi bảng xếp hạng?'"
+            nzOkText="Xóa" nzCancelText="Hủy" nzPopconfirmPlacement="left"
+            (nzOnConfirm)="removePlayer(player)">
+      <nz-icon nzType="delete" nzTheme="outline"/>
+    </button>
+  </ng-template>
 
   <ng-template #boardTitle>
     @if (fullscreen()) {
@@ -150,13 +162,14 @@
 
   <ng-template #boardExtra>
     <div class="board-extra">
+      <app-marquee-pause-button/>
       @if (fullscreen()) {
-        <button nz-button nzType="default" type="button" (click)="toggleFullscreen()">
+        <button nz-button nzType="default" nzSize="small" type="button" (click)="toggleFullscreen()">
           <nz-icon nzType="fullscreen-exit" nzTheme="outline"/>
           Thoát toàn màn hình
         </button>
       } @else {
-        <button nz-button nzType="default" type="button" [disabled]="refreshing()" (click)="refresh()">
+        <button nz-button nzType="default" nzSize="small" type="button" [disabled]="refreshing()" (click)="refresh()">
           <nz-icon nzType="reload" nzTheme="outline" [nzSpin]="refreshing()"/>
           Làm mới
         </button>

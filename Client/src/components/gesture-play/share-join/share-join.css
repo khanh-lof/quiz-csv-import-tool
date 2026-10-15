@@ -15,9 +15,10 @@
   box-shadow: var(--qt-card-shadow);
 }
 
-.big-emoji {
-  font-size: 56px;
-  line-height: 1.1;
+/* The picked avatar stands where a greeting emoji did; it is the card's picture. */
+.hero {
+  display: flex;
+  justify-content: center;
 }
 
 .title {
@@ -54,12 +55,7 @@
   margin: 4px 0 0;
 }
 
-.hint {
-  margin: 8px 0 16px;
-  font-size: 14px;
-  color: var(--qt-text-muted);
-}
-
 .join-button {
   min-width: 160px;
+  margin-top: 20px;
 }

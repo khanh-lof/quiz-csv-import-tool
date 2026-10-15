@@ -1,4 +1,5 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -6,10 +7,11 @@ import {
   ElementRef,
   HostListener,
   inject,
+  Injector,
   signal,
   viewChild,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -20,7 +22,6 @@ import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzPopconfirmDirective } from 'ng-zorro-antd/popconfirm';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
-import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
 import {
   catchError,
@@ -45,24 +46,43 @@ import {
   formatStamp,
   isOpenAt,
   passPercentOf,
-  RankedPlayer,
-  rankingCsv,
+  LeaderboardEntry,
+  leaderboardCsv,
   shareUrl,
   STAGE_LOCK_LABELS,
   TIME_MODE_LABELS,
 } from '../../../models/assignment';
 import { AssignmentService } from '../../../services/assignment.service';
+import { LeaderboardPodium } from '../../leaderboard/leaderboard-podium/leaderboard-podium';
+import { PodiumEntry } from '../../leaderboard/leaderboard-podium/podium';
+import { MarqueePauseButton } from '../../leaderboard/marquee-pause-button/marquee-pause-button';
+import { MarqueeText } from '../../leaderboard/marquee-text/marquee-text';
+import { PlayerAvatar } from '../../leaderboard/player-avatar/player-avatar';
 import { DeadlinePicker } from '../deadline-picker/deadline-picker';
 import { ShareLink } from '../share-link/share-link';
-import { fileNameFor, medal, shouldPoll, stageCell } from './assignment-ranking-logic';
+import {
+  fileNameFor,
+  medal,
+  MoveMark,
+  moveMark,
+  orderChanged,
+  RankMove,
+  rankMoves,
+  scorePercent,
+  shouldPoll,
+  StagePip,
+  stagePip,
+} from './assignment-leaderboard-logic';
+import { captureRows, playFlip, prefersReducedMotion } from './flip';
 
-// While the assignment is open (or just closed) the ranking is asked for again this often.
+// While the assignment is open (or just closed) the leaderboard is asked for again this often.
 const POLL_INTERVAL_MS = 5000;
 // "Now" moves on by itself at this pace, so a closing time that passes is noticed between two answers.
 const CLOCK_INTERVAL_MS = 30000;
 
-// One stage column of the ranking: the stage's number (the key of the results, which identifies its game),
-// the position shown in its header (among the assignment's stages), and the name and icon of the game.
+// One stage of the assignment: the stage's number (the key of the results, which identifies its game), its
+// position among the assignment's stages (what a person reads as "Màn <position>"), and the name and icon of
+// the game.
 interface StageColumn {
   key: string;
   position: number;
@@ -72,13 +92,25 @@ interface StageColumn {
   percent: number;
 }
 
-// One assignment's ranking page (/assignments/:id): the link and the actions of the teacher, and the
-// students ranked by what they have passed. The server ranks them; this page shows the ranking as it is
-// and keeps it fresh while results can still arrive.
+// One row of the ranked list as the template draws it: the student, a pip for each stage, the change of place
+// to show (while it is recent) and how full the score's bar is.
+interface RankedRow {
+  player: LeaderboardEntry;
+  pips: StagePip[];
+  move: MoveMark | null;
+  percent: number;
+}
+
+// One assignment's leaderboard page (/assignments/:id): the link and the actions of the teacher, and the
+// students ranked by what they have passed: a podium for the first three, a list of everyone with a place,
+// and, apart and not as last place, the students who have not finished a stage yet. The server ranks them;
+// this page shows the leaderboard as it is, marks the students whose place changed, slides the rows to their
+// new places and keeps it fresh while results can still arrive.
 @Component({
-  selector: 'app-assignment-ranking',
+  selector: 'app-assignment-leaderboard',
   imports: [
     DatePipe,
+    NgTemplateOutlet,
     RouterLink,
     NzButtonComponent,
     NzCardComponent,
@@ -86,18 +118,20 @@ interface StageColumn {
     NzModalModule,
     NzPopconfirmDirective,
     NzSpinComponent,
-    NzTableModule,
     NzTagComponent,
     DeadlinePicker,
+    LeaderboardPodium,
+    MarqueePauseButton,
+    MarqueeText,
+    PlayerAvatar,
     ShareLink,
   ],
-  templateUrl: './assignment-ranking.html',
+  templateUrl: './assignment-leaderboard.html',
   changeDetection: ChangeDetectionStrategy.Eager,
-  styleUrl: './assignment-ranking.css',
+  styleUrl: './assignment-leaderboard.css',
 })
-export class AssignmentRanking {
+export class AssignmentLeaderboard {
   protected readonly medal = medal;
-  protected readonly stageCell = stageCell;
   protected readonly formatStamp = formatStamp;
   protected readonly timeModeLabels = TIME_MODE_LABELS;
   protected readonly stageLockLabels = STAGE_LOCK_LABELS;
@@ -116,8 +150,10 @@ export class AssignmentRanking {
   // Kept apart from `deadlineOpen` so the dialog keeps its wording while it fades out.
   protected readonly deadlineMode = signal<'reopen' | 'schedule'>('schedule');
   protected readonly deadline = signal<Date | null>(null);
+  // The changes of place of the last 30 s by player id (`rankMoves`); a mark is shown while it is recent.
+  protected readonly moves = signal<ReadonlyMap<string, RankMove>>(new Map());
   // Refreshed by every answer and every 30 s, so what depends on the time (open or closed, whether to
-  // poll) follows it without a timer of its own.
+  // poll, how old a move is) follows it without a timer of its own.
   protected readonly now = signal(new Date());
 
   protected readonly players = computed(() => this.detail()?.players ?? []);
@@ -153,6 +189,32 @@ export class AssignmentRanking {
       ? `${first}%`
       : columns.map(column => `Màn ${column.position} ${column.percent}%`).join(' · ');
   });
+  // How many answers the quiz has: what a student's score is out of, for the podium's lines.
+  protected readonly possible = computed(() =>
+    Object.values(this.detail()?.stageCounts ?? {}).reduce((sum, count) => sum + count, 0));
+  // The students with a place, in the server's order, ready to draw.
+  protected readonly ranked = computed<RankedRow[]>(() => {
+    const columns = this.stages();
+    const now = this.now().getTime();
+    const moves = this.moves();
+    return this.players().filter(player => player.rank !== null).map(player => ({
+      player,
+      pips: columns.map(column => stagePip(player, column)),
+      move: moveMark(moves.get(player.id), now),
+      percent: scorePercent(player),
+    }));
+  });
+  // The same students for the podium, which keeps the first three ranks itself.
+  protected readonly podium = computed<PodiumEntry[]>(() => this.ranked().map(({player}) => ({
+    key: player.id,
+    rank: player.rank ?? 0,
+    name: player.name,
+    avatar: player.avatar,
+    stagesPassed: player.stagesPassed,
+    correct: player.correct,
+  })));
+  // The students who joined and have no result yet: a section of their own, in the order they joined.
+  protected readonly waiting = computed(() => this.players().filter(player => player.rank === null));
   // A closing time in the past would close the assignment at once, and the server refuses it.
   protected readonly deadlineInPast = computed(() => {
     const deadline = this.deadline();
@@ -163,6 +225,7 @@ export class AssignmentRanking {
   private readonly assignments = inject(AssignmentService);
   private readonly notificationService = inject(NzNotificationService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
   private readonly board = viewChild('board', {read: ElementRef<HTMLElement>});
 
   private id = '';
@@ -176,7 +239,7 @@ export class AssignmentRanking {
       map(params => params.get('id') ?? ''),
       distinctUntilChanged(),
       tap(id => this.start(id)),
-      // The first answer is always asked for; after it, only while the ranking can still change and the
+      // The first answer is always asked for; after it, only while the leaderboard can still change and the
       // tab is on screen. A tick that finds the previous request still running is dropped.
       switchMap(id => timer(0, POLL_INTERVAL_MS).pipe(
         filter(tick => tick === 0 || this.wantsPoll()),
@@ -260,13 +323,13 @@ export class AssignmentRanking {
     });
   }
 
-  protected downloadRanking(): void {
+  protected downloadLeaderboard(): void {
     const detail = this.detail();
     if (detail === null) {
       return;
     }
     const link = document.createElement('a');
-    const url = URL.createObjectURL(new Blob([rankingCsv(detail)], {type: 'text/csv;charset=utf-8'}));
+    const url = URL.createObjectURL(new Blob([leaderboardCsv(detail)], {type: 'text/csv;charset=utf-8'}));
     link.href = url;
     link.download = fileNameFor(detail);
     link.click();
@@ -289,10 +352,10 @@ export class AssignmentRanking {
     }
   }
 
-  protected removePlayer(player: RankedPlayer): void {
+  protected removePlayer(player: LeaderboardEntry): void {
     const id = this.id;
     this.assignments.removePlayer(id, player.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      // The ranks of the others may move up, so the ranking is asked for again rather than patched.
+      // The ranks of the others may move up, so the leaderboard is asked for again rather than patched.
       next: () => this.load(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(),
       error: err => this.fail('Không xóa được học sinh', err),
     });
@@ -303,6 +366,7 @@ export class AssignmentRanking {
     this.id = id;
     this.latestApplied = this.requestSeq;
     this.detail.set(null);
+    this.moves.set(new Map());
     this.notFound.set(false);
     this.loadError.set(null);
   }
@@ -330,9 +394,29 @@ export class AssignmentRanking {
       return;
     }
     this.latestApplied = seq;
+    const now = new Date();
+    // The first answer of a page has no earlier one to compare with: no moves and no sliding.
+    const previous = this.detail()?.players ?? null;
+    this.moves.set(rankMoves(previous, detail.players, this.moves(), now.getTime()));
+    const slide = this.rememberRows(previous, detail.players);
     this.detail.set(detail);
+    slide?.();
     this.loadError.set(null);
-    this.now.set(new Date());
+    this.now.set(now);
+  }
+
+  // When the rows are about to change order, takes where they stand and returns what to call once the new
+  // answer is set: it slides every row from its old place to its new one after the page has rendered it. Null
+  // when nothing moves, there is no earlier answer, or the visitor prefers reduced motion.
+  private rememberRows(previous: LeaderboardEntry[] | null, next: LeaderboardEntry[]): (() => void) | null {
+    const container: HTMLElement | undefined = this.board()?.nativeElement;
+    if (previous === null || container === undefined || !orderChanged(previous, next) || prefersReducedMotion()) {
+      return null;
+    }
+    const before = captureRows(container);
+    return () => {
+      afterNextRender(() => playFlip(container, before), {injector: this.injector});
+    };
   }
 
   private failedToLoad(id: string, seq: number, err: unknown): void {

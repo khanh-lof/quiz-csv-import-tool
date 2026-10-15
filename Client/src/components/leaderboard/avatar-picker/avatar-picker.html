@@ -1,0 +1,15 @@
+<div class="grid" role="radiogroup" aria-label="Hình đại diện">
+  @for (avatar of avatars; track avatar.id; let i = $index) {
+    <button #cell type="button" role="radio" class="cell" [class.is-selected]="avatar.id === value()"
+            [attr.aria-checked]="avatar.id === value()" [attr.aria-label]="avatar.name" [attr.title]="avatar.name"
+            [tabindex]="avatar.id === tabbable() ? 0 : -1" (click)="select(avatar.id)" (keydown)="onKeydown($event, i)">
+      <app-player-avatar [avatar]="avatar.id" [name]="avatar.name" size="md"/>
+      @if (avatar.id === value()) {
+        <span class="check" aria-hidden="true">✓</span>
+      }
+    </button>
+  }
+</div>
+<div class="actions">
+  <button nz-button nzType="default" nzSize="small" type="button" (click)="random()">🎲 Ngẫu nhiên</button>
+</div>

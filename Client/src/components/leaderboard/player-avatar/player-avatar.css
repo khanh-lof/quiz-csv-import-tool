@@ -1,0 +1,62 @@
+/* The disc's size is --avatar-size when a page sets it, else the size the `size` input names. The emoji is
+   about 0.6 of the disc and the letter a little smaller, since it sits in a flat circle. */
+:host {
+  --avatar-disc: var(--avatar-size, 36px);
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--avatar-disc);
+  height: var(--avatar-disc);
+  overflow: hidden;
+  line-height: 1;
+  vertical-align: middle;
+  user-select: none;
+  background: var(--avatar-color, #e5e7eb);
+  border: 0 solid transparent;
+  border-radius: 50%;
+}
+
+:host([data-size='sm']) {
+  --avatar-disc: var(--avatar-size, 28px);
+}
+
+:host([data-size='lg']) {
+  --avatar-disc: var(--avatar-size, 56px);
+}
+
+:host([data-size='xl']) {
+  --avatar-disc: var(--avatar-size, 88px);
+}
+
+:host([data-ring]) {
+  border-width: 3px;
+}
+
+:host([data-ring='gold']) {
+  border-color: var(--qt-gold);
+}
+
+:host([data-ring='silver']) {
+  border-color: var(--qt-silver);
+}
+
+:host([data-ring='bronze']) {
+  border-color: var(--qt-bronze);
+}
+
+.glyph {
+  display: block;
+}
+
+.emoji {
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+  font-size: calc(var(--avatar-disc) * 0.6);
+}
+
+.letter {
+  font-size: calc(var(--avatar-disc) * 0.46);
+  font-weight: 700;
+  color: var(--qt-text-muted);
+}

@@ -104,11 +104,11 @@ func resultBody(runID string, stage, correct, total int) string {
 	return jsonOf(map[string]any{"runId": runID, "stage": stage, "correct": correct, "total": total})
 }
 
-func rankOf(p rankedPlayer) int {
-	if p.Rank == nil {
+func entryRank(e leaderboardEntry) int {
+	if e.Rank == nil {
 		return -1
 	}
-	return *p.Rank
+	return *e.Rank
 }
 
 func inTime(t time.Time) string { return t.UTC().Format(time.RFC3339) }
@@ -168,6 +168,25 @@ func (c *classroom) shareGet() *httptest.ResponseRecorder {
 
 func (c *classroom) tryJoin(name string) *httptest.ResponseRecorder {
 	return c.send(http.MethodPost, "/api/share/"+c.a.Code+"/players", jsonOf(map[string]any{"name": name}))
+}
+
+// tryJoinAs is tryJoin with an avatar picked.
+func (c *classroom) tryJoinAs(name, avatar string) *httptest.ResponseRecorder {
+	return c.send(http.MethodPost, "/api/share/"+c.a.Code+"/players", jsonOf(map[string]any{"name": name, "avatar": avatar}))
+}
+
+// setAvatar is a student changing their own avatar.
+func (c *classroom) setAvatar(token, body string) *httptest.ResponseRecorder {
+	return c.send(http.MethodPatch, "/api/share/"+c.a.Code+"/player", body, header("X-Player-Token", token))
+}
+
+// board is the students' leaderboard as the holder of token (none if empty) reads it.
+func (c *classroom) board(token string) *httptest.ResponseRecorder {
+	var opts []reqOpt
+	if token != "" {
+		opts = append(opts, header("X-Player-Token", token))
+	}
+	return c.send(http.MethodGet, "/api/share/"+c.a.Code+"/leaderboard", "", opts...)
 }
 
 // join adds a student and returns the player's id and token.
@@ -271,11 +290,11 @@ func TestAssignmentFlow(t *testing.T) {
 	rec = c.tryJoin("Lan")
 	wantStatus(t, rec, http.StatusCreated)
 	joined := decode[map[string]any](t, rec)
-	if got, want := keysOf(joined), []string{"name", "playerId", "token"}; !slices.Equal(got, want) {
+	if got, want := keysOf(joined), []string{"avatar", "name", "playerId", "token"}; !slices.Equal(got, want) {
 		t.Fatalf("join keys %v, want %v", got, want)
 	}
 	lanToken, _ := joined["token"].(string)
-	if joined["name"] != "Lan" || len(lanToken) != 43 || joined["playerId"] == "" {
+	if joined["name"] != "Lan" || len(lanToken) != 43 || joined["playerId"] == "" || joined["avatar"] != "" {
 		t.Fatalf("joined %v", joined)
 	}
 	wantError(t, c.tryJoin(" lan "), http.StatusConflict, "Name taken")
@@ -317,7 +336,7 @@ func TestAssignmentFlow(t *testing.T) {
 	var order []string
 	var gotRanks []int
 	for _, p := range detail.Players {
-		order, gotRanks = append(order, p.Name), append(gotRanks, rankOf(p))
+		order, gotRanks = append(order, p.Name), append(gotRanks, entryRank(p))
 	}
 	if !slices.Equal(order, []string{"Mai", "Lan", "Nam"}) || !slices.Equal(gotRanks, []int{1, 2, -1}) {
 		t.Fatalf("order %v, ranks %v", order, gotRanks)
@@ -814,6 +833,8 @@ func TestShareRoutesAnswer404ForAnUnknownCode(t *testing.T) {
 			{http.MethodGet, "/api/share/" + code, ""},
 			{http.MethodPost, "/api/share/" + code + "/players", `{"name":"Mai"}`},
 			{http.MethodPost, "/api/share/" + code + "/results", resultBody("run-0000001", 1, 5, 5)},
+			{http.MethodPatch, "/api/share/" + code + "/player", `{"avatar":"fox"}`},
+			{http.MethodGet, "/api/share/" + code + "/leaderboard", ""},
 		} {
 			rec := c.send(rt.method, rt.path, rt.body, header("X-Player-Token", token))
 			if rec.Code != http.StatusNotFound || rec.Body.String() != "Assignment not found" {
@@ -970,6 +991,14 @@ func TestStudentRoutesNeverAnswer401(t *testing.T) {
 			{"result unknown", http.MethodPost, "/api/share/ZZZZZZZZZZ/results", resultBody("run-0000001", 1, 5, 5), 404},
 			{"get closed", http.MethodGet, "/api/share/" + closedOne.Code, "", 410},
 			{"join closed", http.MethodPost, "/api/share/" + closedOne.Code + "/players", `{"name":"Zed"}`, 410},
+			{"join with an avatar", http.MethodPost, "/api/share/" + c.a.Code + "/players", fmt.Sprintf(`{"name":"Avatar %d","avatar":"fox"}`, i), 201},
+			{"join with a bad avatar", http.MethodPost, "/api/share/" + c.a.Code + "/players", `{"name":"Zed","avatar":"cow"}`, 400},
+			{"avatar without a player", http.MethodPatch, "/api/share/" + c.a.Code + "/player", `{"avatar":"fox"}`, 403},
+			{"avatar unknown", http.MethodPatch, "/api/share/ZZZZZZZZZZ/player", `{"avatar":"fox"}`, 404},
+			{"avatar closed", http.MethodPatch, "/api/share/" + closedOne.Code + "/player", `{"avatar":"fox"}`, 410},
+			{"leaderboard", http.MethodGet, "/api/share/" + c.a.Code + "/leaderboard", "", 200},
+			{"leaderboard unknown", http.MethodGet, "/api/share/ZZZZZZZZZZ/leaderboard", "", 404},
+			{"leaderboard closed", http.MethodGet, "/api/share/" + closedOne.Code + "/leaderboard", "", 200},
 		}
 		for _, tt := range tests {
 			rec := c.send(tt.method, tt.path, tt.body, auth)
@@ -1030,6 +1059,9 @@ func TestAssignmentLimits(t *testing.T) {
 		wantError(t, c.tryJoin("One too many"), http.StatusConflict, "Assignment is full")
 		wantError(t, c.tryJoin("Last"), http.StatusConflict, "Assignment is full")
 		wantError(t, c.tryJoin(""), http.StatusBadRequest, "Invalid name.") // the name is judged first
+		// So is the avatar: a bad one is a 400 on a full assignment, a good one finds it full.
+		wantError(t, c.tryJoinAs("One too many", "cow"), http.StatusBadRequest, "Invalid avatar.")
+		wantError(t, c.tryJoinAs("One too many", "fox"), http.StatusConflict, "Assignment is full")
 
 		// The limit is per assignment, and a removed student makes room.
 		other := decode[assignmentView](t, c.teacher(http.MethodPost, "/api/assignments", createBody(nil)))
@@ -1058,10 +1090,10 @@ func TestDeletePlayer(t *testing.T) {
 	wantError(t, c.teacher(http.MethodDelete, base+"nobody", ""), http.StatusNotFound, "Player not found")
 	wantError(t, c.teacher(http.MethodDelete, "/api/assignments/nope/players/"+maiID, ""), http.StatusNotFound, "Assignment not found")
 
-	// Lan's token is worth nothing now, and the ranking has only Mai.
+	// Lan's token is worth nothing now, and the leaderboard has only Mai.
 	wantError(t, c.report(lanToken, resultBody("run-0000003", 1, 5, 5)), http.StatusForbidden, "Unknown player")
 	detail := c.detail(t)
-	if detail.PlayerCount != 1 || len(detail.Players) != 1 || detail.Players[0].Name != "Mai" || rankOf(detail.Players[0]) != 1 {
+	if detail.PlayerCount != 1 || len(detail.Players) != 1 || detail.Players[0].Name != "Mai" || entryRank(detail.Players[0]) != 1 {
 		t.Fatalf("detail %+v %+v", detail.assignmentView, detail.Players)
 	}
 	// The name is free again.
@@ -1186,6 +1218,8 @@ func TestStoreFailuresAreInternalErrors(t *testing.T) {
 		{http.MethodGet, "/api/share/" + c.a.Code, "", student},
 		{http.MethodPost, "/api/share/" + c.a.Code + "/players", `{"name":"Lan"}`, student},
 		{http.MethodPost, "/api/share/" + c.a.Code + "/results", resultBody("run-0000001", 1, 5, 5), student},
+		{http.MethodPatch, "/api/share/" + c.a.Code + "/player", `{"avatar":"fox"}`, student},
+		{http.MethodGet, "/api/share/" + c.a.Code + "/leaderboard", "", student},
 	} {
 		if rec := c.send(rt.method, rt.path, rt.body, rt.opt); rec.Code != http.StatusInternalServerError || rec.Body.Len() != 0 {
 			t.Errorf("%s %s: %d %q", rt.method, rt.path, rec.Code, rec.Body)
@@ -1467,7 +1501,7 @@ func TestReplayLimit(t *testing.T) {
 	wantError(t, c.report(token, resultBody("run-0000003", 1, 5, 5)), http.StatusConflict, "Replay limit reached")
 	after := c.detail(t)
 	if !reflect.DeepEqual(before, after) {
-		t.Fatalf("ranking changed by a refused run:\n%+v\n%+v", before, after)
+		t.Fatalf("leaderboard changed by a refused run:\n%+v\n%+v", before, after)
 	}
 	lan := after.Players[0]
 	if lan.Stages["1"].Correct != 3 || lan.Stages["1"].Attempts != 2 || lan.Stages["1"].Passed {
@@ -1480,7 +1514,7 @@ func TestReplayLimit(t *testing.T) {
 	wantStatus(t, c.report(token, resultBody("run-0000002", 1, 3, 5)), http.StatusNoContent)
 	wantStatus(t, c.report(token, resultBody("run-0000001", 1, 2, 5)), http.StatusNoContent)
 	if got := c.detail(t); !reflect.DeepEqual(before, got) {
-		t.Fatalf("a resent run changed the ranking:\n%+v\n%+v", before, got)
+		t.Fatalf("a resent run changed the leaderboard:\n%+v\n%+v", before, got)
 	}
 
 	// The limit is per stage and per student.
@@ -1534,5 +1568,528 @@ func TestAssignmentWithoutMaxAttemptsIsUnlimited(t *testing.T) {
 	_, ptoken := c.join(t, "Lan")
 	for i := 0; i < 12; i++ {
 		c.finish(t, ptoken, fmt.Sprintf("run-%07d", i), 1, 3, 5)
+	}
+}
+
+// ---- avatars ----
+
+// joinAs adds a student with an avatar and returns the player's id and token.
+func (c *classroom) joinAs(t *testing.T, name, avatar string) (id, token string) {
+	t.Helper()
+	rec := c.tryJoinAs(name, avatar)
+	wantStatus(t, rec, http.StatusCreated)
+	body := decode[struct{ PlayerID, Token string }](t, rec)
+	return body.PlayerID, body.Token
+}
+
+// avatarsOf is the avatar of each player of the assignment, by name, as the teacher's detail shows them.
+func (c *classroom) avatarsOf(t *testing.T) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	for _, p := range c.detail(t).Players {
+		out[p.Name] = p.Avatar
+	}
+	return out
+}
+
+func TestJoinAvatarRules(t *testing.T) {
+	c := newClassroom(t, nil)
+	tests := []struct {
+		name       string
+		body       string
+		status     int
+		wantAvatar string // the stored avatar, or the error message
+	}{
+		{"an avatar", `{"name":"Lan","avatar":"panda"}`, 201, "panda"},
+		{"none sent, as a page from before avatars does", `{"name":"Mai"}`, 201, ""},
+		{"empty", `{"name":"Nam","avatar":""}`, 201, ""},
+		{"null", `{"name":"Bao","avatar":null}`, 201, ""},
+		{"an id that is not an avatar", `{"name":"An","avatar":"cow"}`, 400, "Invalid avatar."},
+		{"another case", `{"name":"An","avatar":"Panda"}`, 400, "Invalid avatar."},
+		{"padded", `{"name":"An","avatar":" panda"}`, 400, "Invalid avatar."},
+		{"only spaces", `{"name":"An","avatar":"  "}`, 400, "Invalid avatar."},
+		{"the emoji instead of the id", `{"name":"An","avatar":"🐼"}`, 400, "Invalid avatar."},
+		{"not a string", `{"name":"An","avatar":5}`, 400, "Invalid payload"},
+		// The name is judged first, so a bad name wins over a bad avatar.
+		{"bad name and bad avatar", `{"name":"","avatar":"cow"}`, 400, "Invalid name."},
+		{"bad name and a good avatar", `{"name":"","avatar":"fox"}`, 400, "Invalid name."},
+		{"a taken name with a good avatar", `{"name":"lan","avatar":"fox"}`, 409, "Name taken"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := c.send(http.MethodPost, "/api/share/"+c.a.Code+"/players", tt.body)
+			if tt.status != http.StatusCreated {
+				wantError(t, rec, tt.status, tt.wantAvatar)
+				return
+			}
+			wantStatus(t, rec, http.StatusCreated)
+			if got := decode[struct{ Avatar string }](t, rec).Avatar; got != tt.wantAvatar {
+				t.Fatalf("avatar %q, want %q", got, tt.wantAvatar)
+			}
+		})
+	}
+
+	// The refusals created nobody, the others kept what they sent, and the teacher sees it.
+	want := map[string]string{"Lan": "panda", "Mai": "", "Nam": "", "Bao": ""}
+	if got := c.avatarsOf(t); !maps.Equal(got, want) {
+		t.Fatalf("avatars %v, want %v", got, want)
+	}
+	c.join(t, "An") // the name was never taken by the refused joins
+
+	// Every avatar of the set can be picked.
+	for i, id := range avatarIDs {
+		c.joinAs(t, fmt.Sprintf("Student %d", i), id)
+	}
+	for i, id := range avatarIDs {
+		if got := c.avatarsOf(t)[fmt.Sprintf("Student %d", i)]; got != id {
+			t.Errorf("student %d has %q, want %q", i, got, id)
+		}
+	}
+}
+
+func TestUpdateSharedPlayer(t *testing.T) {
+	c := newClassroom(t, nil)
+	lanID, lanToken := c.join(t, "Lan")
+	_, maiToken := c.joinAs(t, "Mai", "owl")
+
+	rec := c.setAvatar(lanToken, `{"avatar":"fox"}`)
+	wantStatus(t, rec, http.StatusOK)
+	if got := rec.Header().Get("Content-Type"); got != "application/json" {
+		t.Errorf("content type %q", got)
+	}
+	answer := decode[map[string]any](t, rec)
+	if got, want := keysOf(answer), []string{"avatar", "name", "playerId"}; !slices.Equal(got, want) {
+		t.Fatalf("keys %v, want %v", got, want)
+	}
+	if answer["playerId"] != lanID || answer["name"] != "Lan" || answer["avatar"] != "fox" {
+		t.Fatalf("answer %v", answer)
+	}
+
+	// The teacher's leaderboard shows it on that player only.
+	if got, want := c.avatarsOf(t), map[string]string{"Lan": "fox", "Mai": "owl"}; !maps.Equal(got, want) {
+		t.Fatalf("avatars %v, want %v", got, want)
+	}
+
+	// Picking again replaces it, and the same avatar twice is fine.
+	wantStatus(t, c.setAvatar(lanToken, `{"avatar":"frog"}`), http.StatusOK)
+	wantStatus(t, c.setAvatar(lanToken, `{"avatar":"frog"}`), http.StatusOK)
+	wantStatus(t, c.setAvatar(maiToken, `{"avatar":"frog"}`), http.StatusOK) // two students may share one
+	if got, want := c.avatarsOf(t), map[string]string{"Lan": "frog", "Mai": "frog"}; !maps.Equal(got, want) {
+		t.Fatalf("avatars %v, want %v", got, want)
+	}
+
+	// The token is the lookup, so the body cannot name another player, and a result keeps the avatar.
+	rec = c.setAvatar(lanToken, `{"avatar":"cat","playerId":"someone-else","name":"Mai"}`)
+	wantStatus(t, rec, http.StatusOK)
+	if got := decode[map[string]string](t, rec); got["name"] != "Lan" || got["playerId"] != lanID {
+		t.Fatalf("answer %v", got)
+	}
+	c.finish(t, lanToken, "run-0000001", 1, 5, 5)
+	if got, want := c.avatarsOf(t), map[string]string{"Lan": "cat", "Mai": "frog"}; !maps.Equal(got, want) {
+		t.Fatalf("avatars after a result %v, want %v", got, want)
+	}
+	if lan := c.detail(t).Players[0]; lan.Name != "Lan" || lan.Correct != 5 || lan.Avatar != "cat" {
+		t.Fatalf("lan %+v", lan)
+	}
+
+	// The code is trimmed and upper-cased like everywhere else on the student routes.
+	rec = c.send(http.MethodPatch, "/api/share/%20"+strings.ToLower(c.a.Code)+"%20/player", `{"avatar":"dog"}`, header("X-Player-Token", lanToken))
+	wantStatus(t, rec, http.StatusOK)
+}
+
+func TestUpdateSharedPlayerErrors(t *testing.T) {
+	c := newClassroom(t, nil)
+	_, lanToken := c.joinAs(t, "Lan", "panda")
+	other := decode[assignmentView](t, c.teacher(http.MethodPost, "/api/assignments", createBody(nil)))
+
+	patchOn := func(code, token, body string) *httptest.ResponseRecorder {
+		var opts []reqOpt
+		if token != "" {
+			opts = append(opts, header("X-Player-Token", token))
+		}
+		return c.send(http.MethodPatch, "/api/share/"+code+"/player", body, opts...)
+	}
+	good := `{"avatar":"fox"}`
+
+	// 404: the code, before anything else is looked at.
+	wantError(t, patchOn("ZZZZZZZZZZ", lanToken, good), http.StatusNotFound, "Assignment not found")
+	wantError(t, patchOn("ZZZZZZZZZZ", "", "nope"), http.StatusNotFound, "Assignment not found")
+
+	// 403: no token, an unknown one, the hash instead of the token, and a token of another assignment.
+	// It is checked before the body is read.
+	players, _ := c.assignments.ListPlayers(context.Background(), c.a.ID)
+	for name, token := range map[string]string{
+		"missing":                "",
+		"unknown":                "not-a-token",
+		"the stored hash":        players[0].TokenHash,
+		"another assignment's":   lanToken,
+		"a token with a newline": lanToken + "\n",
+	} {
+		code := c.a.Code
+		if name == "another assignment's" {
+			code = other.Code
+		}
+		wantError(t, patchOn(code, token, good), http.StatusForbidden, "Unknown player")
+		wantError(t, patchOn(code, token, "nope"), http.StatusForbidden, "Unknown player")
+	}
+
+	// 400: the payload, then the avatar; the player is known by now.
+	for name, tt := range map[string]struct{ body, msg string }{
+		"no body":          {``, "Missing body"},
+		"not json":         {`nope`, "Invalid payload"},
+		"not a string":     {`{"avatar":5}`, "Invalid payload"},
+		"an object":        {`{"avatar":{"id":"fox"}}`, "Invalid payload"},
+		"no avatar":        {`{}`, "Invalid avatar."},
+		"empty":            {`{"avatar":""}`, "Invalid avatar."},
+		"null":             {`{"avatar":null}`, "Invalid avatar."},
+		"only spaces":      {`{"avatar":" "}`, "Invalid avatar."},
+		"unknown":          {`{"avatar":"cow"}`, "Invalid avatar."},
+		"another case":     {`{"avatar":"Fox"}`, "Invalid avatar."},
+		"padded":           {`{"avatar":"fox "}`, "Invalid avatar."},
+		"the emoji itself": {`{"avatar":"🦊"}`, "Invalid avatar."},
+	} {
+		if rec := patchOn(c.a.Code, lanToken, tt.body); rec.Code != http.StatusBadRequest || rec.Body.String() != tt.msg {
+			t.Errorf("%s: got %d %q, want 400 %q", name, rec.Code, rec.Body, tt.msg)
+		}
+	}
+	if got := c.avatarsOf(t)["Lan"]; got != "panda" {
+		t.Fatalf("a refused change set the avatar to %q", got)
+	}
+
+	// 410: once the assignment is closed, before the token is looked at, and nothing changes.
+	wantStatus(t, c.patch(`{"closed":true}`), http.StatusOK)
+	wantError(t, patchOn(c.a.Code, lanToken, good), http.StatusGone, "Assignment closed")
+	wantError(t, patchOn(c.a.Code, "", good), http.StatusGone, "Assignment closed")
+	wantError(t, patchOn(c.a.Code, lanToken, "nope"), http.StatusGone, "Assignment closed")
+	wantError(t, patchOn("ZZZZZZZZZZ", lanToken, good), http.StatusNotFound, "Assignment not found")
+	if got := c.avatarsOf(t)["Lan"]; got != "panda" {
+		t.Fatalf("a refused change set the avatar to %q", got)
+	}
+
+	// Reopened, the student can change it again.
+	wantStatus(t, c.patch(`{"closed":false}`), http.StatusOK)
+	wantStatus(t, patchOn(c.a.Code, lanToken, good), http.StatusOK)
+}
+
+func TestUpdateSharedPlayerOfARemovedStudent(t *testing.T) {
+	c := newClassroom(t, nil)
+	lanID, lanToken := c.join(t, "Lan")
+	c.join(t, "Mai")
+	wantStatus(t, c.teacher(http.MethodDelete, "/api/assignments/"+c.a.ID+"/players/"+lanID, ""), http.StatusNoContent)
+
+	wantError(t, c.setAvatar(lanToken, `{"avatar":"fox"}`), http.StatusForbidden, "Unknown player")
+	if got := c.avatarsOf(t); !maps.Equal(got, map[string]string{"Mai": ""}) {
+		t.Fatalf("avatars %v", got)
+	}
+
+	// The teacher can also remove the student between the token check and the write.
+	_, namToken := c.join(t, "Nam")
+	c.srv.Assignments = avatarFailing{c.assignments, store.ErrNotFound}
+	wantError(t, c.setAvatar(namToken, `{"avatar":"fox"}`), http.StatusForbidden, "Unknown player")
+}
+
+// avatarFailing makes every SetPlayerAvatar fail with err, whatever the player.
+type avatarFailing struct {
+	store.Assignments
+	err error
+}
+
+func (a avatarFailing) SetPlayerAvatar(context.Context, string, string, string) error { return a.err }
+
+// tokenLookupFailing makes every PlayerByToken fail with err.
+type tokenLookupFailing struct {
+	store.Assignments
+	err error
+}
+
+func (a tokenLookupFailing) PlayerByToken(context.Context, string, string) (*store.Player, error) {
+	return nil, a.err
+}
+
+func TestAvatarStoreFailuresAreInternalErrors(t *testing.T) {
+	c := newClassroom(t, nil)
+	_, token := c.join(t, "Lan")
+
+	c.srv.Assignments = avatarFailing{c.assignments, errBroken}
+	if rec := c.setAvatar(token, `{"avatar":"fox"}`); rec.Code != http.StatusInternalServerError || rec.Body.Len() != 0 {
+		t.Errorf("writing the avatar: %d %q", rec.Code, rec.Body)
+	}
+
+	c.srv.Assignments = tokenLookupFailing{c.assignments, errBroken}
+	if rec := c.setAvatar(token, `{"avatar":"fox"}`); rec.Code != http.StatusInternalServerError || rec.Body.Len() != 0 {
+		t.Errorf("looking up the player to change: %d %q", rec.Code, rec.Body)
+	}
+	if rec := c.board(token); rec.Code != http.StatusInternalServerError || rec.Body.Len() != 0 {
+		t.Errorf("looking up the reader of the board: %d %q", rec.Code, rec.Body)
+	}
+	// Without a token nothing is looked up, so the board does not depend on it.
+	wantStatus(t, c.board(""), http.StatusOK)
+}
+
+// ---- the students' leaderboard ----
+
+// classOf joins the students in order, each of whom finishes stage 1 with full marks a minute after the
+// one before, so they are ranked in the order given. It returns their tokens and player ids by name.
+func classOf(t *testing.T, c *classroom, names ...string) (tokens, ids map[string]string) {
+	t.Helper()
+	tokens, ids = map[string]string{}, map[string]string{}
+	for i, name := range names {
+		ids[name], tokens[name] = c.joinAs(t, name, avatarIDs[i%len(avatarIDs)])
+	}
+	for i, name := range names {
+		c.clock.Advance(time.Minute)
+		c.finish(t, tokens[name], fmt.Sprintf("run-%07d", i), 1, 5, 5)
+	}
+	return tokens, ids
+}
+
+func boardOf(t *testing.T, rec *httptest.ResponseRecorder) studentBoard {
+	t.Helper()
+	wantStatus(t, rec, http.StatusOK)
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Errorf("the board is cacheable: %q", got)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/json" {
+		t.Errorf("content type %q", got)
+	}
+	return decode[studentBoard](t, rec)
+}
+
+func TestSharedLeaderboardShowsTheTopFiveAndYou(t *testing.T) {
+	c := newClassroom(t, nil) // stage 1 has 5 questions, stage 2 has 10
+	tokens, ids := classOf(t, c, "S1", "S2", "S3", "S4", "S5", "S6", "S7")
+	_, idleToken := c.join(t, "Idle")
+
+	// Without a token: the top five and nobody to be.
+	board := boardOf(t, c.board(""))
+	if got, want := boardNames(board), []string{"S1", "S2", "S3", "S4", "S5"}; !slices.Equal(got, want) {
+		t.Fatalf("names %v, want %v", got, want)
+	}
+	if got, want := boardRanks(board), []int{1, 2, 3, 4, 5}; !slices.Equal(got, want) {
+		t.Fatalf("ranks %v, want %v", got, want)
+	}
+	if board.You != nil || board.Possible != 15 || board.StageCount != 2 || board.PlayerCount != 8 {
+		t.Fatalf("board %+v", board)
+	}
+	if first := board.Top[0]; first.Avatar != avatarIDs[0] || first.StagesPassed != 1 || first.Correct != 5 || first.You {
+		t.Errorf("first row %+v", first)
+	}
+
+	// A student inside the top is marked on their row and named in you.
+	board = boardOf(t, c.board(tokens["S3"]))
+	if board.You == nil || board.You.Rank == nil || *board.You.Rank != 3 || board.You.Name != "S3" ||
+		board.You.Avatar != avatarIDs[2] || board.You.StagesPassed != 1 || board.You.Correct != 5 {
+		t.Fatalf("you %+v", board.You)
+	}
+	for _, row := range board.Top {
+		if row.You != (row.Name == "S3") {
+			t.Errorf("row %+v", row)
+		}
+	}
+
+	// One outside it gets the same top and their own place under it.
+	board = boardOf(t, c.board(tokens["S7"]))
+	if board.You == nil || board.You.Rank == nil || *board.You.Rank != 7 || board.You.Name != "S7" {
+		t.Fatalf("you %+v", board.You)
+	}
+	if got, want := boardNames(board), []string{"S1", "S2", "S3", "S4", "S5"}; !slices.Equal(got, want) {
+		t.Fatalf("names %v, want %v", got, want)
+	}
+	for _, row := range board.Top {
+		if row.You {
+			t.Errorf("a row is marked as the reader's own: %+v", row)
+		}
+	}
+
+	// One without a result is on the class's count but has no rank.
+	board = boardOf(t, c.board(idleToken))
+	if board.You == nil || board.You.Rank != nil || board.You.Name != "Idle" || board.You.Correct != 0 {
+		t.Fatalf("you %+v", board.You)
+	}
+
+	// The board moves with the results: S7 overtakes by passing stage 2 as well.
+	c.finish(t, tokens["S7"], "run-0000099", 2, 10, 10)
+	board = boardOf(t, c.board(tokens["S7"]))
+	if got, want := boardNames(board), []string{"S7", "S1", "S2", "S3", "S4"}; !slices.Equal(got, want) {
+		t.Fatalf("names %v, want %v", got, want)
+	}
+	if board.You == nil || *board.You.Rank != 1 || board.You.StagesPassed != 2 || board.You.Correct != 15 || !board.Top[0].You {
+		t.Fatalf("you %+v, first %+v", board.You, board.Top[0])
+	}
+
+	// A student who changes the avatar shows the new one at once, on the row and in you.
+	wantStatus(t, c.setAvatar(tokens["S7"], `{"avatar":"unicorn"}`), http.StatusOK)
+	board = boardOf(t, c.board(tokens["S7"]))
+	if board.Top[0].Avatar != "unicorn" || board.You.Avatar != "unicorn" {
+		t.Fatalf("avatar of %+v, %+v", board.Top[0], board.You)
+	}
+
+	// A removed student leaves the board, and their token is worth nothing.
+	wantStatus(t, c.teacher(http.MethodDelete, "/api/assignments/"+c.a.ID+"/players/"+ids["S7"], ""), http.StatusNoContent)
+	board = boardOf(t, c.board(tokens["S7"]))
+	if board.You != nil || board.PlayerCount != 7 || board.Top[0].Name != "S1" {
+		t.Fatalf("board %+v", board)
+	}
+}
+
+func TestSharedLeaderboardAnswersTiesAndTheCap(t *testing.T) {
+	// Three students reach the same score at the same moment, so they share 5th place.
+	c := newClassroom(t, nil)
+	classOf(t, c, "A", "B", "C", "D")
+	c.clock.Advance(time.Minute)
+	for i, name := range []string{"E", "F", "G"} {
+		_, token := c.join(t, name)
+		c.finish(t, token, fmt.Sprintf("run-%07d", 100+i), 1, 5, 5)
+	}
+	c.clock.Advance(time.Minute)
+	_, hToken := c.join(t, "H")
+	c.finish(t, hToken, "run-0000200", 1, 5, 5)
+
+	board := boardOf(t, c.board(hToken))
+	// Those who tie are listed by when they joined, which was the same moment, so by an id that is random.
+	names := boardNames(board)
+	slices.Sort(names[4:])
+	if want := []string{"A", "B", "C", "D", "E", "F", "G"}; !slices.Equal(names, want) {
+		t.Fatalf("names %v, want %v", names, want)
+	}
+	if got, want := boardRanks(board), []int{1, 2, 3, 4, 5, 5, 5}; !slices.Equal(got, want) {
+		t.Fatalf("ranks %v, want %v", got, want)
+	}
+	if board.You == nil || *board.You.Rank != 8 || board.PlayerCount != 8 {
+		t.Fatalf("board %+v", board)
+	}
+
+	// Twelve students who all tie for first place fill ten rows, not twelve.
+	c = newClassroom(t, nil)
+	for i := range 12 {
+		_, token := c.join(t, fmt.Sprintf("Tie %d", i))
+		c.finish(t, token, fmt.Sprintf("run-%07d", i), 1, 5, 5)
+	}
+	board = boardOf(t, c.board(""))
+	if len(board.Top) != 10 || board.PlayerCount != 12 {
+		t.Fatalf("%d rows, %d players", len(board.Top), board.PlayerCount)
+	}
+	for _, row := range board.Top {
+		if row.Rank != 1 {
+			t.Errorf("row %+v", row)
+		}
+	}
+}
+
+func TestSharedLeaderboardWhenNobodyHasPlayed(t *testing.T) {
+	c := newClassroom(t, nil)
+	rec := c.board("")
+	wantStatus(t, rec, http.StatusOK)
+	if got, want := strings.TrimSpace(rec.Body.String()), `{"top":[],"you":null,"possible":15,"stageCount":2,"playerCount":0}`; got != want {
+		t.Fatalf("got %s, want %s", got, want)
+	}
+	_, token := c.join(t, "Lan")
+	board := boardOf(t, c.board(token))
+	if len(board.Top) != 0 || board.PlayerCount != 1 || board.You == nil || board.You.Rank != nil || board.You.Name != "Lan" {
+		t.Fatalf("board %+v", board)
+	}
+}
+
+func TestSharedLeaderboardIgnoresABadToken(t *testing.T) {
+	c := newClassroom(t, nil)
+	tokens, _ := classOf(t, c, "S1", "S2")
+	other := decode[assignmentView](t, c.teacher(http.MethodPost, "/api/assignments", createBody(nil)))
+
+	for name, opts := range map[string][]reqOpt{
+		"unknown token":          {header("X-Player-Token", "garbage")},
+		"empty token":            {header("X-Player-Token", "")},
+		"the stored hash":        {header("X-Player-Token", hashPlayerToken(tokens["S1"]))},
+		"token and bad auth":     {header("X-Player-Token", "garbage"), header("Authorization", "Bearer garbage")},
+		"a good token, bad auth": {header("X-Player-Token", tokens["S1"]), header("Authorization", "Bearer garbage")},
+	} {
+		rec := c.send(http.MethodGet, "/api/share/"+c.a.Code+"/leaderboard", "", opts...)
+		board := boardOf(t, rec)
+		wantYou := name == "a good token, bad auth"
+		if (board.You != nil) != wantYou || len(board.Top) != 2 {
+			t.Errorf("%s: %+v", name, board)
+		}
+	}
+
+	// A token of another assignment is not a student of this one.
+	rec := c.send(http.MethodGet, "/api/share/"+other.Code+"/leaderboard", "", header("X-Player-Token", tokens["S1"]))
+	if board := boardOf(t, rec); board.You != nil || len(board.Top) != 0 {
+		t.Fatalf("another assignment's token: %+v", board)
+	}
+}
+
+func TestSharedLeaderboardAnswersWhileClosed(t *testing.T) {
+	c := newClassroom(t, nil)
+	tokens, _ := classOf(t, c, "S1", "S2", "S3")
+	wantStatus(t, c.patch(`{"closed":true}`), http.StatusOK)
+	wantError(t, c.shareGet(), http.StatusGone, "Assignment closed")
+
+	// The final board is still there for the closed card, long after the results stopped being taken.
+	for _, wait := range []time.Duration{0, 4 * time.Minute, 2 * time.Hour} {
+		c.clock.Advance(wait)
+		board := boardOf(t, c.board(tokens["S2"]))
+		if got, want := boardNames(board), []string{"S1", "S2", "S3"}; !slices.Equal(got, want) {
+			t.Fatalf("names %v, want %v", got, want)
+		}
+		if board.You == nil || *board.You.Rank != 2 || !board.Top[1].You {
+			t.Fatalf("you %+v", board.You)
+		}
+	}
+	wantError(t, c.report(tokens["S2"], resultBody("run-0000099", 2, 10, 10)), http.StatusGone, "Assignment closed")
+}
+
+func TestSharedLeaderboardAnswersNoStoreWhateverTheStatus(t *testing.T) {
+	c := newClassroom(t, nil)
+	rec := c.send(http.MethodGet, "/api/share/ZZZZZZZZZZ/leaderboard", "")
+	wantError(t, rec, http.StatusNotFound, "Assignment not found")
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Errorf("the 404 is cacheable: %q", got)
+	}
+	// The code is trimmed and upper-cased, nothing else.
+	wantStatus(t, c.send(http.MethodGet, "/api/share/%20"+strings.ToLower(c.a.Code)+"%20/leaderboard", ""), http.StatusOK)
+	wantError(t, c.send(http.MethodGet, "/api/share/"+c.a.Code[:9]+"/leaderboard", ""), http.StatusNotFound, "Assignment not found")
+}
+
+func TestSharedLeaderboardJSONShape(t *testing.T) {
+	c := newClassroom(t, nil)
+	tokens, ids := classOf(t, c, "S1", "S2", "S3", "S4", "S5", "S6")
+	_, idleToken := c.join(t, "Idle")
+
+	for name, token := range map[string]string{"no token": "", "inside the top": tokens["S2"], "outside": tokens["S6"], "unranked": idleToken} {
+		rec := c.board(token)
+		wantStatus(t, rec, http.StatusOK)
+		for _, id := range ids {
+			if strings.Contains(rec.Body.String(), id) {
+				t.Errorf("%s: the player id %s is in %s", name, id, rec.Body)
+			}
+		}
+		board := decode[map[string]any](t, rec)
+		if got, want := keysOf(board), []string{"playerCount", "possible", "stageCount", "top", "you"}; !slices.Equal(got, want) {
+			t.Fatalf("%s: keys %v, want %v", name, got, want)
+		}
+		top, ok := board["top"].([]any)
+		if !ok || len(top) != 5 {
+			t.Fatalf("%s: top %v", name, board["top"])
+		}
+		for _, row := range top {
+			if got, want := keysOf(row.(map[string]any)), []string{"avatar", "correct", "name", "rank", "stagesPassed", "you"}; !slices.Equal(got, want) {
+				t.Fatalf("%s: row keys %v, want %v", name, got, want)
+			}
+		}
+		if token == "" {
+			if board["you"] != nil {
+				t.Fatalf("%s: you is %v, want null", name, board["you"])
+			}
+			continue
+		}
+		you, ok := board["you"].(map[string]any)
+		if !ok {
+			t.Fatalf("%s: you is %v, want an object", name, board["you"])
+		}
+		if got, want := keysOf(you), []string{"avatar", "correct", "name", "rank", "stagesPassed"}; !slices.Equal(got, want) {
+			t.Fatalf("%s: you keys %v, want %v", name, got, want)
+		}
+		if name == "unranked" && you["rank"] != nil {
+			t.Errorf("an unranked reader has rank %v", you["rank"])
+		}
 	}
 }

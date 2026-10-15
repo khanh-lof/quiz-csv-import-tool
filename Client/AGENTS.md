@@ -9,7 +9,7 @@ question/answer vocabulary pairs (manually, via CSV import, or via AI generation
 them as a CSV formatted for GimKit or Blooket import, or as an `.xlsx` for Wayground. The AI can also
 write a "Game" quiz, which is not exported anywhere: the app plays it itself, on a full-screen
 page that reads the player's gestures from the webcam (see [Gesture quiz](#gesture-quiz-play)), and a teacher
-can give that quiz to students as a link and watch their ranking (see [Giao bài](#giao-bài-assignments)). Auth (JWT access token + HttpOnly
+can give that quiz to students as a link and watch their leaderboard (see [Giao bài](#giao-bài-assignments)). Auth (JWT access token + HttpOnly
 refresh cookie) and the AI image-to-CSV endpoint are served by the sibling `../Server` Go API
 (see `../Server/AGENTS.md`).
 
@@ -73,7 +73,7 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
 inline `nz-menu` built from `NAV`: "Quiz thủ công", then the groups "AI" with "Tạo quiz" and "Lịch sử", and
 "Game" with "Chơi game" and "Bài đã giao", plus the login/logout item at its foot and, at its
 top, the collapse switch: a double-left/double-right icon button with a tooltip), a breadcrumb (`breadcrumbFor`, with its spec: group › page, and "Bảng xếp hạng" under "Bài đã giao" on an
-assignment's ranking, which is why that page has no back link) and the title. The pages are highlighted via
+assignment's leaderboard, which is why that page has no back link) and the title. The pages are highlighted via
 `nzMatchRouter`, "Chơi game" never is because it leaves the frame for the full-screen `/play` page (see
 [Gesture quiz](#gesture-quiz-play)). The groups are open whenever the menu is; collapsed, the menu shows only
 icons and the groups become fly-outs. The wide layout remembers the collapse in `localStorage`
@@ -294,28 +294,34 @@ cử chỉ export is covered in `file-export.service.spec.ts`. None of them runs
 ### Giao bài (assignments)
 
 A teacher gives a finished Game job to students, who play it by link with no account; the rules
-(snapshot, code, player token, result and ranking contract, closing) are in
+(snapshot, code, player token, avatar, result and leaderboard contract, closing) are in
 [../AGENTS.md](../AGENTS.md#giao-bài-assignments). This section is the client's half. The shapes of the API
-are `src/models/assignment.ts` (`Assignment`, `AssignmentDetail`, `RankedPlayer`, `SharedQuiz`, `NewAssignment`,
-`AssignmentChange`, kept in step with the Go JSON by hand), which also holds the pure helpers: `shareUrl`
+are `src/models/assignment.ts` (`Assignment`, `AssignmentDetail`, `LeaderboardEntry`, `SharedQuiz`, `StudentBoard`,
+`NewAssignment`, `AssignmentChange`, `PlayerIdentity`, kept in step with the Go JSON by hand), and the avatar set
+is `src/models/avatar.ts` (`AVATARS`: id, emoji, Vietnamese name and disc colour, the same ids in the same order as
+the server's `avatarIDs`; `avatarDef`, `randomAvatar`). `assignment.ts` also holds the pure helpers: `shareUrl`
 (`<origin>/play/s/<code>`), `stageCountsOf` (the question count of each stage of a parsed quiz, sent when
 assigning), `isOpenAt` and `assignmentStatusText` (recomputed from the two times, since the `open` flag is only
 as fresh as the response), `assignmentErrorMessage` (the server's plain-text bodies in Vietnamese) and
-`rankingCsv`.
+`leaderboardCsv`.
 
 **Routes and menu.** Inside `Workspace`, `assignments` (`AssignmentList`) and `assignments/:id`
-(`AssignmentRanking`) are lazy `loadComponent` routes with `authGuard`, and "Bài đã giao" (`trophy` icon,
+(`AssignmentLeaderboard`) are lazy `loadComponent` routes with `authGuard`, and "Bài đã giao" (`trophy` icon,
 `nzMatchRouter`) is their menu item. `play/s/:code` and `play/preview/:assignmentId` are the two `GesturePlay`
 routes added for this (see above for their guards).
 
 **Services.**
 - `AssignmentService` (`services/assignment.service.ts`, the teacher's side) is stateless HTTP: `create`,
   `list`, `get`, `update`, `remove`, `removePlayer`. Every page asks the server for what it shows, so the
-  list and a ranking page never disagree over an old copy. `remove`/`removePlayer` treat a 404 as done, like an
+  list and a leaderboard page never disagree over an old copy. `remove`/`removePlayer` treat a 404 as done, like an
   AI job's delete.
 - `SharedPlayService` (`services/shared-play.service.ts`, the student's side, used only by the lazy page):
-  `load(code)` and `join(code, name)`; `identity(code)` and `forget(code)` over
-  `localStorage['gesture-shared-players']` (`{CODE: {playerId, token, name}}`); `submit(code, {stage, correct,
+  `load(code)` and `join(code, name, avatar)`; `setAvatar(code, avatar)` (`PATCH share/{code}/player`: on 200 it
+  updates the stored identity, on 403 it forgets it and rethrows, and with no identity it fails as a 403 without a
+  request); `leaderboard(code)` (`GET share/{code}/leaderboard`, with the token when this device joined);
+  `identity(code)` and `forget(code)` over
+  `localStorage['gesture-shared-players']` (`{CODE: {playerId, token, name, avatar}}`, an identity stored before
+  avatars reads as `avatar: ''`); `submit(code, {stage, correct,
   total})` and `flush(code)` over `localStorage['gesture-shared-pending']`. `submit` never errors, its result
   says what became of the run: `saved`; `queued` (the server could not be reached, status 0, or failed, 5xx:
   the run goes to the pending queue); `closed` (410); `rejected` (any other final answer, such as 400 or 403,
@@ -348,10 +354,27 @@ routes added for this (see above for their guards).
   `GestureProgressService` keeps each student's locks and bests apart from other students' and from the same
   quiz played as a file or a job (a student who joins again under a new name starts over). A quiz the device
   already joined goes straight to the map, otherwise to the `join` screen, which is `ShareJoin`
-  (`gesture-play/share-join/`: inputs `title`, `label`, `closesAt`, `error`, `busy`, output `join` with the
-  trimmed name). It only collects the name: the page does the join and words the failure in `joinProblem`
-  (`Name taken`, `Assignment is full`, a bad name, offline). The map shows "👤 name · Không phải bạn?" (a link that
-  forgets the identity and returns to the join screen) and the closing time, projected into `GestureStageMap`.
+  (`gesture-play/share-join/`: inputs `title`, `label`, `closesAt`, `error`, `busy`, output `join` with a
+  `JoinRequest`, the trimmed name and the avatar). It collects the name and the avatar (an `AvatarPicker`
+  that starts on a random one, shown big above the title): the page does the join and words the failure in
+  `joinProblem` (`Name taken`, `Assignment is full`, a bad name, offline). The map shows the student's line,
+  projected into `GestureStageMap`: their avatar as a button, the name (a `MarqueeText`, so a long one scrolls),
+  "Không phải bạn?" (a link that forgets the identity and returns to the join screen) and the closing time.
+  The avatar button opens a dialog with an `AvatarPicker`; "Lưu" calls `setAvatar`: success updates the line
+  (and refreshes the board), a 403 goes back to the join screen, a 410 shows the closed card, anything else
+  keeps the dialog open with an error notification. While the change is on its way the dialog cannot be closed.
+- **The students' board.** `StudentLeaderboard` (`gesture-play/student-leaderboard/`: inputs `code`, `refreshKey`)
+  shows `SharedPlayService.leaderboard`: the top rows (medal or number, avatar, marquee name, "N/M màn · C/P câu"),
+  the student's own row marked "Bạn" (after a "⋯" when it is below the top), "Bạn chưa có kết quả…" before
+  their first result, "Chưa ai có kết quả." on an empty board, and a compact `MarqueePauseButton`. It loads on
+  init and when `code` or `refreshKey` changes, every 30 s (`BOARD_POLL_MS`) while the tab is visible and once
+  when it comes back; a failed load quietly keeps the last board and an older answer never replaces a newer
+  one; nothing is drawn before the first answer. The page mounts it under the map in shared mode, with
+  `boardKey` as `refreshKey` (it goes up on every `saved` result and avatar change), in a preview for the
+  assignment's code (the teacher sees what the class sees), and on the closed error card (`closedBoard`: shared
+  mode, the "Bài này đã đóng" message from loading, the stage check or an avatar change, and a device that joined)
+  as the final board; the route answers while the assignment is closed for that reason. A result refused as
+  closed still shows its own text on the result screen, not the card.
   The timer reads `effectiveTimeMode`, the teacher's `assignmentTimeMode` before the player's own setting.
   A student has no way out of the page, and the error cards (not found, closed, could not load) have no link.
 - **The check before each stage** (`guardSharedStage`, for opening a stage's intro, replaying it and "Màn tiếp
@@ -391,6 +414,29 @@ routes added for this (see above for their guards).
   with none left cannot be started, the map shows "Hết lượt" / "Còn N lượt" and the result hides replay; a 409
   `Replay limit reached` on a result marks the stage used up and is not queued. A preview is never limited.
 
+**Leaderboard building blocks** (`src/components/leaderboard/`, each with its spec), shared by the teacher's
+page and the students' board:
+- `PlayerAvatar` (`app-player-avatar`: `avatar`, `name`, `size` `sm|md|lg|xl`, `ring` `gold|silver|bronze|null`)
+  draws the avatar's emoji on its disc, or the name's first letter on a neutral disc for an empty or unknown id.
+  It is `aria-hidden`: the name is always shown beside it. `--avatar-size` on it or an ancestor overrides the size.
+- `AvatarPicker` (`app-avatar-picker`, `[(value)]`) is the 6-column radio grid of the 24 avatars (roving
+  tabindex, arrows, Home/End) with a "🎲 Ngẫu nhiên" button.
+- `MarqueeText` (`app-marquee-text`, `text`) is a one-line name that scrolls only when it does not fit: right to
+  left in a seamless loop (the text twice, 40 px apart, 40 px/s, holding still for the first 12% of each loop),
+  like an LED ad sign. It measures on render, on a resize (`ResizeObserver`) and once the fonts have loaded,
+  pauses under the pointer, and stays still with an ellipsis while `MarqueeSettings.paused()` or under
+  `prefers-reduced-motion`; the full name is always its `title`. It needs a bounded width (`min-width: 0` in a
+  grid or flex cell).
+- `MarqueeSettings` (root) keeps the "stop the moving names" choice in `localStorage['leaderboard-marquee-paused']`,
+  and `MarqueePauseButton` (`app-marquee-pause-button`, `compact`) toggles it: "Dừng chữ chạy" / "Cho chữ chạy".
+  That one switch for every moving name is what WCAG 2.2.2 (pause, stop, hide) asks of content that moves on
+  its own; keep one on any screen that shows marquee names.
+- `LeaderboardPodium` (`app-leaderboard-podium`: `entries` of `PodiumEntry`, `stageCount`, `possible`, `large`)
+  is the top three: first in the middle and taller, second on its left, third on its right, by explicit grid
+  column so the list reads 1, 2, 3. `podiumSteps` (`podium.ts`) groups the entries by rank 1 to 3: players tied
+  on a rank share a step (three avatars, then "+N", and the names in one marquee), and a rank nobody holds
+  (after a tie) has no step.
+
 **Teacher components** (`src/components/assignments/`, all with their own spec):
 - `AssignDialog` (`assign-dialog/`, `app-assign-dialog`: input `job`, `[(open)]`, output `created`) is mounted by
   `AiJobs` and opened by "Giao bài" on a done GestureQuiz job. It parses the job's CSV the way the game does
@@ -409,31 +455,47 @@ routes added for this (see above for their guards).
   for Ctrl+C when the clipboard is not available), an `nz-qrcode` of it and the code.
 - `AssignmentList` (`assignment-list/`, `/assignments`): a table of the assignments, newest first, with the
   title and label, the status tag (`assignmentStatusText`), the student count and when it was assigned. Row
-  actions, all in one "Thao tác" dropdown: "Xếp hạng", copy link, QR (a popup with `ShareLink`), "Đóng bài" (confirmed in a modal) or "Mở lại" (a popup
+  actions, all in one "Thao tác" dropdown: "Bảng xếp hạng", copy link, QR (a popup with `ShareLink`), "Đóng bài" (confirmed in a modal) or "Mở lại" (a popup
   with `DeadlinePicker`: a reopen always sends a closing time or `null`, because the server refuses one that
   would close at once), and "Xóa" (confirmed in a modal, it also deletes the students' results). A 30 s tick makes an
   assignment whose closing time passes show as closed without a reload.
-- `AssignmentRanking` (`assignment-ranking/`, `/assignments/:id`, with `assignment-ranking-logic.ts` for the
-  pure parts: `shouldPoll`, `medal`, `stageCell`, `fileNameFor`). The header has the status and time mode and
+- `AssignmentLeaderboard` (`assignment-leaderboard/`, `/assignments/:id`, with `assignment-leaderboard-logic.ts`
+  for the pure parts: `shouldPoll`, `medal`, `stageCell`, `stagePip`, `scorePercent`, `rankMoves`, `moveMark`,
+  `orderChanged`, `fileNameFor`, and `flip.ts` for the row slide). The header has the status and time mode and
   the actions: copy link, QR (a big code for a projector), "Xem thử" (`/play/preview/<id>`), "Đóng bài" and
   "Hẹn giờ đóng" while it is open, "Mở lại" when closed, "Tải bảng điểm" and "Toàn màn hình" (full-screens the
-  ranking card, not the page). The table shows the server's order: rank (🥇🥈🥉 for the top three, "–" for a
-  student with no result), name, stages passed, correct over possible, one column per stage of the quiz (headed "Màn <position>", best
-  `correct/total`, ✓ when passed), attempts, last played, and a confirmed "remove student". It polls
+  board card, not the page). The board card ("Bảng xếp hạng", with a `MarqueePauseButton` beside "Làm mới")
+  shows the server's order, never re-sorted: the `LeaderboardPodium` of the ranked players, then
+  `ol.entries`, one `li.entry[data-player-id]` per ranked player (a subgrid of the list, so the columns line
+  up): the rank (🥇🥈🥉, else the number), the avatar, the name in a `MarqueeText` with its move mark, one pip
+  per stage of the quiz (the game's icon and the best `correct/total`, ✓ and green when passed, gold when played
+  but not passed, "–" when not played; its `title` says "Màn 2 · Nghiêng đầu: 4/5 ✓ · 3 lần"), the score
+  `correct/possible` over a bar, attempts, last played, and a confirmed "remove student". Students without a
+  result follow under "Chưa có kết quả (N)" in neutral rows (avatar, name, when they joined, remove), never as
+  the last places. **Moves:** `rankMoves` compares each answer's ranks with the previous one (by player id, the
+  rank and not the position) and keeps a change for 30 s (`MOVE_KEEP_MS`), shown as ▲N or ▼N with an
+  `aria-label`; a new or newly ranked student has none. **Slide:** when an answer changes the order (not the
+  first one), `captureRows` takes the rows' places before it is shown and `playFlip` slides each row from there
+  (FLIP), skipped under `prefers-reduced-motion`. **Projector:** in full screen the podium is `large`, rows and
+  avatars are bigger, and attempts, last played and remove are hidden. **Phone:** under 768px each row is two
+  lines (rank, avatar, name and remove; pips and score). It polls
   `GET assignments/{id}` every 5 s while `shouldPoll` (open, or less than 5 minutes after the effective close,
   which mirrors the server's `ResultGrace`) and the tab is visible; otherwise there is only the "Làm mới"
   button, and a tab that comes back to the front catches up at once. Requests are numbered and an answer older
   than the one on screen is dropped, so a poll sent before a close or a removal cannot undo it; a change's
-  answer is merged into the page keeping the students; a failed poll quietly keeps the last data; a 404 shows a not-found state. "Tải bảng điểm" is `rankingCsv` (stage columns headed `Màn 1 (Chém hoa quả)`, a BOM so Excel reads UTF-8, CRLF
+  answer is merged into the page keeping the students; a failed poll quietly keeps the last data; a 404 shows a not-found state. "Tải bảng điểm" is `leaderboardCsv` (stage columns headed `Màn 1 (Chém hoa quả)`, a BOM so Excel reads UTF-8, CRLF
   line ends, a leading apostrophe on a name that starts with `=`, `+`, `-`, `@`, tab or CR so a spreadsheet does
   not run it as a formula), named `<title>[-<label>]-bang-xep-hang.csv` by `fileNameFor`.
 
 **Specs** (Karma/Jasmine): `models/assignment.spec.ts`, `services/assignment.service.spec.ts`,
-`services/shared-play.service.spec.ts` (join and identity, every `submit` outcome, the queue and `flush`, blocked
-storage), one per component under `components/assignments/` plus `assignment-ranking-logic.spec.ts` and
-`deadline-picker-logic.spec.ts`, `gesture-play/share-join/share-join.spec.ts`, and in `gesture-play.spec.ts` the
+`services/shared-play.service.spec.ts` (join and identity, `setAvatar` and `leaderboard`, every `submit` outcome,
+the queue and `flush`, blocked storage), one per component under `components/assignments/` plus
+`assignment-leaderboard-logic.spec.ts`, `flip.spec.ts` and
+`deadline-picker-logic.spec.ts`, `gesture-play/share-join/share-join.spec.ts`,
+`gesture-play/student-leaderboard/student-leaderboard.spec.ts`, one per component under `components/leaderboard/`
+plus `podium.spec.ts` and `models/avatar.spec.ts`, and in `gesture-play.spec.ts` the
 groups "a shared quiz (a student)" (opening and joining, quizzes that cannot be opened, the map and topbar,
-progress, the check before a stage, saving a result) and "a preview (the teacher)". `GestureStageMap` and
+progress, the check before a stage, saving a result, the avatar and the board) and "a preview (the teacher)". `GestureStageMap` and
 `GestureStageResult` have no spec of their own: their new inputs are covered through the page spec.
 
 ### UI library
@@ -453,9 +515,11 @@ overlays (modals, confirms, dropdowns, notifications) that render outside any co
   [the look of the play area](#gesture-quiz-play)).
 - Component stylesheets hold only layout and sizing. Don't restyle library colors there or reach
   for `::ng-deep` without `:host` (that leaks globally); add or change a global override instead,
-  and use `nzType`/`nzSize` (e.g. `nzType="primary"` for the main action) rather than CSS. The one
-  exception is the gesture quiz's games: `game-themes.css`, `play-themes.css`, the stage map's cards and the six
-  games' stylesheets own their colours (they style no library component).
+  and use `nzType`/`nzSize` (e.g. `nzType="primary"` for the main action) rather than CSS. The
+  exceptions are the gesture quiz's games and the leaderboards: `game-themes.css`, `play-themes.css`, the stage
+  map's cards, the six games' stylesheets, the components of `components/leaderboard/`, the teacher's leaderboard
+  rows and the students' board own their colours (they style no library component). The medal colours they share
+  are the `--qt-gold`, `--qt-silver` and `--qt-bronze` tokens (each with a `-soft` fill) of `styles.css`.
 - Read https://ng.ant.design/llms-full.txt and understand NG-ZORRO components. Use this knowledge when writing code with NG-ZORRO
 `provideNzI18n(en_US)` is set in `app.config.ts` despite most user-facing
 notification strings in the codebase being written in Vietnamese directly at the call site (not via

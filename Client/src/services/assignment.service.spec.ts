@@ -51,7 +51,7 @@ describe('AssignmentService', () => {
     expect(result.map(a => a.id)).toEqual(['b', 'a']);
   });
 
-  it('gets one assignment with its ranking', () => {
+  it('gets one assignment with its leaderboard', () => {
     let detail: AssignmentDetail | undefined;
     service.get('a1').subscribe(d => detail = d);
 

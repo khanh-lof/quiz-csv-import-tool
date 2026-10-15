@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { catchError, defer, map, Observable, of, switchMap, tap } from 'rxjs';
-import { PlayerIdentity, SharedQuiz, StageSubmission, SubmitOutcome } from '../models/assignment';
+import { catchError, defer, map, Observable, of, switchMap, tap, throwError } from 'rxjs';
+import { PlayerIdentity, SharedQuiz, StageSubmission, StudentBoard, SubmitOutcome } from '../models/assignment';
 
 const IDENTITY_KEY = 'gesture-shared-players';
 const PENDING_KEY = 'gesture-shared-pending';
@@ -31,13 +31,14 @@ function isWholeNumber(value: unknown): value is number {
 }
 
 // Keeps only what looks like a stored identity: anything else (a hand-edited or older value) is dropped.
+// An identity stored before avatars existed has none, which is the same as a student who did not pick one.
 function sanitizeIdentities(raw: unknown): IdentityStore {
   const store: IdentityStore = {};
   if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
     for (const [code, value] of Object.entries(raw)) {
-      const {playerId, token, name} = (value ?? {}) as Partial<Record<keyof PlayerIdentity, unknown>>;
+      const {playerId, token, name, avatar} = (value ?? {}) as Partial<Record<keyof PlayerIdentity, unknown>>;
       if (isText(playerId) && isText(token) && isText(name)) {
-        store[code.toUpperCase()] = {playerId, token, name};
+        store[code.toUpperCase()] = {playerId, token, name, avatar: isText(avatar) ? avatar : ''};
       }
     }
   }
@@ -119,8 +120,8 @@ function isTransient(status: number): boolean {
   return status === 0 || status >= 500;
 }
 
-// The student's side of "Giao bài": opening a shared quiz, joining it by name, and reporting each finished
-// stage. The student has no account, so the server knows a device by the token it handed out on joining,
+// The student's side of "Giao bài": opening a shared quiz, joining it by name and avatar, changing the
+// avatar, reading the leaderboard, and reporting each finished stage. The student has no account, so the server knows a device by the token it handed out on joining,
 // which is kept here. Only the lazy play page uses this service.
 @Injectable({providedIn: 'root'})
 export class SharedPlayService {
@@ -141,12 +142,54 @@ export class SharedPlayService {
       token ? {headers: {'X-Player-Token': token}} : {});
   }
 
-  // Registers the student under `name` and remembers the answer on this device. Failures are rethrown for
-  // the page to explain: 400 (bad name), 409 (`Name taken` or `Assignment is full`), 404 and 410.
-  join(code: string, name: string): Observable<PlayerIdentity> {
-    return this.http.post<PlayerIdentity>(`${this.baseUrl}/${encodeURIComponent(code)}/players`, {name}).pipe(
-      map(({playerId, token, name: joinedName}) => ({playerId, token, name: joinedName})),
+  // Registers the student under `name` with the picked avatar (an id of `AVATARS`, '' for none) and
+  // remembers the answer on this device. Failures are rethrown for the page to explain: 400 (bad name, or
+  // `Invalid avatar.`), 409 (`Name taken` or `Assignment is full`), 404 and 410.
+  join(code: string, name: string, avatar = ''): Observable<PlayerIdentity> {
+    return this.http.post<PlayerIdentity>(`${this.baseUrl}/${encodeURIComponent(code)}/players`, {name, avatar}).pipe(
+      map(({playerId, token, name: joinedName, avatar: joinedAvatar}) =>
+        ({playerId, token, name: joinedName, avatar: joinedAvatar ?? ''})),
       tap(identity => this.identities.write({...this.identities.read(), [normalizeCode(code)]: identity})));
+  }
+
+  // Changes the avatar of the student this device joined as, and emits the identity as it is stored now. A
+  // device that has not joined has no token to send, so it fails like the server would, with a 403 and no
+  // request. A 403 from the server (the teacher removed the student) forgets the identity, like a result
+  // does; every failure is rethrown for the page to explain: 400, 404, 410 (closed) or no connection.
+  setAvatar(code: string, avatar: string): Observable<PlayerIdentity> {
+    const identity = this.identity(code);
+    if (!identity) {
+      return throwError(() => new HttpErrorResponse({status: 403, statusText: 'Forbidden', error: 'Unknown player'}));
+    }
+    return this.http.patch<Pick<PlayerIdentity, 'playerId' | 'name' | 'avatar'>>(
+      `${this.baseUrl}/${encodeURIComponent(code)}/player`, {avatar}, {headers: {'X-Player-Token': identity.token}}).pipe(
+      map(answer => {
+        // The stored identity may have changed while the request was out (another tab joined as someone
+        // else): only the student this request was for gets the new avatar.
+        const current = this.identity(code);
+        if (current?.token !== identity.token) {
+          return {...identity, avatar: answer.avatar};
+        }
+        const updated = {...current, avatar: answer.avatar};
+        this.identities.write({...this.identities.read(), [normalizeCode(code)]: updated});
+        return updated;
+      }),
+      catchError(err => {
+        if (err instanceof HttpErrorResponse && err.status === 403 && this.identity(code)?.token === identity.token) {
+          this.forget(code);
+        }
+        return throwError(() => err);
+      }));
+  }
+
+  // The board a student sees: the top of the leaderboard and, found by the device's token, the student's own
+  // row. The token is optional on this route, and one the server does not know only makes `you` null. It
+  // answers after the assignment closed too, so the closed card can show the final board; a 404 (no such
+  // code) is left for the caller.
+  leaderboard(code: string): Observable<StudentBoard> {
+    const token = this.identity(code)?.token;
+    return this.http.get<StudentBoard>(`${this.baseUrl}/${encodeURIComponent(code)}/leaderboard`,
+      token ? {headers: {'X-Player-Token': token}} : {});
   }
 
   // Who this device joined `code` as, or null.
@@ -154,7 +197,7 @@ export class SharedPlayService {
     return this.identities.read()[normalizeCode(code)] ?? null;
   }
 
-  // Lets this device join again as someone else. The old student stays in the teacher's ranking.
+  // Lets this device join again as someone else. The old student stays in the teacher's leaderboard.
   forget(code: string): void {
     const rest = {...this.identities.read()};
     delete rest[normalizeCode(code)];
