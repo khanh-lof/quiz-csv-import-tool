@@ -291,7 +291,7 @@ makes an *assignment*, a link `<origin>/play/s/<code>` that anyone can open. A s
 avatar, plays the six-stage game above, and the browser reports each finished stage run; the teacher sees the
 leaderboard ("Bảng xếp hạng") on `/assignments/<id>`, can close and reopen the assignment, set a closing time,
 preview it, remove a student and download the leaderboard as CSV, and the students see its top five and their
-own place on their stage map. A teacher may assign the same quiz several times (one per class), each with its
+own place on their stage map, unless the teacher hid it from them. A teacher may assign the same quiz several times (one per class), each with its
 own link, label and leaderboard. The server half is `Server/internal/api/{assignment,share}_handlers.go`,
 `leaderboard.go` and `avatars.go` over `store.Assignments`, the client's `AssignmentService` and `SharedPlayService`; the rules
 below are decided by the server, and the client repeats a few of them (the pass mark, whether an assignment is
@@ -360,7 +360,8 @@ open, the result grace) only to show the right screen without a round trip.
   `{rank, name, avatar, stagesPassed, correct, you}`; `you` is the caller's own place (`rank` null before a
   result), or null for a missing or unknown token, which is never a 401 or 403. It carries no player ids: the
   whole class reads it. Unlike opening the link it answers while the assignment is closed, so the closed card
-  can show the final board; it is `no-store`, since every result changes it.
+  can show the final board; it is `no-store`, since every result changes it. When the teacher hid the board
+  (`showBoard` false, see below) it answers 404 `Board hidden` instead, open or closed, whatever the token.
 - **Open, closed, closing time.** An assignment is closed by hand (`closedAt`) or scheduled (`closesAt`, in
   the future and at most 180 days ahead): it is *open* while `closedAt` is unset and `closesAt` is unset or
   still ahead. The server computes `open` for each response, and the client recomputes it from the two times
@@ -408,6 +409,16 @@ open, the result grace) only to show the right screen without a round trip.
   reload or another device know the count, `GET share/{code}` returns `attempts` (stage → accepted runs) for the
   player named by the optional `X-Player-Token` header, `{}` for no or an unknown token (never 401/403). The
   check and the record are not atomic, so two simultaneous runs could both get in: acceptable for a classroom.
+  The teacher also decides whether the students see the board, **`showBoard`** (true by default, and what an
+  assignment from before the setting reads as), for a class whose students should not be compared with each
+  other. It is sent on `POST assignments` (absent or null means true; anything but a JSON boolean is 400
+  `Invalid board setting.`, checked after the replay limit), fixed for the assignment's life, and returned by
+  `assignmentView` and `GET share/{code}`. With it false, `GET share/{code}/leaderboard` answers 404 `Board
+  hidden` and the client mounts no board at all, under the map, on the closed card or in the teacher's
+  preview; the teacher's own leaderboard is unchanged. A 404 rather than an empty board, because an empty board
+  would tell the class that nobody has a result yet, and because the one page that cannot know the setting (a
+  student who opens a link that is already closed gets a 410 from `GET share/{code}`, then shows the closed
+  card's board) needs a final answer to stop asking. It is never a 401 or 403, like every student route.
   Adding or renaming a field, status or message means changing both sides and their specs together.
 
 The Client's half is in [Client/AGENTS.md](Client/AGENTS.md#giao-bài-assignments), the Server's (the store, its

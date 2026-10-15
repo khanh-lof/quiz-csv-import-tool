@@ -25,7 +25,7 @@ const TWO_STAGE_CSV = DEMO_QUIZ_CSV.split('\n').filter(line => /^[25],/.test(lin
 function assignment(overrides: Partial<Assignment> = {}): Assignment {
   return {
     id: 'asg-1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'Quiz HSK 1 bài 3', label: '', timeMode: 'standard', stageLock: 'sequential',
-    passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70}, maxAttempts: null, stageCounts: {'1': 5, '2': 5, '3': 5, '4': 5, '5': 5, '6': 5}, createdAt: '2026-10-14T00:00:00Z', closesAt: null,
+    passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5, '2': 5, '3': 5, '4': 5, '5': 5, '6': 5}, createdAt: '2026-10-14T00:00:00Z', closesAt: null,
     closedAt: null, open: true, playerCount: 0, ...overrides,
   };
 }
@@ -356,6 +356,67 @@ describe('AssignDialog', () => {
     });
   });
 
+  describe('the board for students', () => {
+    const boardRow = (): HTMLElement => dialog()!.querySelector<HTMLElement>('[aria-labelledby="assign-show-board"]')!;
+    const boardSwitch = (): HTMLButtonElement => boardRow().querySelector<HTMLButtonElement>('button[nz-switch], .ant-switch')!;
+
+    async function send(): Promise<Record<string, unknown>> {
+      button('Giao bài').click();
+      await settle();
+      const request = http.expectOne(URL);
+      const body = request.request.body;
+      request.flush(assignment(), {status: 201, statusText: 'Created'});
+      await settle();
+      return body;
+    }
+
+    it('is on by default, says what the students get and is sent as true', async () => {
+      await show();
+
+      expect(text()).toContain('Học sinh xem bảng xếp hạng');
+      expect(boardSwitch().classList).toContain('ant-switch-checked');
+      expect(boardRow().textContent).toContain('Top 5 của lớp và hạng của mình');
+
+      expect((await send())['showBoard']).toBeTrue();
+    });
+
+    it('sends false once switched off, and says that only the teacher sees the board', async () => {
+      await show();
+
+      boardSwitch().click();
+      await settle();
+
+      expect(boardSwitch().classList).not.toContain('ant-switch-checked');
+      expect(boardRow().textContent).toContain('Chỉ thầy cô xem bảng xếp hạng');
+      expect((await send())['showBoard']).toBeFalse();
+    });
+
+    it('is on again when the dialog is opened again', async () => {
+      await show();
+      boardSwitch().click();
+      await settle();
+
+      fixture.componentInstance.open.set(false);
+      await settle();
+      fixture.componentInstance.open.set(true);
+      await settle();
+
+      expect(boardSwitch().classList).toContain('ant-switch-checked');
+      expect((await send())['showBoard']).toBeTrue();
+    });
+
+    it('tells the teacher when the server refuses the setting', async () => {
+      await show();
+
+      button('Giao bài').click();
+      await settle();
+      http.expectOne(URL).flush('Invalid board setting.', {status: 400, statusText: 'Bad Request'});
+      await settle();
+
+      expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain('Cài đặt bảng xếp hạng');
+    });
+  });
+
   it('creates the assignment, then shows its link, QR code and the ways on', async () => {
     await show();
     await typeLabel('  Lớp 3A ');
@@ -372,6 +433,7 @@ describe('AssignDialog', () => {
       stageLock: 'sequential',
       passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70},
       maxAttempts: null,
+      showBoard: true,
       stageCounts: {'1': 5, '2': 5, '3': 5, '4': 5, '5': 5, '6': 5},
     });
     expect(button('Giao bài').classList).toContain('ant-btn-loading');

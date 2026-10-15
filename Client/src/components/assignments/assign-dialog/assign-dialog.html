@@ -111,6 +111,15 @@
         </div>
       }
 
+      <div class="field">
+        <span class="field-label" id="assign-show-board">Học sinh xem bảng xếp hạng</span>
+        <div class="attempts-row" role="group" aria-labelledby="assign-show-board">
+          <nz-switch [ngModel]="showBoard()" (ngModelChange)="showBoard.set($event)"
+                     nzCheckedChildren="Bật" nzUnCheckedChildren="Tắt"/>
+          <span class="muted">{{ showBoard() ? 'Top 5 của lớp và hạng của mình' : 'Chỉ thầy cô xem bảng xếp hạng' }}</span>
+        </div>
+      </div>
+
       @if (error(); as message) {
         <p class="error" role="alert">{{ message }}</p>
       }

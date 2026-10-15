@@ -97,9 +97,12 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   wrapped like the csv routes (`csvRoute`, i.e. `authenticate` + `requireRole`). Every lookup is scoped to the
   caller's username, so someone else's assignment is a 404 `Assignment not found`, never a 403. The order of
   `createAssignment`'s checks is part of the contract: the payload first (`readJSON`'s 400s, then label ≤ 60
-  runes, time mode, closing time in the future and ≤ 180 days ahead, stage counts: 400 `Label is too long.`,
-  `Invalid time mode.`, `Invalid closing time.`, `Invalid stage counts.`), before anything is read from the
-  database; then the 100-per-user cap (409 `Too many assignments.`); then the job through `Jobs.Get` (404
+  runes, time mode, stage lock, closing time in the future and ≤ 180 days ahead, stage counts, pass percents,
+  replay limit, board setting: 400 `Label is too long.`, `Invalid time mode.`, `Invalid stage lock.`, `Invalid
+  closing time.`, `Invalid stage counts.`, `Invalid pass percents.`, `Invalid replay limit.`, `Invalid board
+  setting.`), before anything is read from the database. `showBoard` is read raw (`parseShowBoard`): absent or
+  `null` is `true`, a JSON boolean is kept, anything else (`"false"`, `0`, an object) is the 400. Then the
+  100-per-user cap (409 `Too many assignments.`); then the job through `Jobs.Get` (404
   `Job not found`, or 409 `Job is not a finished gesture quiz.` unless it is `done`, `creative` and
   `exportType` GestureQuiz). So a user at the cap gets the 409 even for a job id that does not exist. It copies `job.Title` and `job.CSV`, draws the id (`newJobID`) and the code
   (`newShareCode`: 10 characters of Crockford base32 from `crypto/rand`) and retries on `ErrDuplicate` up to
@@ -121,7 +124,7 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   for results, the `X-Player-Token` header. The order of checks, which decides the status when several
   things are wrong: the code is trimmed and upper-cased and looked up (404 `Assignment not found`) in all
   three. `getShared` then answers 410 `Assignment closed` unless `OpenAt(now)`, else `{title, label, csv,
-  timeMode, stageLock, passPercents, maxAttempts, attempts, closesAt}`, with `no-store` on every answer, errors included, since a close must show at once.
+  timeMode, stageLock, passPercents, maxAttempts, showBoard, attempts, closesAt}`, with `no-store` on every answer, errors included, since a close must show at once.
   `joinShared` refuses a closed assignment (410) before it reads the body, then `cleanPlayerName` (400
   `Invalid name.`: trimmed, whitespace runs folded, 1–40 runes, no control characters), then the optional
   `avatar` (400 `Invalid avatar.` when it is not empty and not in `avatarIDs`, `avatars.go`, so a bad avatar on
@@ -140,7 +143,12 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   The player is always the token's, never one named in the body. `sharedLeaderboard`
   (`GET share/{code}/leaderboard`) is the class's board for a student: `Cache-Control: no-store` on every
   answer, 404 for an unknown code and **no open check**, so a closed assignment still answers and the students'
-  closed card can show the final board. An optional `X-Player-Token` names the reader; a missing or unknown
+  closed card can show the final board. When the teacher hid the board (`HideBoard`), it answers 404 `Board
+  hidden` right after the code lookup, before the token is read, open or closed. A 404 rather than an empty
+  board, because an empty one reads as "nobody has a result yet", which is untrue, and because the one client
+  page that cannot know the setting (a link already closed when opened) needs a final answer to stop polling;
+  never 401 or 403, like every student route (the client forgets a student's identity on a 403). An optional
+  `X-Player-Token` names the reader; a missing or unknown
   one only makes `you` null (never 401/403; a store error other than `ErrNotFound` is a 500). It answers 200
   `{top, you, possible, stageCount, playerCount}` from `newStudentBoard` (`leaderboard.go`, pure and tested
   on its own): `top` is the ranked entries with rank 1 to 5 in leaderboard order, at most 10 rows (a tie for
@@ -186,7 +194,7 @@ with a `testClock` (`env.clock.Advance`) as `Server.Now`: the whole flow (create
 repeated `runId`, leaderboard, close, the grace period, reopen, remove a student, delete), every error status and
 body, ownership, `TestTeacherRoutesNeedALogin`, `TestStudentRoutesNeverAnswer401` (with bad `Authorization`
 headers too, the avatar and student-leaderboard routes included), the limits, `TestPassMark`, the avatar rules of
-joining and of `PATCH share/{code}/player`, the students' board end to end and store failures answering 500.
+joining and of `PATCH share/{code}/player`, the students' board end to end (hidden too) and store failures answering 500.
 `api/leaderboard_test.go` tests `buildLeaderboard` and `newStudentBoard` as plain Go, `api/avatars_test.go`
 pins the avatar ids, and `config/config_test.go` the new collection settings.
 
@@ -286,7 +294,7 @@ rate-limit `roundStart` (for refunds) and timestamps. `Complete`/`Fail` only tou
 Assignments (`internal/store/assignments*.go`): `store.Assignments` is implemented by `MongoAssignments` and
 `MemoryAssignments` (tests), and holds two kinds of document. An `Assignment` (collection
 `MONGODB_ASSIGNMENTS_COLLECTION`, `_id` a random hex id) is the snapshot of a job: owner `username`, `jobId`,
-`title`, the raw `csv`, `label`, `timeMode` (`standard`/`extra`/`unlimited`), `stageLock` (`sequential`/`open`; empty on old documents, read as `sequential` by `stageLockOf`), `passPercents` (stage → percent; stages or whole map missing read as 70 by `passPercentOf`), `maxAttempts` (nil = unlimited), `stageCounts` (stage → number of
+`title`, the raw `csv`, `label`, `timeMode` (`standard`/`extra`/`unlimited`), `stageLock` (`sequential`/`open`; empty on old documents, read as `sequential` by `stageLockOf`), `passPercents` (stage → percent; stages or whole map missing read as 70 by `passPercentOf`), `maxAttempts` (nil = unlimited), `hideBoard` (true when the teacher hid the students' board; left out when false, so old documents show it; the API sends it as `showBoard`), `stageCounts` (stage → number of
 questions), `createdAt`, the public `code`, and two optional times, `closesAt` (scheduled) and `closedAt` (by
 hand), left out of the document when unset. It is copied rather than referenced so deleting a job, or the
 newest-30 prune, cannot break a live link. `OpenAt(now)` is "`closedAt` unset and `closesAt` unset or ahead";

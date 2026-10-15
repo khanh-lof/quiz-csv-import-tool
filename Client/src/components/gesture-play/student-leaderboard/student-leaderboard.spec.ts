@@ -18,7 +18,8 @@ function board(overrides: Partial<StudentBoard> = {}): StudentBoard {
   return { top: TOP, you: null, possible: 30, stageCount: 6, playerCount: 12, ...overrides };
 }
 
-const httpError = (status: number) => throwError(() => new HttpErrorResponse({ status }));
+const httpError = (status: number, body?: string) =>
+  throwError(() => new HttpErrorResponse({ status, error: body ?? null }));
 
 describe('StudentLeaderboard', () => {
   let fixture: ComponentFixture<StudentLeaderboard>;
@@ -319,6 +320,109 @@ describe('StudentLeaderboard', () => {
       answer.next(board({ top: [entry(1, 'Other class')] }));
       fixture.detectChanges();
       expect(names()).toEqual(['Other class']);
+      leave();
+    }));
+  });
+
+  describe('when the teacher hid the board', () => {
+    it('draws nothing and never asks again after a 404 "Board hidden" on the first load', fakeAsync(() => {
+      shared.leaderboard.and.returnValue(httpError(404, 'Board hidden'));
+      open();
+      expect(shared.leaderboard).toHaveBeenCalledTimes(1);
+      expect(clean(root())).toBe('');
+
+      tick(BOARD_POLL_MS * 2);
+      document.dispatchEvent(new Event('visibilitychange'));
+      fixture.componentRef.setInput('refreshKey', 1);
+      fixture.detectChanges();
+      fixture.componentRef.setInput('refreshKey', 2);
+      fixture.detectChanges();
+
+      expect(shared.leaderboard).toHaveBeenCalledTimes(1);
+      expect(clean(root())).toBe('');
+      leave();
+    }));
+
+    it('clears a board that was on screen and stops asking when a later load says so', fakeAsync(() => {
+      open();
+      expect(rows().length).toBe(5);
+      shared.leaderboard.and.returnValue(httpError(404, '  Board hidden '));
+
+      tick(BOARD_POLL_MS);
+      fixture.detectChanges();
+
+      expect(shared.leaderboard).toHaveBeenCalledTimes(2);
+      expect(clean(root())).toBe('');
+      tick(BOARD_POLL_MS);
+      fixture.componentRef.setInput('refreshKey', 1);
+      fixture.detectChanges();
+      expect(shared.leaderboard).toHaveBeenCalledTimes(2);
+      leave();
+    }));
+
+    it('ignores an older answer that arrives after the board was found hidden', fakeAsync(() => {
+      const older = new Subject<StudentBoard>();
+      const newer = new Subject<StudentBoard>();
+      const answers: Observable<StudentBoard>[] = [older, newer];
+      shared.leaderboard.and.callFake(() => answers.shift()!);
+      open();
+      fixture.componentRef.setInput('refreshKey', 1);
+      fixture.detectChanges();
+
+      newer.error(new HttpErrorResponse({ status: 404, error: 'Board hidden' }));
+      older.next(board());
+      fixture.detectChanges();
+
+      expect(clean(root())).toBe('');
+      leave();
+    }));
+
+    it('loads again for a different code', fakeAsync(() => {
+      shared.leaderboard.and.returnValue(httpError(404, 'Board hidden'));
+      open();
+      tick(BOARD_POLL_MS);
+      expect(shared.leaderboard).toHaveBeenCalledTimes(1);
+
+      shared.leaderboard.and.callFake(() => of(board({ top: [entry(1, 'Other class')] })));
+      fixture.componentRef.setInput('code', 'ZZZ999ZZZ9');
+      fixture.detectChanges();
+
+      expect(shared.leaderboard).toHaveBeenCalledTimes(2);
+      expect(shared.leaderboard).toHaveBeenCalledWith('ZZZ999ZZZ9');
+      expect(names()).toEqual(['Other class']);
+      tick(BOARD_POLL_MS);
+      expect(shared.leaderboard).toHaveBeenCalledTimes(3);
+      leave();
+    }));
+
+    it('keeps asking after a 404 with another body (no such assignment)', fakeAsync(() => {
+      shared.leaderboard.and.returnValue(httpError(404, 'Assignment not found'));
+      open();
+      expect(clean(root())).toBe('');
+
+      shared.leaderboard.and.callFake(() => of(board()));
+      tick(BOARD_POLL_MS);
+      fixture.detectChanges();
+
+      expect(shared.leaderboard).toHaveBeenCalledTimes(2);
+      expect(rows().length).toBe(5);
+      leave();
+    }));
+
+    it('keeps the last board and keeps asking after a server error, whatever its body', fakeAsync(() => {
+      open();
+      shared.leaderboard.and.returnValue(httpError(500, 'Board hidden'));
+
+      tick(BOARD_POLL_MS);
+      fixture.detectChanges();
+      expect(names().length).toBe(5);
+
+      shared.leaderboard.and.callFake(() => of(board({ top: [entry(1, 'Vy')] })));
+      tick(BOARD_POLL_MS);
+      fixture.detectChanges();
+
+      expect(shared.leaderboard).toHaveBeenCalledTimes(3);
+      expect(names()).toEqual(['Vy']);
       leave();
     }));
   });

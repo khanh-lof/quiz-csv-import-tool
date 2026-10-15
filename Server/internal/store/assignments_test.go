@@ -88,7 +88,8 @@ func TestMongoAssignmentDocuments(t *testing.T) {
 			t.Errorf("stored assignment lacks %q: %v", field, raw)
 		}
 	}
-	for _, field := range []string{"closesAt", "closedAt"} {
+	// An assignment that shows its board stores no hideBoard, like one from before the setting.
+	for _, field := range []string{"closesAt", "closedAt", "hideBoard"} {
 		if _, ok := raw[field]; ok {
 			t.Errorf("stored assignment has an unset %q: %v", field, raw)
 		}

@@ -68,7 +68,7 @@ const CODE = 'ABC123DEF4';
 
 function sharedQuiz(overrides: Partial<SharedQuiz> = {}): SharedQuiz {
   return { title: 'HSK1 bài 1', label: 'Lớp 6A', csv: DEMO_QUIZ_CSV, timeMode: 'standard', stageLock: 'sequential',
-    passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70}, maxAttempts: null, attempts: {},
+    passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70}, maxAttempts: null, showBoard: true, attempts: {},
     closesAt: null, ...overrides };
 }
 
@@ -76,7 +76,7 @@ function assignmentDetail(overrides: Partial<AssignmentDetail> = {}): Assignment
   return {
     id: 'a1', code: CODE, jobId: 'job-1', title: 'HSK1 bài 1', label: 'Lớp 6A', timeMode: 'standard', stageLock: 'sequential',
     passPercents: {'1': 70, '2': 70, '3': 70, '4': 70, '5': 70, '6': 70}, maxAttempts: null,
-    stageCounts: { 1: 5, 2: 5, 3: 5, 4: 5, 5: 5, 6: 5 }, createdAt: '2026-10-14T00:00:00Z', closesAt: null,
+    showBoard: true, stageCounts: { 1: 5, 2: 5, 3: 5, 4: 5, 5: 5, 6: 5 }, createdAt: '2026-10-14T00:00:00Z', closesAt: null,
     closedAt: null, open: true, playerCount: 0, csv: DEMO_QUIZ_CSV, players: [], ...overrides,
   };
 }
@@ -1117,6 +1117,31 @@ describe('GesturePlay', () => {
         });
       });
 
+      describe('when the teacher hid the board', () => {
+        beforeEach(() => {
+          shared.load.and.returnValue(of(sharedQuiz({ showBoard: false })));
+        });
+
+        it('is not mounted on the map, and the board is never read', () => {
+          openShared(lan);
+
+          expect(stageCards().length).toBe(6);
+          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+          expect(shared.leaderboard).not.toHaveBeenCalled();
+        });
+
+        it('is still not read after a result is saved and the student is back on the map', () => {
+          openShared(lan);
+
+          playStageOne(rightChoice);
+          click('button', 'Về bản đồ');
+
+          expect(shared.submit).toHaveBeenCalled();
+          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+          expect(shared.leaderboard).not.toHaveBeenCalled();
+        });
+      });
+
       describe('changing the avatar', () => {
         it('opens a dialog with the picker on the current avatar, "Lưu" and "Hủy"', async () => {
           openShared(lan);
@@ -1295,6 +1320,29 @@ describe('GesturePlay', () => {
           expect(text()).toContain('Bài này đã đóng.');
           expect(shared.leaderboard).toHaveBeenCalledWith(CODE);
           expect(boardRows()).toEqual(['Minh', 'Lan']);
+        });
+
+        it('has no board on the card reached from the check before a stage when the teacher hid it', () => {
+          shared.load.and.returnValue(of(sharedQuiz({ showBoard: false })));
+          openShared(lan);
+          shared.load.and.returnValue(httpError(410, 'Assignment closed'));
+
+          click('.stage-card', 'Màn 1');
+
+          expect(text()).toContain('Bài này đã đóng.');
+          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+          expect(shared.leaderboard).not.toHaveBeenCalled();
+        });
+
+        it('draws nothing when the link was already closed when opened and the server says the board is hidden', () => {
+          shared.load.and.returnValue(httpError(410, 'Assignment closed'));
+          shared.leaderboard.and.returnValue(httpError(404, 'Board hidden'));
+          openShared(lan);
+
+          expect(text()).toContain('Bài này đã đóng.');
+          expect(shared.leaderboard).toHaveBeenCalledOnceWith(CODE);
+          expect(boardRows()).toEqual([]);
+          expect(element().querySelector('app-student-leaderboard section')).toBeNull();
         });
 
         it('has no board for a device that never joined', () => {
@@ -1846,6 +1894,15 @@ describe('GesturePlay', () => {
       expect(board.querySelector('li.row')?.textContent).toContain('Minh');
       expect(element().querySelector('app-gesture-stage-map')!.compareDocumentPosition(board)
         & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('mounts no board, and reads none, when the assignment hid it from the students', () => {
+      assignments.get.and.returnValue(of(assignmentDetail({ showBoard: false })));
+      openPreview();
+
+      expect(stageCards().length).toBe(6);
+      expect(element().querySelector('app-student-leaderboard')).toBeNull();
+      expect(shared.leaderboard).not.toHaveBeenCalled();
     });
 
     it('has no avatar button or "Không phải bạn?", since the teacher is nobody\'s student', () => {

@@ -25,6 +25,9 @@
       @if (d.maxAttempts !== null) {
         <span>Giới hạn: {{ d.maxAttempts }} lần/màn</span>
       }
+      @if (!d.showBoard) {
+        <span>Học sinh không xem bảng xếp hạng</span>
+      }
       <span>Giao lúc {{ formatStamp(d.createdAt) }}</span>
       <span>{{ d.players.length }} học sinh</span>
     </p>

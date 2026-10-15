@@ -34,7 +34,7 @@
           <a nz-button nzType="primary" [routerLink]="link.url">{{ link.text }}</a>
         }
       </section>
-      @if (closedBoard()) {
+      @if (closedBoard() && assignmentShowBoard() !== false) {
         <app-student-leaderboard class="closed-board" [code]="boardCode()"/>
       }
     }
@@ -102,7 +102,7 @@
             </p>
           }
         </app-gesture-stage-map>
-        @if (mode() === 'shared' || (mode() === 'preview' && boardCode())) {
+        @if ((mode() === 'shared' || (mode() === 'preview' && boardCode())) && assignmentShowBoard() !== false) {
           <app-student-leaderboard [code]="boardCode()" [refreshKey]="boardKey()"/>
         }
       }

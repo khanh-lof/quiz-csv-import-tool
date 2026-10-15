@@ -185,7 +185,7 @@ export class SharedPlayService {
   // The board a student sees: the top of the leaderboard and, found by the device's token, the student's own
   // row. The token is optional on this route, and one the server does not know only makes `you` null. It
   // answers after the assignment closed too, so the closed card can show the final board; a 404 (no such
-  // code) is left for the caller.
+  // code, or `Board hidden` when the teacher hid the board from the students) is left for the caller.
   leaderboard(code: string): Observable<StudentBoard> {
     const token = this.identity(code)?.token;
     return this.http.get<StudentBoard>(`${this.baseUrl}/${encodeURIComponent(code)}/leaderboard`,

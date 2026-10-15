@@ -64,6 +64,7 @@ func (s *Server) getShared(w http.ResponseWriter, r *http.Request) {
 		"stageLock":    stageLockOf(a),
 		"passPercents": passPercentsOf(a),
 		"maxAttempts":  a.MaxAttempts,
+		"showBoard":    !a.HideBoard,
 		"attempts":     attempts,
 		"closesAt":     utcPtr(a.ClosesAt),
 	})
@@ -196,10 +197,22 @@ func (s *Server) updateSharedPlayer(w http.ResponseWriter, r *http.Request) {
 // closed card can show the final board. The X-Player-Token header is optional and a missing or unknown
 // token only means no "you": this route never answers 401 or 403. Every answer is uncacheable, since the
 // board changes with every result.
+//
+// When the teacher hid the board it answers 404 "Board hidden", closed or not. An empty board would look
+// like a class where nobody has played yet, and a page that showed it anyway would say nobody has a
+// result, which is untrue; a 404 says there is no board for students. It is never a 401 or 403, because
+// the student routes never answer those (AuthInterceptor would try a refresh on a 401, and the client
+// forgets the student's identity on a 403). The client mounts no board when it knows showBoard is false,
+// and takes this 404 as "draw nothing, stop polling" for the one case it cannot know: a link that was
+// already closed when opened, where getShared answers 410.
 func (s *Server) sharedLeaderboard(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	a, ok := s.sharedAssignment(w, r)
 	if !ok {
+		return
+	}
+	if a.HideBoard {
+		writeText(w, http.StatusNotFound, "Board hidden")
 		return
 	}
 

@@ -29,7 +29,7 @@ function local(y: number, mo: number, d: number, h = 0, mi = 0): string {
 function assignment(overrides: Partial<Assignment> = {}): Assignment {
   return {
     id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: '', timeMode: 'standard', stageLock: 'sequential',
-    passPercents: {'1': 70, '2': 70}, maxAttempts: null, stageCounts: {'1': 5, '2': 5}, createdAt: local(2026, 10, 14, 8), closesAt: null, closedAt: null,
+    passPercents: {'1': 70, '2': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5, '2': 5}, createdAt: local(2026, 10, 14, 8), closesAt: null, closedAt: null,
     open: true, playerCount: 0, ...overrides,
   };
 }
@@ -270,6 +270,7 @@ describe('assignmentErrorMessage', () => {
     expect(assignmentErrorMessage(failure(400, 'Invalid closing time.\n'))).toContain('tương lai');
     expect(assignmentErrorMessage(failure(400, 'Invalid pass percents.'))).toContain('10% đến 100%');
     expect(assignmentErrorMessage(failure(400, 'Invalid replay limit.'))).toContain('từ 1 đến 10');
+    expect(assignmentErrorMessage(failure(400, 'Invalid board setting.'))).toContain('Cài đặt bảng xếp hạng');
   });
 
   it('explains a lost connection, an expired login and anything unknown', () => {

@@ -42,7 +42,7 @@ const LAN_SECOND = {...LAN, rank: 2, stagesPassed: 1, correct: 7, stages: MINH.s
 function detail(overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
   return {
     id: 'a1', code: 'K7M2X9QD4P', jobId: 'job-1', title: 'HSK1 bài 1', label: 'Lớp 6A', timeMode: 'standard', stageLock: 'sequential',
-    passPercents: {'1': 70, '2': 70}, maxAttempts: null, stageCounts: {'1': 5, '2': 5}, createdAt: iso(-60 * MINUTE), closesAt: null, closedAt: null, open: true,
+    passPercents: {'1': 70, '2': 70}, maxAttempts: null, showBoard: true, stageCounts: {'1': 5, '2': 5}, createdAt: iso(-60 * MINUTE), closesAt: null, closedAt: null, open: true,
     playerCount: 3, csv: '', players: [LAN, MINH, HOA], ...overrides,
   };
 }
@@ -554,6 +554,20 @@ describe('AssignmentLeaderboard', () => {
     open();
 
     expect(text()).not.toContain('Giới hạn');
+    leave();
+  }));
+
+  it('says in the header that the students do not see the board when the teacher hid it', fakeAsync(() => {
+    open(detail({showBoard: false}));
+
+    expect(text()).toContain('Học sinh không xem bảng xếp hạng');
+    leave();
+  }));
+
+  it('says nothing about the students board when they see it', fakeAsync(() => {
+    open();
+
+    expect(text()).not.toContain('Học sinh không xem bảng xếp hạng');
     leave();
   }));
 

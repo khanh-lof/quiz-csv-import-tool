@@ -221,6 +221,10 @@ export class GesturePlay implements OnInit, OnDestroy {
   protected readonly assignmentTimeMode = signal<TimeMode | null>(null);
   // The teacher's stage lock: `open` lets the student play any stage from the start.
   protected readonly assignmentStageLock = signal<StageLock | null>(null);
+  // The teacher's choice to show the board to students. Null while unknown, which is the closed card of a link
+  // that was already closed when opened (GET share/{code} answered 410, so the page never learnt it): the
+  // board component then copes with the server's 404 `Board hidden` itself.
+  protected readonly assignmentShowBoard = signal<boolean | null>(null);
   // The teacher's pass percentage of each stage ("1" to "6"); null outside an assignment, where it is the default.
   protected readonly assignmentPassPercents = signal<Record<string, number> | null>(null);
   // The teacher's limit on the runs of each stage (an assignment with the open lock), null for none, and the
@@ -448,6 +452,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       this.shared.set(null);
       this.assignmentTimeMode.set(null);
       this.assignmentStageLock.set(null);
+      this.assignmentShowBoard.set(null);
       this.assignmentPassPercents.set(null);
       this.assignmentMaxAttempts.set(null);
       this.attemptsUsed.set({});
@@ -582,6 +587,7 @@ export class GesturePlay implements OnInit, OnDestroy {
         this.shared.set({ label: shared.label, closesAt: shared.closesAt });
         this.assignmentTimeMode.set(shared.timeMode);
         this.assignmentStageLock.set(shared.stageLock);
+        this.assignmentShowBoard.set(shared.showBoard);
         this.assignmentPassPercents.set(shared.passPercents);
         this.assignmentMaxAttempts.set(shared.maxAttempts ?? null);
         this.countAttempts(shared);
@@ -605,6 +611,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       next: detail => {
         this.assignmentTimeMode.set(detail.timeMode);
         this.assignmentStageLock.set(detail.stageLock);
+        this.assignmentShowBoard.set(detail.showBoard);
         this.assignmentPassPercents.set(detail.passPercents);
         this.previewCode.set(detail.code.toUpperCase());
         this.shared.set({ label: detail.label, closesAt: detail.closesAt });

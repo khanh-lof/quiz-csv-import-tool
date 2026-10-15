@@ -121,6 +121,8 @@ export class AssignDialog {
   protected readonly deadline = signal<Date | null>(null);
   protected readonly timeMode = signal<TimeMode>('standard');
   protected readonly stageLock = signal<StageLock>('sequential');
+  // Whether the students see the board (the top five and their own place); on by default.
+  protected readonly showBoard = signal(true);
   // The percentage typed for each stage ("1" to "6"); a stage not in it has the default.
   private readonly passInputs = signal<Record<string, number | null>>({});
   // The replay limit per stage: whether the teacher set one, and the number typed (null while the box is
@@ -221,6 +223,7 @@ export class AssignDialog {
       stageLock: this.stageLock(),
       passPercents: this.passPercents(),
       maxAttempts: this.maxAttemptsSent(),
+      showBoard: this.showBoard(),
       stageCounts: stageCountsOf(quiz),
     }).pipe(
       finalize(() => this.sending.set(false)),
@@ -280,6 +283,7 @@ export class AssignDialog {
     this.passInputs.set({});
     this.limitAttempts.set(false);
     this.attemptsInput.set(DEFAULT_ATTEMPTS_LIMIT);
+    this.showBoard.set(true);
     this.error.set('');
     this.assignment.set(null);
   }

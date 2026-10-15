@@ -236,14 +236,14 @@ func TestAssignmentFlow(t *testing.T) {
 	}
 	created := decode[map[string]any](t, rec)
 	wantKeys := []string{"closedAt", "closesAt", "code", "createdAt", "id", "jobId", "label", "maxAttempts", "open", "passPercents", "playerCount",
-		"stageCounts", "stageLock", "timeMode", "title"}
+		"showBoard", "stageCounts", "stageLock", "timeMode", "title"}
 	if got := keysOf(created); !slices.Equal(got, wantKeys) {
 		t.Fatalf("keys %v, want %v", got, wantKeys)
 	}
 	counts, _ := created["stageCounts"].(map[string]any)
 	if created["jobId"] != "job1" || created["title"] != "HSK3-Bai5" || created["label"] != "Lớp 6A" ||
 		created["timeMode"] != "extra" || created["stageLock"] != "open" || created["createdAt"] != inTime(start) || created["closesAt"] != inTime(closes) ||
-		created["closedAt"] != nil || created["open"] != true || created["playerCount"] != float64(0) ||
+		created["closedAt"] != nil || created["open"] != true || created["playerCount"] != float64(0) || created["showBoard"] != true ||
 		len(counts) != 2 || counts["1"] != float64(5) || counts["2"] != float64(10) {
 		t.Fatalf("created %v", created)
 	}
@@ -278,11 +278,11 @@ func TestAssignmentFlow(t *testing.T) {
 		t.Errorf("share is cacheable: %v", rec.Header())
 	}
 	shared := decode[map[string]any](t, rec)
-	if got, want := keysOf(shared), []string{"attempts", "closesAt", "csv", "label", "maxAttempts", "passPercents", "stageLock", "timeMode", "title"}; !slices.Equal(got, want) {
+	if got, want := keysOf(shared), []string{"attempts", "closesAt", "csv", "label", "maxAttempts", "passPercents", "showBoard", "stageLock", "timeMode", "title"}; !slices.Equal(got, want) {
 		t.Fatalf("share keys %v, want %v", got, want)
 	}
 	if shared["title"] != "HSK3-Bai5" || shared["label"] != "Lớp 6A" || shared["csv"] != gestureCSV ||
-		shared["timeMode"] != "extra" || shared["stageLock"] != "open" || shared["closesAt"] != inTime(closes) {
+		shared["timeMode"] != "extra" || shared["stageLock"] != "open" || shared["closesAt"] != inTime(closes) || shared["showBoard"] != true {
 		t.Fatalf("share %v", shared)
 	}
 
@@ -622,6 +622,13 @@ func TestCreateAssignmentErrors(t *testing.T) {
 		{"replay limit bool", createBody(map[string]any{"stageLock": "open", "maxAttempts": true}), 400, "Invalid replay limit."},
 		{"replay limit an object", createBody(map[string]any{"stageLock": "open", "maxAttempts": map[string]int{"1": 3}}), 400, "Invalid replay limit."},
 		{"pass percents before replay limit", createBody(map[string]any{"passPercents": map[string]int{"1": 5}, "maxAttempts": 0}), 400, "Invalid pass percents."},
+		{"board setting as the string false", createBody(map[string]any{"showBoard": "false"}), 400, "Invalid board setting."},
+		{"board setting as the string true", createBody(map[string]any{"showBoard": "true"}), 400, "Invalid board setting."},
+		{"board setting 0", createBody(map[string]any{"showBoard": 0}), 400, "Invalid board setting."},
+		{"board setting 1", createBody(map[string]any{"showBoard": 1}), 400, "Invalid board setting."},
+		{"board setting an object", createBody(map[string]any{"showBoard": map[string]bool{"show": false}}), 400, "Invalid board setting."},
+		{"board setting an array", createBody(map[string]any{"showBoard": []bool{false}}), 400, "Invalid board setting."},
+		{"replay limit before board setting", createBody(map[string]any{"maxAttempts": 0, "showBoard": "false"}), 400, "Invalid replay limit."},
 		{"time mode case", createBody(map[string]any{"timeMode": "Standard"}), 400, "Invalid time mode."},
 		{"closes in the past", createBody(map[string]any{"closesAt": inTime(now.Add(-time.Minute))}), 400, "Invalid closing time."},
 		{"closes now", createBody(map[string]any{"closesAt": inTime(now)}), 400, "Invalid closing time."},
@@ -972,6 +979,7 @@ func TestStudentRoutesNeverAnswer401(t *testing.T) {
 	c := newClassroom(t, nil)
 	closedOne := decode[assignmentView](t, c.teacher(http.MethodPost, "/api/assignments", createBody(nil)))
 	wantStatus(t, c.teacher(http.MethodPatch, "/api/assignments/"+closedOne.ID, `{"closed":true}`), http.StatusOK)
+	hiddenBoard := decode[assignmentView](t, c.teacher(http.MethodPost, "/api/assignments", createBody(map[string]any{"showBoard": false})))
 
 	authorizations := []string{"Bearer garbage", "Bearer", "Basic dXNlcjpwYXNz", "garbage", "Bearer " + c.token + "x"}
 	for i, authorization := range authorizations {
@@ -999,6 +1007,7 @@ func TestStudentRoutesNeverAnswer401(t *testing.T) {
 			{"leaderboard", http.MethodGet, "/api/share/" + c.a.Code + "/leaderboard", "", 200},
 			{"leaderboard unknown", http.MethodGet, "/api/share/ZZZZZZZZZZ/leaderboard", "", 404},
 			{"leaderboard closed", http.MethodGet, "/api/share/" + closedOne.Code + "/leaderboard", "", 200},
+			{"leaderboard hidden", http.MethodGet, "/api/share/" + hiddenBoard.Code + "/leaderboard", "", 404},
 		}
 		for _, tt := range tests {
 			rec := c.send(tt.method, tt.path, tt.body, auth)
@@ -1571,6 +1580,81 @@ func TestAssignmentWithoutMaxAttemptsIsUnlimited(t *testing.T) {
 	}
 }
 
+// ---- students' board setting ----
+
+func TestCreateWithShowBoard(t *testing.T) {
+	c := newClassroom(t, map[string]any{"showBoard": false})
+	if c.a.ShowBoard {
+		t.Fatalf("created %+v", c.a)
+	}
+	if c.detail(t).ShowBoard {
+		t.Errorf("detail says the board is shown")
+	}
+	rec := c.teacher(http.MethodGet, "/api/assignments", "")
+	wantStatus(t, rec, http.StatusOK)
+	if list := decode[struct{ Assignments []assignmentView }](t, rec).Assignments; len(list) != 1 || list[0].ShowBoard {
+		t.Errorf("list %+v", list)
+	}
+	rec = c.shareGet()
+	wantStatus(t, rec, http.StatusOK)
+	if shared := decode[map[string]any](t, rec); shared["showBoard"] != false {
+		t.Errorf("share %v", shared["showBoard"])
+	}
+	stored, err := c.assignments.Get(context.Background(), "alice", c.a.ID)
+	if err != nil || !stored.HideBoard {
+		t.Fatalf("stored %+v, %v", stored, err)
+	}
+	// It is fixed for the assignment's life: a PATCH leaves it alone.
+	wantStatus(t, c.patch(`{"label":"x","showBoard":true}`), http.StatusOK)
+	if c.detail(t).ShowBoard {
+		t.Errorf("a patch showed the board")
+	}
+
+	// Showing it is the default, however that is asked for.
+	for name, overrides := range map[string]map[string]any{
+		"true":   {"showBoard": true},
+		"absent": {"showBoard": omit{}},
+		"null":   {"showBoard": nil},
+	} {
+		c := newClassroom(t, overrides)
+		if !c.a.ShowBoard || !c.detail(t).ShowBoard {
+			t.Errorf("%s: created %+v", name, c.a)
+		}
+		if shared := decode[map[string]any](t, c.shareGet()); shared["showBoard"] != true {
+			t.Errorf("%s: share %v", name, shared["showBoard"])
+		}
+		stored, err := c.assignments.Get(context.Background(), "alice", c.a.ID)
+		if err != nil || stored.HideBoard {
+			t.Errorf("%s: stored %+v, %v", name, stored, err)
+		}
+	}
+}
+
+// An assignment stored before the setting existed has no hideBoard: its board is shown.
+func TestAssignmentWithoutHideBoardShowsTheBoard(t *testing.T) {
+	env := newEnv(t)
+	env.seedJob(t, "alice", "job1", nil)
+	token, _ := env.login(t, "alice", "pw")
+	old := &store.Assignment{
+		ID: "old1", Code: "OLDCODE123", Username: "alice", JobID: "job1", Title: "HSK3-Bai5", CSV: gestureCSV,
+		TimeMode: "standard", StageCounts: map[string]int{"1": 5, "2": 10}, CreatedAt: env.clock.Now(),
+	}
+	if err := env.assignments.Create(context.Background(), old); err != nil {
+		t.Fatal(err)
+	}
+	c := &classroom{testEnv: env, token: token}
+	rec := c.teacher(http.MethodGet, "/api/assignments/old1", "")
+	wantStatus(t, rec, http.StatusOK)
+	c.a = decode[assignmentDetailView](t, rec).assignmentView
+	if !c.a.ShowBoard {
+		t.Fatalf("view %+v", c.a)
+	}
+	if shared := decode[map[string]any](t, c.shareGet()); shared["showBoard"] != true {
+		t.Fatalf("share %v", shared["showBoard"])
+	}
+	boardOf(t, c.board(""))
+}
+
 // ---- avatars ----
 
 // joinAs adds a student with an avatar and returns the player's id and token.
@@ -2035,6 +2119,52 @@ func TestSharedLeaderboardAnswersWhileClosed(t *testing.T) {
 		}
 	}
 	wantError(t, c.report(tokens["S2"], resultBody("run-0000099", 2, 10, 10)), http.StatusGone, "Assignment closed")
+}
+
+func TestSharedLeaderboardHidden(t *testing.T) {
+	c := newClassroom(t, map[string]any{"showBoard": false})
+	tokens, _ := classOf(t, c, "S1", "S2")
+
+	// A 404, not an empty board and never a 401 or 403, whoever asks and whatever they send.
+	wantHidden := func(name string, rec *httptest.ResponseRecorder) {
+		t.Helper()
+		if rec.Code != http.StatusNotFound || rec.Body.String() != "Board hidden" {
+			t.Errorf("%s: got %d %q, want 404 \"Board hidden\"", name, rec.Code, rec.Body)
+		}
+		if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+			t.Errorf("%s: the answer is cacheable: %q", name, got)
+		}
+	}
+	wantHidden("no token", c.board(""))
+	wantHidden("a player's token", c.board(tokens["S1"]))
+	wantHidden("an unknown token", c.board("garbage"))
+	wantHidden("bad auth", c.send(http.MethodGet, "/api/share/"+c.a.Code+"/leaderboard", "", header("Authorization", "Bearer garbage")))
+	wantHidden("a token and bad auth", c.send(http.MethodGet, "/api/share/"+c.a.Code+"/leaderboard", "",
+		header("X-Player-Token", tokens["S1"]), header("Authorization", "Bearer garbage")))
+
+	// An unknown code is still told apart from a hidden board.
+	wantError(t, c.send(http.MethodGet, "/api/share/ZZZZZZZZZZ/leaderboard", ""), http.StatusNotFound, "Assignment not found")
+
+	// Everything else of the students' side works as before.
+	_, token := c.join(t, "S3")
+	c.clock.Advance(time.Minute)
+	c.finish(t, token, "run-0000099", 1, 5, 5)
+	wantStatus(t, c.shareGet(), http.StatusOK)
+
+	// The teacher still sees the players ranked.
+	var order []string
+	for _, p := range c.detail(t).Players {
+		order = append(order, fmt.Sprintf("%s:%d", p.Name, entryRank(p)))
+	}
+	if want := []string{"S1:1", "S2:2", "S3:3"}; !slices.Equal(order, want) {
+		t.Fatalf("order %v, want %v", order, want)
+	}
+
+	// Closing the assignment does not bring the board back.
+	wantStatus(t, c.patch(`{"closed":true}`), http.StatusOK)
+	wantError(t, c.shareGet(), http.StatusGone, "Assignment closed")
+	c.clock.Advance(2 * time.Hour)
+	wantHidden("closed", c.board(tokens["S2"]))
 }
 
 func TestSharedLeaderboardAnswersNoStoreWhateverTheStatus(t *testing.T) {

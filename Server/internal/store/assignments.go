@@ -44,8 +44,11 @@ type Assignment struct {
 	// MaxAttempts caps how many finished runs a student may report per stage (1 to 10); nil, which is
 	// what every assignment made before the setting reads as, means unlimited. Only set on an "open"
 	// stage lock.
-	MaxAttempts *int      `bson:"maxAttempts,omitempty"`
-	CreatedAt   time.Time `bson:"createdAt"`
+	MaxAttempts *int `bson:"maxAttempts,omitempty"`
+	// HideBoard is true when the teacher hid the leaderboard from the students; the zero value, which
+	// every assignment made before the setting has, shows it. Fixed for the assignment's life.
+	HideBoard bool      `bson:"hideBoard,omitempty"`
+	CreatedAt time.Time `bson:"createdAt"`
 	// ClosesAt is the teacher's scheduled closing time and ClosedAt the moment they closed it by hand;
 	// the assignment closes at the earlier of the two. Clearing ClosedAt reopens it.
 	ClosesAt *time.Time `bson:"closesAt,omitempty"`

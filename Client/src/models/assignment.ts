@@ -29,6 +29,8 @@ export interface Assignment {
   stageLock: StageLock;
   passPercents: Record<string, number>;
   maxAttempts: number | null;
+  // Whether the students see the board, the top five and their own place. Fixed for the assignment's life.
+  showBoard: boolean;
   stageCounts: Record<string, number>;
   createdAt: string;
   closesAt: string | null;
@@ -80,6 +82,8 @@ export interface SharedQuiz {
   passPercents: Record<string, number>;
   // The most runs of a stage a student may have (1 to 10), or null for no limit.
   maxAttempts: number | null;
+  // Whether the students see the board, the top five and their own place (GET share/{code}/leaderboard).
+  showBoard: boolean;
   // How many runs of each stage ("1" to "6") the student who sent the X-Player-Token header has had accepted;
   // empty without a valid token.
   attempts: Record<string, number>;
@@ -97,6 +101,8 @@ export interface NewAssignment {
   // The replay limit per stage (1 to 10), null or left out for none. The server accepts it only with the
   // `open` stage lock.
   maxAttempts?: number | null;
+  // Whether the students see the board; the dialog always sends it (the server reads a missing one as true).
+  showBoard: boolean;
   stageCounts: Record<string, number>;
 }
 
@@ -256,6 +262,7 @@ const TEACHER_ERRORS: Record<string, string> = {
   'Invalid stage counts.': 'Quiz này không có câu hỏi hợp lệ để giao.',
   'Invalid pass percents.': 'Điểm qua màn phải là số nguyên từ 10% đến 100%.',
   'Invalid replay limit.': 'Số lần chơi mỗi màn phải từ 1 đến 10, và chỉ đặt được khi mở tất cả các màn.',
+  'Invalid board setting.': 'Cài đặt bảng xếp hạng cho học sinh không hợp lệ.',
 };
 
 // What to tell the teacher when an AssignmentService call fails.

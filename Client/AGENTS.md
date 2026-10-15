@@ -318,7 +318,8 @@ routes added for this (see above for their guards).
 - `SharedPlayService` (`services/shared-play.service.ts`, the student's side, used only by the lazy page):
   `load(code)` and `join(code, name, avatar)`; `setAvatar(code, avatar)` (`PATCH share/{code}/player`: on 200 it
   updates the stored identity, on 403 it forgets it and rethrows, and with no identity it fails as a 403 without a
-  request); `leaderboard(code)` (`GET share/{code}/leaderboard`, with the token when this device joined);
+  request); `leaderboard(code)` (`GET share/{code}/leaderboard`, with the token when this device joined; a 404,
+  `Assignment not found` or `Board hidden`, is left to the caller);
   `identity(code)` and `forget(code)` over
   `localStorage['gesture-shared-players']` (`{CODE: {playerId, token, name, avatar}}`, an identity stored before
   avatars reads as `avatar: ''`); `submit(code, {stage, correct,
@@ -374,7 +375,12 @@ routes added for this (see above for their guards).
   assignment's code (the teacher sees what the class sees), and on the closed error card (`closedBoard`: shared
   mode, the "Bài này đã đóng" message from loading, the stage check or an avatar change, and a device that joined)
   as the final board; the route answers while the assignment is closed for that reason. A result refused as
-  closed still shows its own text on the result screen, not the card.
+  closed still shows its own text on the result screen, not the card. When the teacher hid the board
+  (`showBoard` false), none of the three mounts it: the page keeps the setting in `assignmentShowBoard`, from the
+  share answer or the preview's detail. That signal is null while unknown, which is only the closed card of a
+  link that was already closed when opened (`GET share/{code}` answered 410); the board is mounted there and the
+  server answers it 404 `Board hidden`, which `StudentLeaderboard` takes as final: it draws nothing and stops
+  asking (polls, the tab coming back, `refreshKey`) until `code` changes.
   The timer reads `effectiveTimeMode`, the teacher's `assignmentTimeMode` before the player's own setting.
   A student has no way out of the page, and the error cards (not found, closed, could not load) have no link.
 - **The check before each stage** (`guardSharedStage`, for opening a stage's intro, replaying it and "Màn tiếp
@@ -413,6 +419,9 @@ routes added for this (see above for their guards).
   answer's `attempts` (sent with the player's `X-Player-Token`) and a run finished here counts at once, so a stage
   with none left cannot be started, the map shows "Hết lượt" / "Còn N lượt" and the result hides replay; a 409
   `Replay limit reached` on a result marks the stage used up and is not queued. A preview is never limited.
+- **The board's visibility.** `showBoard` is the last field of `AssignDialog`, the switch "Học sinh xem bảng xếp
+  hạng" (on by default, sent on every create). Off, the students get no board (see *The students' board* above)
+  and the teacher's leaderboard page says "Học sinh không xem bảng xếp hạng" on its meta line.
 
 **Leaderboard building blocks** (`src/components/leaderboard/`, each with its spec), shared by the teacher's
 page and the students' board:

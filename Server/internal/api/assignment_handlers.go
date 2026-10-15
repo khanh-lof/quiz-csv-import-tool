@@ -51,7 +51,9 @@ type assignmentView struct {
 	// StageCounts, defaults filled in.
 	PassPercents map[string]int `json:"passPercents"`
 	// MaxAttempts is the cap on finished runs per stage, null when unlimited.
-	MaxAttempts *int       `json:"maxAttempts"`
+	MaxAttempts *int `json:"maxAttempts"`
+	// ShowBoard is false when the teacher hid the leaderboard from the students.
+	ShowBoard   bool       `json:"showBoard"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	ClosesAt    *time.Time `json:"closesAt"`
 	ClosedAt    *time.Time `json:"closedAt"`
@@ -69,6 +71,7 @@ func newAssignmentView(a *store.Assignment, now time.Time, playerCount int) assi
 		StageLock:    stageLockOf(a),
 		PassPercents: passPercentsOf(a),
 		MaxAttempts:  a.MaxAttempts,
+		ShowBoard:    !a.HideBoard,
 		StageCounts:  counts, CreatedAt: a.CreatedAt.UTC(), ClosesAt: utcPtr(a.ClosesAt), ClosedAt: utcPtr(a.ClosedAt),
 		Open: a.OpenAt(now), PlayerCount: playerCount,
 	}
@@ -108,6 +111,8 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		PassPercents json.RawMessage `json:"passPercents"`
 		// MaxAttempts is read raw for the same reason.
 		MaxAttempts json.RawMessage `json:"maxAttempts"`
+		// ShowBoard is read raw for the same reason.
+		ShowBoard json.RawMessage `json:"showBoard"`
 	}
 	if !s.readJSON(w, r, &req) {
 		return
@@ -153,6 +158,11 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "Invalid replay limit.")
 		return
 	}
+	showBoard, ok := parseShowBoard(req.ShowBoard)
+	if !ok {
+		writeText(w, http.StatusBadRequest, "Invalid board setting.")
+		return
+	}
 
 	count, err := s.Assignments.Count(r.Context(), username)
 	if err != nil {
@@ -189,6 +199,7 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		StageCounts:  req.StageCounts,
 		PassPercents: passPercents,
 		MaxAttempts:  maxAttempts,
+		HideBoard:    !showBoard,
 		CreatedAt:    now.UTC().Truncate(time.Millisecond),
 		ClosesAt:     closesAt,
 	}
@@ -470,6 +481,21 @@ func parseMaxAttempts(raw json.RawMessage, stageLock string) (*int, bool) {
 		return nil, false
 	}
 	return &n, true
+}
+
+// parseShowBoard reads the optional showBoard of a create request: absent or null shows the leaderboard
+// to the students (true); otherwise it must be a JSON boolean. A string such as "false" is refused rather
+// than guessed at, so a client that sends the wrong type never hides or shows the board by accident. Null
+// is handled before unmarshalling, because decoding null into a bool succeeds and leaves false.
+func parseShowBoard(raw json.RawMessage) (bool, bool) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return true, true
+	}
+	var show bool
+	if err := json.Unmarshal(raw, &show); err != nil {
+		return false, false
+	}
+	return show, true
 }
 
 // parsePassPercents reads the optional passPercents of a create request. Absent or null is "all
