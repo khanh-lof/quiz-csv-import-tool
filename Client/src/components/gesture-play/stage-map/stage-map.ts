@@ -55,7 +55,7 @@ interface StageCard {
   ],
   templateUrl: './stage-map.html',
   changeDetection: ChangeDetectionStrategy.Eager,
-  styleUrl: './stage-map.css'
+  styleUrls: ['../game-themes.css', './stage-map.css']
 })
 export class GestureStageMap {
   readonly quiz = input.required<GestureQuiz>();

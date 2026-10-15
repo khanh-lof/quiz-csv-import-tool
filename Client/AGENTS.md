@@ -243,11 +243,15 @@ option; the head-tilt game also ← →; the frog moves with ← ↓ → and bit
 digits for tiles and Backspace to undo).
 
 **The look of the play area.** The stage does not follow the app's pink/blue style: each game is its own world,
-saturated enough to survive a classroom projector. `play-themes.css` (a second stylesheet of `GesturePlay`) keys
-on the stage's `data-game` and gives each game a scene behind it (1 a violet game-show stage, 2 a sunset, 3 a
-pond, 4 dark wooden planks, 5 sunny yellow polka dots, 6 a chalkboard in a wooden frame), the frame's colour
-and, while the camera is on, a scrim over the picture: the scene's colours at the top and bottom edges, clear
-in the middle where the player sees themselves. The scrim is the stage's first element on purpose:
+saturated enough to survive a classroom projector. `game-themes.css` defines each game's world as custom
+properties keyed by `data-game` (`--g-scene`: 1 a violet game-show stage, 2 a sunset, 3 a pond, 4 dark wooden
+planks, 5 sunny yellow polka dots, 6 a chalkboard in a wooden frame; `--g-frame`, `--g-scrim`, `--g-inset`), and
+two components list it among their styles. `GesturePlay` puts `data-game` on the stage, where `play-themes.css`
+paints the scene behind the game, the frame and, while the camera is on, a scrim over the picture: the scene's
+colours at the top and bottom edges, clear in the middle where the player sees themselves. `GestureStageMap` puts
+it on each stage card, which wears the frame's colour and a band of the scene (the icon on a white disc, the
+status tag; the texts stay below it on white, and a locked card's band is faded), so a game looks the same on
+the map as once opened. The scrim is the stage's first element on purpose:
 `VisionService`'s video is prepended before it, so it lies between the picture and the game. A game's own
 palette (its cards, its accents) is in its stylesheet, and every game marks the shared meanings with the
 `--play-*` tokens of `styles.css`: `--play-ok` green with a ✓ stamp, `--play-bad` red with a ✗ stamp,
@@ -451,8 +455,8 @@ overlays (modals, confirms, dropdowns, notifications) that render outside any co
 - Component stylesheets hold only layout and sizing. Don't restyle library colors there or reach
   for `::ng-deep` without `:host` (that leaks globally); add or change a global override instead,
   and use `nzType`/`nzSize` (e.g. `nzType="primary"` for the main action) rather than CSS. The one
-  exception is the gesture quiz's stage: `play-themes.css` and the six games' stylesheets own its
-  colours (they style no library component).
+  exception is the gesture quiz's games: `game-themes.css`, `play-themes.css`, the stage map's cards and the six
+  games' stylesheets own their colours (they style no library component).
 - Read https://ng.ant.design/llms-full.txt and understand NG-ZORRO components. Use this knowledge when writing code with NG-ZORRO
 `provideNzI18n(en_US)` is set in `app.config.ts` despite most user-facing
 notification strings in the codebase being written in Vietnamese directly at the call site (not via

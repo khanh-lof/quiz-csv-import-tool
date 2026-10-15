@@ -1,0 +1,120 @@
+/* Each game's own world, keyed by `data-game` (the stage's GameKind). Two places paint it: the stage the
+   game is played on (play-themes.css, in GesturePlay) and the game's card on the stage map (stage-map.css),
+   so a player recognises the world of a game before opening it. Both components list this file among their
+   styles. Saturated scenes also survive a classroom projector, which washes pastels out to white.
+
+   Each game sets:
+     --g-frame  the colour of the frame around its scene
+     --g-scene  the scene itself (a background)
+     --g-scrim  what lies over the camera picture on the stage
+     --g-inset  an inner frame (inset shadows) for the stage; optional */
+
+/* Stage 1, Đúng hay sai: a game-show stage. Deep violet curtains under two spotlights. */
+[data-game='true-false'] {
+  --g-frame: #7e22ce;
+  --g-scene:
+    radial-gradient(ellipse 30% 80% at 18% -8%, rgba(255, 236, 170, 0.45), transparent 70%),
+    radial-gradient(ellipse 30% 80% at 82% -8%, rgba(255, 236, 170, 0.45), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.12) 0 28px, transparent 28px 56px),
+    linear-gradient(180deg, #4c1d95, #7e22ce 70%, #3b0764);
+  --g-scrim: linear-gradient(
+    180deg,
+    rgba(76, 29, 149, 0.8),
+    transparent 30%,
+    transparent 62%,
+    rgba(59, 7, 100, 0.75)
+  );
+}
+
+/* Stage 2, Nghiêng đầu: a sunset, orange to pink to violet, the same two ends as its left and right cards.
+   The sun sits behind the hold ring between them. */
+[data-game='head-tilt'] {
+  --g-frame: #ff7e95;
+  --g-scene:
+    radial-gradient(
+      circle at 50% 56%,
+      rgba(255, 244, 200, 0.9) 0 8%,
+      rgba(255, 214, 120, 0.5) 8% 13%,
+      transparent 24%
+    ),
+    linear-gradient(180deg, #ffb36b 0%, #ff7e95 52%, #a855f7 100%);
+  --g-scrim: linear-gradient(
+    180deg,
+    rgba(255, 140, 90, 0.75),
+    transparent 28%,
+    transparent 70%,
+    rgba(168, 85, 247, 0.7)
+  );
+}
+
+/* Stage 3, Ếch đớp chữ: a pond. Turquoise water with a few ripples; the frog sits in the deep end. */
+[data-game='frog-bite'] {
+  --g-frame: #14b8a6;
+  --g-scene:
+    radial-gradient(ellipse 14% 4% at 18% 50%, transparent 70%, rgba(255, 255, 255, 0.35) 73%, transparent 79%),
+    radial-gradient(ellipse 10% 3% at 80% 44%, transparent 70%, rgba(255, 255, 255, 0.3) 73%, transparent 79%),
+    radial-gradient(ellipse 9% 2.6% at 62% 68%, transparent 70%, rgba(255, 255, 255, 0.25) 73%, transparent 79%),
+    radial-gradient(ellipse 60% 45% at 50% 0%, rgba(255, 255, 255, 0.35), transparent 70%),
+    linear-gradient(180deg, #5eead4 0%, #14b8a6 42%, #0f766e 100%);
+  --g-scrim: linear-gradient(
+    180deg,
+    rgba(20, 184, 166, 0.75),
+    transparent 26%,
+    transparent 60%,
+    rgba(15, 118, 110, 0.85)
+  );
+}
+
+/* Stage 4, Chém hoa quả: dark wooden planks, so the fruit, the juice and the glowing slash stand out. Over
+   the camera picture the whole stage is darkened a little for the same reason. */
+[data-game='fruit-slice'] {
+  --g-frame: #6b3f22;
+  --g-scene:
+    radial-gradient(ellipse at 50% 55%, transparent 40%, rgba(0, 0, 0, 0.55) 100%),
+    repeating-linear-gradient(90deg, transparent 0 calc(16.66% - 3px), rgba(0, 0, 0, 0.35) calc(16.66% - 3px) 16.66%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0 2px, transparent 2px 37px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 4px, transparent 4px 11px),
+    linear-gradient(180deg, #6b3f22, #4a2a16);
+  --g-scrim: linear-gradient(
+    180deg,
+    rgba(40, 20, 8, 0.75),
+    rgba(40, 20, 8, 0.25) 30%,
+    rgba(40, 20, 8, 0.25) 70%,
+    rgba(40, 20, 8, 0.6)
+  );
+}
+
+/* Stage 5, Giơ ngón tay: sunny yellow with polka dots, under four candy-coloured cards. */
+[data-game='finger-count'] {
+  --g-frame: #f59e0b;
+  --g-scene:
+    radial-gradient(circle, rgba(255, 255, 255, 0.55) 0 5px, transparent 6px) 0 0 / 34px 34px,
+    radial-gradient(circle, rgba(255, 255, 255, 0.35) 0 3px, transparent 4px) 17px 17px / 34px 34px,
+    linear-gradient(180deg, #ffe680, #ffb547);
+  --g-scrim: linear-gradient(
+    180deg,
+    rgba(255, 200, 80, 0.8),
+    transparent 26%,
+    transparent 46%,
+    rgba(255, 170, 60, 0.5)
+  );
+}
+
+/* Stage 6, Xếp câu: a classroom chalkboard in a wooden frame, with wooden word tiles. */
+[data-game='word-order'] {
+  --g-frame: #6b4220;
+  --g-inset:
+    inset 0 0 0 10px #8b5a2b,
+    inset 0 0 0 14px #6b4220;
+  --g-scene:
+    radial-gradient(ellipse 40% 30% at 30% 30%, rgba(255, 255, 255, 0.07), transparent 70%),
+    radial-gradient(ellipse 30% 20% at 75% 72%, rgba(255, 255, 255, 0.05), transparent 70%),
+    linear-gradient(180deg, #24573f, #1a3f2e);
+  --g-scrim: linear-gradient(
+    180deg,
+    rgba(26, 63, 46, 0.85),
+    rgba(26, 63, 46, 0.35) 40%,
+    rgba(26, 63, 46, 0.35) 75%,
+    rgba(26, 63, 46, 0.8)
+  );
+}

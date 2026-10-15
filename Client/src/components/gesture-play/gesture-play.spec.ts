@@ -1200,7 +1200,7 @@ describe('GesturePlay', () => {
 
         click('button', 'Chơi lại màn');
 
-        expect(element().querySelector('[data-game]')).toBeNull();
+        expect(element().querySelector('.stage[data-game]')).toBeNull();
         expect(cardText(0)).toContain('Hết lượt');
       });
 

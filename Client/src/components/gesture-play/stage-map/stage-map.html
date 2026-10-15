@@ -25,14 +25,13 @@
   <div class="stages">
     @for (card of cards(); track card.def.stage) {
       <button type="button" class="stage-card" [class]="'stage-card status-' + card.status"
+              [attr.data-game]="card.def.game"
               [disabled]="!card.playable"
               (click)="start.emit(card.def.stage)">
-        <span class="card-top">
+        <!-- The game's own scene (game-themes.css), as on its stage: the icon and the status sit on it, the
+             texts below it on white, so they read the same whatever the scene's colours. -->
+        <span class="card-scene">
           <span class="stage-icon" aria-hidden="true">{{ card.def.icon }}</span>
-          <span class="stage-title">
-            <span class="stage-no">Màn {{ card.position }}</span>
-            <span class="stage-name">{{ card.def.name }}</span>
-          </span>
           @switch (card.status) {
             @case ('passed') {
               <nz-tag nzColor="success">Đã qua ✓</nz-tag>
@@ -48,23 +47,29 @@
             }
           }
         </span>
-        <span class="stage-hint">{{ card.def.hint }}</span>
-        <span class="card-foot">
-          <span>
-            {{ card.count }} câu
-            @if (card.percent !== defaultPercent) {
-              · qua màn từ {{ card.percent }}%
-            }
-            @if (card.attemptsText) {
-              · {{ card.attemptsText }}
-            }
+        <span class="card-body">
+          <span class="stage-title">
+            <span class="stage-no">Màn {{ card.position }}</span>
+            <span class="stage-name">{{ card.def.name }}</span>
           </span>
-          <span class="best">
-            @if (card.best; as best) {
-              Tốt nhất: <b>{{ best.correct }}/{{ best.total }}</b> · {{ best.correct * pointsPerCorrect }} điểm
-            } @else {
-              Chưa chơi
-            }
+          <span class="stage-hint">{{ card.def.hint }}</span>
+          <span class="card-foot">
+            <span>
+              {{ card.count }} câu
+              @if (card.percent !== defaultPercent) {
+                · qua màn từ {{ card.percent }}%
+              }
+              @if (card.attemptsText) {
+                · {{ card.attemptsText }}
+              }
+            </span>
+            <span class="best">
+              @if (card.best; as best) {
+                Tốt nhất: <b>{{ best.correct }}/{{ best.total }}</b> · {{ best.correct * pointsPerCorrect }} điểm
+              } @else {
+                Chưa chơi
+              }
+            </span>
           </span>
         </span>
       </button>

@@ -141,7 +141,7 @@ const STAND_TIP: Record<VisionKind, string> = {
   ],
   templateUrl: './gesture-play.html',
   changeDetection: ChangeDetectionStrategy.Eager,
-  styleUrls: ['./gesture-play.css', './play-themes.css']
+  styleUrls: ['./gesture-play.css', './game-themes.css', './play-themes.css']
 })
 export class GesturePlay implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
