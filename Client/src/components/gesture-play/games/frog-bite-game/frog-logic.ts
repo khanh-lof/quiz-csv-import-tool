@@ -204,6 +204,6 @@ export function frogHint(step: FrogStep): string {
   }
   // In the middle lane the player has most likely not chosen yet, so both steps are spelled out.
   return step.lane === 1
-    ? 'Dịch đầu sang làn đáp án · há miệng to rồi khép lại để đớp'
-    : 'Há miệng to rồi khép lại để đớp';
+    ? 'Dịch đầu sang làn đáp án · há rồi khép miệng để đớp'
+    : 'Há rồi khép miệng để đớp';
 }

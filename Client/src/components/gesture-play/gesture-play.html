@@ -14,7 +14,7 @@
 </header>
 
 @if (mode() === 'preview' && screen() !== 'loading' && screen() !== 'error') {
-  <p class="preview-banner" role="status">👁 Xem thử: mọi màn đều mở, kết quả không được lưu.</p>
+  <p class="preview-banner" role="status">👁 Xem thử: mọi màn đều mở, không lưu kết quả.</p>
 }
 
 <main class="content" [class.is-playing]="screen() === 'playing'">
@@ -46,17 +46,17 @@
       <section class="card load">
         <app-usage-guide>
           <ol>
-            <li>Tạo Game ở <b>AI › Tạo quiz</b>, rồi bấm <b>Chơi ngay</b> ở <b>AI › Lịch sử</b>, hoặc mở file đã tải bằng <b>Mở file quiz</b>.</li>
-            <li>Mỗi màn là một trò chơi, chơi từ dễ đến khó. Đúng từ <b>70%</b> số câu thì qua màn.</li>
+            <li>Tạo Game ở <b>AI › Tạo quiz</b> rồi bấm <b>Chơi ngay</b> ở <b>AI › Lịch sử</b>, hoặc <b>Mở file quiz</b> đã tải.</li>
+            <li>Mỗi màn một trò chơi, từ dễ đến khó. Đúng từ <b>70%</b> số câu là qua màn.</li>
             <li>Không có camera vẫn chơi được bằng chuột, cảm ứng hoặc bàn phím.</li>
           </ol>
-          <p><b>Camera:</b> xử lý ngay trên máy, không ghi hình hay gửi đi. Đứng cách 0,6–1,2 m, đủ sáng, để tay và mặt trong khung hình.</p>
+          <p><b>Camera:</b> xử lý ngay trên máy, không ghi hình hay gửi đi. Đứng cách 0,6–1,2 m, đủ sáng.</p>
         </app-usage-guide>
 
         <div class="load-body">
           <div class="big-emoji" aria-hidden="true">🙌</div>
           <h2>Game</h2>
-          <p class="muted">Chơi quiz từ vựng bằng cử chỉ trước camera: giơ ngón cái, nghiêng đầu, chém hoa quả… Mở file quiz do AI tạo, hoặc thử ngay quiz mẫu.</p>
+          <p class="muted">Chơi quiz từ vựng bằng cử chỉ trước camera. Mở file quiz do AI tạo hoặc thử quiz mẫu.</p>
 
           @if (problem()) {
             <p class="problem" role="alert">{{ problem() }}</p>
@@ -106,9 +106,9 @@
         </div>
         <p class="hint">{{ def().hint }}</p>
         <ul class="facts">
-          <li>{{ stageQuestionCount() }} câu hỏi,
+          <li>{{ stageQuestionCount() }} câu,
             {{ stageTimeLimit() === null ? 'không giới hạn thời gian' : stageTimeLimit() + ' giây mỗi câu' }}.</li>
-          <li>Cần đúng ít nhất <b>{{ stagePassMark() }}/{{ stageQuestionCount() }}</b> câu để qua màn.</li>
+          <li>Đúng ít nhất <b>{{ stagePassMark() }}/{{ stageQuestionCount() }}</b> câu để qua màn.</li>
         </ul>
         <p class="stand"><span aria-hidden="true">🧍</span> {{ standTip() }}</p>
 
@@ -135,8 +135,8 @@
                 <button nz-button nzSize="small" type="button" (click)="retryModel()">Thử tải lại</button>
               }
             }
-            <p class="privacy"><span aria-hidden="true">🔒</span> Camera chỉ xử lý trên máy này, không ghi hình, không gửi đi.</p>
-            <p class="muted">Không bật camera cũng được: bạn chơi bằng chuột hoặc bàn phím.</p>
+            <p class="privacy"><span aria-hidden="true">🔒</span> Camera chỉ xử lý trên máy này, không ghi hình hay gửi đi.</p>
+            <p class="muted">Không bật camera: chơi bằng chuột hoặc bàn phím.</p>
           </div>
         </div>
 

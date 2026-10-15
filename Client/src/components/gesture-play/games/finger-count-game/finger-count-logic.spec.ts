@@ -226,7 +226,7 @@ describe('badge and status', () => {
   it('shows the standing hint otherwise', () => {
     expect(fingerStatus(view({ armed: true, count: 0 }))).toBe(FINGER_HINT);
     expect(fingerStatus(view({ armed: false, count: NO_HAND }))).toBe(FINGER_HINT);
-    expect(FINGER_HINT).toBe('Nắm tay lại rồi giơ số ngón theo đáp án (không tính ngón cái)');
+    expect(FINGER_HINT).toBe('Giơ số ngón theo đáp án (không tính ngón cái)');
   });
 
   it('compares views by what is shown', () => {

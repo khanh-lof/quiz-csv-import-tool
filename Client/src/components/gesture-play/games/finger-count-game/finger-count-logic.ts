@@ -69,7 +69,7 @@ export function fingerBadge(count: number): string {
   return count === 0 ? 'Đang nắm tay' : `Đang giơ: ${count} ngón`;
 }
 
-export const FINGER_HINT = 'Nắm tay lại rồi giơ số ngón theo đáp án (không tính ngón cái)';
+export const FINGER_HINT = 'Giơ số ngón theo đáp án (không tính ngón cái)';
 
 // The sentence next to the badge: the standing hint, or what is happening to the hold.
 export function fingerStatus(view: FingerView): string {

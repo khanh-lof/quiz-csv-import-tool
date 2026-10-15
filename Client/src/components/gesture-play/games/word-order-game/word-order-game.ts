@@ -115,10 +115,10 @@ export class WordOrderGame extends StageGameBase {
 
   protected readonly hint = computed(() => {
     if (!this.cameraActive()) {
-      return 'Bấm vào từng mảnh theo đúng thứ tự của câu';
+      return 'Bấm các mảnh theo đúng thứ tự câu';
     }
     return this.handVisible()
-      ? 'Chỉ ngón trỏ vào từng mảnh theo đúng thứ tự · giữ yên hoặc chụm ngón cái và ngón trỏ để chọn'
+      ? 'Chỉ ngón trỏ vào từng mảnh theo thứ tự · giữ yên hoặc chụm ngón để chọn'
       : 'Đưa tay vào khung hình';
   });
 

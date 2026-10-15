@@ -261,8 +261,8 @@ describe('frogHint', () => {
     expect(frogHint({ ...base, mouthOpen: true })).toBe('Khép miệng lại để đớp!');
     expect(frogHint({ ...base, waitingForClosedMouth: true })).toBe('Ngậm miệng lại một chút');
     expect(frogHint({ ...base, stable: false })).toBe('Dịch đầu sang làn đáp án');
-    expect(frogHint({ ...base, lane: 2 })).toBe('Há miệng to rồi khép lại để đớp');
+    expect(frogHint({ ...base, lane: 2 })).toBe('Há rồi khép miệng để đớp');
     expect(frogHint(base)).toContain('Dịch đầu sang làn đáp án');
-    expect(frogHint(base)).toContain('há miệng');
+    expect(frogHint(base)).toContain('há rồi khép miệng');
   });
 });

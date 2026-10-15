@@ -11,7 +11,7 @@
       · chuỗi đúng dài nhất <b>{{ result().bestStreak }}</b>
     }
   </p>
-  <p class="rule">Cần đúng ít nhất <b>{{ result().passMark }}/{{ result().total }}</b> câu để qua màn.</p>
+  <p class="rule">Đúng ít nhất <b>{{ result().passMark }}/{{ result().total }}</b> câu để qua màn.</p>
   @if (saveText()) {
     <p class="save-state" [attr.data-state]="preview() ? 'preview' : saveState()" role="status" aria-live="polite">
       {{ saveText() }}

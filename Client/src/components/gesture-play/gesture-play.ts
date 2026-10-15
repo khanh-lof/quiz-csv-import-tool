@@ -111,8 +111,8 @@ const STAGE_CHECK_TIMEOUT_MS = 4000;
 const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
 
 const STAND_TIP: Record<VisionKind, string> = {
-  hand: 'Đứng cách webcam khoảng 0,6–1,2 m, để tay trong khung hình và có ánh sáng chiếu vào phía trước (đừng đứng ngược sáng).',
-  face: 'Ngồi hoặc đứng cách webcam khoảng 0,6–1,2 m, nhìn thẳng vào camera, có ánh sáng chiếu vào mặt và chỉ một người trong khung hình.',
+  hand: 'Đứng cách webcam 0,6–1,2 m, tay trong khung hình, đủ sáng (đừng ngược sáng).',
+  face: 'Cách webcam 0,6–1,2 m, nhìn thẳng, mặt đủ sáng, chỉ một người trong khung hình.',
 };
 
 // The gesture quiz page, played full screen outside the workspace frame. It loads a quiz (from an AI job

@@ -144,7 +144,7 @@ export class FruitSliceGame extends StageGameBase {
       return '';
     }
     if (!this.cameraActive()) {
-      return this.played() ? '' : 'Kéo chuột hoặc vuốt tay qua quả để chém (hoặc bấm phím 1, 2, 3)';
+      return this.played() ? '' : 'Kéo chuột hoặc vuốt tay qua quả để chém (hoặc phím 1, 2, 3)';
     }
     if (!this.handSeen()) {
       return 'Đưa ngón trỏ vào khung hình';

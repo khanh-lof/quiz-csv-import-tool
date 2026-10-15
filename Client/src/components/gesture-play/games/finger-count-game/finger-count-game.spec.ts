@@ -180,7 +180,7 @@ describe('FingerCountGame', () => {
     it('shows the badge, the hint and a ring on each card', () => {
       expect(root().querySelectorAll('.ring').length).toBe(4);
       expect(badge()).toBe('Chưa thấy bàn tay');
-      expect(hint()).toBe('Nắm tay lại rồi giơ số ngón theo đáp án (không tính ngón cái)');
+      expect(hint()).toBe('Giơ số ngón theo đáp án (không tính ngón cái)');
     });
 
     it('shows how many fingers the camera counts', () => {
