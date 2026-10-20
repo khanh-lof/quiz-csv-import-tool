@@ -10,6 +10,15 @@ export const TILT_THRESHOLD_DEG = 8;
 export const SHIFT_THRESHOLD_SPANS = 0.4;
 export const TILT_HOLD_MS = 450;
 
+// How long the head may stay off the middle while a choice waits for it there, before the neutral
+// pose is measured again. A player who has settled a little to one side since calibrating (the
+// middle is only a fifth of an eye span wide) would otherwise never get back to it, and no lean
+// would ever count.
+export const RECALIBRATE_AFTER_MS = 2000;
+
+// Frames further apart than this (the game was paused, the tab hidden) count as this long.
+const MAX_FRAME_MS = 150;
+
 // Which card a side selects. `TiltGate` follows the prototype's sign convention: a positive signal
 // is 'left'. In the mirrored preview the player sees, that is a lean toward the screen's left: a
 // positive roll has the image's right-hand eye lower, which is the player's left eye, and a positive
@@ -64,6 +73,8 @@ export interface HeadTiltStep {
   problem: string | null;
   // The head is not near the middle yet, so no choice counts.
   waiting: boolean;
+  // It has been waiting for RECALIBRATE_AFTER_MS: the neutral pose should be measured again.
+  recalibrate: boolean;
   side: TiltSide | null;
   // 0..1 of the hold.
   progress: number;
@@ -79,6 +90,8 @@ export interface HeadTiltStep {
 export class HeadTiltReader {
   private readonly gate = new TiltGate();
   private readonly cues = new ChargeCue();
+  private last: number | null = null;
+  private waitedMs = 0;
 
   step(
     face: FaceFrame,
@@ -87,14 +100,18 @@ export class HeadTiltReader {
     neutral: FacePose,
     now: number,
   ): HeadTiltStep {
+    const dt = this.last === null ? 0 : Math.min(Math.max(now - this.last, 0), MAX_FRAME_MS);
+    this.last = now;
     const pose = readFacePose(face, videoW, videoH);
     if (!pose) {
       this.gate.step(Number.NaN, face.faces, now);
       this.cues.reset();
+      this.waitedMs = 0;
       return {
         invalid: true,
         problem: faceProblemMessage(face.faces) ?? faceProblemMessage(0),
         waiting: false,
+        recalibrate: false,
         side: null,
         progress: 0,
         lean: 0,
@@ -116,10 +133,13 @@ export class HeadTiltReader {
       threshold: TILT_THRESHOLD_DEG,
       hold: TILT_HOLD_MS,
     });
+    const waiting = result.waiting === true;
+    this.waitedMs = waiting ? this.waitedMs + dt : 0;
     return {
       invalid: false,
       problem: null,
-      waiting: result.waiting === true,
+      waiting,
+      recalibrate: this.waitedMs >= RECALIBRATE_AFTER_MS,
       side: result.side,
       progress: result.progress,
       lean: (result.angle ?? 0) / TILT_THRESHOLD_DEG,
@@ -132,11 +152,14 @@ export class HeadTiltReader {
   lock(): void {
     this.gate.lock();
     this.cues.reset();
+    this.waitedMs = 0;
   }
 
   reset(): void {
     this.gate.reset();
     this.cues.reset();
+    this.last = null;
+    this.waitedMs = 0;
   }
 }
 

@@ -119,6 +119,10 @@ export class HeadTiltGame extends StageGameBase {
     }
 
     const step = this.reader.step(frame.face, width, height, this.neutral, now);
+    if (step.recalibrate) {
+      this.beginCalibration();
+      return;
+    }
     if (step.cue) {
       this.audio.play(step.cue);
     }

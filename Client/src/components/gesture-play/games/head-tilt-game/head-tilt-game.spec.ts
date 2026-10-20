@@ -5,6 +5,7 @@ import { Choice, QuestionView, Reveal } from '../../../../game/stage-game';
 import { VisionService } from '../../../../game/vision.service';
 import { faceFrame, FaceSpec, playFrames, VIDEO_HEIGHT, VIDEO_WIDTH } from './face-fixture';
 import { HeadTiltGame } from './head-tilt-game';
+import { RECALIBRATE_AFTER_MS } from './head-tilt-logic';
 
 const QUESTION: QuestionView = {
   stage: 2,
@@ -243,6 +244,21 @@ describe('HeadTiltGame', () => {
       now = frames({}, now, 400);
       frames({ roll: -14 }, now, 1200);
       expect(chosen).toEqual([0, 1]);
+    });
+
+    it('calibrates again when the head stays off the middle, then answers from the new one', () => {
+      let now = calibrated();
+      // Settled 0.4 eye spans to one side since calibrating: the lean shows on the meter, but the
+      // head never gets back to the old middle, so without a new calibration nothing would count.
+      now = frames({ centerX: 0.58 }, now + 33, RECALIBRATE_AFTER_MS + 100);
+      expect(game.ready()).toBeFalse();
+      expect(chosen).toEqual([]);
+
+      now = frames({ centerX: 0.58 }, now, 1200);
+      expect(game.ready()).toBeTrue();
+      now = frames({ centerX: 0.58 }, now, 400);
+      frames({ centerX: 0.7 }, now, 900);
+      expect(chosen).toEqual([0]);
     });
 
     it('ignores the head while the answer is revealed', () => {

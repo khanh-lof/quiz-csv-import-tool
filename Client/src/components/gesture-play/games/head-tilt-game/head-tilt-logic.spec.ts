@@ -1,6 +1,14 @@
 import { mapToStage } from '../../../../game/gestures';
 import type { FaceSpec } from './face-fixture';
-import { faceFrame, NEUTRAL, playFrames, VIDEO_HEIGHT, VIDEO_WIDTH } from './face-fixture';
+import {
+  ChargeCue,
+  HeadTiltReader,
+  RECALIBRATE_AFTER_MS,
+  TILT_HOLD_MS,
+  meterPercent,
+  sideToIndex,
+  tiltHint,
+} from './head-tilt-logic';
 import type { HeadTiltStep } from './head-tilt-logic';
 import { ChargeCue, HeadTiltReader, meterPercent, sideToIndex, TILT_HOLD_MS, tiltHint, } from './head-tilt-logic';
 import type { FacePose } from './face-common';
@@ -162,6 +170,28 @@ describe('HeadTiltReader', () => {
     expect(selections(carried.results)).toEqual([]);
   });
 
+  it('asks for a new calibration when the head stays off the middle', () => {
+    const reader = new HeadTiltReader();
+    // Settled 0.3 eye spans to one side of the calibrated neutral: no lean, but not the middle either.
+    const early = play(reader, { centerX: 0.56 }, 0, RECALIBRATE_AFTER_MS - 200);
+    const late = play(reader, { centerX: 0.56 }, early.end, 400);
+
+    expect(early.results.every(step => step.waiting && !step.recalibrate)).toBeTrue();
+    expect(late.results.some(step => step.recalibrate)).toBeTrue();
+    expect(selections([...early.results, ...late.results])).toEqual([]);
+  });
+
+  it('does not count a pause as waiting, and stops waiting once the head is in the middle', () => {
+    const reader = new HeadTiltReader();
+    const off = play(reader, { centerX: 0.56 }, 0, RECALIBRATE_AFTER_MS - 1000);
+    const resumed = play(reader, { centerX: 0.56 }, off.end + 10_000, 300);
+    const middle = play(reader, {}, resumed.end, 400);
+    const offAgain = play(reader, { centerX: 0.56 }, middle.end, RECALIBRATE_AFTER_MS + 500);
+
+    const all = [...off.results, ...resumed.results, ...middle.results, ...offAgain.results];
+    expect(all.some(step => step.recalibrate)).toBeFalse();
+  });
+
   it('chooses nothing and reports why while the face count is not one', () => {
     const reader = new HeadTiltReader();
     const rest = play(reader, {}, 0, 400);
@@ -207,6 +237,7 @@ describe('tiltHint', () => {
     invalid: false,
     problem: null,
     waiting: false,
+    recalibrate: false,
     side: null,
     progress: 0,
     lean: 0,
