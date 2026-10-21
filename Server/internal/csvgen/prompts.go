@@ -78,13 +78,13 @@ type responsesTool struct {
 }
 
 const (
-	maxOutputTokens = 10000
+	maxOutputTokens = 32000
 	// maxOutputTokensLarge is for requests whose answer or reasoning is longer than the usual budget
 	// covers: Wayground's image searches add reasoning between the searches, and a gesture quiz of
 	// more than gestureRowsInBaseBudget rows is a long answer. It is a ceiling, billing follows what
 	// the model actually writes. Reasoning counts as output, so a quiz close to the base budget would
 	// otherwise risk an incomplete response, which fails the whole call.
-	maxOutputTokensLarge = 16000
+	maxOutputTokensLarge = 64000
 	// gestureRowsInBaseBudget is the size of the default gesture quiz (six stages of five questions),
 	// the largest one the base budget was sized for.
 	gestureRowsInBaseBudget = 30

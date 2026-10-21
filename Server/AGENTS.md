@@ -321,9 +321,9 @@ cookie.
 - The creative mode uses the Responses API because Wayground requests carry the `web_search` tool:
   the model searches Pexels for the Image Link column and builds `images.pexels.com` URLs from the
   photo IDs it finds (Wikimedia is banned; Wayground cannot load it). Other platforms have no image
-  column and get no tool and the lower output cap (10000 tokens; Wayground's, `maxOutputTokensLarge`, is
-  16000), except a GestureQuiz of more than 30 rows (`gestureRowsInBaseBudget`, the default six stages of
-  five), which gets 16000 too, since up to 60 rows plus the model's reasoning may not fit in 10000
+  column and get no tool and the lower output cap (32000 tokens; Wayground's, `maxOutputTokensLarge`, is
+  64000), except a GestureQuiz of more than 30 rows (`gestureRowsInBaseBudget`, the default six stages of
+  five), which gets 64000 too, since up to 60 rows plus the model's reasoning may not fit in 32000
   (`TestGestureQuizTokenBudget` pins this). An `incomplete`
   response (output token cap hit) fails the call rather than
   returning cut-off rows. The `OPENAI_BASE_URL` gateway must support `/responses` with `web_search`,

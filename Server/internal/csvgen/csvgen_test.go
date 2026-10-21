@@ -161,7 +161,7 @@ func textsOf(t *testing.T, req responsesRequest) []string {
 func TestBuildCreativeRequest(t *testing.T) {
 	level, lesson := 2, 5
 	req := buildCreativeRequest("m", nil, Options{ExportType: Wayground, CourseType: Yct, Level: &level, LessonNumber: &lesson})
-	if req.Model != "m" || req.MaxOutputTokens != 16000 || req.Input[0].Role != "user" ||
+	if req.Model != "m" || req.MaxOutputTokens != 64000 || req.Input[0].Role != "user" ||
 		len(req.Tools) != 1 || req.Tools[0].Type != "web_search" {
 		t.Fatalf("unexpected request %+v", req)
 	}
@@ -191,7 +191,7 @@ func TestBuildCreativeRequest(t *testing.T) {
 		t.Fatalf("unexpected text parts %q", texts)
 	}
 	// No image column on GimKit, so no search.
-	if withImage.Tools != nil || withImage.MaxOutputTokens != 10000 {
+	if withImage.Tools != nil || withImage.MaxOutputTokens != 32000 {
 		t.Fatalf("unexpected request %+v", withImage)
 	}
 	parts := withImage.Input[0].Content
@@ -202,7 +202,7 @@ func TestBuildCreativeRequest(t *testing.T) {
 	// GestureQuiz has no image column either, so it gets no search tool and the plain token budget;
 	// its stage rules arrive as the template message right after the columns.
 	gesture := buildCreativeRequest("m", nil, Options{ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumber: &lesson})
-	if gesture.Tools != nil || gesture.MaxOutputTokens != 10000 {
+	if gesture.Tools != nil || gesture.MaxOutputTokens != 32000 {
 		t.Fatalf("unexpected request %+v", gesture)
 	}
 	if len(gesture.Input[0].Content) != 6 {
@@ -399,14 +399,14 @@ func TestGestureQuizTokenBudget(t *testing.T) {
 		questions int
 		want      int
 	}{
-		{nil, 0, 10000}, // the defaults, 30 rows
-		{AllGestureStages(), 5, 10000},
-		{AllGestureStages(), 4, 10000},
-		{[]int{1, 2, 3}, 10, 10000},    // 30 rows is still the base budget
-		{AllGestureStages(), 6, 16000}, // 36 rows
-		{[]int{1, 2, 3, 4}, 8, 16000},  // 32 rows
-		{AllGestureStages(), 10, 16000},
-		{[]int{6}, 10, 10000},
+		{nil, 0, 32000}, // the defaults, 30 rows
+		{AllGestureStages(), 5, 32000},
+		{AllGestureStages(), 4, 32000},
+		{[]int{1, 2, 3}, 10, 32000},    // 30 rows is still the base budget
+		{AllGestureStages(), 6, 64000}, // 36 rows
+		{[]int{1, 2, 3, 4}, 8, 64000},  // 32 rows
+		{AllGestureStages(), 10, 64000},
+		{[]int{6}, 10, 32000},
 	}
 	level, lesson := 1, 1
 	for _, tt := range tests {
@@ -421,7 +421,7 @@ func TestGestureQuizTokenBudget(t *testing.T) {
 	// The other platforms are untouched by the gesture settings.
 	other := buildCreativeRequest("m", nil, Options{ExportType: GimKit, CourseType: Hsk, Level: &level, LessonNumber: &lesson,
 		GestureStages: AllGestureStages(), QuestionsPerStage: 10})
-	if other.MaxOutputTokens != 10000 {
+	if other.MaxOutputTokens != 32000 {
 		t.Errorf("GimKit got %d output tokens", other.MaxOutputTokens)
 	}
 }
@@ -446,7 +446,7 @@ func TestGenerateCallsChatCompletions(t *testing.T) {
 	if csv != "Câu hỏi,Đáp án\na,b" {
 		t.Fatalf("unexpected csv %q", csv)
 	}
-	if got["model"] != "gpt-x" || got["max_completion_tokens"] != float64(10000) || got["reasoning_effort"] != "low" {
+	if got["model"] != "gpt-x" || got["max_completion_tokens"] != float64(32000) || got["reasoning_effort"] != "low" {
 		t.Fatalf("unexpected payload %v", got)
 	}
 }
@@ -474,7 +474,7 @@ func TestGenerateCreativeCallsResponses(t *testing.T) {
 	if csv != "a,b" {
 		t.Fatalf("unexpected csv %q", csv)
 	}
-	if got["model"] != "gpt-x" || got["max_output_tokens"] != float64(16000) || got["instructions"] == "" {
+	if got["model"] != "gpt-x" || got["max_output_tokens"] != float64(64000) || got["instructions"] == "" {
 		t.Fatalf("unexpected payload %v", got)
 	}
 }
@@ -577,7 +577,7 @@ func TestBuildCreativeRequestWithLessonMaterial(t *testing.T) {
 	if !slices.Equal(texts, want) {
 		t.Fatalf("unexpected text parts:\n%q\nwant\n%q", texts, want)
 	}
-	if len(req.Input[0].Content) != len(want) || req.MaxOutputTokens != 10000 || req.Tools != nil {
+	if len(req.Input[0].Content) != len(want) || req.MaxOutputTokens != 32000 || req.Tools != nil {
 		t.Errorf("unexpected request %+v", req)
 	}
 
@@ -595,11 +595,11 @@ func TestBuildCreativeRequestWithLessonMaterial(t *testing.T) {
 
 	// The token budgets do not depend on the material.
 	opts.ExportType = Wayground
-	if wayground := buildCreativeRequest("m", nil, opts); wayground.MaxOutputTokens != 16000 || len(wayground.Tools) != 1 {
+	if wayground := buildCreativeRequest("m", nil, opts); wayground.MaxOutputTokens != 64000 || len(wayground.Tools) != 1 {
 		t.Errorf("unexpected Wayground request %+v", wayground)
 	}
 	opts.ExportType = GestureQuiz
-	if gesture := buildCreativeRequest("m", nil, opts); gesture.MaxOutputTokens != 10000 || gesture.Tools != nil {
+	if gesture := buildCreativeRequest("m", nil, opts); gesture.MaxOutputTokens != 32000 || gesture.Tools != nil {
 		t.Errorf("unexpected gesture request %+v", gesture)
 	}
 }

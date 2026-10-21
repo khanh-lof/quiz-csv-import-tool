@@ -156,7 +156,7 @@
     <ng-container *nzModalContent>
       @if (viewing(); as job) {
         @if (job.status === 'failed') {
-          <p class="job-error">{{ job.errorMessage || 'Không rõ lỗi.' }} Lượt dùng AI đã được hoàn lại.</p>
+          <p class="job-error">{{ job.errorMessage || 'Không rõ lỗi.' }}</p>
         } @else if (viewTable(); as result) {
           @if (result.rows.length === 0) {
             <p>(AI không trả về gì)</p>
