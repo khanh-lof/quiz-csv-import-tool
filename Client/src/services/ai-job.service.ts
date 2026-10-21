@@ -104,7 +104,7 @@ export class AiJobService {
         ? 'AI chưa trả lời được. Hãy gửi lại sau ít phút.'
         : AiJobService.escapeHtml(job.errorMessage || 'Không rõ lỗi.');
     this.notificationService.error('AI tạo không được',
-      `"${title}": ${reason} Lượt dùng AI đã được hoàn lại.`, {
+      `"${title}": ${reason}`, {
         nzPlacement: 'top',
         nzDuration: 0
       });
