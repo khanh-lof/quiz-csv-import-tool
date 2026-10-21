@@ -160,10 +160,13 @@ Consequences to keep in mind when changing anything here:
 
 ## Textbook lessons
 
-For four books QuizTool holds the lessons themselves:
+For seven books QuizTool holds the lessons themselves:
 
 | Book | Course | Lessons |
 |---|---|---|
+| 《HSK标准教程1》 | HSK 2.0 level 1 | 15 |
+| 《HSK标准教程2》 | HSK 2.0 level 2 | 15 |
+| 《HSK标准教程3》 | HSK 2.0 level 3 | 20 |
 | 《新HSK教程1》 | HSK 3.0 level 1 | 15 |
 | 《新HSK教程2》 | HSK 3.0 level 2 | 15 |
 | 《新HSK教程3》 | HSK 3.0 level 3 | 18 |

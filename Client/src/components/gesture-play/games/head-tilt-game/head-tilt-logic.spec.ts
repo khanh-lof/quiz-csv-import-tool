@@ -1,4 +1,5 @@
 import { mapToStage } from '../../../../game/gestures';
+import { faceFrame, NEUTRAL, playFrames, VIDEO_HEIGHT, VIDEO_WIDTH } from './face-fixture';
 import type { FaceSpec } from './face-fixture';
 import {
   ChargeCue,
@@ -10,7 +11,6 @@ import {
   tiltHint,
 } from './head-tilt-logic';
 import type { HeadTiltStep } from './head-tilt-logic';
-import { ChargeCue, HeadTiltReader, meterPercent, sideToIndex, TILT_HOLD_MS, tiltHint, } from './head-tilt-logic';
 import type { FacePose } from './face-common';
 
 function play(

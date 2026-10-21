@@ -47,6 +47,9 @@ var textbookRegistry = []bookSpec{
 	{dir: "hsk3-1", title: "《新HSK教程1》", english: "New HSK Course 1", course: "HSK 3.0", courseType: Hsk, standard: Hsk3, level: 1, lessons: 15, series: "hsk3"},
 	{dir: "hsk3-2", title: "《新HSK教程2》", english: "New HSK Course 2", course: "HSK 3.0", courseType: Hsk, standard: Hsk3, level: 2, lessons: 15, series: "hsk3"},
 	{dir: "hsk3-3", title: "《新HSK教程3》", english: "New HSK Course 3", course: "HSK 3.0", courseType: Hsk, standard: Hsk3, level: 3, lessons: 18, series: "hsk3"},
+	{dir: "hsk2-1", title: "《HSK标准教程1》", english: "HSK Standard Course 1", course: "HSK 2.0", courseType: Hsk, standard: Hsk2, level: 1, lessons: 15, series: "hsk2"},
+	{dir: "hsk2-2", title: "《HSK标准教程2》", english: "HSK Standard Course 2", course: "HSK 2.0", courseType: Hsk, standard: Hsk2, level: 2, lessons: 15, series: "hsk2"},
+	{dir: "hsk2-3", title: "《HSK标准教程3》", english: "HSK Standard Course 3", course: "HSK 2.0", courseType: Hsk, standard: Hsk2, level: 3, lessons: 20, series: "hsk2"},
 	// YCT 1 to 5 have no material here; the learner is assumed to know them.
 	{dir: "yct-6", title: "《YCT标准教程6》", english: "YCT Standard Course 6", course: "YCT", courseType: Yct, level: 6, lessons: 15,
 		alsoKnown: "The learner also knows the words of YCT levels 1 to 5."},

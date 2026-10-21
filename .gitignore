@@ -505,3 +505,4 @@ CLAUDE.local.md
 # Textbook scans and raw OCR: local reference only (too large / copyrighted)
 Textbooks/*/book/
 Textbooks/*/ocr/
+Textbooks/*/pages/

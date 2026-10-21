@@ -274,14 +274,14 @@ cookie.
   a template defines stages or its own ordering format). The client plays those rows, so see the stage table in
   [../AGENTS.md](../AGENTS.md#the-gesture-quiz-game) before changing the template.
 - **Textbook lessons** (`textbooks.go`, `textbooks/<book>/lesson-NN.md`, embedded with `go:embed textbooks`).
-  For four books the teacher need not send photos, nor leave the model to rebuild the lesson from memory:
+  For seven books the teacher need not send photos, nor leave the model to rebuild the lesson from memory:
   the curated document of the lesson is sent as a **LESSON MATERIAL** message. The books are the hand-kept
   `textbookRegistry` (`dir`, title, `CourseType`, `HskStandard`, level and the pinned **lesson count**):
-  `hsk3-1`, `hsk3-2`, `hsk3-3` (HSK 3.0 levels 1 to 3, 15, 15 and 18 lessons, one series: a learner of level
+  `hsk2-1`, `hsk2-2`, `hsk2-3` (HSK 2.0 levels 1 to 3, 15, 15 and 20 lessons, their own `hsk2` series: a learner of level 2 knows the level 1 book), `hsk3-1`, `hsk3-2`, `hsk3-3` (HSK 3.0 levels 1 to 3, 15, 15 and 18 lessons, one series: a learner of level
   N knows the lower books) and `yct-6` (YCT level 6, 15 lessons, alone; YCT 1 to 5 have no material and the
   learner is assumed to know them). The client mirrors the registry in `Client/src/models/textbook.ts`, so
   adding a book or a lesson means changing the folder, the registry and that file together. `textbookFor`
-  matches `CourseType` + (HSK only) `HskStandard` + `*Level`; `Other` and HSK 2.0 never match, and neither does
+  matches `CourseType` + (HSK only) `HskStandard` + `*Level`; `Other` and HSK 2.0 above level 3 never match, and neither does
   anything when the library did not load. A match changes `CourseDisplayName()` to the book's full name
   (`《新HSK教程2》 (New HSK Course 2), the HSK 3.0 level 2 textbook`) and is why `ParseCreativeOptions` knows the
   lesson count.

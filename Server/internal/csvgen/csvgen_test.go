@@ -31,8 +31,8 @@ func TestParseCreativeOptions(t *testing.T) {
 		wantErr string
 		check   func(Options) bool
 	}{
-		{query: "exportType=2&courseType=0&level=3&lessonNumber=7", check: func(o Options) bool {
-			return o.ExportType == Wayground && o.CourseType == Hsk && *o.Level == 3 && *o.LessonNumber == 7 &&
+		{query: "exportType=2&courseType=0&level=4&lessonNumber=7", check: func(o Options) bool {
+			return o.ExportType == Wayground && o.CourseType == Hsk && *o.Level == 4 && *o.LessonNumber == 7 &&
 				o.HskStandard == Hsk2 && // HSK 2.0 when no standard is sent
 				o.CourseDisplayName() == "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)" && o.Intelligence == 1
 		}},
@@ -528,12 +528,13 @@ func TestParseCreativeOptionsForTextbooks(t *testing.T) {
 		{query: "exportType=0&courseType=0&hskStandard=3&level=3&lessonNumber=18", course: "《新HSK教程3》 (New HSK Course 3), the HSK 3.0 level 3 textbook"},
 		{query: "exportType=0&courseType=1&level=6&lessonNumber=15", course: "《YCT标准教程6》 (YCT Standard Course 6), the YCT level 6 textbook"},
 		{query: "exportType=0&courseType=0&hskStandard=3&level=2&lessonNumber=16", wantErr: "Lesson must be 1 to 15 for 《新HSK教程2》."},
+		{query: "exportType=0&courseType=0&hskStandard=2&level=2&lessonNumber=16", wantErr: "Lesson must be 1 to 15 for 《HSK标准教程2》."},
 		{query: "exportType=0&courseType=0&hskStandard=3&level=3&lessonNumber=19", wantErr: "Lesson must be 1 to 18 for 《新HSK教程3》."},
 		{query: "exportType=0&courseType=0&hskStandard=3&level=1&lessonNumber=0", wantErr: "Invalid or missing lessonNumber parameter."},
 		{query: "exportType=0&courseType=1&level=6&lessonNumber=16", wantErr: "Lesson must be 1 to 15 for 《YCT标准教程6》."},
 		// Courses without material are not limited: the model reads the number as a position in a book.
-		{query: "exportType=0&courseType=0&level=2&lessonNumber=16", course: "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"},
-		{query: "exportType=0&courseType=0&level=2&lessonNumber=40", course: "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"},
+		{query: "exportType=0&courseType=0&level=4&lessonNumber=16", course: "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"},
+		{query: "exportType=0&courseType=0&level=4&lessonNumber=40", course: "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"},
 		{query: "exportType=0&courseType=1&level=5&lessonNumber=99", course: "YCT (Youth Chinese Test), taught from 《YCT标准教程》 YCT Standard Course (Giáo trình chuẩn YCT)"},
 		{query: "exportType=0&courseType=0&hskStandard=3&level=4&lessonNumber=30", course: "HSK 3.0 (the nine-level standard GF 0025-2021), taught from the HSK 3.0 edition of 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK 3.0)"},
 		{query: "exportType=0&courseType=2&courseName=Boya&level=2&lessonNumber=99", course: "Boya"},
@@ -606,7 +607,7 @@ func TestBuildCreativeRequestWithLessonMaterial(t *testing.T) {
 // A course without material gets exactly the request it always had, whatever the library holds.
 func TestBuildCreativeRequestWithoutLessonMaterial(t *testing.T) {
 	level, lesson := 5, 7
-	hsk2Level := 2
+	hsk2Level := 4
 	tests := []Options{
 		{ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk2, Level: &hsk2Level, LessonNumber: &lesson},
 		{ExportType: Wayground, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumber: &lesson},

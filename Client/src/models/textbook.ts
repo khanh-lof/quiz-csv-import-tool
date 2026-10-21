@@ -17,6 +17,27 @@ export interface Textbook {
 export const TEXTBOOKS: readonly Textbook[] = [
   {
     courseType: CourseType.Hsk,
+    hskStandard: HskStandard.V2,
+    level: 1,
+    lessons: 15,
+    title: '《HSK标准教程1》'
+  },
+  {
+    courseType: CourseType.Hsk,
+    hskStandard: HskStandard.V2,
+    level: 2,
+    lessons: 15,
+    title: '《HSK标准教程2》'
+  },
+  {
+    courseType: CourseType.Hsk,
+    hskStandard: HskStandard.V2,
+    level: 3,
+    lessons: 20,
+    title: '《HSK标准教程3》'
+  },
+  {
+    courseType: CourseType.Hsk,
     hskStandard: HskStandard.V3,
     level: 1,
     lessons: 15,

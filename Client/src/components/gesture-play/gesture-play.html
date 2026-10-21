@@ -168,8 +168,7 @@
         <span class="pill">Câu {{ index() + 1 }}/{{ totalQuestions() }}</span>
         <span class="pill">⭐ {{ score() }}</span>
         @if (secondsLeft() !== null) {
-          <span [class.warn]="secondsLeft()! <= 5" class="pill time" title="Thời gian còn lại">⏱ {{ secondsLeft() }}
-            s</span>
+          <span [class.warn]="secondsLeft()! <= 5" class="pill time" title="Thời gian còn lại">⏱ {{ secondsLeft() }}s</span>
         } @else {
           <span class="pill time" title="Không giới hạn thời gian">⏱ ∞</span>
         }

@@ -17,8 +17,23 @@ describe('textbookFor', () => {
     expect(textbookFor(CourseType.Yct, HskStandard.V2, 6)?.title).toBe('《YCT标准教程6》');
   });
 
-  it('has no book for HSK 2.0, even at a level the HSK 3.0 books cover', () => {
-    expect(textbookFor(CourseType.Hsk, HskStandard.V2, 2)).toBeUndefined();
+  it('finds the HSK 2.0 level 1 book apart from the HSK 3.0 one', () => {
+    expect(textbookFor(CourseType.Hsk, HskStandard.V2, 1)?.title).toBe('《HSK标准教程1》');
+    expect(textbookFor(CourseType.Hsk, HskStandard.V3, 1)?.title).toBe('《新HSK教程1》');
+  });
+
+  it('finds the HSK 2.0 level 2 book apart from the HSK 3.0 one', () => {
+    expect(textbookFor(CourseType.Hsk, HskStandard.V2, 2)?.title).toBe('《HSK标准教程2》');
+    expect(textbookFor(CourseType.Hsk, HskStandard.V3, 2)?.title).toBe('《新HSK教程2》');
+  });
+
+  it('finds the HSK 2.0 level 3 book apart from the HSK 3.0 one', () => {
+    expect(textbookFor(CourseType.Hsk, HskStandard.V2, 3)?.title).toBe('《HSK标准教程3》');
+    expect(textbookFor(CourseType.Hsk, HskStandard.V3, 3)?.title).toBe('《新HSK教程3》');
+  });
+
+  it('has no book for HSK 2.0 beyond level 3, even at a level the HSK 3.0 books cover', () => {
+    expect(textbookFor(CourseType.Hsk, HskStandard.V2, 4)).toBeUndefined();
     expect(textbookFor(CourseType.Hsk, null, 2)).toBeUndefined();
   });
 

@@ -11,6 +11,9 @@ by hand (by an AI curator reading the scan) to the format in [LESSON_DOC_FORMAT.
 
 | Folder | Book | QuizTool course | Lessons | PDF page = book page + |
 |---|---|---|---|---|
+| `hsk2-1` | 《HSK标准教程1》 HSK Standard Course 1 | HSK 2.0, level 1 | 15 | 13 |
+| `hsk2-2` | 《HSK标准教程2》 HSK Standard Course 2 | HSK 2.0, level 2 | 15 | 16 (18 from lesson 11) |
+| `hsk2-3` | 《HSK标准教程3》 HSK Standard Course 3 | HSK 2.0, level 3 | 20 | 0 up to lesson 11's first page, 1 from lesson 12 |
 | `hsk3-1` | 《新HSK教程1》 New HSK Course 1 | HSK 3.0, level 1 | 15 | 14 |
 | `hsk3-2` | 《新HSK教程2》 New HSK Course 2 | HSK 3.0, level 2 | 15 | 16 |
 | `hsk3-3` | 《新HSK教程3》 New HSK Course 3 | HSK 3.0, level 3 | 18 | 12 |
