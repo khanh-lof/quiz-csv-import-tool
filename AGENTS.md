@@ -295,7 +295,7 @@ A teacher (any logged-in user) gives a finished Game job to students: the AI job
 makes an *assignment*, a link `<origin>/play/s/<code>` that anyone can open. A student types a name, picks an
 avatar, plays the six-stage game above, dealt and judged question by question by the server; the teacher sees the
 leaderboard ("Bảng xếp hạng") on `/assignments/<id>`, can close and reopen the assignment, set a closing time,
-preview it, remove a student and download the leaderboard as CSV, and the students see its top five and their
+preview it, remove a student and download the leaderboard as CSV, and the students see its podium (the client draws ranks 1 to 3 of the top five the server sends) and their
 own place on their stage map, unless the teacher hid it from them. A teacher may assign the same quiz several times (one per class), each with its
 own link, label and leaderboard. The server half is `Server/internal/api/{assignment,share,run}_handlers.go`,
 `leaderboard.go` and `avatars.go` over `store.Assignments`, with the quiz parser `Server/internal/gesturequiz`; the
