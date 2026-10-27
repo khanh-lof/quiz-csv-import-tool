@@ -13,7 +13,7 @@
     "server": {
       "root": "Server/",
       "framework": "go",
-      "buildCommand": "go generate ./internal/extension"
+      "buildCommand": "GOOS= GOARCH= go generate ./internal/extension && go build -trimpath -ldflags=\"-s -w\" -o $VERCEL_OUTPUT_FILE ./cmd/server"
     }
   },
   "rewrites": [

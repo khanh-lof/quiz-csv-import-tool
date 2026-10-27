@@ -222,7 +222,9 @@ Logged-in users download the extension from the web app: `GET api/extension` (au
 the usage guides of the AI and table pages fetch it with the token (`WaygroundExtensionService.downloadExtension`;
 the table, open to anonymous users, shows the link only when logged in). The Go build cannot reach outside
 `Server/`, so the zip is never committed: the server service's `buildCommand` in `vercel.json` runs `go generate
-./internal/extension`, which packs `../Extension` into `Server/internal/extension/packed/` (gitignored), and the
+./internal/extension` (with `GOOS`/`GOARCH` cleared, so the generator runs on the build machine) and then the
+`go build` to `$VERCEL_OUTPUT_FILE` itself, since a Go service's `buildCommand` replaces Vercel's own build. The
+generator packs `../Extension` into `Server/internal/extension/packed/` (gitignored), and the
 binary embeds it. A build without it (`go run ./cmd/server`, the Docker image) packs `../Extension` from disk
 on the first download, or answers 404 `Extension not available.` when the folder is not there.
 
