@@ -565,3 +565,6 @@ overlays (modals, confirms, dropdowns, notifications) that render outside any co
 `provideNzI18n(en_US)` is set in `app.config.ts` despite most user-facing
 notification strings in the codebase being written in Vietnamese directly at the call site (not via
 i18n).
+- Messages shown to the user (notifications, hints, helper text, empty states): keep them short and don't
+  explain much. Add one only when the user could not tell how to use the feature without it; a self-evident
+  control or result needs no message.

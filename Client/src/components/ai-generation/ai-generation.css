@@ -34,11 +34,6 @@
   color: var(--qt-text);
 }
 
-.generating-hint {
-  margin: 0;
-  font-size: 14px;
-  color: var(--qt-text-muted);
-}
 
 /* Never squeezed by the page fitting the screen (see :host); its min-height would let it shrink. */
 .ai-form {

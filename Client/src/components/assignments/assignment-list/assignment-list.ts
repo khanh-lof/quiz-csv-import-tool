@@ -52,7 +52,7 @@ const CLOCK_TICK_MS = 30_000;
 export class AssignmentList implements OnInit {
   protected readonly pageSize = PAGE_SIZE;
   protected readonly helpText =
-    'Giao bài từ mục AI › Lịch sử: chọn một Game đã xong và bấm Giao bài.';
+    'Giao bài ở AI › Lịch sử.';
   protected readonly assignments = signal<Assignment[]>([]);
   protected readonly loading = signal(false);
   // False until a list has arrived, so the empty state is not claimed before (or instead of) an answer.
@@ -113,11 +113,11 @@ export class AssignmentList implements OnInit {
   protected async copyLink(assignment: Assignment): Promise<void> {
     try {
       await navigator.clipboard.writeText(shareUrl(assignment.code));
-      this.notificationService.success('Đã sao chép link', 'Gửi link này cho học sinh nhaa.', { nzPlacement: 'top' });
+      this.notificationService.success('Đã sao chép link', '', { nzPlacement: 'top' });
     } catch {
       // No clipboard access (an insecure page, or the browser said no): the QR popup shows the link to copy by hand.
       this.notificationService.warning('Chưa sao chép được',
-        'Link hiện trong hộp mã QR, bạn sao chép ở đó nhé.', { nzPlacement: 'top' });
+        'Lấy link ở Mã QR.', { nzPlacement: 'top' });
       this.showQr(assignment);
     }
   }

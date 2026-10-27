@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { WaygroundDelivery } from '../models/wayground-delivery';
 import { FileExportService } from './file-export.service';
@@ -6,6 +7,8 @@ import { FileExportService } from './file-export.service';
 // The user's last choice between downloading the Wayground file and letting the extension publish it,
 // shared by the table and the AI page.
 const DELIVERY_STORAGE_KEY = 'wayground-delivery';
+const EXTENSION_ZIP_URL = '/api/extension';
+const EXTENSION_ZIP_NAME = 'quiztool-wayground-extension.zip';
 
 // Talks to the optional QuizTool browser extension (`../Extension`), which creates and publishes the
 // quiz in the user's own logged-in Wayground tab and reports the quiz's share link back. The
@@ -39,7 +42,8 @@ export class WaygroundExtensionService {
   private readonly pendingRequests = new Map<string, { fileName: string, xlsx: Uint8Array }>();
 
   constructor(private readonly notificationService: NzNotificationService,
-              private readonly fileExportService: FileExportService) {
+              private readonly fileExportService: FileExportService,
+              private readonly httpClient: HttpClient) {
     window.addEventListener('message', event => this.onMessage(event));
   }
 
@@ -54,6 +58,15 @@ export class WaygroundExtensionService {
       binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     }
     return btoa(binary);
+  }
+
+  // The server serves the extension's zip to logged-in users only, so it is fetched with the token, not linked.
+  public downloadExtension(): void {
+    this.httpClient.get(EXTENSION_ZIP_URL, { responseType: 'blob' }).subscribe({
+      next: zip => this.fileExportService.downloadBlob(EXTENSION_ZIP_NAME, zip),
+      error: () => this.notificationService.error('Không tải được tiện ích', 'Hãy đăng nhập rồi thử lại.',
+        { nzPlacement: 'top' }),
+    });
   }
 
   // The bridge script runs at document_start, so this is already true when the first component renders.
@@ -117,8 +130,7 @@ export class WaygroundExtensionService {
       this.fileExportService.downloadXlsx(file.fileName, file.xlsx);
       this.notificationService.error('Wayground chưa publish được',
         `Tiện ích dừng lại (${WaygroundExtensionService.escapeHtml(result.error ?? 'không rõ lỗi')}). ` +
-        `Đã tải file ${WaygroundExtensionService.escapeHtml(file.fileName)} về, ` +
-        'làm tiếp bằng tay trong tab Wayground vừa mở nhé.',
+        `Đã tải ${WaygroundExtensionService.escapeHtml(file.fileName)}, import bằng tay.`,
         {
           nzPlacement: 'top',
           nzDuration: 0
@@ -135,8 +147,8 @@ export class WaygroundExtensionService {
   private showPublished(result: WaygroundImportResult, copied: boolean): void {
     const url = WaygroundExtensionService.escapeHtml(result.shareUrl!);
     this.notificationService.success('Đã publish quiz trên Wayground',
-      `"${WaygroundExtensionService.escapeHtml(result.title)}" đã được publish. ` +
-      `Link chia sẻ${copied ? ' (đã copy)' : ''}: <a href="${url}" target="_blank" rel="noopener">${url}</a>`,
+      `"${WaygroundExtensionService.escapeHtml(result.title)}"${copied ? ' (đã copy)' : ''}: ` +
+      `<a href="${url}" target="_blank" rel="noopener">${url}</a>`,
       {
         nzPlacement: 'top',
         nzDuration: 0

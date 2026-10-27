@@ -281,18 +281,18 @@ export class AssignmentLeaderboard {
     }
     try {
       await navigator.clipboard.writeText(shareUrl(detail.code));
-      this.notificationService.success('Đã sao chép link', 'Gửi link này cho học sinh nhaa.', { nzPlacement: 'top' });
+      this.notificationService.success('Đã sao chép link', '', { nzPlacement: 'top' });
     } catch {
       // No clipboard access (an insecure page, or the browser said no): the QR dialog shows a field to copy by hand.
       this.notificationService.warning('Chưa sao chép được',
-        'Bạn mở Mã QR, link nằm ở đó để sao chép bằng Ctrl+C nhé.', { nzPlacement: 'top' });
+        'Lấy link ở Mã QR.', { nzPlacement: 'top' });
     }
   }
 
   protected closeAssignment(): void {
     this.change({ closed: true }).subscribe({
       next: () => this.notificationService.success('Đã đóng bài',
-        'Học sinh không vào chơi được nữa. Kết quả đang chơi dở vẫn được nhận thêm vài phút.', { nzPlacement: 'top' }),
+        '', { nzPlacement: 'top' }),
       error: err => this.fail('Không đóng được bài', err),
     });
   }
@@ -319,7 +319,7 @@ export class AssignmentLeaderboard {
         this.deadlineOpen.set(false);
         this.notificationService.success(
           reopen ? 'Đã mở lại bài' : closesAt === null ? 'Đã bỏ giờ đóng' : 'Đã hẹn giờ đóng',
-          reopen ? 'Học sinh vào chơi lại được bằng link cũ.' : 'Bài sẽ đóng đúng giờ đã chọn.',
+          '',
           { nzPlacement: 'top' });
       },
       error: err => this.fail(reopen ? 'Không mở lại được bài' : 'Không hẹn giờ được', err),
@@ -346,7 +346,7 @@ export class AssignmentLeaderboard {
     }
     const failed = () => this.notificationService.warning(
       'Không bật được toàn màn hình',
-      'Trình duyệt không cho phép chế độ toàn màn hình ở đây.',
+      '',
       { nzPlacement: 'top' });
     try {
       this.board()?.nativeElement.requestFullscreen().catch(failed);

@@ -12,7 +12,8 @@
     },
     "server": {
       "root": "Server/",
-      "framework": "go"
+      "framework": "go",
+      "buildCommand": "go generate ./internal/extension"
     }
   },
   "rewrites": [

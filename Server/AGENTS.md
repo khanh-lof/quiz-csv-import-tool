@@ -82,6 +82,10 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   treated as theft and revokes every session of the user (see the data model below).
 - **Users** (`auth_handlers.go`): `users`, admin-only via `X-Admin-Key` (replaces the Azure Functions
   admin key), enforced by the `requireAdminKey` middleware. 409 if the user exists.
+- **Extension** (`extension_handler.go`): `GET extension`, behind the same `authenticate` + `requireRole` as the
+  CSV jobs, answers the Wayground extension's zip from `internal/extension` (embedded when `go generate
+  ./internal/extension` ran before the build, as the Vercel `buildCommand` does; otherwise packed from
+  `../Extension` on first use), or 404 `Extension not available.`. See [../AGENTS.md](../AGENTS.md#the-wayground-browser-extension).
 - **CSV jobs** (`csv_handler.go`): `POST csv/jobs`, `GET csv/jobs`, `DELETE csv/jobs/{id}`. All wrapped in
   `authenticate` (Bearer JWT → 401 with `WWW-Authenticate`) and `requireRole(auth.RoleUser, auth.RoleAdmin)`
   (→ 403); handlers read the claims with `auth.FromContext`. `createJob` loads the user (404 if deleted

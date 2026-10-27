@@ -31,12 +31,12 @@ export class ShareLink {
   protected async copy(): Promise<void> {
     try {
       await navigator.clipboard.writeText(this.url());
-      this.notificationService.success('Đã sao chép link', 'Gửi link này cho học sinh nhaa.', { nzPlacement: 'top' });
+      this.notificationService.success('Đã sao chép link', '', { nzPlacement: 'top' });
     } catch {
       // No clipboard access (an insecure page, or the browser said no): leave the link selected, ready for Ctrl+C.
       this.selectLink();
       this.notificationService.warning('Chưa sao chép được',
-        'Link đã được chọn sẵn, bạn nhấn Ctrl+C để sao chép nhé.', { nzPlacement: 'top' });
+        'Nhấn Ctrl+C để sao chép.', { nzPlacement: 'top' });
     }
   }
 }

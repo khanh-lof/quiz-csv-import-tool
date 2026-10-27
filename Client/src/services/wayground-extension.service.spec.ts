@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { WaygroundExtensionService } from './wayground-extension.service';
 import { FileExportService } from './file-export.service';
@@ -13,7 +15,7 @@ describe('WaygroundExtensionService', () => {
   beforeEach(() => {
     notifications = jasmine.createSpyObj('NzNotificationService', ['success', 'error']);
     TestBed.configureTestingModule({
-      providers: [{
+      providers: [provideHttpClient(), provideHttpClientTesting(), {
         provide: NzNotificationService,
         useValue: notifications
       }]
@@ -132,6 +134,28 @@ describe('WaygroundExtensionService', () => {
       expect(service.preferredDelivery()).toBe(WaygroundDelivery.Download);
       expect(service.shouldPublish(WaygroundDelivery.Download)).toBeFalse();
       expect(service.shouldPublish(WaygroundDelivery.Extension)).toBeTrue();
+    });
+  });
+  describe('extension download', () => {
+    it('fetches the zip with the API and saves it', () => {
+      const downloadBlob = spyOn(TestBed.inject(FileExportService), 'downloadBlob');
+      const http = TestBed.inject(HttpTestingController);
+
+      service.downloadExtension();
+      const zip = new Blob(['zip']);
+      http.expectOne('/api/extension').flush(zip);
+
+      expect(downloadBlob).toHaveBeenCalledOnceWith('quiztool-wayground-extension.zip', zip);
+      http.verify();
+    });
+
+    it('says so when the download fails', () => {
+      const http = TestBed.inject(HttpTestingController);
+
+      service.downloadExtension();
+      http.expectOne('/api/extension').flush(new Blob(), { status: 500, statusText: 'Server Error' });
+
+      expect(notifications.error).toHaveBeenCalled();
     });
   });
 });

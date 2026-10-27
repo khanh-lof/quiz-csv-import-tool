@@ -18,8 +18,9 @@
     </ol>
     <p><b>Giao bài</b>: học sinh mở link, nhập tên là chơi (không cần tài khoản); xem bảng xếp hạng ở <b>Bài đã giao</b>.
     </p>
-    <p>Tiện ích Wayground: <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md"
-                              rel="noopener" target="_blank">cách cài</a>.</p>
+    <p>Tiện ích Wayground: <a (click)="downloadExtension($event)" href="/api/extension">tải về</a>,
+      <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
+         target="_blank">cách cài</a>.</p>
   </app-usage-guide>
   <nz-content>
     <form (ngSubmit)="generate()" [formGroup]="formGroup" class="ai-form">
@@ -64,8 +65,7 @@
             @if (formGroup.controls.AIMode.value === AIGenerationMode.Auto) {
               <p class="drop-zone-subtext">
                 {{
-                  textbook ? 'Bài có giáo trình thì không cần ảnh, AI lấy đúng từ vựng của sách nhaa'
-                    : 'Không có ảnh cũng được, AI sẽ tự lấy từ vựng của bài nhaa'
+                  textbook ? 'Có giáo trình thì không cần ảnh.' : 'Ảnh không bắt buộc.'
                 }}
               </p>
             }
@@ -141,11 +141,9 @@
         <!-- Whether the server holds the course's lessons decides if photos matter; a line under the row, so a long
              sentence does not widen the Bài field. -->
         @if (textbook; as book) {
-          <small class="export-hint">Dùng giáo trình {{ book.title }} ({{ book.lessons }} bài): AI ra câu hỏi từ đúng từ
-            vựng của bài, không cần ảnh.</small>
+          <small class="export-hint">Có giáo trình {{ book.title }}, không cần ảnh.</small>
         } @else {
-          <small class="export-hint">Chưa có giáo trình cho khoá này: AI dựa vào ảnh bạn gửi hoặc kiến thức sẵn
-            có.</small>
+          <small class="export-hint">Chưa có giáo trình.</small>
         }
         <div class="output-selection">
           <div class="field">
@@ -196,7 +194,9 @@
               <ng-container
                 *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.questionsPerStage}"/>
             </div>
-            <small class="export-hint">{{ gestureQuizHint }}</small>
+            @if (gestureQuizHint) {
+              <small class="export-hint">{{ gestureQuizHint }}</small>
+            }
           </div>
         }
       }
@@ -240,6 +240,5 @@
   <div aria-live="polite" class="generating-overlay" role="status">
     <nz-spin nzSimple nzSize="large"/>
     <p class="generating-title">Đang gửi yêu cầu...</p>
-    <p class="generating-hint">Gửi xong, AI sẽ tự chạy trên máy chủ.</p>
   </div>
 }

@@ -92,7 +92,7 @@ describe('AiJobService', () => {
     }));
 
     expect(notifications.error).toHaveBeenCalledTimes(1);
-    expect(notifications.error.calls.mostRecent().args[1]).toContain('quá lâu');
+    expect(notifications.error.calls.mostRecent().args[1]).toContain('Quá lâu');
   }));
 
   it('keeps polling for the requested idle rounds after a submit', fakeAsync(() => {

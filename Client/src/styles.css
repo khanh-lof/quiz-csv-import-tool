@@ -404,6 +404,10 @@ input.ant-input-sm,
   box-shadow: var(--qt-card-shadow);
 }
 
+.ant-notification-notice-description:empty {
+  display: none;
+}
+
 /* ===== Tables ===== */
 
 .ant-table {

@@ -39,6 +39,7 @@ import { CdkTextareaAutosize } from '@angular/cdk/text-field';
 import { debounceTime } from 'rxjs';
 import { PendingImportService } from '../../services/pending-import.service';
 import { WaygroundExtensionService } from '../../services/wayground-extension.service';
+import { AuthService } from '../../services/auth.service';
 import { UsageGuide } from '../usage-guide/usage-guide';
 import { WaygroundDelivery } from '../../models/wayground-delivery';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
@@ -98,6 +99,7 @@ export class VocabularyTable implements OnInit {
               private readonly destroyRef: DestroyRef,
               private readonly pendingImportService: PendingImportService,
               private readonly waygroundExtensionService: WaygroundExtensionService,
+              private readonly authService: AuthService,
               formBuilder: FormBuilder) {
     this.formGroup = formBuilder.group({
       listOfData: formBuilder.array<FormGroup<QuestionDefinitionForm>>(this.createDefaultQuestionFormGroups(), [Validators.minLength(this.minRows), this.duplicateValidator]),
@@ -111,6 +113,16 @@ export class VocabularyTable implements OnInit {
     this.waygroundDelivery = new FormControl(waygroundExtensionService.preferredDelivery(), { nonNullable: true });
     this.waygroundDelivery.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(delivery => waygroundExtensionService.savePreferredDelivery(delivery));
+  }
+
+  // The server serves the extension to logged-in users only.
+  protected get loggedIn(): boolean {
+    return this.authService.hasAccessToken();
+  }
+
+  protected downloadExtension(event: Event): void {
+    event.preventDefault();
+    this.waygroundExtensionService.downloadExtension();
   }
 
   protected get questionForms() {
@@ -156,7 +168,7 @@ export class VocabularyTable implements OnInit {
       const rows = this.csvImportService.parseCsv(content);
 
       if (!rows.length) {
-        this.notificationService.warning('Không có dữ liệu', 'File CSV không có dữ liệu hợp lệ để nhập.', { nzPlacement: 'top' });
+        this.notificationService.warning('Không có dữ liệu', 'File không có dòng hợp lệ.', { nzPlacement: 'top' });
         return;
       }
 
@@ -176,7 +188,7 @@ export class VocabularyTable implements OnInit {
     const exportTypeControl = this.formGroup.get('exportType')!;
     if (exportTypeControl.value === null) {
       exportTypeControl.markAsDirty();
-      this.notificationService.error('Chưa chọn template', 'Chọn Gimkit, Blooket hoặc Wayground trước khi tải file nhé.', { nzPlacement: 'top' });
+      this.notificationService.error('Chưa chọn nền tảng', 'Chọn nền tảng trước.', { nzPlacement: 'top' });
       return;
     }
     // Rows left completely empty are ignored rather than blocking the export, as long as enough real
@@ -184,7 +196,7 @@ export class VocabularyTable implements OnInit {
     const filledRowCount = this.questionForms.controls.filter(x => !this.isEmptyRow(x)).length;
     if (filledRowCount < this.minRows) {
       this.notificationService.error('Chưa đủ câu hỏi',
-        `Cần ít nhất ${this.minRows} câu hỏi có đáp án để tạo đáp án sai cho mỗi câu.`, { nzPlacement: 'top' });
+        `Cần ít nhất ${this.minRows} câu hỏi có đáp án.`, { nzPlacement: 'top' });
       return;
     }
     this.removeEmptyControls();
@@ -193,9 +205,9 @@ export class VocabularyTable implements OnInit {
     this.formGroup.markAllAsDirty();
     if (this.formGroup.invalid) {
       const message = this.questionForms.hasError('duplicateExists')
-        ? 'Có câu hỏi hoặc đáp án bị trùng, sửa lại chỗ báo đỏ nhé.'
-        : 'Còn ô trống, điền nốt chỗ báo đỏ nhé.';
-      this.notificationService.error('Tập trung vàoooo', message, { nzPlacement: 'top' });
+        ? 'Có câu hỏi hoặc đáp án trùng.'
+        : 'Còn ô trống.';
+      this.notificationService.error('Thiếu thông tin', message, { nzPlacement: 'top' });
       return;
     }
     const exportType: ExportType = exportTypeControl.value;
@@ -208,11 +220,9 @@ export class VocabularyTable implements OnInit {
     if (publish && exported.xlsx) {
       this.waygroundExtensionService.sendImport(title, exported.fileName, exported.xlsx);
       this.notificationService.info('Đang tạo quiz trên Wayground…',
-        'Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.', { nzPlacement: 'top' });
+        'Xong sẽ báo link ở đây.', { nzPlacement: 'top' });
       return;
     }
-    this.notificationService.success('Tải file thành công',
-      `Đã tải ${exported.fileName}, import vào ${FileExportService.platformName(exportType)} là dùng được nhaa.`, { nzPlacement: 'top' });
   }
 
   protected confirmDeleteAllRows() {
@@ -282,7 +292,6 @@ export class VocabularyTable implements OnInit {
     });
 
     this.refreshTable();
-    this.notificationService.success('Nhập thành công', `Đã nhập ${rows.length} dòng.`, { nzPlacement: 'top' });
 
     setTimeout(() => {
       const inputs = this.rowSourceInputs.toArray();

@@ -113,7 +113,7 @@ export class FileExportService {
     }
   }
 
-  private downloadBlob(filename: string, blob: Blob) {
+  public downloadBlob(filename: string, blob: Blob) {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.href = url;

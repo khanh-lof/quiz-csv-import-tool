@@ -752,7 +752,7 @@ export class GesturePlay implements OnInit, OnDestroy {
           this.avatarOpen.set(false);
           this.fail(SHARED_CLOSED);
         } else {
-          this.notificationService.error('Chưa đổi được hình', 'Thử lại nhé.', { nzPlacement: 'top' });
+          this.notificationService.error('Chưa đổi được hình', '', { nzPlacement: 'top' });
         }
       },
     });
@@ -954,7 +954,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
     const failed = () => this.notificationService.warning(
       'Không bật được toàn màn hình',
-      'Trình duyệt không cho phép chế độ toàn màn hình ở đây.',
+      '',
       { nzPlacement: 'top' });
     try {
       this.host.nativeElement.requestFullscreen().catch(failed);
@@ -1015,7 +1015,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     if (quiz.skipped > 0 && this.mode() !== 'shared') {
       this.notificationService.warning(
         'Có dòng không dùng được',
-        `Đã bỏ qua ${quiz.skipped} dòng không hợp lệ trong quiz.`,
+        `Bỏ qua ${quiz.skipped} dòng.`,
         { nzPlacement: 'top' });
     }
     return quiz;
@@ -1533,7 +1533,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.backToMap();
     this.notificationService.warning(
       'Lượt chơi đã kết thúc',
-      'Lượt chơi này đã kết thúc, có thể bạn đã bắt đầu màn này ở tab khác.',
+      'Có thể bạn đã mở màn này ở tab khác.',
       { nzPlacement: 'top' });
   }
 
@@ -1550,17 +1550,17 @@ export class GesturePlay implements OnInit, OnDestroy {
       // This page thought the stage was open and the server knows better: the map is brought into step.
       this.backToMap();
       this.refreshSharedProgress();
-      this.notificationService.warning('Màn này chưa mở', 'Hãy qua màn trước rồi chơi màn này nhé.', { nzPlacement: 'top' });
+      this.notificationService.warning('Màn này chưa mở', 'Hãy qua màn trước.', { nzPlacement: 'top' });
     } else if (status === 409 && body === 'Replay limit reached') {
       this.useUpAttempts(stage);
       this.backToMap();
-      this.notificationService.warning('Hết lượt chơi', 'Bạn đã dùng hết lượt chơi màn này.', { nzPlacement: 'top' });
+      this.notificationService.warning('Hết lượt chơi', '', { nzPlacement: 'top' });
     } else {
       // Offline, or a failure the student can try again: the intro is where "Bắt đầu" is.
       this.screen.set('intro');
       this.notificationService.error(
         'Chưa bắt đầu được màn',
-        status === 0 ? 'Mất kết nối. Hãy kiểm tra mạng rồi bấm Bắt đầu lại.' : 'Hãy thử bấm Bắt đầu lại.',
+        status === 0 ? 'Mất kết nối.' : 'Thử lại.',
         { nzPlacement: 'top' });
     }
   }

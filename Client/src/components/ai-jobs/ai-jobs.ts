@@ -173,7 +173,7 @@ export class AiJobs implements OnInit {
   protected openInTable(job: AiJob): void {
     const rows = this.csvImportService.parseCsv(this.resultText(job));
     if (rows.length === 0) {
-      this.notificationService.warning('Không có dữ liệu', 'AI không trả về dữ liệu CSV hợp lệ từ các ảnh.', { nzPlacement: 'top' });
+      this.notificationService.warning('Không có dữ liệu', 'AI không trả về dòng nào.', { nzPlacement: 'top' });
       return;
     }
     this.pendingImportService.set(rows);
@@ -197,22 +197,15 @@ export class AiJobs implements OnInit {
     const exported = this.fileExportService.exportFileFromCsvContent(
       FileExportService.buildFileName(job.title, exportType), this.resultText(job), exportType, !publish);
     if (!exported) {
-      this.notificationService.warning('Không có dữ liệu', 'AI không trả về câu hỏi nào. Vui lòng thử lại.', { nzPlacement: 'top' });
+      this.notificationService.warning('Không có dữ liệu', 'AI không trả về câu hỏi nào.', { nzPlacement: 'top' });
       return;
     }
     if (publish && exported.xlsx) {
       this.waygroundExtensionService.sendImport(job.title, exported.fileName, exported.xlsx);
       this.notificationService.info('Đang tạo quiz trên Wayground…',
-        'Tiện ích đang publish quiz, xong sẽ báo link chia sẻ ở đây.', { nzPlacement: 'top' });
+        'Xong sẽ báo link ở đây.', { nzPlacement: 'top' });
     } else if (exportType === ExportType.GestureQuiz) {
-      // There is nothing to import: the file is played from the Game page.
-      this.notificationService.success('Tải xong rồi',
-        `Đã tải file ${exported.fileName}, mở nó ở trang Game là chơi được nhaa.`,
-        { nzPlacement: 'top' });
-    } else {
-      this.notificationService.success('Tải xong rồi',
-        `Đã tải file ${exported.fileName}, import vào ${FileExportService.platformName(exportType)} là dùng được nhaa.`,
-        { nzPlacement: 'top' });
+      this.notificationService.success('Đã tải file', 'Mở file ở trang Game để chơi.', { nzPlacement: 'top' });
     }
   }
 
@@ -264,7 +257,7 @@ export class AiJobs implements OnInit {
 
   private remove(job: AiJob): void {
     this.jobService.remove(job.id).subscribe({
-      error: () => this.notificationService.error('Không xóa được', 'Vui lòng thử lại.', { nzPlacement: 'top' }),
+      error: () => this.notificationService.error('Không xóa được', 'Thử lại.', { nzPlacement: 'top' }),
     });
   }
 }

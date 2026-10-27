@@ -94,14 +94,14 @@ export class AiJobService {
   private announce(job: AiJob): void {
     const title = AiJobService.escapeHtml(job.title);
     if (job.status === 'done') {
-      this.notificationService.success('AI tạo xong rồi',
-        `"${title}" đã xong, lấy kết quả ở bảng lịch sử nhaa.`, { nzPlacement: 'top' });
+      this.notificationService.success('AI đã tạo xong',
+        `"${title}" — xem ở AI › Lịch sử.`, { nzPlacement: 'top' });
       return;
     }
     const reason = job.errorStatus === HttpStatusCode.GatewayTimeout
-      ? 'AI xử lý quá lâu. Hãy gửi lại hoặc giảm số lượng ảnh.'
+      ? 'Quá lâu. Gửi lại hoặc giảm số ảnh.'
       : job.errorStatus === HttpStatusCode.BadGateway
-        ? 'AI chưa trả lời được. Hãy gửi lại sau ít phút.'
+        ? 'Thử lại sau ít phút.'
         : AiJobService.escapeHtml(job.errorMessage || 'Không rõ lỗi.');
     this.notificationService.error('AI tạo không được',
       `"${title}": ${reason}`, {

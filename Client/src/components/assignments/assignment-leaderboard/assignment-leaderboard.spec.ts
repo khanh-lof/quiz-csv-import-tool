@@ -759,7 +759,7 @@ describe('AssignmentLeaderboard', () => {
   it('invites the teacher to share the link when nobody has joined, and shows it while the assignment is open', fakeAsync(() => {
     open(detail({ players: [] }));
 
-    expect(text()).toContain('Chưa có học sinh nào vào bài. Gửi link hoặc cho học sinh quét mã QR nhé.');
+    expect(text()).toContain('Chưa có học sinh nào vào bài.');
     expect(root().querySelector('app-share-link')).not.toBeNull();
     expect(root().querySelector('app-leaderboard-podium')).toBeNull();
     leave();

@@ -32,7 +32,7 @@ export class OfflineComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((isOnline) => {
         if (isOnline && this.router.url.includes('/offline')) {
-          this.notificationService.success('Đã có kết nối', 'Kết nối Internet đã được phục hồi.', {
+          this.notificationService.success('Đã có kết nối', '', {
             nzPlacement: 'top'
           });
           this.onlineStatusService.navigateToReturnUrl();
@@ -45,14 +45,14 @@ export class OfflineComponent implements OnInit {
     try {
       const isOnline = await this.onlineStatusService.checkConnection();
       if (isOnline) {
-        this.notificationService.success('Đã có kết nối', 'Kết nối Internet đã được phục hồi.', {
+        this.notificationService.success('Đã có kết nối', '', {
           nzPlacement: 'top'
         });
         this.onlineStatusService.navigateToReturnUrl();
       } else {
         this.notificationService.warning(
           'Chưa có kết nối',
-          'Vẫn chưa thể kết nối Internet. Vui lòng kiểm tra lại Wi-Fi hoặc dữ liệu di động.',
+          '',
           { nzPlacement: 'top' }
         );
       }

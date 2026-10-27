@@ -45,6 +45,7 @@ import { NzSpinComponent } from 'ng-zorro-antd/spin';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { ImageCompressionService, UploadTooLargeError } from '../../services/image-compression.service';
 import { UsageGuide } from '../usage-guide/usage-guide';
+import { WaygroundExtensionService } from '../../services/wayground-extension.service';
 import { NzContentComponent, NzLayoutComponent } from 'ng-zorro-antd/layout';
 
 interface ImageItem {
@@ -139,6 +140,7 @@ export class AiGeneration {
     private readonly imageCompressionService: ImageCompressionService,
     private readonly notificationService: NzNotificationService,
     private readonly destroyRef: DestroyRef,
+    private readonly waygroundExtensionService: WaygroundExtensionService,
     formBuilder: FormBuilder
   ) {
     this.formGroup = formBuilder.group<AiGenerationForm>({
@@ -159,6 +161,11 @@ export class AiGeneration {
     this.restoreSettings();
   }
 
+  protected downloadExtension(event: Event): void {
+    event.preventDefault();
+    this.waygroundExtensionService.downloadExtension();
+  }
+
   protected get submitButtonLabel(): string {
     if (this.isGenerating()) {
       return 'Đang gửi...';
@@ -170,16 +177,12 @@ export class AiGeneration {
 
   // Tells the teacher what the choice makes: the games are played easiest first, each as one màn.
   protected get gestureQuizHint(): string {
-    const intro = 'Quiz chơi ngay trên QuizTool bằng camera';
     const stageCount = this.formGroup.controls.gestureStages.value?.length ?? 0;
     const perStage = this.formGroup.controls.questionsPerStage.value;
     if (stageCount === 0 || perStage === null) {
-      // The messages above say what is missing; there is no count to announce yet.
-      return `${intro}.`;
+      return '';
     }
-    return stageCount === 1
-      ? `${intro}: 1 màn, ${perStage} câu.`
-      : `${intro}: ${stageCount} màn từ dễ đến khó, ${perStage} câu mỗi màn (${stageCount * perStage} câu).`;
+    return `${stageCount} màn, ${stageCount * perStage} câu.`;
   }
 
   protected get maxLevel(): number {
@@ -291,12 +294,12 @@ export class AiGeneration {
     this.formGroup.markAllAsDirty();
     this.formGroup.updateValueAndValidity();
     if (this.formGroup.invalid) {
-      this.notificationService.error('Tập trung vàoooo', 'Nhập đủ thông tin ei', { nzPlacement: 'top' });
+      this.notificationService.error('Thiếu thông tin', 'Nhập đủ thông tin.', { nzPlacement: 'top' });
       return;
     }
     // Only the formatted mode needs images: the creative mode can work from the lesson identifiers alone.
     if (this.selectedImages().length === 0 && this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
-      this.notificationService.warning('Thiếu ảnh', 'Chế độ này cần ít nhất 1 ảnh bài học.', { nzPlacement: 'top' });
+      this.notificationService.warning('Thiếu ảnh', 'Cần ít nhất 1 ảnh.', { nzPlacement: 'top' });
       return;
     }
 
@@ -332,7 +335,7 @@ export class AiGeneration {
         // follows the job.
         this.clearAllImages();
         this.notificationService.info('Đã gửi yêu cầu',
-          'AI đang tạo trên máy chủ, bạn có thể làm việc khác hoặc đóng trang. Kết quả sẽ hiện ở mục AI › Lịch sử.',
+          'Kết quả ở AI › Lịch sử.',
           { nzPlacement: 'top' });
         // The first polls can come before the job is visible, so keep polling a little longer than usual.
         this.aiJobService.watch(NEW_JOB_IDLE_POLLS);
@@ -425,7 +428,7 @@ export class AiGeneration {
   private processImageFiles(files: File[]): void {
     const validFiles = files.filter(file => {
       if (!file.type.startsWith('image/')) {
-        this.notificationService.error('File không hợp lệ', `${file.name} không phải là ảnh.`, { nzPlacement: 'top' });
+        this.notificationService.error('File không hợp lệ', file.name, { nzPlacement: 'top' });
         return false;
       }
       return true;
@@ -438,7 +441,7 @@ export class AiGeneration {
         // Compared by content, not name/size/date: every paste yields a fresh "image.png" stamped with
         // the current time, so pasting the same image twice would otherwise slip through.
         if (this.selectedImages().some(x => x.preview === preview)) {
-          this.notificationService.error('Ảnh trùng lặp', `${file.name} đã được thêm trước đó.`, { nzPlacement: 'top' });
+          this.notificationService.error('Ảnh trùng lặp', file.name, { nzPlacement: 'top' });
           return;
         }
         this.selectedImages.update(images => [...images, {
@@ -470,7 +473,7 @@ export class AiGeneration {
     const status = err instanceof HttpErrorResponse ? err.status : null;
     const serverMessage = err instanceof HttpErrorResponse && typeof err.error === 'string' ? err.error.trim() : '';
     if (status === HttpStatusCode.Unauthorized) {
-      this.notificationService.warning('Hết phiên đăng nhập', 'Vui lòng đăng nhập lại để tiếp tục tạo câu hỏi.', { nzPlacement: 'top' });
+      this.notificationService.warning('Hết phiên đăng nhập', 'Đăng nhập lại để tiếp tục.', { nzPlacement: 'top' });
       this.setGenerating(false);
       this.router.navigate(['/login'], { queryParams: { returnUrl: '/ai' } });
       return;
@@ -480,19 +483,19 @@ export class AiGeneration {
       // that may not use AI (empty body).
       if (serverMessage) {
         this.notificationService.warning('Hết lượt dùng AI',
-          'Bạn đã dùng hết lượt tạo câu hỏi bằng AI cho lúc này. Vui lòng thử lại sau ít phút.',
+          'Thử lại sau ít phút.',
           {
             nzPlacement: 'top',
             nzDuration: 0
           });
       } else {
-        this.notificationService.error('Không có quyền', 'Tài khoản của bạn chưa được cấp quyền dùng AI.', { nzPlacement: 'top' });
+        this.notificationService.error('Không có quyền', 'Tài khoản chưa có quyền dùng AI.', { nzPlacement: 'top' });
       }
       return;
     }
     if (status === 0) {
       this.notificationService.error('Mất kết nối',
-        'Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng rồi thử lại.', { nzPlacement: 'top' });
+        'Kiểm tra mạng rồi thử lại.', { nzPlacement: 'top' });
       return;
     }
     if (status === HttpStatusCode.BadRequest && serverMessage) {
@@ -501,7 +504,7 @@ export class AiGeneration {
     }
     if (err instanceof UploadTooLargeError || status === HttpStatusCode.PayloadTooLarge) {
       this.notificationService.error('Ảnh quá lớn',
-        'Tổng dung lượng ảnh vượt quá giới hạn tải lên. Vui lòng giảm số lượng ảnh rồi thử lại.',
+        'Giảm số ảnh rồi thử lại.',
         {
           nzPlacement: 'top',
           nzDuration: 0

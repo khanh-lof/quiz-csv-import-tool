@@ -80,7 +80,7 @@
   <nz-card #board [class.is-fullscreen]="fullscreen()" [nzExtra]="boardExtra" [nzTitle]="boardTitle" class="board">
     @if (d.players.length === 0) {
       <div class="empty">
-        <p class="empty-text">Chưa có học sinh nào vào bài. Gửi link hoặc cho học sinh quét mã QR nhé.</p>
+        <p class="empty-text">Chưa có học sinh nào vào bài.</p>
         @if (open()) {
           <app-share-link [code]="d.code" [qrSize]="200"/>
         }
@@ -205,8 +205,8 @@
       <p class="deadline-help">
         {{
           deadlineMode() === 'reopen'
-            ? 'Bài sẽ mở lại bằng cùng link. Chọn giờ đóng mới nếu bạn muốn hẹn giờ.'
-            : 'Chọn lúc bài tự đóng. Học sinh đang chơi dở vẫn được nhận kết quả thêm vài phút.'
+            ? 'Mở lại bằng cùng link.'
+            : 'Chọn giờ bài tự đóng.'
         }}
       </p>
       <app-deadline-picker [(value)]="deadline"/>

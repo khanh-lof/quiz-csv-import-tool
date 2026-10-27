@@ -65,8 +65,7 @@
             <label [nzValue]="lock.value" nz-radio>{{ lock.label }}</label>
           }
         </nz-radio-group>
-        <p class="muted hint">Mở tất cả: học sinh chơi màn nào cũng được. Nếu không, mỗi màn chỉ mở sau khi đạt điểm qua
-          màn của màn trước.</p>
+        <p class="muted hint">Mở tất cả: chơi màn nào cũng được.</p>
       </div>
 
       @if (stageLock() === 'open') {
@@ -85,8 +84,7 @@
             }
           </div>
           @if (limitAttempts()) {
-            <p class="muted hint">Học sinh chỉ được chơi mỗi màn tối đa {{ maxAttemptsSent() }} lần, tính cả lần
-              đạt.</p>
+            <p class="muted hint">Tối đa {{ maxAttemptsSent() }} lần mỗi màn.</p>
           }
         </div>
       }
@@ -109,8 +107,7 @@
               </div>
             }
           </div>
-          <p class="muted hint">Học sinh phải đúng ít nhất chừng này phần trăm số câu của màn để qua màn
-            ({{ minPercent }}–{{ maxPercent }}%, để trống là {{ defaultPercent }}%).</p>
+          <p class="muted hint">Tỉ lệ đúng để qua màn ({{ minPercent }}–{{ maxPercent }}%, trống = {{ defaultPercent }}%).</p>
         </div>
       }
 

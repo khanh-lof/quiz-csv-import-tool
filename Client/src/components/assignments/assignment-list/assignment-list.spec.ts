@@ -121,7 +121,7 @@ describe('AssignmentList', () => {
     await load();
 
     expect(rows().length).toBe(0);
-    expect(text()).toContain('chọn một Game đã xong và bấm Giao bài');
+    expect(text()).toContain('Giao bài ở AI › Lịch sử');
     expect(root().querySelector('a[href="/ai-history"]')?.textContent).toContain('Đến AI › Lịch sử');
   });
 

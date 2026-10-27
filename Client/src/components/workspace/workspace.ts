@@ -220,7 +220,6 @@ export class Workspace {
       catchError(() => of(null)),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(() => {
-      this.notificationService.success('Đã đăng xuất', 'Hẹn gặp lại nhaa.', { nzPlacement: 'top' });
       // The AI and assignment pages need a login, so fall back to the table that works anonymously.
       if (this.mode() !== '/quiz') {
         this.router.navigateByUrl('/quiz');

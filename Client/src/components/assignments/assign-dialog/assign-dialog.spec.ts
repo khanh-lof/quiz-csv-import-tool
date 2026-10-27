@@ -374,9 +374,9 @@ describe('AssignDialog', () => {
       await settle();
 
       expect(attemptsInput()!.value).toBe('3');
-      expect(text()).toContain('Học sinh chỉ được chơi mỗi màn tối đa 3 lần, tính cả lần đạt.');
+      expect(text()).toContain('Tối đa 3 lần mỗi màn.');
       await typeAttempts('5');
-      expect(text()).toContain('tối đa 5 lần');
+      expect(text()).toContain('Tối đa 5 lần');
 
       expect((await send())['maxAttempts']).toBe(5);
     });
@@ -388,11 +388,11 @@ describe('AssignDialog', () => {
       await settle();
 
       await typeAttempts('');
-      expect(text()).toContain('tối đa 3 lần');
+      expect(text()).toContain('Tối đa 3 lần');
       await typeAttempts('500');
-      expect(text()).toContain('tối đa 10 lần');
+      expect(text()).toContain('Tối đa 10 lần');
       await typeAttempts('0');
-      expect(text()).toContain('tối đa 1 lần');
+      expect(text()).toContain('Tối đa 1 lần');
 
       expect((await send())['maxAttempts']).toBe(1);
     });

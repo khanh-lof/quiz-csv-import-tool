@@ -14,11 +14,10 @@ Dùng được trên **Google Chrome** và **Microsoft Edge** trên máy tính (
 
 ## 1. Tải thư mục tiện ích
 
-1. Mở trang mã nguồn QuizTool trên GitHub:
-   https://github.com/khanh-lof/quiz-csv-import-tool
-2. Bấm nút xanh **Code** → **Download ZIP**.
-3. Giải nén file ZIP vừa tải (chuột phải → **Extract All...**).
-4. Chuyển thư mục **`Extension`** trong đó tới một chỗ cố định, ví dụ `Documents\QuizTool-Extension`.
+1. Đăng nhập QuizTool. Ở phần **Hướng dẫn sử dụng** của trang **Tạo bằng AI** hoặc **Tạo thủ công**, bấm
+   **tải về** cạnh dòng tiện ích Wayground.
+2. Giải nén file ZIP vừa tải (chuột phải → **Extract All...**). Trong đó có thư mục **`QuizTool-Extension`**.
+3. Chuyển thư mục **`QuizTool-Extension`** tới một chỗ cố định, ví dụ `Documents\QuizTool-Extension`.
    Đừng để trong thư mục Downloads rồi xoá đi: xoá thư mục này là tiện ích ngừng chạy.
 
 ## 2. Cài vào trình duyệt
@@ -29,7 +28,7 @@ Dùng được trên **Google Chrome** và **Microsoft Edge** trên máy tính (
 2. Bật **Developer mode** (Chế độ dành cho nhà phát triển). Trên Chrome, công tắc nằm ở góc trên bên
    phải. Trên Edge, nó nằm ở cột bên trái.
 3. Bấm **Load unpacked** (Tải tiện ích đã giải nén).
-4. Chọn thư mục **`Extension`** ở bước 1 (thư mục có file `manifest.json` bên trong), rồi bấm
+4. Chọn thư mục **`QuizTool-Extension`** ở bước 1 (thư mục có file `manifest.json` bên trong), rồi bấm
    **Select Folder**.
 5. Tiện ích **QuizTool → Wayground** hiện ra trong danh sách là cài xong.
 
@@ -55,7 +54,7 @@ Nếu chưa đăng nhập Wayground, tab mới sẽ mở trang đăng nhập. Đ
 
 ## Cập nhật tiện ích
 
-Khi có bản mới, tải lại ZIP như ở bước 1 và chép đè thư mục `Extension` cũ. Sau đó mở
+Khi có bản mới, tải lại ZIP như ở bước 1 và chép đè thư mục `QuizTool-Extension` cũ. Sau đó mở
 `chrome://extensions` (hoặc `edge://extensions`) và bấm nút tải lại (mũi tên vòng tròn) trên thẻ
 **QuizTool → Wayground**.
 

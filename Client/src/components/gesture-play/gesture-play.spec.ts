@@ -1789,7 +1789,7 @@ describe('GesturePlay', () => {
 
           await save();
 
-          expect(notifications.error).toHaveBeenCalledOnceWith('Chưa đổi được hình', 'Thử lại nhé.', jasmine.anything());
+          expect(notifications.error).toHaveBeenCalledOnceWith('Chưa đổi được hình', '', jasmine.anything());
           expect(dialogOpen()).toBeTrue();
           expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐱');
           expect(stageCards().length).toBe(6);
@@ -2187,7 +2187,7 @@ describe('GesturePlay', () => {
         click('button', 'Bắt đầu');
 
         expect(shared.startRun).toHaveBeenCalledTimes(1);
-        expect(notifications.warning).toHaveBeenCalledOnceWith('Hết lượt chơi', 'Bạn đã dùng hết lượt chơi màn này.', jasmine.anything());
+        expect(notifications.warning).toHaveBeenCalledOnceWith('Hết lượt chơi', '', jasmine.anything());
         expect(element().querySelector('.stage[data-game]')).toBeNull();
         expect(cardText(0)).toContain('Hết lượt');
         expect(stageCards()[0].disabled).toBeTrue();
@@ -3046,7 +3046,7 @@ describe('GesturePlay', () => {
 
           expect(element().querySelector('.intro')).not.toBeNull();
           expect(notifications.error).toHaveBeenCalledOnceWith(
-            'Chưa bắt đầu được màn', 'Mất kết nối. Hãy kiểm tra mạng rồi bấm Bắt đầu lại.', jasmine.anything());
+            'Chưa bắt đầu được màn', 'Mất kết nối.', jasmine.anything());
           const button = Array.from(element().querySelectorAll('button')).find(b => b.textContent?.includes('Bắt đầu'))!;
           expect(button.classList).not.toContain('ant-btn-loading');
 
@@ -3125,7 +3125,7 @@ describe('GesturePlay', () => {
           expect(stageCards().length).toBe(6);
           expect(notifications.warning).toHaveBeenCalledOnceWith(
             'Lượt chơi đã kết thúc',
-            'Lượt chơi này đã kết thúc, có thể bạn đã bắt đầu màn này ở tab khác.',
+            'Có thể bạn đã mở màn này ở tab khác.',
             jasmine.anything());
           expect(vision.stopCamera).toHaveBeenCalled();
         });

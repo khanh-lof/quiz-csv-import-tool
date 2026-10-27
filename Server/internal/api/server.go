@@ -76,6 +76,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("PATCH /api/assignments/{id}", csvRoute(s.patchAssignment))
 	mux.Handle("DELETE /api/assignments/{id}", csvRoute(s.deleteAssignment))
 	mux.Handle("DELETE /api/assignments/{id}/players/{playerId}", csvRoute(s.deleteAssignmentPlayer))
+	mux.Handle("GET /api/extension", csvRoute(s.downloadExtension))
 	// The students' side is anonymous: the link's code and the player's own token are the credentials,
 	// and these routes never answer 401, which the SPA's interceptor would answer with a refresh.
 	mux.HandleFunc("GET /api/share/{code}", s.getShared)

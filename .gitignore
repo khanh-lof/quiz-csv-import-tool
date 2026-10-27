@@ -506,3 +506,6 @@ CLAUDE.local.md
 Textbooks/*/book/
 Textbooks/*/ocr/
 Textbooks/*/pages/
+
+# Generated at deploy time by `go generate ./internal/extension`
+/Server/internal/extension/packed/*.zip

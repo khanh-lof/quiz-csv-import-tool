@@ -6,7 +6,8 @@
       <li>Nhập câu hỏi và đáp án, bấm <b>+</b> để thêm dòng (cần ít nhất {{ minRows }} câu; dòng trống bị bỏ qua).</li>
       <li>Bấm <b>Tải file</b> rồi import vào nền tảng. Bảng tự lưu trên trình duyệt này.</li>
     </ol>
-    <p>Wayground: có thể dùng <b>Tiện ích tự publish</b> (<a
+    <p>Wayground: có thể dùng <b>Tiện ích tự publish</b> (@if (loggedIn) {<a
+      (click)="downloadExtension($event)" href="/api/extension">tải về</a>, }<a
       href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
       target="_blank">cách cài</a>).</p>
   </app-usage-guide>

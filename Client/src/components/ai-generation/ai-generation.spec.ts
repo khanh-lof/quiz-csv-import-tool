@@ -69,7 +69,6 @@ describe('AiGeneration', () => {
     expect(page.maxLesson).toBe(18);
     expect(page.formGroup.valid).toBeTrue();
     expect(hint()).toContain('《新HSK教程3》');
-    expect(hint()).toContain('18 bài');
   });
 
   it('refuses a lesson past the textbook\'s, such as lesson 18 after switching to level 1', () => {

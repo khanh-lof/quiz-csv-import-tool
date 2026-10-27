@@ -72,6 +72,7 @@ no configurable backend URL:
 | `SharedPlayService.startRun` | `POST share/{code}/runs` (`internal/api/run_handlers.go`, anonymous, `X-Player-Token` header) |
 | `SharedPlayService.nextQuestion` / `.answer` | `POST share/{code}/runs/{runId}/next`, `POST share/{code}/runs/{runId}/answers` (`run_handlers.go`, anonymous, `X-Player-Token` header) |
 | `SharedPlayService.setAvatar` | `PATCH share/{code}/player` (`share_handlers.go`, anonymous, `X-Player-Token` header) |
+| `WaygroundExtensionService.downloadExtension` | `GET extension` (`internal/api/extension_handler.go`) |
 | `SharedPlayService.leaderboard` | `GET share/{code}/leaderboard` (`share_handlers.go`, anonymous, optional `X-Player-Token` header) |
 
 Three things make the wiring non-obvious:
@@ -215,6 +216,15 @@ extension listens on (`Extension/manifest.json`: production `https://kt-quiz-csv
 and `http://localhost:4200`; Vercel preview URLs are not included) are hand-kept in step on both
 sides. Quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in
 `Extension/selectors.js`).
+
+Logged-in users download the extension from the web app: `GET api/extension` (authenticated like
+`csv/jobs`) answers the zip of `Extension/` (without `AGENTS.md`, under a `QuizTool-Extension/` folder), and
+the usage guides of the AI and table pages fetch it with the token (`WaygroundExtensionService.downloadExtension`;
+the table, open to anonymous users, shows the link only when logged in). The Go build cannot reach outside
+`Server/`, so the zip is never committed: the server service's `buildCommand` in `vercel.json` runs `go generate
+./internal/extension`, which packs `../Extension` into `Server/internal/extension/packed/` (gitignored), and the
+binary embeds it. A build without it (`go run ./cmd/server`, the Docker image) packs `../Extension` from disk
+on the first download, or answers 404 `Extension not available.` when the folder is not there.
 
 ## The gesture quiz (Game)
 
