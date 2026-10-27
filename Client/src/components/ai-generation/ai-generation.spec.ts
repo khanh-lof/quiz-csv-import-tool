@@ -89,7 +89,7 @@ describe('AiGeneration', () => {
     expect(page.formGroup.valid).toBeTrue();
   });
 
-  it('refuses it too when the standard changes to one without a book', () => {
+  it('takes the limit of the other standard\'s book when the standard changes', () => {
     fill({
       courseType: CourseType.Hsk,
       hskStandard: HskStandard.V3,
@@ -98,11 +98,14 @@ describe('AiGeneration', () => {
     });
     expect(page.formGroup.valid).toBeTrue();
 
-    // HSK 2.0 has no textbook: the limit goes back to 100 and the error goes away.
     page.formGroup.patchValue({ hskStandard: HskStandard.V2 });
-    expect(page.textbook).toBeUndefined();
-    expect(page.maxLesson).toBe(100);
+    expect(page.textbook?.lessons).toBe(20);
+    expect(page.maxLesson).toBe(20);
     expect(lessonErrors()).toBeNull();
+
+    page.formGroup.patchValue({ level: 1 });
+    expect(page.maxLesson).toBe(15);
+    expect(lessonErrors()?.['max']).toBeTruthy();
   });
 
   it('keeps the old limit of 100 and the plain hint for a course without a book', () => {
