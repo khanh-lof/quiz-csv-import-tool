@@ -28,29 +28,17 @@
   font-weight: 800;
 }
 
-.rows {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 /* rank | avatar | name over score; the name's column is the one that gives way, and scrolls. */
-.row {
+.own {
   display: grid;
   grid-template-columns: 32px auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
+  margin-top: 12px;
   padding: 4px 8px;
-  border: 1px solid transparent;
-  border-radius: var(--qt-radius);
-}
-
-.row.is-you {
   background: var(--qt-gradient-soft);
-  border-color: var(--qt-focus);
+  border: 1px solid var(--qt-focus);
+  border-radius: var(--qt-radius);
 }
 
 .rank {
@@ -89,14 +77,13 @@
   color: var(--qt-text-muted);
 }
 
-.gap {
-  text-align: center;
-  line-height: 1;
-  color: var(--qt-text-muted);
-}
-
 .note {
   margin: 8px 0 0;
   text-align: center;
   color: var(--qt-text-muted);
+}
+
+.cheer {
+  font-weight: 700;
+  color: var(--qt-text);
 }

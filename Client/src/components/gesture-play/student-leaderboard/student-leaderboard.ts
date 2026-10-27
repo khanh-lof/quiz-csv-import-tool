@@ -14,6 +14,9 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { StudentBoard, StudentBoardEntry } from '../../../models/assignment';
 import { SharedPlayService } from '../../../services/shared-play.service';
+import { GameAudio } from '../../../game/game-audio';
+import { LeaderboardPodium } from '../../leaderboard/leaderboard-podium/leaderboard-podium';
+import { PodiumEntry } from '../../leaderboard/leaderboard-podium/podium';
 import { MarqueePauseButton } from '../../leaderboard/marquee-pause-button/marquee-pause-button';
 import { MarqueeText } from '../../leaderboard/marquee-text/marquee-text';
 import { PlayerAvatar } from '../../leaderboard/player-avatar/player-avatar';
@@ -24,22 +27,11 @@ export const BOARD_POLL_MS = 30000;
 // The plain-text body of the 404 the server answers when the teacher hid the board from the students.
 const BOARD_HIDDEN = 'Board hidden';
 
-const MEDALS: Record<number, string> = {
-  1: '🥇',
-  2: '🥈',
-  3: '🥉'
-};
+const PODIUM_RANKS = 3;
 
-// One line of the board: a student's entry, flagged when it is the viewer's own, and whether a "⋯" goes before
-// it (the viewer's own row when it is not among the top).
-interface BoardRow {
-  entry: StudentBoardEntry;
-  you: boolean;
-  gapBefore: boolean;
-}
-
-// The board a student sees of an assignment: the top five (more when they tie) and their own row, which is
-// marked "Bạn" and, when it is outside the top, comes after a "⋯". It fetches the board itself: on init,
+// The board a student sees of an assignment: the podium of the top three, and the student's own row ("Bạn")
+// under it when they are not on the podium. A student who reaches the podium hears a celebration, once each
+// time they come onto it. It fetches the board itself: on init,
 // when `code` or `refreshKey` changes (the page bumps it after each result it has saved), every 30 s while
 // the tab is visible and once when the tab comes back. A failed load keeps the last board quietly, an
 // answer older than the one on screen is dropped, and nothing shows before the first answer. It is also the
@@ -49,7 +41,7 @@ interface BoardRow {
 // closed when opened).
 @Component({
   selector: 'app-student-leaderboard',
-  imports: [MarqueePauseButton, MarqueeText, PlayerAvatar],
+  imports: [LeaderboardPodium, MarqueePauseButton, MarqueeText, PlayerAvatar],
   templateUrl: './student-leaderboard.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './student-leaderboard.css',
@@ -59,25 +51,24 @@ export class StudentLeaderboard {
   // Changes (the page counts up) whenever the board is known to have changed and should be read again.
   readonly refreshKey = input(0);
   protected readonly board = signal<StudentBoard | null>(null);
-  protected readonly rows = computed<BoardRow[]>(() => {
-    const board = this.board();
-    if (!board) {
-      return [];
-    }
-    const rows: BoardRow[] = board.top.map(entry => ({
-      entry,
-      you: entry.you === true,
-      gapBefore: false
-    }));
-    const own = board.you;
-    if (own && own.rank !== null && !rows.some(row => row.you)) {
-      rows.push({
-        entry: own,
-        you: true,
-        gapBefore: true
-      });
-    }
-    return rows;
+  protected readonly podium = computed<PodiumEntry[]>(() => (this.board()?.top ?? [])
+    .filter(entry => entry.rank !== null && entry.rank <= PODIUM_RANKS)
+    .map(entry => ({
+      key: entry.name,
+      rank: entry.rank!,
+      name: entry.name,
+      avatar: entry.avatar,
+      stagesPassed: entry.stagesPassed,
+      correct: entry.correct
+    })));
+  // The viewer's own line, when they have a result but are not on the podium.
+  protected readonly ownRow = computed(() => {
+    const own = this.board()?.you;
+    return own && own.rank !== null && own.rank > PODIUM_RANKS ? own : null;
+  });
+  protected readonly onPodium = computed(() => {
+    const rank = this.board()?.you?.rank;
+    return rank !== null && rank !== undefined && rank <= PODIUM_RANKS;
   });
   // The viewer has joined but has no result yet, so they are not on the board.
   protected readonly unranked = computed(() => {
@@ -85,7 +76,9 @@ export class StudentLeaderboard {
     return !!own && own.rank === null;
   });
   private readonly sharedPlay = inject(SharedPlayService);
+  private readonly audio = inject(GameAudio);
   private readonly destroyRef = inject(DestroyRef);
+  private celebrated = false;
   // Requests are numbered so that a slow answer for an older one never replaces a newer board.
   private sent = 0;
   private applied = 0;
@@ -107,6 +100,15 @@ export class StudentLeaderboard {
         this.load();
       });
     });
+    effect(() => {
+      const onPodium = this.onPodium();
+      untracked(() => {
+        if (onPodium && !this.celebrated) {
+          this.audio.play('finish');
+        }
+        this.celebrated = onPodium;
+      });
+    });
     const timer = setInterval(() => this.loadIfVisible(), BOARD_POLL_MS);
     this.destroyRef.onDestroy(() => clearInterval(timer));
   }
@@ -114,14 +116,6 @@ export class StudentLeaderboard {
   @HostListener('document:visibilitychange')
   protected onVisibilityChange(): void {
     this.loadIfVisible();
-  }
-
-  protected badge(rank: number | null): string {
-    return rank === null ? '' : (MEDALS[rank] ?? String(rank));
-  }
-
-  protected isMedal(rank: number | null): boolean {
-    return rank !== null && rank in MEDALS;
   }
 
   private loadIfVisible(): void {

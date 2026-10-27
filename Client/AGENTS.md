@@ -369,8 +369,11 @@ routes added for this (see above for their guards).
   (and refreshes the board), a 403 goes back to the join screen, a 410 shows the closed card, anything else
   keeps the dialog open with an error notification. While the change is on its way the dialog cannot be closed.
 - **The students' board.** `StudentLeaderboard` (`gesture-play/student-leaderboard/`: inputs `code`, `refreshKey`)
-  shows `SharedPlayService.leaderboard`: the top rows (medal or number, avatar, marquee name, "N/M màn · C/P câu"),
-  the student's own row marked "Bạn" (after a "⋯" when it is below the top), "Bạn chưa có kết quả…" before
+  shows `SharedPlayService.leaderboard`: a `LeaderboardPodium` of the ranked players of rank 1 to 3 (ranks 4 and 5
+  of the server's `top` are not drawn), and the student's own place: a "Chúc mừng!" line when they are on the podium,
+  otherwise their own row under it (rank, avatar, marquee name, "Bạn" tag, "Hạng N · N/M màn · C/P câu"). A student
+  who comes onto the podium hears `GameAudio`'s `finish` fanfare once per arrival (not on each poll; leaving the
+  podium and returning plays it again). It also shows "Bạn chưa có kết quả…" before
   their first result, "Chưa ai có kết quả." on an empty board, and a compact `MarqueePauseButton`. It loads on
   init and when `code` or `refreshKey` changes, every 30 s (`BOARD_POLL_MS`) while the tab is visible and once
   when it comes back; a failed load quietly keeps the last board and an older answer never replaces a newer

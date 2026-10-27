@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { Observable, of, Subject, throwError } from 'rxjs';
 import { StudentBoard, StudentBoardEntry } from '../../../models/assignment';
+import { GameAudio } from '../../../game/game-audio';
 import { SharedPlayService } from '../../../services/shared-play.service';
 import { BOARD_POLL_MS, StudentLeaderboard } from './student-leaderboard';
 
@@ -41,17 +42,22 @@ describe('StudentLeaderboard', () => {
   let fixture: ComponentFixture<StudentLeaderboard>;
   let shared: jasmine.SpyObj<SharedPlayService>;
   let visibility: jasmine.Spy;
+  let audio: jasmine.SpyObj<GameAudio>;
 
   beforeEach(() => {
     localStorage.removeItem(PAUSE_KEY);
     visibility = spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
     shared = jasmine.createSpyObj<SharedPlayService>('SharedPlayService', ['leaderboard']);
     shared.leaderboard.and.callFake(() => of(board()));
+    audio = jasmine.createSpyObj<GameAudio>('GameAudio', ['play']);
     TestBed.configureTestingModule({
       imports: [StudentLeaderboard],
       providers: [{
         provide: SharedPlayService,
         useValue: shared
+      }, {
+        provide: GameAudio,
+        useValue: audio
       }],
     });
   });
@@ -59,10 +65,9 @@ describe('StudentLeaderboard', () => {
   afterEach(() => localStorage.removeItem(PAUSE_KEY));
 
   const root = () => fixture.nativeElement as HTMLElement;
-  const rows = () => Array.from(root().querySelectorAll<HTMLElement>('li.row'));
+  const steps = () => Array.from(root().querySelectorAll<HTMLElement>('li.step'));
   const clean = (element: Element | null | undefined) => (element?.textContent ?? '').replace(/\s+/g, ' ').trim();
-  const ranks = () => rows().map(row => clean(row.querySelector('.rank')));
-  const names = () => rows().map(row => clean(row.querySelector('app-marquee-text')));
+  const names = () => steps().map(step => clean(step.querySelector('app-marquee-text')));
 
   function open(): void {
     fixture = TestBed.createComponent(StudentLeaderboard);
@@ -88,7 +93,7 @@ describe('StudentLeaderboard', () => {
     answer.next(board());
     fixture.detectChanges();
 
-    expect(rows().length).toBe(5);
+    expect(steps().length).toBe(3);
     leave();
   }));
 
@@ -102,13 +107,11 @@ describe('StudentLeaderboard', () => {
     leave();
   }));
 
-  it('lists the top rows in order with a medal for the first three, then the number', fakeAsync(() => {
+  it('shows the top three as a podium, and leaves out the rest', fakeAsync(() => {
     open();
 
-    expect(names()).toEqual(['Lan', 'Minh', 'Hoa', 'Nam', 'Vy']);
-    expect(ranks()).toEqual(['🥇', '🥈', '🥉', '4', '5']);
-    expect(rows()[0].querySelector('.rank')?.getAttribute('aria-label')).toBe('Hạng 1');
-    expect(rows()[3].querySelector('.rank')?.getAttribute('aria-label')).toBeNull();
+    expect(names()).toEqual(['Lan', 'Minh', 'Hoa']);
+    expect(root().querySelectorAll('li.row').length).toBe(0);
     leave();
   }));
 
@@ -124,40 +127,50 @@ describe('StudentLeaderboard', () => {
     })));
     open();
 
-    expect(rows()[0].querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐲');
-    expect(clean(rows()[0].querySelector('.score'))).toBe('4/5 màn · 21/25 câu');
+    expect(steps()[0].querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐲');
+    expect(clean(steps()[0].querySelector('.meta'))).toBe('4/5 màn · 21/25 câu');
     leave();
   }));
 
-  it('gives a tie the same medal', fakeAsync(() => {
-    shared.leaderboard.and.returnValue(of(board({
-      top: [entry(1, 'Lan'), entry(1, 'Minh'), entry(3, 'Hoa')],
-    })));
-    open();
-
-    expect(ranks()).toEqual(['🥇', '🥇', '🥉']);
-    leave();
-  }));
-
-  describe('the student\'s own row', () => {
-    it('is highlighted with a "Bạn" tag when it is in the top', fakeAsync(() => {
+  describe('the student\'s own place', () => {
+    it('is a cheer, with no extra row, when the student is on the podium', fakeAsync(() => {
       shared.leaderboard.and.returnValue(of(board({
         top: [entry(1, 'Lan'), entry(2, 'Minh', { you: true }), entry(3, 'Hoa')],
         you: entry(2, 'Minh'),
       })));
       open();
 
-      const own = root().querySelectorAll('li.row.is-you');
-      expect(own.length).toBe(1);
-      expect(clean(own[0].querySelector('app-marquee-text'))).toBe('Minh');
-      expect(clean(own[0].querySelector('.you-tag'))).toBe('Bạn');
-      expect(root().querySelectorAll('.you-tag').length).toBe(1);
-      expect(root().querySelector('.gap')).toBeNull();
-      expect(rows().length).toBe(3);
+      expect(clean(root().querySelector('.cheer'))).toContain('Chúc mừng');
+      expect(root().querySelector('.own')).toBeNull();
       leave();
     }));
 
-    it('comes after a "⋯" when it is outside the top', fakeAsync(() => {
+    it('plays the celebration once on reaching the podium, not on every poll', fakeAsync(() => {
+      const podium = board({ you: entry(2, 'Minh') });
+      shared.leaderboard.and.callFake(() => of(podium));
+      open();
+      tick(BOARD_POLL_MS);
+      fixture.detectChanges();
+
+      expect(audio.play).toHaveBeenCalledOnceWith('finish');
+      leave();
+    }));
+
+    it('plays it again after falling off the podium and coming back', fakeAsync(() => {
+      shared.leaderboard.and.callFake(() => of(board({ you: entry(2, 'Minh') })));
+      open();
+      shared.leaderboard.and.callFake(() => of(board({ you: entry(7, 'Minh') })));
+      tick(BOARD_POLL_MS);
+      fixture.detectChanges();
+      shared.leaderboard.and.callFake(() => of(board({ you: entry(3, 'Minh') })));
+      tick(BOARD_POLL_MS);
+      fixture.detectChanges();
+
+      expect(audio.play).toHaveBeenCalledTimes(2);
+      leave();
+    }));
+
+    it('is a highlighted row under the podium, with no sound, when outside it', fakeAsync(() => {
       shared.leaderboard.and.returnValue(of(board({
         you: entry(9, 'Cúc', {
           stagesPassed: 1,
@@ -166,16 +179,13 @@ describe('StudentLeaderboard', () => {
       })));
       open();
 
-      expect(rows().length).toBe(6);
-      const items = Array.from(root().querySelectorAll('ol > li'));
-      expect(items.map(item => clean(item).slice(0, 1)).slice(4)).toEqual(['5', '⋯', '9']);
-      expect(items[5].getAttribute('aria-hidden')).toBe('true');
-      const own = rows()[5];
-      expect(own.classList).toContain('is-you');
+      const own = root().querySelector('.own')!;
       expect(clean(own.querySelector('app-marquee-text'))).toBe('Cúc');
       expect(clean(own.querySelector('.you-tag'))).toBe('Bạn');
-      expect(clean(own.querySelector('.score'))).toBe('1/6 màn · 4/30 câu');
-      expect(rows().slice(0, 5).some(row => row.classList.contains('is-you'))).toBeFalse();
+      expect(clean(own.querySelector('.score'))).toBe('Hạng 9 · 1/6 màn · 4/30 câu');
+      expect(steps().length).toBe(3);
+      expect(root().querySelector('.cheer')).toBeNull();
+      expect(audio.play).not.toHaveBeenCalled();
       leave();
     }));
 
@@ -189,9 +199,8 @@ describe('StudentLeaderboard', () => {
       open();
 
       expect(clean(root())).toContain('Bạn chưa có kết quả, chơi màn đầu tiên nhé!');
-      expect(rows().length).toBe(5);
-      expect(root().querySelector('.is-you')).toBeNull();
-      expect(root().querySelector('.gap')).toBeNull();
+      expect(root().querySelector('.own')).toBeNull();
+      expect(audio.play).not.toHaveBeenCalled();
       leave();
     }));
 
@@ -208,7 +217,7 @@ describe('StudentLeaderboard', () => {
     open();
 
     expect(clean(root())).toContain('Chưa ai có kết quả.');
-    expect(root().querySelector('ol')).toBeNull();
+    expect(root().querySelector('li.step')).toBeNull();
     leave();
   }));
 
@@ -269,11 +278,11 @@ describe('StudentLeaderboard', () => {
       tick(BOARD_POLL_MS);
       fixture.detectChanges();
 
-      expect(names()).toEqual(['Lan', 'Minh', 'Hoa', 'Nam', 'Vy']);
+      expect(names()).toEqual(['Lan', 'Minh', 'Hoa']);
       shared.leaderboard.and.returnValue(httpError(0));
       tick(BOARD_POLL_MS);
       fixture.detectChanges();
-      expect(names().length).toBe(5);
+      expect(names().length).toBe(3);
       leave();
     }));
 
@@ -286,7 +295,7 @@ describe('StudentLeaderboard', () => {
       tick(BOARD_POLL_MS);
       fixture.detectChanges();
 
-      expect(rows().length).toBe(5);
+      expect(steps().length).toBe(3);
       leave();
     }));
 
@@ -380,7 +389,7 @@ describe('StudentLeaderboard', () => {
 
     it('clears a board that was on screen and stops asking when a later load says so', fakeAsync(() => {
       open();
-      expect(rows().length).toBe(5);
+      expect(steps().length).toBe(3);
       shared.leaderboard.and.returnValue(httpError(404, '  Board hidden '));
 
       tick(BOARD_POLL_MS);
@@ -443,7 +452,7 @@ describe('StudentLeaderboard', () => {
       fixture.detectChanges();
 
       expect(shared.leaderboard).toHaveBeenCalledTimes(2);
-      expect(rows().length).toBe(5);
+      expect(steps().length).toBe(3);
       leave();
     }));
 
@@ -453,7 +462,7 @@ describe('StudentLeaderboard', () => {
 
       tick(BOARD_POLL_MS);
       fixture.detectChanges();
-      expect(names().length).toBe(5);
+      expect(names().length).toBe(3);
 
       shared.leaderboard.and.callFake(() => of(board({ top: [entry(1, 'Vy')] })));
       tick(BOARD_POLL_MS);

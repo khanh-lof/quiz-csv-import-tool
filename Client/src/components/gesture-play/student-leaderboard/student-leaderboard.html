@@ -5,36 +5,30 @@
       <app-marquee-pause-button [compact]="true"/>
     </header>
 
-    @if (current.top.length === 0) {
+    @if (podium().length === 0) {
       <p class="note">Chưa ai có kết quả.</p>
     } @else {
-      <ol class="rows">
-        @for (row of rows(); track $index) {
-          @if (row.gapBefore) {
-            <li aria-hidden="true" class="gap">⋯</li>
-          }
-          <li [class.is-you]="row.you" class="row">
-            @if (isMedal(row.entry.rank)) {
-              <span [attr.aria-label]="'Hạng ' + row.entry.rank" class="rank"
-                    role="img">{{ badge(row.entry.rank) }}</span>
-            } @else {
-              <span class="rank">{{ badge(row.entry.rank) }}</span>
-            }
-            <app-player-avatar [avatar]="row.entry.avatar" [name]="row.entry.name" size="md"/>
-            <span class="info">
-              <span class="who">
-                <app-marquee-text [text]="row.entry.name"/>
-                @if (row.you) {
-                  <span class="you-tag">Bạn</span>
-                }
-              </span>
-              <span class="score">
-                {{ row.entry.stagesPassed }}/{{ current.stageCount }} màn · {{ row.entry.correct }}/{{ current.possible }} câu
-              </span>
-            </span>
-          </li>
-        }
-      </ol>
+      <app-leaderboard-podium [entries]="podium()" [possible]="current.possible" [stageCount]="current.stageCount"/>
+    }
+
+    @if (onPodium()) {
+      <p class="note cheer">Chúc mừng! Bạn đang trên bục vinh quang 🎉</p>
+    }
+
+    @if (ownRow(); as own) {
+      <div class="own">
+        <span class="rank">{{ own.rank }}</span>
+        <app-player-avatar [avatar]="own.avatar" [name]="own.name" size="md"/>
+        <span class="info">
+          <span class="who">
+            <app-marquee-text [text]="own.name"/>
+            <span class="you-tag">Bạn</span>
+          </span>
+          <span class="score">
+            Hạng {{ own.rank }} · {{ own.stagesPassed }}/{{ current.stageCount }} màn · {{ own.correct }}/{{ current.possible }} câu
+          </span>
+        </span>
+      </div>
     }
 
     @if (unranked()) {

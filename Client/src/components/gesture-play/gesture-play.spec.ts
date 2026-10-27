@@ -1520,7 +1520,7 @@ describe('GesturePlay', () => {
       const dialogOpen = (): boolean =>
         fixture.debugElement.query(By.directive(NzModalComponent)).componentInstance.nzVisible;
       const boardRows = (): string[] =>
-        Array.from(element().querySelectorAll('app-student-leaderboard li.row'))
+        Array.from(element().querySelectorAll('app-student-leaderboard li.step'))
           .map(row => (row.querySelector('app-marquee-text')?.textContent ?? '').trim());
 
       async function pause(): Promise<void> {
@@ -1605,7 +1605,7 @@ describe('GesturePlay', () => {
           const map = element().querySelector('app-gesture-stage-map')!;
           expect(board.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
           expect(boardRows()).toEqual(['Minh', 'Lan']);
-          expect(board.querySelector('.you-tag')?.textContent).toContain('Bạn');
+          expect(board.querySelector('.cheer')?.textContent).toContain('Chúc mừng');
         });
 
         it('is not on the join screen', () => {
@@ -3411,7 +3411,7 @@ describe('GesturePlay', () => {
       const board = element().querySelector('app-student-leaderboard')!;
       expect(board).not.toBeNull();
       expect(board.textContent).toContain('Bảng xếp hạng');
-      expect(board.querySelector('li.row')?.textContent).toContain('Minh');
+      expect(board.querySelector('li.step')?.textContent).toContain('Minh');
       expect(element().querySelector('app-gesture-stage-map')!.compareDocumentPosition(board)
         & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
