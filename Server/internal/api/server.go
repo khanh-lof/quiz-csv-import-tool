@@ -47,6 +47,9 @@ type Server struct {
 	Now func() time.Time
 
 	Logger *slog.Logger
+
+	// retryImages keeps the images of failed jobs for a while, so "Tạo lại" need not upload them again.
+	retryImages retryImages
 }
 
 func (s *Server) now() time.Time {
@@ -69,6 +72,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /api/csv/jobs", csvRoute(s.createJob))
 	mux.Handle("GET /api/csv/jobs", csvRoute(s.listJobs))
 	mux.Handle("DELETE /api/csv/jobs/{id}", csvRoute(s.deleteJob))
+	mux.Handle("POST /api/csv/jobs/{id}/retry", csvRoute(s.retryJob))
 	// The teacher's side of "Giao bài" needs a login like the jobs it hands out.
 	mux.Handle("POST /api/assignments", csvRoute(s.createAssignment))
 	mux.Handle("GET /api/assignments", csvRoute(s.listAssignments))

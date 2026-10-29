@@ -36,6 +36,10 @@ type Job struct {
 	HskStandard  *int   `bson:"hskStandard,omitempty"`
 	Level        *int   `bson:"level,omitempty"`
 	LessonNumber *int   `bson:"lessonNumber,omitempty"`
+	// The games a GestureQuiz job was asked for and the questions each gets, kept so the client can submit
+	// the same request again. Absent on the other platforms and on jobs from before these were stored.
+	GestureStages     []int `bson:"gestureStages,omitempty"`
+	QuestionsPerStage *int  `bson:"questionsPerStage,omitempty"`
 
 	CSV string `bson:"csv"`
 	// ErrorStatus is the HTTP status the failure used to be answered with (502, 504), zero otherwise.

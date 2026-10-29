@@ -10,6 +10,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -364,6 +366,43 @@ func TestCreateJobStoresHskLesson(t *testing.T) {
 	}
 }
 
+func TestCreateJobStoresGestureQuizChoice(t *testing.T) {
+	env := newEnv(t)
+	env.srv.AICallsPerRound = 3
+	token, _ := env.login(t, "alice", "pw")
+
+	const lesson = "?isCreative=true&courseType=0&level=1&lessonNumber=2"
+	for _, query := range []string{
+		lesson + "&exportType=3&gestureStages=6,4&questionsPerStage=7",
+		lesson + "&exportType=3",
+		// The choice belongs to the Game alone: another platform keeps none, even when it is sent.
+		lesson + "&exportType=0&gestureStages=1",
+	} {
+		if rec := env.upload(t, upload{token: token, query: query}); rec.Code != http.StatusAccepted {
+			t.Fatalf("create %s: %d %q", query, rec.Code, rec.Body)
+		}
+		time.Sleep(2 * time.Millisecond) // createdAt has millisecond resolution
+	}
+
+	type choice struct {
+		stages   []int
+		perStage *int
+	}
+	want := []choice{
+		{nil, nil},
+		{csvgen.AllGestureStages(), ptr(csvgen.DefaultQuestionsPerStage)},
+		{[]int{4, 6}, ptr(7)},
+	}
+	stored, _ := env.jobs.List(context.Background(), "alice", 100)
+	for i, w := range want {
+		job := stored[i]
+		if !slices.Equal(job.GestureStages, w.stages) || (job.QuestionsPerStage == nil) != (w.perStage == nil) ||
+			(job.QuestionsPerStage != nil && *job.QuestionsPerStage != *w.perStage) {
+			t.Errorf("job %d: %+v", i, job)
+		}
+	}
+}
+
 func TestCreateJobTitleIsCapped(t *testing.T) {
 	if got := jobTitle(strings.Repeat("好", 300), true); len([]rune(got)) != maxTitleRunes {
 		t.Fatalf("title has %d runes", len([]rune(got)))
@@ -626,6 +665,142 @@ func TestDeleteJob(t *testing.T) {
 	}
 	if jobs := env.listJobs(t, alice); len(jobs) != 0 {
 		t.Fatalf("jobs after delete: %v", jobs)
+	}
+}
+
+func (e *testEnv) retry(t *testing.T, token, id string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, "/api/csv/jobs/"+id+"/retry", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	return e.do(req)
+}
+
+func TestRetryJobSendsTheSameRequestAgain(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	env.gen.err = errors.New("boom")
+	env.upload(t, upload{token: token, query: "?title=HSK3-Bai2&isCreative=true&exportType=3&courseType=0&hskStandard=3" +
+		"&level=4&lessonNumber=2&intelligence=2&gestureStages=4,6&questionsPerStage=7"})
+	failed := env.onlyJob(t, "alice")
+	want := env.gen.opts
+	// Without images there is nothing to expire.
+	if view := env.listJobs(t, token)[0]; view["retryable"] != true || view["retryUntil"] != nil {
+		t.Fatalf("failed job: %v", view)
+	}
+
+	env.gen.err, env.gen.opts = nil, csvgen.Options{}
+	rec := env.retry(t, token, failed.ID)
+	job := env.onlyJob(t, "alice")
+	if rec.Code != http.StatusAccepted || strings.TrimSpace(rec.Body.String()) != `{"id":"`+job.ID+`"}` || job.ID == failed.ID {
+		t.Fatalf("retry: %d %q", rec.Code, rec.Body)
+	}
+	if job.Status != store.JobDone || job.Title != "HSK3-Bai2" || !job.Creative || *job.HskStandard != 3 || *job.Level != 4 ||
+		*job.LessonNumber != 2 || job.Intelligence != 2 || !slices.Equal(job.GestureStages, []int{4, 6}) || *job.QuestionsPerStage != 7 {
+		t.Fatalf("new job %+v", job)
+	}
+	if !reflect.DeepEqual(env.gen.opts, want) || !env.gen.creative || len(env.gen.images) != 0 {
+		t.Fatalf("generator got %+v, want %+v", env.gen.opts, want)
+	}
+
+	if view := env.listJobs(t, token)[0]; view["retryable"] != false {
+		t.Fatalf("done job: %v", view)
+	}
+	if rec := env.retry(t, token, job.ID); rec.Code != http.StatusConflict || rec.Body.String() != "Job has not failed." {
+		t.Fatalf("retry of a done job: %d %q", rec.Code, rec.Body)
+	}
+	if rec := env.retry(t, token, failed.ID); rec.Code != http.StatusNotFound {
+		t.Fatalf("retry of the replaced job: %d", rec.Code)
+	}
+}
+
+func TestRetryJobKeepsImagesForAWhile(t *testing.T) {
+	env := newEnv(t)
+	env.createUser(t, "bob", "pw", []string{"User"})
+	token, _ := env.login(t, "alice", "pw")
+	bob, _ := env.login(t, "bob", "pw")
+	env.gen.err = errors.New("boom")
+	env.upload(t, upload{token: token, files: 2, query: "?title=Anh"})
+	failed := env.onlyJob(t, "alice")
+	if view := env.listJobs(t, token)[0]; view["retryable"] != true ||
+		view["retryUntil"] != testClockStart.Add(retryImagesTTL).Format(time.RFC3339Nano) {
+		t.Fatalf("failed job: %v", view)
+	}
+	if rec := env.retry(t, bob, failed.ID); rec.Code != http.StatusNotFound {
+		t.Fatalf("another user's job: %d", rec.Code)
+	}
+
+	// The retry fails too, and its images are kept again, for the full time from this failure.
+	env.clock.Advance(30 * time.Minute)
+	env.gen.images = nil
+	if rec := env.retry(t, token, failed.ID); rec.Code != http.StatusAccepted {
+		t.Fatalf("retry: %d %q", rec.Code, rec.Body)
+	}
+	retried := env.onlyJob(t, "alice")
+	if retried.Creative || retried.ImageCount != 2 || retried.Title != "Anh" || len(env.gen.images) != 2 ||
+		string(env.gen.images[1].Data) != "png-bytes" {
+		t.Fatalf("retried job %+v, generator got %+v", retried, env.gen.images)
+	}
+
+	env.clock.Advance(retryImagesTTL - time.Second)
+	if view := env.listJobs(t, token)[0]; view["retryable"] != true {
+		t.Fatalf("just before the images expire: %v", view)
+	}
+	env.clock.Advance(time.Second)
+	if view := env.listJobs(t, token)[0]; view["retryable"] != false || view["retryUntil"] != nil {
+		t.Fatalf("once the images expired: %v", view)
+	}
+	if rec := env.retry(t, token, retried.ID); rec.Code != http.StatusGone || rec.Body.String() != "Images expired." {
+		t.Fatalf("retry without images: %d %q", rec.Code, rec.Body)
+	}
+	if env.onlyJob(t, "alice").ID != retried.ID {
+		t.Fatal("a refused retry must keep the failed job")
+	}
+}
+
+func TestRetryJobRefusals(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	now := time.Now()
+	env.users.Now = func() time.Time { return now }
+
+	// From before the server kept the lesson, or the games of a Game: sending it again would ask for another quiz.
+	ctx := context.Background()
+	_ = env.jobs.Create(ctx, &store.Job{ID: "no-lesson", Username: "alice", Status: store.JobFailed, Creative: true,
+		ExportType: ptr(0), CreatedAt: now})
+	_ = env.jobs.Create(ctx, &store.Job{ID: "no-games", Username: "alice", Status: store.JobFailed, Creative: true,
+		ExportType: ptr(3), CourseType: ptr(1), Level: ptr(6), LessonNumber: ptr(1), CreatedAt: now.Add(time.Millisecond)})
+	for _, view := range env.listJobs(t, token) {
+		if view["retryable"] != false {
+			t.Fatalf("old job: %v", view)
+		}
+		if rec := env.retry(t, token, view["id"].(string)); rec.Code != http.StatusConflict || rec.Body.String() != "Job cannot be retried." {
+			t.Fatalf("retry of %v: %d %q", view["id"], rec.Code, rec.Body)
+		}
+	}
+
+	env.gen.err = errors.New("boom")
+	env.upload(t, upload{token: token, files: 1})
+	jobs, _ := env.jobs.List(ctx, "alice", 100)
+	failed := jobs[slices.IndexFunc(jobs, func(j store.Job) bool { return j.ImageCount == 1 })]
+	env.gen.err = nil
+	for range 2 {
+		env.upload(t, upload{token: token, query: "?isCreative=true&exportType=0&courseType=1&level=6&lessonNumber=1"})
+	}
+	if rec := env.retry(t, token, failed.ID); rec.Code != http.StatusForbidden {
+		t.Fatalf("retry over the rate limit: %d %q", rec.Code, rec.Body)
+	}
+	if _, err := env.jobs.Get(ctx, "alice", failed.ID); err != nil {
+		t.Fatalf("the failed job must stay: %v", err)
+	}
+
+	// Deleting the job lets its images go.
+	req := httptest.NewRequest(http.MethodDelete, "/api/csv/jobs/"+failed.ID, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	if rec := env.do(req); rec.Code != http.StatusNoContent {
+		t.Fatalf("delete: %d", rec.Code)
+	}
+	if _, _, ok := env.srv.retryImages.get(failed.ID, "alice", env.clock.Now()); ok {
+		t.Fatal("images kept after the job was deleted")
 	}
 }
 

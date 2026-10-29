@@ -134,6 +134,16 @@
                         Mở trong bảng
                       </li>
                     }
+                  } @else if (job.status === 'failed') {
+                    <!-- The server keeps a failed job's images only for a while (retryUntil); a job without images
+                         has no deadline. -->
+                    <li (click)="retry(job)" [nzDisabled]="!canRetry(job)" [title]="retryBlockedReason(job)" nz-menu-item>
+                      <nz-icon nzTheme="outline" nzType="reload"/>
+                      Tạo lại
+                      @if (job.retryUntil && canRetry(job)) {
+                        (đến {{ job.retryUntil | date:'HH:mm' }})
+                      }
+                    </li>
                   }
                   <li nz-menu-divider></li>
                   <li (click)="confirmRemove(job)" nz-menu-item nzDanger>
