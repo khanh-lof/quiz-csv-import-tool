@@ -73,14 +73,21 @@ func (c *Client) Generate(ctx context.Context, images []Image, creative bool, op
 	return ExtractCSVContent(content), nil
 }
 
-// post sends req as JSON to path and returns the body of a 2xx response, retrying transient
-// gateway failures (see withRetry).
-func (c *Client) post(ctx context.Context, path string, req any) ([]byte, error) {
+// post sends req as JSON to path and returns the model's text, read by parse from the body of a 2xx
+// response. It retries transient failures, including a generation interrupted inside a 2xx response
+// (see withRetry), which is why parse runs in each attempt.
+func (c *Client) post(ctx context.Context, path string, req any, parse func([]byte) (string, error)) (string, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return c.withRetry(ctx, path, func() ([]byte, error) { return c.postOnce(ctx, path, body) })
+	return c.withRetry(ctx, path, func() (string, error) {
+		respBody, err := c.postOnce(ctx, path, body)
+		if err != nil {
+			return "", err
+		}
+		return parse(respBody)
+	})
 }
 
 func (c *Client) postOnce(ctx context.Context, path string, body []byte) ([]byte, error) {
@@ -100,7 +107,7 @@ func (c *Client) postOnce(ctx context.Context, path string, body []byte) ([]byte
 	if err != nil {
 		return nil, &transportError{fmt.Errorf("reading LLM response: %w", err)}
 	}
-	// x-request-id identifies this attempt to the gateway's support.
+	// x-request-id identifies this attempt to the provider's support.
 	c.logger.Info("LLM response", "path", path, "status", resp.StatusCode,
 		"requestId", resp.Header.Get("X-Request-Id"), "body", string(respBody))
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
@@ -116,19 +123,24 @@ func (c *Client) postOnce(ctx context.Context, path string, body []byte) ([]byte
 			RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After")),
 		}
 	}
+	if len(bytes.TrimSpace(respBody)) == 0 {
+		// Only the keep-alive blank lines came: the connection closed before the answer.
+		return nil, &interruptedError{"empty response"}
+	}
 	return respBody, nil
 }
 
 func (c *Client) complete(ctx context.Context, req chatRequest) (string, error) {
-	respBody, err := c.post(ctx, "/chat/completions", req)
-	if err != nil {
-		return "", err
-	}
+	return c.post(ctx, "/chat/completions", req, parseCompletion)
+}
+
+func parseCompletion(respBody []byte) (string, error) {
 	var completion struct {
 		Choices []struct {
 			Message struct {
 				Content *string `json:"content"`
 			} `json:"message"`
+			FinishReason string `json:"finish_reason"`
 		} `json:"choices"`
 	}
 	if err := json.Unmarshal(respBody, &completion); err != nil {
@@ -137,20 +149,32 @@ func (c *Client) complete(ctx context.Context, req chatRequest) (string, error) 
 	if len(completion.Choices) == 0 {
 		return "", fmt.Errorf("LLM response has no choices")
 	}
+	choice := completion.Choices[0]
+	switch choice.FinishReason {
+	case "insufficient_system_resource", "aborted":
+		return "", &interruptedError{choice.FinishReason}
+	case "length", "content_filter":
+		// The rows are cut off; answering with them would import a broken quiz.
+		return "", fmt.Errorf("LLM response is incomplete: %s", choice.FinishReason)
+	}
 	content := ""
-	if msg := completion.Choices[0].Message.Content; msg != nil {
+	if msg := choice.Message.Content; msg != nil {
 		content = *msg
 	}
 	return content, nil
 }
 
 func (c *Client) respond(ctx context.Context, req responsesRequest) (string, error) {
-	respBody, err := c.post(ctx, "/responses", req)
-	if err != nil {
-		return "", err
-	}
+	return c.post(ctx, "/responses", req, parseResponse)
+}
+
+func parseResponse(respBody []byte) (string, error) {
 	var response struct {
-		Status            string `json:"status"`
+		Status string `json:"status"`
+		Error  struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
 		IncompleteDetails *struct {
 			Reason string `json:"reason"`
 		} `json:"incomplete_details"`
@@ -164,6 +188,10 @@ func (c *Client) respond(ctx context.Context, req responsesRequest) (string, err
 	}
 	if err := json.Unmarshal(respBody, &response); err != nil {
 		return "", fmt.Errorf("decoding LLM response: %w", err)
+	}
+	if response.Status == "failed" {
+		// A request the provider refuses is a 4xx; this one was accepted and broke while generating.
+		return "", &interruptedError{fmt.Sprintf("response failed (%s): %s", response.Error.Code, response.Error.Message)}
 	}
 	if response.Status == "incomplete" {
 		reason := ""

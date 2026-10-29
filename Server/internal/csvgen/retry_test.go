@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -36,7 +37,8 @@ func flakyLLM(t *testing.T, statuses []int, header http.Header) (*Client, *atomi
 }
 
 func TestGenerateRetriesTransientStatuses(t *testing.T) {
-	for _, status := range []int{http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout} {
+	for _, status := range []int{http.StatusTooManyRequests, http.StatusInternalServerError, http.StatusBadGateway,
+		http.StatusServiceUnavailable, http.StatusGatewayTimeout} {
 		c, calls := flakyLLM(t, []int{status, status}, nil)
 		got, err := c.Generate(context.Background(), nil, true, Options{})
 		if err != nil || got != "a,b" || calls.Load() != 3 {
@@ -62,10 +64,54 @@ func TestGenerateGivesUpAfterMaxAttempts(t *testing.T) {
 }
 
 func TestGenerateDoesNotRetryClientErrors(t *testing.T) {
-	for _, status := range []int{400, 401, 402, 403, 404, 413} {
+	for _, status := range []int{400, 401, 402, 403, 404, 413, 422} {
 		c, calls := flakyLLM(t, []int{status}, nil)
 		if _, err := c.Generate(context.Background(), nil, true, Options{}); err == nil || calls.Load() != 1 {
 			t.Errorf("status %d: err %v after %d calls", status, err, calls.Load())
+		}
+	}
+}
+
+// answeringLLM answers 200 with bodies in turn, repeating the last one.
+func answeringLLM(t *testing.T, bodies ...string) (*Client, *atomic.Int32) {
+	t.Helper()
+	var calls atomic.Int32
+	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		n := min(int(calls.Add(1)), len(bodies))
+		_, _ = w.Write([]byte(bodies[n-1]))
+	}))
+	t.Cleanup(llm.Close)
+	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
+	c.baseBackoff = time.Millisecond
+	return c, &calls
+}
+
+func TestGenerateRetriesInterruptedGenerations(t *testing.T) {
+	const okCompletion = `{"choices":[{"message":{"content":"a,b"},"finish_reason":"stop"}]}`
+	cases := map[string]struct {
+		creative          bool
+		interrupted, done string
+	}{
+		"insufficient resource": {false, `{"choices":[{"message":{"content":"a,"},"finish_reason":"insufficient_system_resource"}]}`, okCompletion},
+		"aborted":               {false, `{"choices":[{"message":{"content":""},"finish_reason":"aborted"}]}`, okCompletion},
+		"response failed":       {true, `{"status":"failed","error":{"code":"server_error","message":"boom"},"output":[]}`, okResponse},
+		"keep-alive only":       {true, "\n\n\n", "\n\n" + okResponse},
+	}
+	for name, tc := range cases {
+		c, calls := answeringLLM(t, tc.interrupted, tc.done)
+		got, err := c.Generate(context.Background(), nil, tc.creative, Options{})
+		if err != nil || got != "a,b" || calls.Load() != 2 {
+			t.Errorf("%s: got %q, %v after %d calls", name, got, err, calls.Load())
+		}
+	}
+}
+
+func TestGenerateDoesNotRetryTruncatedCompletions(t *testing.T) {
+	for _, reason := range []string{"length", "content_filter"} {
+		c, calls := answeringLLM(t, `{"choices":[{"message":{"content":"a,"},"finish_reason":"`+reason+`"}]}`)
+		_, err := c.Generate(context.Background(), nil, false, Options{})
+		if err == nil || !strings.Contains(err.Error(), reason) || calls.Load() != 1 {
+			t.Errorf("%s: err %v after %d calls", reason, err, calls.Load())
 		}
 	}
 }

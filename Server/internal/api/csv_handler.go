@@ -160,8 +160,8 @@ func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, 
 			return s.Jobs.Fail(ctx, job.Username, job.ID, http.StatusBadGateway, "AI generation failed.")
 		}, job)
 	}
-	// A failed generation produced nothing (and the gateway does not bill it), so it gives the call
-	// back: the user resubmits and must not run into the rate limit doing so.
+	// A failed generation produced nothing, so it gives the call back: the user resubmits and must not
+	// run into the rate limit doing so.
 	s.refundAICall(r, job.Username, job.RoundStart)
 }
 

@@ -317,10 +317,14 @@ cookie.
     target), takes pinyin and meanings from the table, builds sentences from the Language points and Texts,
     and draws distractors only from the lesson and the Known vocabulary; the web search tool stays for
     illustrations and is never used to look the lesson up.
-- `post` retries transient gateway failures (429, 502/503/504, transport errors), up to 5 attempts
-  within the caller's deadline; this is the only retry layer (the client does not re-send) — see `retry.go` and [../AGENTS.md](../AGENTS.md#retrying-ai-requests). Non-2xx answers
-  become `*StatusError` (status, gateway `error.code`, `Retry-After`); each attempt's
-  `x-request-id` is logged.
+- `post` retries transient failures of the LLM provider (DeepSeek): 429, 500, 502/503/504, transport
+  errors, and generations interrupted inside a 200 (`interruptedError`: chat `finish_reason`
+  `insufficient_system_resource`/`aborted`, a response with `status` `failed`, a body of only the
+  keep-alive blank lines), up to 5 attempts within the caller's deadline; this is the only retry layer
+  (the client does not re-send) — see `retry.go` and [../AGENTS.md](../AGENTS.md#retrying-ai-requests).
+  Because an interruption shows only in the body, the parsing (`parseCompletion`, `parseResponse`) runs
+  inside each attempt. Non-2xx answers become `*StatusError` (status, `error.code`, `Retry-After`); each
+  attempt's `x-request-id` is logged.
 - `ExtractCSVContent` strips code fences / leading prose the model sometimes adds.
 - The creative mode uses the Responses API because Wayground requests carry the `web_search` tool:
   the model searches Pexels for the Image Link column and builds `images.pexels.com` URLs from the
@@ -329,9 +333,9 @@ cookie.
   64000), except a GestureQuiz of more than 30 rows (`gestureRowsInBaseBudget`, the default six stages of
   five), which gets 64000 too, since up to 60 rows plus the model's reasoning may not fit in 32000
   (`TestGestureQuizTokenBudget` pins this). An `incomplete`
-  response (output token cap hit) fails the call rather than
-  returning cut-off rows. The `OPENAI_BASE_URL` gateway must support `/responses` with `web_search`,
-  and requires `max_output_tokens` to be set.
+  response (output token cap hit), like a chat completion that finished with `length` or
+  `content_filter`, fails the call rather than returning cut-off rows. The `OPENAI_BASE_URL` provider
+  must support `/responses` with `web_search`, and requires `max_output_tokens` to be set.
 
 Jobs (`internal/store/jobs*.go`): `store.Jobs` is implemented by `MongoJobs` (collection
 `MONGODB_JOBS_COLLECTION`) and `MemoryJobs` (tests), and every method is scoped to a username. A `Job`

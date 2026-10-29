@@ -507,12 +507,18 @@ two sides guard against both:
 
 ## Retrying AI requests
 
-All retrying is on the server, inside the one request (`csvgen/retry.go`): transient failures from
-the LLM gateway — 429 and 502/503/504, and transport errors — are retried up to 5 attempts with
-exponential backoff + jitter, honouring `Retry-After` (following the gateway's policy,
-https://shineshop.dev/docs/errors/). All attempts share the `LLM_TIMEOUT_SECONDS` deadline, and a
-retry is skipped when less than 30 s would be left, so this never pushes past Vercel's limit (one
-invocation cannot outlive 300 s). Other statuses (400/401/402/403/404/413) are never retried.
+All retrying is on the server, inside the one request (`csvgen/retry.go`), following DeepSeek's error
+codes (https://api-docs.deepseek.com/quick_start/error_codes): 429 (rate or concurrency limit), 500,
+503 (overloaded), 502/504 from the proxy in front of it, and transport errors are retried up to 5
+attempts with exponential backoff (2 s doubling to 20 s, plus up to half again of jitter), honouring
+`Retry-After`. DeepSeek keeps a waiting request alive with blank lines, which commits it to 200 before
+the generation starts, so a failure during the generation arrives inside a 200 and is retried too: a
+chat completion whose `finish_reason` is `insufficient_system_resource` or `aborted`, a response whose
+`status` is `failed`, or a body of nothing but blank lines. An answer the model itself cut short
+(`finish_reason` `length`/`content_filter`, a response `incomplete`) fails the job without a retry,
+like the other statuses (400/401/402/403/404/413/422). All attempts share the `LLM_TIMEOUT_SECONDS`
+deadline, and a retry is skipped when less than 30 s would be left, so this never pushes past Vercel's
+limit (one invocation cannot outlive 300 s).
 
 The client submits each generation once (`AiCsvService` has no retry): a job that used the whole deadline
 fails as `504`, and the user submits again from the page. Only a failed *upload* (status 0, before the job
