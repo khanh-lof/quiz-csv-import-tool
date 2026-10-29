@@ -14,7 +14,7 @@ export interface SubmittedJob {
 
 // Starting a generation only uploads the request. The server retries the LLM gateway's transient
 // failures itself while it works on the job, so there is no client-side retry: a failed job is shown
-// as failed and the user submits again.
+// as failed and the user sends it again ("Tạo lại", `AiJobService.retry`).
 @Injectable({ providedIn: 'root' })
 export class AiCsvService {
   private readonly endpointUrl = '/api/csv/jobs';

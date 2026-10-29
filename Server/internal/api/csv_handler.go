@@ -35,18 +35,10 @@ const (
 // createJob handles POST /api/csv/jobs: a multipart upload of zero or more images, rate-limited per
 // user. It validates the request, stores a running job, answers 202 with the job's id right away and
 // keeps working in this same handler until the model has answered, then stores the result. The
-// client follows the job through listJobs, so it need not stay connected. The route wraps it in
-// authenticate and requireRole, so the caller's claims are always in the context.
+// client follows the job through listJobs, so it need not stay connected.
 func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
-	claims, _ := auth.FromContext(r.Context())
-	// The token outlives a deleted user by up to its lifetime; the rate limit needs the document.
-	user, err := s.Users.FindByUsername(r.Context(), claims.Username())
-	if errors.Is(err, store.ErrNotFound) {
-		writeText(w, http.StatusNotFound, "User not found")
-		return
-	}
-	if err != nil {
-		s.internalError(w, r, "loading user failed", err)
+	user, ok := s.jobOwner(w, r)
+	if !ok {
 		return
 	}
 
@@ -65,58 +57,169 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 	}
 	var opts csvgen.Options
 	if creative {
+		var err error
 		if opts, err = csvgen.ParseCreativeOptions(r.URL.Query()); err != nil {
 			writeText(w, http.StatusBadRequest, err.Error())
 			return
 		}
 	}
 
-	if s.Generator == nil || s.Jobs == nil {
-		s.internalError(w, r, "CSV generation is not configured", errors.New("OPENAI_API_KEY, OPENAI_BASE_URL and LLM_MODEL must be set"))
+	job := newJob(jobTitle(r.URL.Query().Get("title"), creative), creative, len(images), opts)
+	if s.startJob(w, r, user.Username, job, "") {
+		s.runJob(r, job, images, opts)
+	}
+}
+
+// retryJob handles POST /api/csv/jobs/{id}/retry ("Tạo lại"): a failed job's request sent again as a new
+// job, which replaces the failed one. The images come from retryImages, so a job sent with images can be
+// retried only while they are kept. Rate-limited and answered like createJob.
+func (s *Server) retryJob(w http.ResponseWriter, r *http.Request) {
+	if s.Jobs == nil {
+		s.internalError(w, r, "jobs are not configured", errors.New("no job store"))
 		return
 	}
+	user, ok := s.jobOwner(w, r)
+	if !ok {
+		return
+	}
+	failed, err := s.Jobs.Get(r.Context(), user.Username, r.PathValue("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		writeText(w, http.StatusNotFound, "Job not found")
+		return
+	}
+	if err != nil {
+		s.internalError(w, r, "loading job failed", err)
+		return
+	}
+	if failed.Status != store.JobFailed {
+		writeText(w, http.StatusConflict, "Job has not failed.")
+		return
+	}
+	opts, ok := retryOptions(failed)
+	if !ok {
+		writeText(w, http.StatusConflict, "Job cannot be retried.")
+		return
+	}
+	var images []csvgen.Image
+	if failed.ImageCount > 0 {
+		if images, _, ok = s.retryImages.get(failed.ID, user.Username, s.now()); !ok {
+			writeText(w, http.StatusGone, "Images expired.")
+			return
+		}
+	}
 
-	roundStart, allowed, err := s.Users.TryConsumeAICall(r.Context(), user.Username, s.AICallsPerRound, s.RoundDuration)
+	job := newJob(failed.Title, failed.Creative, len(images), opts)
+	if s.startJob(w, r, user.Username, job, failed.ID) {
+		s.runJob(r, job, images, opts)
+	}
+}
+
+// jobOwner loads the caller's user document, which the rate limit needs, or answers why it cannot: the token
+// outlives a deleted user by up to its lifetime. The job routes wrap their handlers in authenticate and
+// requireRole, so the caller's claims are always in the context.
+func (s *Server) jobOwner(w http.ResponseWriter, r *http.Request) (*store.User, bool) {
+	claims, _ := auth.FromContext(r.Context())
+	user, err := s.Users.FindByUsername(r.Context(), claims.Username())
+	if errors.Is(err, store.ErrNotFound) {
+		writeText(w, http.StatusNotFound, "User not found")
+		return nil, false
+	}
+	if err != nil {
+		s.internalError(w, r, "loading user failed", err)
+		return nil, false
+	}
+	return user, true
+}
+
+// newJob describes a job to start. A creative job keeps its lesson, so the history can be filtered by it,
+// and everything else retryOptions needs to ask for the same quiz again.
+func newJob(title string, creative bool, imageCount int, opts csvgen.Options) *store.Job {
+	job := &store.Job{Title: title, Creative: creative, ImageCount: imageCount}
+	if !creative {
+		return job
+	}
+	exportType := int(opts.ExportType)
+	courseType := int(opts.CourseType)
+	job.ExportType, job.Intelligence, job.CourseType = &exportType, opts.Intelligence, &courseType
+	job.Level, job.LessonNumber = opts.Level, opts.LessonNumber
+	if opts.CourseType == csvgen.Hsk {
+		hskStandard := int(opts.HskStandard)
+		job.HskStandard = &hskStandard
+	}
+	if opts.CourseType == csvgen.Other {
+		job.CourseName = opts.CourseName
+	}
+	if opts.ExportType == csvgen.GestureQuiz {
+		questionsPerStage := opts.GestureQuizQuestions()
+		job.GestureStages, job.QuestionsPerStage = opts.GestureQuizStages(), &questionsPerStage
+	}
+	return job
+}
+
+// retryOptions rebuilds the options a job was generated with from what the job keeps. False for a creative
+// job from before the lesson, or a Game's choice of games, was kept: sending it again would ask for another quiz.
+func retryOptions(job *store.Job) (csvgen.Options, bool) {
+	if !job.Creative {
+		return csvgen.Options{}, true
+	}
+	if job.ExportType == nil || job.CourseType == nil || job.LessonNumber == nil {
+		return csvgen.Options{}, false
+	}
+	opts := csvgen.Options{
+		ExportType: csvgen.ExportType(*job.ExportType), CourseType: csvgen.CourseType(*job.CourseType),
+		CourseName: job.CourseName, Level: job.Level, LessonNumber: job.LessonNumber, Intelligence: job.Intelligence,
+	}
+	if opts.CourseType == csvgen.Hsk {
+		opts.HskStandard = csvgen.Hsk2
+		if job.HskStandard != nil {
+			opts.HskStandard = csvgen.HskStandard(*job.HskStandard)
+		}
+	}
+	if opts.ExportType == csvgen.GestureQuiz {
+		if job.GestureStages == nil || job.QuestionsPerStage == nil {
+			return csvgen.Options{}, false
+		}
+		opts.GestureStages, opts.QuestionsPerStage = job.GestureStages, *job.QuestionsPerStage
+	}
+	return opts, true
+}
+
+// startJob counts the call against the user's rate limit, stores the job as running and answers 202 with its
+// id, or answers why it cannot and returns false; the caller then runs the job with runJob. A retry names the
+// failed job it replaces, which is deleted before the answer.
+func (s *Server) startJob(w http.ResponseWriter, r *http.Request, username string, job *store.Job, replaces string) bool {
+	if s.Generator == nil || s.Jobs == nil {
+		s.internalError(w, r, "CSV generation is not configured", errors.New("OPENAI_API_KEY, OPENAI_BASE_URL and LLM_MODEL must be set"))
+		return false
+	}
+
+	roundStart, allowed, err := s.Users.TryConsumeAICall(r.Context(), username, s.AICallsPerRound, s.RoundDuration)
 	if err != nil {
 		s.internalError(w, r, "updating AI call count failed", err)
-		return
+		return false
 	}
 	if !allowed {
 		writeText(w, http.StatusForbidden, "You have reached the limit for AI calls.")
-		return
+		return false
 	}
 
-	job := &store.Job{
-		ID:         newJobID(),
-		Username:   user.Username,
-		Status:     store.JobRunning,
-		Title:      jobTitle(r.URL.Query().Get("title"), creative),
-		Creative:   creative,
-		ImageCount: len(images),
-		RoundStart: roundStart,
-		CreatedAt:  time.Now().UTC().Truncate(time.Millisecond),
-	}
-	if creative {
-		exportType := int(opts.ExportType)
-		courseType := int(opts.CourseType)
-		job.ExportType, job.Intelligence, job.CourseType = &exportType, opts.Intelligence, &courseType
-		job.Level, job.LessonNumber = opts.Level, opts.LessonNumber
-		if opts.CourseType == csvgen.Hsk {
-			hskStandard := int(opts.HskStandard)
-			job.HskStandard = &hskStandard
-		}
-		if opts.CourseType == csvgen.Other {
-			job.CourseName = opts.CourseName
-		}
-	}
+	job.ID, job.Username, job.Status, job.RoundStart = newJobID(), username, store.JobRunning, roundStart
+	job.CreatedAt = time.Now().UTC().Truncate(time.Millisecond)
 	if err := s.Jobs.Create(r.Context(), job); err != nil {
-		s.refundAICall(r, user.Username, roundStart)
+		s.refundAICall(r, username, roundStart)
 		s.internalError(w, r, "creating job failed", err)
-		return
+		return false
 	}
-	// Housekeeping must not fail the request: the job exists and will run.
-	if err := s.Jobs.Prune(r.Context(), user.Username, maxJobsPerUser); err != nil {
-		s.Logger.Warn("pruning old jobs failed", "user", user.Username, "error", err)
+	// Housekeeping must not fail the request: the job exists and will run. At worst a failed job that was
+	// retried stays in the history beside its replacement.
+	if replaces != "" {
+		if err := s.Jobs.Delete(r.Context(), username, replaces); err != nil && !errors.Is(err, store.ErrNotFound) {
+			s.Logger.Warn("deleting the retried job failed", "user", username, "job", replaces, "error", err)
+		}
+		s.retryImages.drop(replaces)
+	}
+	if err := s.Jobs.Prune(r.Context(), username, maxJobsPerUser); err != nil {
+		s.Logger.Warn("pruning old jobs failed", "user", username, "error", err)
 	}
 
 	ack, _ := json.Marshal(map[string]string{"id": job.ID})
@@ -129,8 +232,7 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(ack)
 	// Best effort: where the answer cannot be flushed early the client simply waits for the result.
 	_ = http.NewResponseController(w).Flush()
-
-	s.runJob(r, job, images, opts)
+	return true
 }
 
 // runJob generates the CSV and records the outcome on the job. It runs detached from the request: the
@@ -161,8 +263,12 @@ func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, 
 		}, job)
 	}
 	// A failed generation produced nothing, so it gives the call back: the user resubmits and must not
-	// run into the rate limit doing so.
+	// run into the rate limit doing so. Its images are kept for a while, so "Tạo lại" need not upload them.
 	s.refundAICall(r, job.Username, job.RoundStart)
+	if len(images) > 0 {
+		now := s.now()
+		s.retryImages.keep(job.ID, job.Username, images, now, now.Add(retryImagesTTL))
+	}
 }
 
 // recordJob writes a job's outcome with its own deadline, since the generation's may be used up.
@@ -194,6 +300,10 @@ type jobView struct {
 	ErrorMessage string     `json:"errorMessage"`
 	CreatedAt    time.Time  `json:"createdAt"`
 	FinishedAt   *time.Time `json:"finishedAt"`
+	// Retryable says whether retryJob would take the job; RetryUntil is when its images stop being kept,
+	// null for a job without images or that cannot be retried.
+	Retryable  bool       `json:"retryable"`
+	RetryUntil *time.Time `json:"retryUntil"`
 }
 
 // listJobs handles GET /api/csv/jobs: the caller's newest jobs, which the client polls while any is running.
@@ -227,11 +337,13 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 	}
 	views := make([]jobView, len(jobs))
 	for i, j := range jobs {
+		retryable, retryUntil := s.retryState(&j)
 		views[i] = jobView{
 			ID: j.ID, Status: string(j.Status), Title: j.Title, Creative: j.Creative, ExportType: j.ExportType,
 			Intelligence: j.Intelligence, ImageCount: j.ImageCount, CourseType: j.CourseType, CourseName: j.CourseName,
 			HskStandard: j.HskStandard, Level: j.Level, LessonNumber: j.LessonNumber, CSV: j.CSV,
 			ErrorStatus: j.ErrorStatus, ErrorMessage: j.ErrorMessage, CreatedAt: j.CreatedAt, FinishedAt: j.FinishedAt,
+			Retryable: retryable, RetryUntil: retryUntil,
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -255,7 +367,26 @@ func (s *Server) deleteJob(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "deleting job failed", err)
 		return
 	}
+	s.retryImages.drop(r.PathValue("id"))
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// retryState says whether retryJob would take a job, and until when for one whose images are kept only for a while.
+func (s *Server) retryState(job *store.Job) (bool, *time.Time) {
+	if job.Status != store.JobFailed {
+		return false, nil
+	}
+	if _, ok := retryOptions(job); !ok {
+		return false, nil
+	}
+	if job.ImageCount == 0 {
+		return true, nil
+	}
+	if _, until, ok := s.retryImages.get(job.ID, job.Username, s.now()); ok {
+		until = until.UTC()
+		return true, &until
+	}
+	return false, nil
 }
 
 func newJobID() string {

@@ -86,17 +86,22 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   CSV jobs, answers the Wayground extension's zip from `internal/extension` (embedded when `go generate
   ./internal/extension` ran before the build, as the Vercel `buildCommand` does; otherwise packed from
   `../Extension` on first use), or 404 `Extension not available.`. See [../AGENTS.md](../AGENTS.md#the-wayground-browser-extension).
-- **CSV jobs** (`csv_handler.go`): `POST csv/jobs`, `GET csv/jobs`, `DELETE csv/jobs/{id}`. All wrapped in
+- **CSV jobs** (`csv_handler.go`): `POST csv/jobs`, `GET csv/jobs`, `DELETE csv/jobs/{id}`,
+  `POST csv/jobs/{id}/retry`. All wrapped in
   `authenticate` (Bearer JWT → 401 with `WWW-Authenticate`) and `requireRole(auth.RoleUser, auth.RoleAdmin)`
   (→ 403); handlers read the claims with `auth.FromContext`. `createJob` loads the user (404 if deleted
   since the token was issued), reads a multipart body of zero or more files, enforces the rate limit,
   stores a running `store.Job`, prunes the user's jobs to the newest 30, answers `202 {"id"}` (flushed
   early, `Connection: close`) and keeps running in the same handler: `runJob` calls the generator on a
   context detached from the request (`context.WithoutCancel`), so the client leaving does not cancel it,
-  and records the outcome with `Jobs.Complete` / `Jobs.Fail`. Validation, auth and rate-limit
+  and records the outcome with `Jobs.Complete` / `Jobs.Fail`; a failed job's images go to `retryImages`
+  (`retry_images.go`, in memory, for `retryImagesTTL`, one hour). `retryJob` ("Tạo lại") rebuilds the failed
+  job's request with `retryOptions`, takes its images from `retryImages` and goes through the same `startJob`
+  (rate limit, store, prune, `202`) and `runJob`, deleting the failed job before it answers; its refusals are
+  in [../AGENTS.md](../AGENTS.md#retrying-ai-requests). Validation, auth and rate-limit
   errors are still answered synchronously with the plain-text bodies below. `title` (query, capped at
   100 runes) names the job. `listJobs` returns the user's jobs newest first (JSON `{"jobs": [...]}`,
-  the CSV included) after failing any job running past `LLM_TIMEOUT_SECONDS` + 1 min as abandoned (and
+  the CSV included, and `retryable`/`retryUntil` from `retryState`) after failing any job running past `LLM_TIMEOUT_SECONDS` + 1 min as abandoned (and
   refunding its call). `isCreative=true` switches to the creative prompt and requires `exportType`,
   `courseType`, `lessonNumber`, plus `level` (HSK/YCT) or `courseName` (`Other`), and for GestureQuiz the
   optional `gestureStages` and `questionsPerStage` (see [Choosing the games](../AGENTS.md#the-gesture-quiz-game)) — parsed by
@@ -341,7 +346,8 @@ Jobs (`internal/store/jobs*.go`): `store.Jobs` is implemented by `MongoJobs` (co
 `MONGODB_JOBS_COLLECTION`) and `MemoryJobs` (tests), and every method is scoped to a username. A `Job`
 holds the request's metadata (title, mode, export type ordinal, intelligence, image count — never the
 images — and, for a creative job, the lesson: course type ordinal, course name, HSK standard, level and
-lesson number, which `listJobs` returns so the client can filter by them), `status` (`running`/`done`/`failed`), the raw model `csv`, `errorStatus`/`errorMessage`, the
+lesson number, which `listJobs` returns so the client can filter by them, and for a GestureQuiz job its
+`gestureStages` and `questionsPerStage`, kept so `retryJob` can ask for the same quiz again), `status` (`running`/`done`/`failed`), the raw model `csv`, `errorStatus`/`errorMessage`, the
 rate-limit `roundStart` (for refunds) and timestamps. `Complete`/`Fail` only touch a job that is still
 `running`, so an expired job is never revived by a late answer; `Prune` never deletes a running job.
 `Get(username, id)` returns one job, `ErrNotFound` for another user's too (`createAssignment` is its caller).

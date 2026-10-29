@@ -64,6 +64,7 @@ no configurable backend URL:
 | — (admin only, `X-Admin-Key` header) | `users` (`auth_handlers.go`) |
 | `AiCsvService.submitFormatted` / `.submitCreative` | `POST csv/jobs` (`internal/api/csv_handler.go`) |
 | `AiJobService.refresh` / `.remove` | `GET csv/jobs`, `DELETE csv/jobs/{id}` (`csv_handler.go`) |
+| `AiJobService.retry` | `POST csv/jobs/{id}/retry` (`csv_handler.go`) |
 | `AssignmentService.create` | `POST assignments` (`internal/api/assignment_handlers.go`) |
 | `AssignmentService.list` / `.get` | `GET assignments`, `GET assignments/{id}` (`assignment_handlers.go`) |
 | `AssignmentService.update` | `PATCH assignments/{id}` (`assignment_handlers.go`) |
@@ -109,7 +110,8 @@ finishing is announced wherever the user is in the app. The result is delivered 
 completion: **Formatted** jobs get a "Mở trong bảng" action, **Auto** jobs a "Tải file" action
 and, for a Wayground job, also "Tiện ích tự publish" (the extension; disabled when it is not installed)
 or, for a Game job, "Chơi ngay" (played in the app, see
-[the gesture quiz](#the-gesture-quiz-game)): the user picks the delivery per job once the AI is done. The table's search covers titles, errors and the generated
+[the gesture quiz](#the-gesture-quiz-game)): the user picks the delivery per job once the AI is done. A **failed** job
+gets "Tạo lại" (see [Retrying AI requests](#retrying-ai-requests)). The table's search covers titles, errors and the generated
 CSV; its filters are status, mode, platform, course type, HSK standard, level and lesson number (the server
 keeps those on each creative job; jobs from before it did have none and drop out when one is set).
 
@@ -272,8 +274,9 @@ and are read only for GestureQuiz (`csvgen.Options.GestureStages` / `.QuestionsP
 six and 5, a value out of range is 400 `Invalid gestureStages parameter.` or `Invalid questionsPerStage
 parameter.`. The server's template then describes only those stages and asks for exactly that many rows of
 each. The limits are constants on both sides (`csvgen`'s `Min`/`Max`/`DefaultQuestionsPerStage`, the client's
-`models/gesture-quiz-options.ts`), kept in step by hand. Nothing about the choice is stored on the job: the
-stages a quiz has are read from its CSV.
+`models/gesture-quiz-options.ts`), kept in step by hand. The job keeps the choice (`gestureStages`,
+`questionsPerStage`, absent on older jobs) only so "Tạo lại" can ask the model for the same quiz again: the stages
+a quiz has are read from its CSV.
 
 **The stage number stays the game's identity** everywhere it is stored or sent (the CSV's Stage column, the
 progress, an assignment's `stageCounts`, results), so a quiz of Chém hoa quả and Xếp câu has rows with Stage 4
@@ -521,6 +524,18 @@ deadline, and a retry is skipped when less than 30 s would be left, so this neve
 limit (one invocation cannot outlive 300 s).
 
 The client submits each generation once (`AiCsvService` has no retry): a job that used the whole deadline
-fails as `504`, and the user submits again from the page. Only a failed *upload* (status 0, before the job
-exists) needs the user's retry for a connection reason; once the server answers `202`, a dropped connection
-no longer matters.
+fails as `504`, and the user sends it again with **"Tạo lại"** on the failed job in the history table, or from
+the page. "Tạo lại" (`AiJobService.retry`) is `POST csv/jobs/{id}/retry` (`retryJob`): the server starts a new job
+with the request the failed one was made from (`retryOptions`: title, mode, platform, intelligence, the lesson and,
+for a Game, its games and question count) and its images, and deletes the failed one, which the new one replaces.
+It uses a call of the rate limit like any submission. The refusals, in order: 404 `Job not found`, 409 `Job has not
+failed.`, 409 `Job cannot be retried.` (a job from before the server kept its lesson or its games), 410 `Images
+expired.`, then the rate limit's 403. The database never holds images, so `runJob` keeps a failed job's images in
+the server's memory (`retryImages`, `Server/internal/api/retry_images.go`) for **one hour** from the failure
+(`retryImagesTTL`); deleting or retrying the job drops them. `GET csv/jobs` tells the client, per job, whether a
+retry would be taken (`retryable`) and, for a job with images, until when (`retryUntil`): the menu item shows that
+time, survives a reload, and is disabled once it is past. A job without images has no deadline. The images live in
+one process only: a restart, or a request that reaches another instance of the server (on Vercel an instance can
+be stopped or replaced at any time), finds none, and the job then reads as not retryable; the user submits again
+from the AI page. Only a failed *upload* (status 0, before the job exists) needs the user's retry for a connection
+reason; once the server answers `202`, a dropped connection no longer matters.

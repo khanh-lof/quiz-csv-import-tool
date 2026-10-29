@@ -2,7 +2,7 @@ import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { AiJobService } from './ai-job.service';
+import { AiJobService, NEW_JOB_IDLE_POLLS } from './ai-job.service';
 import { AuthService } from './auth.service';
 import { AiJob } from '../models/ai-job';
 
@@ -23,6 +23,8 @@ function job(id: string, status: AiJob['status'], overrides: Partial<AiJob> = {}
     hskStandard: null,
     level: null,
     lessonNumber: null,
+    retryable: false,
+    retryUntil: null,
     csv: '',
     errorStatus: 0,
     errorMessage: '',
@@ -182,5 +184,60 @@ describe('AiJobService', () => {
 
     expect(failed).toBeTrue();
     expect(service.jobs().length).toBe(1);
+  });
+
+  describe('retry', () => {
+    // Runs out the polling a retry starts, with no job running any more.
+    function pollUntilIdle(...jobs: AiJob[]): void {
+      for (let i = 0; i < NEW_JOB_IDLE_POLLS; i++) {
+        tick(i === 0 ? 0 : POLL_MS);
+        answer(...jobs);
+      }
+      tick(POLL_MS * 3);
+    }
+
+    it('asks the server to send a failed job again, which replaces it', fakeAsync(() => {
+      service.refresh().subscribe();
+      answer(job('a', 'failed', { retryable: true }), job('c', 'done'));
+
+      let submitted: string | undefined;
+      service.retry(service.jobs()[0]).subscribe(created => submitted = created.id);
+      const retry = http.expectOne(`${URL}/a/retry`);
+      expect(retry.request.method).toBe('POST');
+      retry.flush({ id: 'b' });
+
+      expect(submitted).toBe('b');
+      // The server deleted the failed job; the new one shows up with the next poll.
+      expect(service.jobs().map(j => j.id)).toEqual(['c']);
+      pollUntilIdle(job('b', 'done'), job('c', 'done'));
+      expect(service.jobs().map(j => j.id)).toEqual(['b', 'c']);
+    }));
+
+    it('keeps the failed job when the server refuses', () => {
+      service.refresh().subscribe();
+      answer(job('a', 'failed', { retryable: true, imageCount: 1, retryUntil: '2026-10-13T01:00:00Z' }));
+
+      let status: number | undefined;
+      service.retry(service.jobs()[0]).subscribe({ error: err => status = err.status });
+      http.expectOne(`${URL}/a/retry`).flush('Images expired.', {
+        status: 410,
+        statusText: 'Gone'
+      });
+
+      expect(status).toBe(410);
+      expect(service.jobs().map(j => j.id)).toEqual(['a']);
+    });
+
+    it('only retries a failed job the server would take, until its images expire', () => {
+      const now = Date.parse('2026-10-13T10:00:00Z');
+      expect(service.canRetry(job('a', 'failed', { retryable: true }), now)).toBeTrue();
+      expect(service.canRetry(job('a', 'failed'), now)).toBeFalse();
+      expect(service.canRetry(job('a', 'done', { retryable: true }), now)).toBeFalse();
+
+      const withImages = job('a', 'failed', { retryable: true, imageCount: 2, retryUntil: '2026-10-13T10:30:00Z' });
+      expect(service.canRetry(withImages, now)).toBeTrue();
+      // The list is only as fresh as the last poll.
+      expect(service.canRetry(withImages, Date.parse('2026-10-13T10:30:00Z'))).toBeFalse();
+    });
   });
 });

@@ -17,6 +17,8 @@ function job(overrides: Partial<AiJob>): AiJob {
     hskStandard: null,
     level: null,
     lessonNumber: null,
+    retryable: false,
+    retryUntil: null,
     csv: '',
     errorStatus: 0,
     errorMessage: '',

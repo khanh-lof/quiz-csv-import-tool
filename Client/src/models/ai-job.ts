@@ -27,6 +27,10 @@ export interface AiJob {
   errorMessage: string;
   createdAt: string;
   finishedAt: string | null;
+  // Whether "Tạo lại" can send a failed job again, and until when for one whose images the server keeps
+  // only for a while (null for a job without images or that cannot be retried).
+  retryable: boolean;
+  retryUntil: string | null;
 }
 
 export interface AiJobFilter {

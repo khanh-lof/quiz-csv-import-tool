@@ -5,7 +5,7 @@ import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiCsvService } from '../../services/ai-csv.service';
-import { AiJobService } from '../../services/ai-job.service';
+import { AiJobService, NEW_JOB_IDLE_POLLS } from '../../services/ai-job.service';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
 import { NzCheckboxGroupComponent, NzCheckboxOption } from 'ng-zorro-antd/checkbox';
 import {
@@ -56,8 +56,6 @@ interface ImageItem {
 // The page's choices, remembered between visits so a teacher going lesson by lesson does not
 // re-enter the course, level and platform every time.
 const SETTINGS_STORAGE_KEY = 'ai-generation-settings';
-// Polls without a running job to wait out after submitting, since the new job may not show up in the first one.
-const NEW_JOB_IDLE_POLLS = 3;
 
 // ng-zorro's checkbox keeps an ngModel on its own inner <input>, and Angular warns (NG01354) about every one of
 // them when the checkbox sits inside a [formGroup], as the games' group does. That input is not meant to join

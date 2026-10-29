@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
+import { finalize } from 'rxjs';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzInputDirective } from 'ng-zorro-antd/input';
@@ -93,6 +95,8 @@ export class AiJobs implements OnInit {
   // The job being given to students in the assign dialog. Kept apart from `assignOpen` for the same reason as `viewing`.
   protected readonly assigning = signal<AiJob | null>(null);
   protected readonly assignOpen = signal(false);
+  // Failed jobs being sent again, so a second click cannot submit the same job twice.
+  protected readonly retrying = signal<ReadonlySet<string>>(new Set());
   protected readonly viewTable = computed<ResultTable | null>(() => {
     const job = this.viewing();
     return job && job.status === 'done' ? this.resultTable(job) : null;
@@ -209,6 +213,34 @@ export class AiJobs implements OnInit {
     }
   }
 
+  protected canRetry(job: AiJob): boolean {
+    return this.jobService.canRetry(job) && !this.retrying().has(job.id);
+  }
+
+  // The tooltip of a disabled "Tạo lại"; empty while it can be used or is being sent.
+  protected retryBlockedReason(job: AiJob): string {
+    if (this.canRetry(job) || this.retrying().has(job.id)) {
+      return '';
+    }
+    return job.imageCount > 0
+      ? 'Ảnh của lần gửi này đã hết hạn lưu. Gửi lại ở AI › Tạo quiz.'
+      : 'Mục này quá cũ để tạo lại. Gửi lại ở AI › Tạo quiz.';
+  }
+
+  // Sends the failed job's request again; the new job takes the failed one's place in the table.
+  protected retry(job: AiJob): void {
+    if (!this.canRetry(job)) {
+      return;
+    }
+    this.retrying.update(ids => new Set(ids).add(job.id));
+    this.jobService.retry(job).pipe(
+      finalize(() => this.retrying.update(ids => new Set([...ids].filter(id => id !== job.id)))),
+    ).subscribe({
+      next: () => this.notificationService.info('Đã gửi lại yêu cầu', 'Kết quả sẽ hiện trong bảng này.', { nzPlacement: 'top' }),
+      error: err => this.showRetryError(err),
+    });
+  }
+
   // A creative job is already a whole quiz: build the platform's file, then download it, or (Wayground
 
   // A menu item cannot hold a popconfirm (the menu closes under it), so deleting asks in a modal.
@@ -253,6 +285,27 @@ export class AiJobs implements OnInit {
       headers,
       rows: body
     };
+  }
+
+  // The retry's own refusals, worded as the AI page words a submit's; a job that fails later is announced by AiJobService.
+  private showRetryError(err: unknown): void {
+    const status = err instanceof HttpErrorResponse ? err.status : null;
+    const serverMessage = err instanceof HttpErrorResponse && typeof err.error === 'string' ? err.error.trim() : '';
+    if (status === HttpStatusCode.Forbidden && serverMessage) {
+      this.notificationService.warning('Hết lượt dùng AI', 'Thử lại sau ít phút.', { nzPlacement: 'top', nzDuration: 0 });
+    } else if (status === HttpStatusCode.Forbidden) {
+      this.notificationService.error('Không có quyền', 'Tài khoản chưa có quyền dùng AI.', { nzPlacement: 'top' });
+    } else if (status === 0) {
+      this.notificationService.error('Mất kết nối', 'Kiểm tra mạng rồi thử lại.', { nzPlacement: 'top' });
+    } else if (status === HttpStatusCode.Gone || status === HttpStatusCode.NotFound || status === HttpStatusCode.Conflict) {
+      // The table was older than the server (the images expired, another tab sent or deleted the job): catch up.
+      this.notificationService.error('Không tạo lại được', status === HttpStatusCode.Gone
+        ? 'Ảnh đã hết hạn lưu. Gửi lại ở AI › Tạo quiz.'
+        : 'Gửi lại ở AI › Tạo quiz.', { nzPlacement: 'top' });
+      this.jobService.watch();
+    } else {
+      this.notificationService.error('Không tạo lại được', 'Thử lại.', { nzPlacement: 'top' });
+    }
   }
 
   private remove(job: AiJob): void {

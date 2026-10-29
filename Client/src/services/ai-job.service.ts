@@ -4,12 +4,15 @@ import { catchError, exhaustMap, map, Observable, of, Subscription, takeWhile, t
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiJob } from '../models/ai-job';
 import { AuthService } from './auth.service';
+import { SubmittedJob } from './ai-csv.service';
 
 const POLL_INTERVAL_MS = 3000;
 // Polling stops after this many answers in a row without a running job, and gives up after this many
 // failed ones (offline, logged out) so a forgotten tab does not keep calling the server.
 const DEFAULT_IDLE_POLLS = 1;
 const MAX_FAILED_POLLS = 10;
+// Polls without a running job to wait out after submitting, since the new job may not show up in the first one.
+export const NEW_JOB_IDLE_POLLS = 3;
 
 // The AI generations of the signed-in user. They run on the server whether or not this page stays
 // open, so the table shows what the server has: `watch` polls while a job is running, and a job
@@ -64,6 +67,21 @@ export class AiJobService {
         return this.idlePolls < this.idlePollsToStop;
       }),
     ).subscribe({ complete: () => this.idlePollsToStop = DEFAULT_IDLE_POLLS });
+  }
+
+  // The server's `retryable` is only as fresh as the last poll, so the images' deadline is checked against now.
+  canRetry(job: AiJob, now = Date.now()): boolean {
+    return job.status === 'failed' && job.retryable && (job.retryUntil === null || Date.parse(job.retryUntil) > now);
+  }
+
+  // Sends a failed job again (`POST csv/jobs/{id}/retry`): the server starts a new job with the same request and
+  // images and deletes the failed one, which the new one replaces in the table once the next poll shows it.
+  retry(job: AiJob): Observable<SubmittedJob> {
+    return this.http.post<SubmittedJob>(`${this.endpointUrl}/${job.id}/retry`, null).pipe(
+      tap(() => {
+        this.jobs.update(jobs => jobs.filter(other => other.id !== job.id));
+        this.watch(NEW_JOB_IDLE_POLLS);
+      }));
   }
 
   remove(id: string): Observable<void> {
