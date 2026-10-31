@@ -227,6 +227,11 @@ input.ant-input-sm,
   color: #ff66aa;
 }
 
+/* The "n / max" counter widens the arrow; keep the tags clear of it. */
+.ant-select-multiple.ant-select-show-arrow .ant-select-selector {
+  padding-inline-end: 56px;
+}
+
 .ant-select-dropdown {
   border-radius: var(--qt-radius);
 }
