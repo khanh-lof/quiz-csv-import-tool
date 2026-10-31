@@ -227,8 +227,9 @@ input.ant-input-sm,
   color: #ff66aa;
 }
 
-/* The "n / max" counter widens the arrow; keep the tags clear of it. */
-.ant-select-multiple.ant-select-show-arrow .ant-select-selector {
+/* The "n / max" counter widens the arrow; keep the tags clear of it. A multiple select draws the arrow (and the
+   counter) without the show-arrow class, so match the arrow itself. */
+.ant-select.ant-select-multiple:has(> nz-select-arrow) .ant-select-selector {
   padding-inline-end: 56px;
 }
 
