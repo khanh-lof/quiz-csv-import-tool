@@ -42,7 +42,7 @@ describe('AiCsvService', () => {
       courseName: 'ignored',
       hskStandard: HskStandard.V3,
       level: 4,
-      lessonNumber: 5,
+      lessonNumbers: [5],
       AIMode: AIGenerationMode.Auto,
       exportType: ExportType.Wayground,
       intelligence: 2,
@@ -57,9 +57,39 @@ describe('AiCsvService', () => {
     expect(params.get('courseType')).toBe(String(CourseType.Hsk));
     expect(params.get('hskStandard')).toBe(String(HskStandard.V3));
     expect(params.get('level')).toBe('4');
-    expect(params.get('lessonNumber')).toBe('5');
+    expect(params.get('lessonNumbers')).toBe('5');
+    expect(params.has('lessonNumber')).toBeFalse();
     expect(params.get('intelligence')).toBe('2');
     expect(params.has('courseName')).toBeFalse();
+  });
+
+  describe('the lessons', () => {
+    const lessonsRequest = (lessonNumbers: number[]) => ({
+      courseType: CourseType.Yct,
+      courseName: null,
+      hskStandard: null,
+      level: 6,
+      lessonNumbers,
+      AIMode: AIGenerationMode.Auto,
+      exportType: ExportType.Wayground,
+      intelligence: 1,
+      gestureStages: null,
+      questionsPerStage: null,
+    });
+
+    it('sends several lessons in ascending order, whatever order they were picked in', () => {
+      service.submitCreative([], lessonsRequest([7, 3, 5, 4]), 'YCT6-Bai3-5+7').subscribe();
+
+      expect(http.expectOne(r => r.url === URL).request.params.get('lessonNumbers')).toBe('3,4,5,7');
+    });
+
+    it('does not change the list it was given', () => {
+      const lessons = [5, 2];
+      service.submitCreative([], lessonsRequest(lessons), 'YCT6-Bai2+5').subscribe();
+      http.expectOne(r => r.url === URL);
+
+      expect(lessons).toEqual([5, 2]);
+    });
   });
 
   describe('the gesture quiz options', () => {
@@ -68,7 +98,7 @@ describe('AiCsvService', () => {
       courseName: null,
       hskStandard: HskStandard.V2,
       level: 2,
-      lessonNumber: 3,
+      lessonNumbers: [3],
       AIMode: AIGenerationMode.Auto,
       exportType,
       intelligence: 1,

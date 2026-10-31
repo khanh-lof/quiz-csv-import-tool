@@ -16,7 +16,7 @@ function job(overrides: Partial<AiJob>): AiJob {
     courseName: '',
     hskStandard: null,
     level: null,
-    lessonNumber: null,
+    lessonNumbers: null,
     retryable: false,
     retryUntil: null,
     csv: '',
@@ -122,33 +122,33 @@ describe('filterJobs by lesson', () => {
       courseType: CourseType.Hsk,
       hskStandard: HskStandard.V2,
       level: 3,
-      lessonNumber: 5
+      lessonNumbers: [5]
     }),
     job({
       id: 'b',
       courseType: CourseType.Hsk,
       hskStandard: HskStandard.V3,
       level: 3,
-      lessonNumber: 5
+      lessonNumbers: [5]
     }),
     job({
       id: 'c',
       courseType: CourseType.Hsk,
       hskStandard: HskStandard.V3,
       level: 7,
-      lessonNumber: 1
+      lessonNumbers: [1]
     }),
     job({
       id: 'd',
       courseType: CourseType.Yct,
       level: 1,
-      lessonNumber: 5
+      lessonNumbers: [5]
     }),
     job({
       id: 'e',
       courseType: CourseType.Other,
       courseName: 'Boya',
-      lessonNumber: 2
+      lessonNumbers: [2]
     }),
     job({
       id: 'f',
@@ -174,6 +174,19 @@ describe('filterJobs by lesson', () => {
     expect(ids({ lessonNumber: 5 })).toEqual(['a', 'b', 'd']);
   });
 
+  it('matches a job that covers several lessons by any one of them', () => {
+    const several = [
+      job({ id: 'g', courseType: CourseType.Hsk, lessonNumbers: [3, 4, 5, 7] }),
+      job({ id: 'h', courseType: CourseType.Hsk, lessonNumbers: [1, 2] }),
+    ];
+    const matching = (lessonNumber: number) => filterJobs(several, { ...NO_FILTER, lessonNumber }).map(j => j.id);
+
+    expect(matching(4)).toEqual(['g']);
+    expect(matching(7)).toEqual(['g']);
+    expect(matching(2)).toEqual(['h']);
+    expect(matching(6)).toEqual([]);
+  });
+
   it('combines the lesson filters', () => {
     expect(ids({
       courseType: CourseType.Hsk,
@@ -194,26 +207,55 @@ describe('lessonLabel', () => {
       courseType: CourseType.Hsk,
       hskStandard: HskStandard.V3,
       level: 4,
-      lessonNumber: 5
+      lessonNumbers: [5]
     }))).toBe('HSK 3.0 · cấp 4 · bài 5');
     expect(lessonLabel(job({
       courseType: CourseType.Hsk,
       hskStandard: null,
       level: 1,
-      lessonNumber: 2
+      lessonNumbers: [2]
     }))).toBe('HSK 2.0 · cấp 1 · bài 2');
     expect(lessonLabel(job({
       courseType: CourseType.Yct,
       level: 2,
-      lessonNumber: 7
+      lessonNumbers: [7]
     }))).toBe('YCT · cấp 2 · bài 7');
+  });
+
+  it('writes several lessons with a run shortened', () => {
+    expect(lessonLabel(job({
+      courseType: CourseType.Hsk,
+      hskStandard: HskStandard.V3,
+      level: 4,
+      lessonNumbers: [3, 4, 5, 7]
+    }))).toBe('HSK 3.0 · cấp 4 · bài 3–5, 7');
+    expect(lessonLabel(job({
+      courseType: CourseType.Yct,
+      level: 2,
+      lessonNumbers: [2, 3]
+    }))).toBe('YCT · cấp 2 · bài 2, 3');
+  });
+
+  it('leaves the lesson out when the job has none', () => {
+    expect(lessonLabel(job({
+      courseType: CourseType.Hsk,
+      hskStandard: HskStandard.V3,
+      level: 4,
+      lessonNumbers: null
+    }))).toBe('HSK 3.0 · cấp 4');
+    expect(lessonLabel(job({
+      courseType: CourseType.Hsk,
+      hskStandard: HskStandard.V3,
+      level: 4,
+      lessonNumbers: []
+    }))).toBe('HSK 3.0 · cấp 4');
   });
 
   it('uses the typed course name and skips a missing level', () => {
     expect(lessonLabel(job({
       courseType: CourseType.Other,
       courseName: 'Boya',
-      lessonNumber: 3
+      lessonNumbers: [3]
     }))).toBe('Boya · bài 3');
   });
 

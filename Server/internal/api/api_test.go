@@ -332,12 +332,13 @@ func TestCreateJobCreativeModeWithoutImages(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 
-	rec := env.upload(t, upload{token: token, query: "?isCreative=True&exportType=1&courseType=2&courseName=Boya&lessonNumber=3"})
+	// The single lessonNumber of a page from before several lessons could be chosen is read as a list of one.
+	rec := env.upload(t, upload{token: token, query: "?isCreative=True&exportType=1&courseType=2&courseName=Boya&lessonNumbers=3"})
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("create: %d %q", rec.Code, rec.Body)
 	}
 	if !env.gen.creative || len(env.gen.images) != 0 || env.gen.opts.ExportType != csvgen.Blooket ||
-		env.gen.opts.CourseName != "Boya" || *env.gen.opts.LessonNumber != 3 {
+		env.gen.opts.CourseName != "Boya" || !slices.Equal(env.gen.opts.LessonNumbers, []int{3}) {
 		t.Fatalf("generator got %+v", env.gen)
 	}
 	job := env.onlyJob(t, "alice")
@@ -346,7 +347,7 @@ func TestCreateJobCreativeModeWithoutImages(t *testing.T) {
 		t.Fatalf("job %+v", job)
 	}
 	if job.CourseType == nil || *job.CourseType != int(csvgen.Other) || job.CourseName != "Boya" ||
-		job.HskStandard != nil || job.Level != nil || job.LessonNumber == nil || *job.LessonNumber != 3 {
+		job.HskStandard != nil || job.Level != nil || !slices.Equal(job.LessonNumbers, []int{3}) {
 		t.Fatalf("job lesson %+v", job)
 	}
 }
@@ -355,13 +356,18 @@ func TestCreateJobStoresHskLesson(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 
-	rec := env.upload(t, upload{token: token, query: "?isCreative=true&exportType=2&courseType=0&hskStandard=3&level=7&lessonNumber=4"})
+	rec := env.upload(t, upload{token: token, query: "?isCreative=true&exportType=2&courseType=0&hskStandard=3&level=7&lessonNumbers=5,4"})
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("create: %d %q", rec.Code, rec.Body)
 	}
+	if !slices.Equal(env.gen.opts.LessonNumbers, []int{4, 5}) {
+		t.Fatalf("generator got %+v", env.gen.opts)
+	}
+	// The lessons are stored ascending, in the new field alone: the one the old jobs used is never written.
 	job := env.onlyJob(t, "alice")
 	if job.CourseType == nil || *job.CourseType != int(csvgen.Hsk) || job.HskStandard == nil || *job.HskStandard != 3 ||
-		job.Level == nil || *job.Level != 7 || job.LessonNumber == nil || *job.LessonNumber != 4 || job.CourseName != "" {
+		job.Level == nil || *job.Level != 7 || !slices.Equal(job.LessonNumbers, []int{4, 5}) ||
+		job.CourseName != "" {
 		t.Fatalf("job %+v", job)
 	}
 }
@@ -371,7 +377,7 @@ func TestCreateJobStoresGestureQuizChoice(t *testing.T) {
 	env.srv.AICallsPerRound = 3
 	token, _ := env.login(t, "alice", "pw")
 
-	const lesson = "?isCreative=true&courseType=0&level=1&lessonNumber=2"
+	const lesson = "?isCreative=true&courseType=0&level=1&lessonNumbers=2"
 	for _, query := range []string{
 		lesson + "&exportType=3&gestureStages=6,4&questionsPerStage=7",
 		lesson + "&exportType=3",
@@ -433,8 +439,13 @@ func TestCreateJobRequestErrors(t *testing.T) {
 		{"truncated", upload{token: token, ctype: ptr("multipart/form-data; boundary=xyz"), rawBody: ptr("--xyz\r\nContent-Disposition: form-data; name=\"images\"; filename=\"a.png\"\r\n\r\nabc")}, http.StatusBadRequest, "Malformed multipart body."},
 		{"no image", upload{token: token}, http.StatusBadRequest, "Image is required."},
 		{"bad creative options", upload{token: token, query: "?isCreative=true&exportType=9"}, http.StatusBadRequest, "Invalid or missing exportType parameter."},
-		{"bad gesture stages", upload{token: token, query: "?isCreative=true&exportType=3&courseType=0&level=1&lessonNumber=1&gestureStages=7"}, http.StatusBadRequest, "Invalid gestureStages parameter."},
-		{"bad questions per stage", upload{token: token, query: "?isCreative=true&exportType=3&courseType=0&level=1&lessonNumber=1&questionsPerStage=11"}, http.StatusBadRequest, "Invalid questionsPerStage parameter."},
+		{"bad gesture stages", upload{token: token, query: "?isCreative=true&exportType=3&courseType=0&level=1&lessonNumbers=1&gestureStages=7"}, http.StatusBadRequest, "Invalid gestureStages parameter."},
+		{"bad questions per stage", upload{token: token, query: "?isCreative=true&exportType=3&courseType=0&level=1&lessonNumbers=1&questionsPerStage=11"}, http.StatusBadRequest, "Invalid questionsPerStage parameter."},
+		{"no lessons", upload{token: token, query: "?isCreative=true&exportType=0&courseType=0&level=1"}, http.StatusBadRequest, "Invalid or missing lessonNumbers parameter."},
+		{"repeated lesson", upload{token: token, query: "?isCreative=true&exportType=0&courseType=0&level=1&lessonNumbers=2,2"}, http.StatusBadRequest, "Invalid or missing lessonNumbers parameter."},
+		{"empty lesson", upload{token: token, query: "?isCreative=true&exportType=0&courseType=0&level=1&lessonNumbers=2,,3"}, http.StatusBadRequest, "Invalid or missing lessonNumbers parameter."},
+		{"too many lessons", upload{token: token, query: "?isCreative=true&exportType=0&courseType=0&level=1&lessonNumbers=1,2,3,4,5,6"}, http.StatusBadRequest, "At most 5 lessons per quiz."},
+		{"lesson beyond the book", upload{token: token, query: "?isCreative=true&exportType=0&courseType=0&hskStandard=3&level=2&lessonNumbers=3,16"}, http.StatusBadRequest, "Lesson must be 1 to 15 for 《新HSK教程2》."},
 	}
 	for _, tt := range tests {
 		rec := env.upload(t, tt.upload)
@@ -680,7 +691,7 @@ func TestRetryJobSendsTheSameRequestAgain(t *testing.T) {
 	token, _ := env.login(t, "alice", "pw")
 	env.gen.err = errors.New("boom")
 	env.upload(t, upload{token: token, query: "?title=HSK3-Bai2&isCreative=true&exportType=3&courseType=0&hskStandard=3" +
-		"&level=4&lessonNumber=2&intelligence=2&gestureStages=4,6&questionsPerStage=7"})
+		"&level=4&lessonNumbers=5,2&intelligence=2&gestureStages=4,6&questionsPerStage=7"})
 	failed := env.onlyJob(t, "alice")
 	want := env.gen.opts
 	// Without images there is nothing to expire.
@@ -695,7 +706,8 @@ func TestRetryJobSendsTheSameRequestAgain(t *testing.T) {
 		t.Fatalf("retry: %d %q", rec.Code, rec.Body)
 	}
 	if job.Status != store.JobDone || job.Title != "HSK3-Bai2" || !job.Creative || *job.HskStandard != 3 || *job.Level != 4 ||
-		*job.LessonNumber != 2 || job.Intelligence != 2 || !slices.Equal(job.GestureStages, []int{4, 6}) || *job.QuestionsPerStage != 7 {
+		!slices.Equal(job.LessonNumbers, []int{2, 5}) || job.Intelligence != 2 ||
+		!slices.Equal(job.GestureStages, []int{4, 6}) || *job.QuestionsPerStage != 7 {
 		t.Fatalf("new job %+v", job)
 	}
 	if !reflect.DeepEqual(env.gen.opts, want) || !env.gen.creative || len(env.gen.images) != 0 {
@@ -710,6 +722,33 @@ func TestRetryJobSendsTheSameRequestAgain(t *testing.T) {
 	}
 	if rec := env.retry(t, token, failed.ID); rec.Code != http.StatusNotFound {
 		t.Fatalf("retry of the replaced job: %d", rec.Code)
+	}
+}
+
+func TestListJobsReturnsLessonNumbers(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	ctx := context.Background()
+	_ = env.jobs.Create(ctx, &store.Job{ID: "one", Username: "alice", Status: store.JobDone, Title: "one", Creative: true,
+		ExportType: ptr(0), CourseType: ptr(1), Level: ptr(6), LessonNumbers: []int{4}, CreatedAt: testClockStart})
+	_ = env.jobs.Create(ctx, &store.Job{ID: "plain", Username: "alice", Status: store.JobDone, Title: "plain",
+		CreatedAt: testClockStart.Add(time.Millisecond)})
+	_ = env.jobs.Create(ctx, &store.Job{ID: "new", Username: "alice", Status: store.JobDone, Title: "new", Creative: true,
+		ExportType: ptr(0), CourseType: ptr(1), Level: ptr(6), LessonNumbers: []int{3, 4, 5}, CreatedAt: testClockStart.Add(2 * time.Millisecond)})
+
+	byTitle := map[string]map[string]any{}
+	for _, view := range env.listJobs(t, token) {
+		byTitle[view["title"].(string)] = view
+	}
+	if got := byTitle["new"]["lessonNumbers"]; !reflect.DeepEqual(got, []any{3.0, 4.0, 5.0}) {
+		t.Errorf("new job: %v", got)
+	}
+	if got := byTitle["one"]["lessonNumbers"]; !reflect.DeepEqual(got, []any{4.0}) {
+		t.Errorf("one-lesson job: %v", got)
+	}
+	// A job with no lesson sends null, as the other lesson fields do.
+	if got, ok := byTitle["plain"]["lessonNumbers"]; !ok || got != nil {
+		t.Errorf("job without a lesson: %v, present %v", got, ok)
 	}
 }
 
@@ -768,7 +807,7 @@ func TestRetryJobRefusals(t *testing.T) {
 	_ = env.jobs.Create(ctx, &store.Job{ID: "no-lesson", Username: "alice", Status: store.JobFailed, Creative: true,
 		ExportType: ptr(0), CreatedAt: now})
 	_ = env.jobs.Create(ctx, &store.Job{ID: "no-games", Username: "alice", Status: store.JobFailed, Creative: true,
-		ExportType: ptr(3), CourseType: ptr(1), Level: ptr(6), LessonNumber: ptr(1), CreatedAt: now.Add(time.Millisecond)})
+		ExportType: ptr(3), CourseType: ptr(1), Level: ptr(6), LessonNumbers: []int{1}, CreatedAt: now.Add(time.Millisecond)})
 	for _, view := range env.listJobs(t, token) {
 		if view["retryable"] != false {
 			t.Fatalf("old job: %v", view)
@@ -784,7 +823,7 @@ func TestRetryJobRefusals(t *testing.T) {
 	failed := jobs[slices.IndexFunc(jobs, func(j store.Job) bool { return j.ImageCount == 1 })]
 	env.gen.err = nil
 	for range 2 {
-		env.upload(t, upload{token: token, query: "?isCreative=true&exportType=0&courseType=1&level=6&lessonNumber=1"})
+		env.upload(t, upload{token: token, query: "?isCreative=true&exportType=0&courseType=1&level=6&lessonNumbers=1"})
 	}
 	if rec := env.retry(t, token, failed.ID); rec.Code != http.StatusForbidden {
 		t.Fatalf("retry over the rate limit: %d %q", rec.Code, rec.Body)

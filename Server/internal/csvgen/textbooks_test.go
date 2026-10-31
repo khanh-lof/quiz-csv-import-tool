@@ -168,7 +168,7 @@ func TestKnownVocabulary(t *testing.T) {
 	}
 	known := func(dir string, lesson int) string {
 		t.Helper()
-		msg := lessonMaterial(find(dir), lesson)
+		msg := lessonMaterial(find(dir), []int{lesson})
 		_, line, ok := strings.Cut(msg, "\n\n"+find(dir).docs[lesson-1]+"\n\n")
 		if !ok {
 			t.Fatalf("%s lesson %d: material is not header, document, vocabulary:\n%s", dir, lesson, msg)
@@ -226,15 +226,103 @@ func TestKnownVocabulary(t *testing.T) {
 func TestLessonMaterial(t *testing.T) {
 	useFixtureLibrary(t)
 	book := textbookFor(Options{CourseType: Hsk, HskStandard: Hsk3, Level: intPtr(2)})
-	msg := lessonMaterial(book, 7)
+	msg := lessonMaterial(book, []int{7})
 	if !strings.HasPrefix(msg, "LESSON MATERIAL: 《新HSK教程2》 (New HSK Course 2), lesson 7 of 15, taken from the textbook itself.\n\n# 《hsk3-2》 Lesson 7") {
 		t.Errorf("unexpected start: %q", msg)
 	}
 	if !strings.Contains(msg, "\n\n## New words\n| Word") && !strings.Contains(msg, "## New words\n| Word") {
 		t.Errorf("document missing: %q", msg)
 	}
-	if lessonMaterial(book, 0) != "" || lessonMaterial(book, 16) != "" {
+	if lessonMaterial(book, []int{0}) != "" || lessonMaterial(book, []int{16}) != "" {
 		t.Error("a lesson the book does not have has no material")
+	}
+	if lessonMaterial(book, []int{3, 16}) != "" || lessonMaterial(book, []int{0, 3}) != "" || lessonMaterial(book, nil) != "" {
+		t.Error("a list with a lesson the book does not have, or with none, has no material")
+	}
+}
+
+func TestLessonMaterialForSeveralLessons(t *testing.T) {
+	useFixtureLibrary(t)
+	find := func(dir string) *textbook {
+		for _, book := range books {
+			if book.dir == dir {
+				return book
+			}
+		}
+		t.Fatalf("no book %s", dir)
+		return nil
+	}
+	// known returns the vocabulary line of the material, which follows the last document.
+	known := func(dir string, lessons []int) string {
+		t.Helper()
+		book := find(dir)
+		msg := lessonMaterial(book, lessons)
+		_, line, ok := strings.Cut(msg, "\n\n"+book.docs[lessons[len(lessons)-1]-1]+"\n\n")
+		if !ok {
+			t.Fatalf("%s lessons %v: material does not end with a document and the vocabulary:\n%s", dir, lessons, msg)
+		}
+		return line
+	}
+
+	// One message: the header names the lessons, then each document in ascending order, then the vocabulary.
+	book := find("hsk3-2")
+	msg := lessonMaterial(book, []int{2, 5})
+	header := "LESSON MATERIAL: 《新HSK教程2》 (New HSK Course 2), lessons 2 and 5 of 15, taken from the textbook itself.\n\n"
+	if !strings.HasPrefix(msg, header+book.docs[1]+"\n\n"+book.docs[4]+"\n\n"+"Known vocabulary (") {
+		t.Errorf("unexpected material: %q", msg)
+	}
+	if got := lessonMaterial(book, []int{3, 4, 5}); !strings.HasPrefix(got, "LESSON MATERIAL: 《新HSK教程2》 (New HSK Course 2), lessons 3, 4 and 5 of 15, taken from the textbook itself.\n\n") {
+		t.Errorf("three lessons: %q", got)
+	}
+	if strings.Count(msg, "LESSON MATERIAL:") != 1 {
+		t.Error("the lessons are one message")
+	}
+
+	// Lessons 1, 3 and 4 come before the highest lesson asked for and are not asked for: they are known.
+	// Lesson 2 and 5 are the ones to learn, and lesson 6 is not known yet.
+	line := known("hsk3-2", []int{2, 5})
+	if !strings.HasPrefix(line, "Known vocabulary (words of the earlier lessons of this book and of the lower levels of the series, which the learner already knows; use them freely in sentences and distractors): 词hsk3-101a、") {
+		t.Fatalf("hsk3-2 lessons 2 and 5: %q", line)
+	}
+	list := strings.Split(line[strings.Index(line, "): ")+3:], "、")
+	// Two words of each of the 15 lessons of the lower book and 共同 once, then lessons 1, 3 and 4 of the book.
+	if want := 2*15 + 1 + 6; len(list) != want {
+		t.Errorf("%d known words, want %d: %q", len(list), want, list)
+	}
+	if tail := list[len(list)-6:]; strings.Join(tail, "、") != "词hsk3-201a、词hsk3-201b、词hsk3-203a、词hsk3-203b、词hsk3-204a、词hsk3-204b" {
+		t.Errorf("the book's own known words come last, in book order: %q", tail)
+	}
+	seen := map[string]bool{}
+	for _, word := range list {
+		if seen[word] {
+			t.Errorf("%s is listed twice", word)
+		}
+		seen[word] = true
+	}
+	for _, word := range []string{"词hsk3-202a", "词hsk3-202b", "词hsk3-205a", "词hsk3-205b", "词hsk3-206a"} {
+		if seen[word] {
+			t.Errorf("%s is a lesson to learn or a later one, not a known word", word)
+		}
+	}
+
+	// Lessons that follow each other leave no earlier lesson to know.
+	if got := known("hsk3-1", []int{1, 2}); got != "The learner knows no earlier words of this course." {
+		t.Errorf("hsk3-1 lessons 1 and 2: %q", got)
+	}
+	got := known("hsk3-2", []int{1, 2})
+	if !strings.HasPrefix(got, "Known vocabulary (words of the lower levels of the series, which") || strings.Contains(got, "hsk3-2") {
+		t.Errorf("hsk3-2 lessons 1 and 2: %q", got)
+	}
+	// One lesson left out between two asked for is the only known one of the book.
+	want := "Known vocabulary (words of the earlier lessons of this book, which the learner already knows; use them freely in sentences and distractors): " +
+		"词hsk3-102a、词hsk3-102b、共同"
+	if got := known("hsk3-1", []int{1, 3}); got != want {
+		t.Errorf("hsk3-1 lessons 1 and 3:\n got %q\nwant %q", got, want)
+	}
+	// A book that stands alone, with its closing sentence.
+	if got := known("yct-6", []int{2, 3}); !strings.HasPrefix(got, "Known vocabulary (words of the earlier lessons of this book, which") ||
+		strings.Contains(got, "hsk3") || !strings.Contains(got, "词yct-601a、词yct-601b") || !strings.HasSuffix(got, "\nThe learner also knows the words of YCT levels 1 to 5.") {
+		t.Errorf("yct-6 lessons 2 and 3: %q", got)
 	}
 }
 

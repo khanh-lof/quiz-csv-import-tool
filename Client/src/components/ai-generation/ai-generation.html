@@ -6,7 +6,7 @@
       <li>Thêm ảnh bài học (kéo thả, dán Ctrl+V hoặc bấm <b>Thêm ảnh</b>).</li>
       <li>Chọn chế độ:
         <ul>
-          <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình, cấp, bài và nền tảng (Game: chọn thêm các màn và số câu mỗi
+          <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình, cấp, một hoặc nhiều bài (gộp thành 1 quiz) và nền tảng (Game: chọn thêm các màn và số câu mỗi
             màn). Giáo trình có sẵn trong QuizTool thì không cần ảnh.
           </li>
           <li><b>"Tiếng Việt + pinyin + chữ Hán là gì?"</b>: cần ít nhất 1 ảnh.</li>
@@ -125,16 +125,19 @@
           </div>
           <div class="field">
             <div class="field-row">
-              <label class="field-label" for="lessonNumber">Bài</label>
-              <nz-input-number [formControl]="formGroup.controls.lessonNumber" [nzMax]="maxLesson" [nzMin]="1"
-                               [nzPrecision]="0" [nzStep]="1"
-                               nzId="lessonNumber"></nz-input-number>
+              <label class="field-label" for="lessonNumbers">Bài</label>
+              <nz-select [formControl]="formGroup.controls.lessonNumbers" [nzMaxMultipleCount]="maxLessons"
+                         class="lesson-select" nzId="lessonNumbers" nzMode="multiple" nzPlaceHolder="Chọn bài">
+                @for (lesson of lessonOptions; track lesson) {
+                  <nz-option [nzLabel]="lesson" [nzValue]="lesson"></nz-option>
+                }
+              </nz-select>
             </div>
             <ng-container
-              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.lessonNumber}"/>
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: formGroup.controls.lessonNumbers}"/>
             @if (textbook; as book) {
               <ng-container
-                *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: book.title + ' chỉ có bài 1–' + book.lessons, $implicit: formGroup.controls.lessonNumber}"/>
+                *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: book.title + ' chỉ có bài 1–' + book.lessons, $implicit: formGroup.controls.lessonNumbers}"/>
             }
           </div>
         </div>

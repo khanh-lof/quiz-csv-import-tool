@@ -30,7 +30,7 @@ export class AiCsvService {
       .set('isCreative', aiGenerationRequest.AIMode === AIGenerationMode.Auto)
       .set('exportType', aiGenerationRequest.exportType!)
       .set('courseType', aiGenerationRequest.courseType!)
-      .set('lessonNumber', aiGenerationRequest.lessonNumber!);
+      .set('lessonNumbers', [...aiGenerationRequest.lessonNumbers!].sort((a, b) => a - b).join(','));
 
     if (aiGenerationRequest.level !== null) {
       params = params.set('level', aiGenerationRequest.level);

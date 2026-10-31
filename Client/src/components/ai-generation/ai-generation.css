@@ -266,6 +266,12 @@
   width: 80px;
 }
 
+/* Room for a few chosen lessons as tags; they wrap onto more lines past that. */
+.creative-selection .lesson-select {
+  min-width: 200px;
+  max-width: 100%;
+}
+
 /* Wide enough for the "Không bắt buộc" placeholder. */
 .creative-selection nz-input-number.optional-level {
   width: 130px;

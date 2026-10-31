@@ -17,7 +17,7 @@ import (
 func TestParseCreativeOptions(t *testing.T) {
 	// gesture builds the query of a GestureQuiz request with the given extra parameters.
 	gesture := func(extra string) string {
-		return "exportType=3&courseType=0&level=1&lessonNumber=1&" + extra
+		return "exportType=3&courseType=0&level=1&lessonNumbers=1&" + extra
 	}
 	// gestureIs checks the stages and the number of questions a gesture request parsed into.
 	gestureIs := func(stages []int, questions int) func(Options) bool {
@@ -31,33 +31,33 @@ func TestParseCreativeOptions(t *testing.T) {
 		wantErr string
 		check   func(Options) bool
 	}{
-		{query: "exportType=2&courseType=0&level=4&lessonNumber=7", check: func(o Options) bool {
-			return o.ExportType == Wayground && o.CourseType == Hsk && *o.Level == 4 && *o.LessonNumber == 7 &&
+		{query: "exportType=2&courseType=0&level=4&lessonNumbers=7", check: func(o Options) bool {
+			return o.ExportType == Wayground && o.CourseType == Hsk && *o.Level == 4 && slices.Equal(o.LessonNumbers, []int{7}) &&
 				o.HskStandard == Hsk2 && // HSK 2.0 when no standard is sent
 				o.CourseDisplayName() == "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)" && o.Intelligence == 1
 		}},
-		{query: "exportType=0&courseType=0&hskStandard=3&level=9&lessonNumber=1", check: func(o Options) bool {
+		{query: "exportType=0&courseType=0&hskStandard=3&level=9&lessonNumbers=1", check: func(o Options) bool {
 			return o.HskStandard == Hsk3 && *o.Level == 9 && strings.HasPrefix(o.CourseDisplayName(), "HSK 3.0 ")
 		}},
-		{query: "exportType=0&courseType=1&hskStandard=x&level=1&lessonNumber=1", check: func(o Options) bool {
+		{query: "exportType=0&courseType=1&hskStandard=x&level=1&lessonNumbers=1", check: func(o Options) bool {
 			return o.HskStandard == 0 // hskStandard only applies to HSK
 		}},
-		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=1", check: func(o Options) bool {
+		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=1", check: func(o Options) bool {
 			return o.Intelligence == 1
 		}},
-		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=2", check: func(o Options) bool {
+		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=2", check: func(o Options) bool {
 			return o.Intelligence == 2
 		}},
-		{query: "exportType=Blooket&courseType=yct&level=1&lessonNumber=2", check: func(o Options) bool {
+		{query: "exportType=Blooket&courseType=yct&level=1&lessonNumbers=2", check: func(o Options) bool {
 			return o.ExportType == Blooket && o.CourseType == Yct
 		}},
-		{query: "exportType=3&courseType=0&level=1&lessonNumber=1", check: func(o Options) bool {
+		{query: "exportType=3&courseType=0&level=1&lessonNumbers=1", check: func(o Options) bool {
 			return o.ExportType == GestureQuiz
 		}},
-		{query: "exportType=gesturequiz&courseType=0&level=1&lessonNumber=1", check: func(o Options) bool {
+		{query: "exportType=gesturequiz&courseType=0&level=1&lessonNumbers=1", check: func(o Options) bool {
 			return o.ExportType == GestureQuiz
 		}},
-		{query: "exportType=GestureQuiz&courseType=0&level=1&lessonNumber=1", check: func(o Options) bool {
+		{query: "exportType=GestureQuiz&courseType=0&level=1&lessonNumbers=1", check: func(o Options) bool {
 			return o.ExportType == GestureQuiz
 		}},
 		// A gesture quiz with nothing chosen has every stage and the default number of questions.
@@ -85,35 +85,35 @@ func TestParseCreativeOptions(t *testing.T) {
 		{query: gesture("questionsPerStage=x"), wantErr: "Invalid questionsPerStage parameter."},
 		{query: gesture("questionsPerStage=5.5"), wantErr: "Invalid questionsPerStage parameter."},
 		// The other platforms ignore both parameters, even invalid ones, and keep them unset.
-		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&gestureStages=9&questionsPerStage=99", check: func(o Options) bool {
+		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&gestureStages=9&questionsPerStage=99", check: func(o Options) bool {
 			return o.ExportType == GimKit && o.GestureStages == nil && o.QuestionsPerStage == 0
 		}},
-		{query: "exportType=2&courseType=0&level=1&lessonNumber=1&gestureStages=1,3&questionsPerStage=7", check: func(o Options) bool {
+		{query: "exportType=2&courseType=0&level=1&lessonNumbers=1&gestureStages=1,3&questionsPerStage=7", check: func(o Options) bool {
 			return o.ExportType == Wayground && o.GestureStages == nil && o.QuestionsPerStage == 0
 		}},
-		{query: "exportType=0&courseType=2&courseName=+Boya+&lessonNumber=4", check: func(o Options) bool {
+		{query: "exportType=0&courseType=2&courseName=+Boya+&lessonNumbers=4", check: func(o Options) bool {
 			return o.CourseType == Other && o.Level == nil && o.CourseDisplayName() == "Boya"
 		}},
-		{query: "exportType=0&courseType=0&courseName=Boya&level=1&lessonNumber=1", check: func(o Options) bool {
+		{query: "exportType=0&courseType=0&courseName=Boya&level=1&lessonNumbers=1", check: func(o Options) bool {
 			return o.CourseName == "" // courseName only applies to Other
 		}},
-		{query: "courseType=0&level=1&lessonNumber=1", wantErr: "Invalid or missing exportType parameter."},
-		{query: "exportType=4&courseType=0&level=1&lessonNumber=1", wantErr: "Invalid or missing exportType parameter."},
-		{query: "exportType=0&courseType=9&level=1&lessonNumber=1", wantErr: "Invalid or missing courseType parameter."},
-		{query: "exportType=0&courseType=2&lessonNumber=1", wantErr: "Invalid or missing courseName parameter."},
-		{query: "exportType=0&courseType=0&level=x&lessonNumber=1", wantErr: "Invalid level parameter."},
-		{query: "exportType=0&courseType=1&lessonNumber=1", wantErr: "Invalid or missing level parameter."},
-		{query: "exportType=0&courseType=0&hskStandard=4&level=1&lessonNumber=1", wantErr: "Invalid hskStandard parameter."},
-		{query: "exportType=0&courseType=0&level=7&lessonNumber=1", wantErr: "HSK 2.0 has levels 1 to 6."},
-		{query: "exportType=0&courseType=0&hskStandard=3&level=10&lessonNumber=1", wantErr: "HSK 3.0 has levels 1 to 9."},
-		{query: "exportType=0&courseType=0&hskStandard=3&level=0&lessonNumber=1", wantErr: "HSK 3.0 has levels 1 to 9."},
-		{query: "exportType=0&courseType=0&level=1", wantErr: "Invalid or missing lessonNumber parameter."},
-		{query: "exportType=0&courseType=0&level=1&lessonNumber=0", wantErr: "Invalid or missing lessonNumber parameter."},
-		{query: "exportType=0&courseType=0&level=1&lessonNumber=-3", wantErr: "Invalid or missing lessonNumber parameter."},
-		{query: "exportType=0&courseType=2&courseName=Boya&lessonNumber=0", wantErr: "Invalid or missing lessonNumber parameter."},
-		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=0", wantErr: "Invalid intelligence parameter."},
-		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=3", wantErr: "Invalid intelligence parameter."},
-		{query: "exportType=0&courseType=0&level=1&lessonNumber=1&intelligence=x", wantErr: "Invalid intelligence parameter."},
+		{query: "courseType=0&level=1&lessonNumbers=1", wantErr: "Invalid or missing exportType parameter."},
+		{query: "exportType=4&courseType=0&level=1&lessonNumbers=1", wantErr: "Invalid or missing exportType parameter."},
+		{query: "exportType=0&courseType=9&level=1&lessonNumbers=1", wantErr: "Invalid or missing courseType parameter."},
+		{query: "exportType=0&courseType=2&lessonNumbers=1", wantErr: "Invalid or missing courseName parameter."},
+		{query: "exportType=0&courseType=0&level=x&lessonNumbers=1", wantErr: "Invalid level parameter."},
+		{query: "exportType=0&courseType=1&lessonNumbers=1", wantErr: "Invalid or missing level parameter."},
+		{query: "exportType=0&courseType=0&hskStandard=4&level=1&lessonNumbers=1", wantErr: "Invalid hskStandard parameter."},
+		{query: "exportType=0&courseType=0&level=7&lessonNumbers=1", wantErr: "HSK 2.0 has levels 1 to 6."},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=10&lessonNumbers=1", wantErr: "HSK 3.0 has levels 1 to 9."},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=0&lessonNumbers=1", wantErr: "HSK 3.0 has levels 1 to 9."},
+		{query: "exportType=0&courseType=0&level=1", wantErr: "Invalid or missing lessonNumbers parameter."},
+		{query: "exportType=0&courseType=0&level=1&lessonNumbers=0", wantErr: "Invalid or missing lessonNumbers parameter."},
+		{query: "exportType=0&courseType=0&level=1&lessonNumbers=-3", wantErr: "Invalid or missing lessonNumbers parameter."},
+		{query: "exportType=0&courseType=2&courseName=Boya&lessonNumbers=0", wantErr: "Invalid or missing lessonNumbers parameter."},
+		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=0", wantErr: "Invalid intelligence parameter."},
+		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=3", wantErr: "Invalid intelligence parameter."},
+		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=x", wantErr: "Invalid intelligence parameter."},
 	}
 	for _, tt := range tests {
 		q, _ := url.ParseQuery(tt.query)
@@ -126,6 +126,64 @@ func TestParseCreativeOptions(t *testing.T) {
 		}
 		if err != nil || !tt.check(opts) {
 			t.Errorf("%s: unexpected result %+v, %v", tt.query, opts, err)
+		}
+	}
+}
+
+func TestParseCreativeOptionsLessonNumbers(t *testing.T) {
+	// HSK 2.0 level 4 has no textbook, so only the rules of the list itself apply.
+	const course = "exportType=0&courseType=0&level=4&"
+	const invalid = "Invalid or missing lessonNumbers parameter."
+	const tooMany = "At most 5 lessons per quiz."
+	tests := []struct {
+		query   string
+		want    []int
+		wantErr string
+	}{
+		{query: course + "lessonNumbers=3,4,5", want: []int{3, 4, 5}},
+		{query: course + "lessonNumbers=5,3,4", want: []int{3, 4, 5}},
+		{query: course + "lessonNumbers=12,1", want: []int{1, 12}}, // by value, not as text
+		{query: course + "lessonNumbers=%205,%203%20", want: []int{3, 5}},
+		{query: course + "lessonNumbers=7", want: []int{7}},
+		{query: course + "lessonNumbers=1,2,3,4,5", want: []int{1, 2, 3, 4, 5}},
+		// The single lessonNumber is no longer read.
+		{query: course + "lessonNumber=6", wantErr: invalid},
+		{query: course + "lessonNumbers=", wantErr: invalid},
+		{query: course + "lessonNumbers=+", wantErr: invalid},
+		{query: course + "intelligence=1", wantErr: invalid},
+		{query: course + "lessonNumbers=,", wantErr: invalid},
+		{query: course + "lessonNumbers=3,,4", wantErr: invalid},
+		{query: course + "lessonNumbers=3,", wantErr: invalid},
+		{query: course + "lessonNumbers=,3", wantErr: invalid},
+		{query: course + "lessonNumbers=3,3", wantErr: invalid},
+		{query: course + "lessonNumbers=3,%203", wantErr: invalid},
+		{query: course + "lessonNumbers=0", wantErr: invalid},
+		{query: course + "lessonNumbers=3,0", wantErr: invalid},
+		{query: course + "lessonNumbers=3,-4", wantErr: invalid},
+		{query: course + "lessonNumbers=3,x", wantErr: invalid},
+		{query: course + "lessonNumbers=3.5", wantErr: invalid},
+		{query: course + "lessonNumbers=1,2,3,4,5,6", wantErr: tooMany},
+		{query: course + "lessonNumbers=9,8,7,6,5,4,3", wantErr: tooMany},
+		// A repeat or a bad element is reported before the count, whatever the length of the list.
+		{query: course + "lessonNumbers=1,1,2,3,4,5", wantErr: invalid},
+		{query: course + "lessonNumbers=1,2,3,4,5,x", wantErr: invalid},
+		// The list is checked after the level and before the intelligence, where the lesson always was.
+		{query: "exportType=0&courseType=0&level=7&lessonNumbers=0", wantErr: "HSK 2.0 has levels 1 to 6."},
+		{query: course + "lessonNumbers=0&intelligence=9", wantErr: invalid},
+		{query: course + "lessonNumbers=1,2,3,4,5,6&intelligence=9", wantErr: tooMany},
+		{query: course + "lessonNumbers=1,2&intelligence=9", wantErr: "Invalid intelligence parameter."},
+	}
+	for _, tt := range tests {
+		q, _ := url.ParseQuery(tt.query)
+		opts, err := ParseCreativeOptions(q)
+		if tt.wantErr != "" {
+			if err == nil || err.Error() != tt.wantErr {
+				t.Errorf("%s: want error %q, got %v", tt.query, tt.wantErr, err)
+			}
+			continue
+		}
+		if err != nil || !slices.Equal(opts.LessonNumbers, tt.want) {
+			t.Errorf("%s: got %v, %v, want lessons %v", tt.query, opts.LessonNumbers, err, tt.want)
 		}
 	}
 }
@@ -160,7 +218,7 @@ func textsOf(t *testing.T, req responsesRequest) []string {
 
 func TestBuildCreativeRequest(t *testing.T) {
 	level, lesson := 2, 5
-	req := buildCreativeRequest("m", nil, Options{ExportType: Wayground, CourseType: Yct, Level: &level, LessonNumber: &lesson})
+	req := buildCreativeRequest("m", nil, Options{ExportType: Wayground, CourseType: Yct, Level: &level, LessonNumbers: []int{lesson}})
 	if req.Model != "m" || req.MaxOutputTokens != 64000 || req.Input[0].Role != "user" ||
 		len(req.Tools) != 1 || req.Tools[0].Type != "web_search" {
 		t.Fatalf("unexpected request %+v", req)
@@ -184,7 +242,7 @@ func TestBuildCreativeRequest(t *testing.T) {
 	}
 
 	withImage := buildCreativeRequest("m", []Image{{ContentType: "image/png", Data: []byte{1, 2}}},
-		Options{ExportType: GimKit, CourseType: Other, CourseName: "Boya", LessonNumber: &lesson})
+		Options{ExportType: GimKit, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{lesson}})
 	texts = textsOf(t, withImage)
 	if texts[0] != "Convert the images to CSV using the required format." ||
 		texts[3] != "Level: this course has no level, none was given." {
@@ -201,7 +259,7 @@ func TestBuildCreativeRequest(t *testing.T) {
 
 	// GestureQuiz has no image column either, so it gets no search tool and the plain token budget;
 	// its stage rules arrive as the template message right after the columns.
-	gesture := buildCreativeRequest("m", nil, Options{ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumber: &lesson})
+	gesture := buildCreativeRequest("m", nil, Options{ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson}})
 	if gesture.Tools != nil || gesture.MaxOutputTokens != 32000 {
 		t.Fatalf("unexpected request %+v", gesture)
 	}
@@ -233,7 +291,7 @@ func gestureMessage(t *testing.T, stages []int, questions int) string {
 	t.Helper()
 	level, lesson := 1, 1
 	req := buildCreativeRequest("m", nil, Options{
-		ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumber: &lesson,
+		ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson},
 		GestureStages: stages, QuestionsPerStage: questions,
 	})
 	texts := textsOf(t, req)
@@ -411,7 +469,7 @@ func TestGestureQuizTokenBudget(t *testing.T) {
 	level, lesson := 1, 1
 	for _, tt := range tests {
 		req := buildCreativeRequest("m", nil, Options{
-			ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumber: &lesson,
+			ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson},
 			GestureStages: tt.stages, QuestionsPerStage: tt.questions,
 		})
 		if req.MaxOutputTokens != tt.want || req.Tools != nil {
@@ -419,7 +477,7 @@ func TestGestureQuizTokenBudget(t *testing.T) {
 		}
 	}
 	// The other platforms are untouched by the gesture settings.
-	other := buildCreativeRequest("m", nil, Options{ExportType: GimKit, CourseType: Hsk, Level: &level, LessonNumber: &lesson,
+	other := buildCreativeRequest("m", nil, Options{ExportType: GimKit, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson},
 		GestureStages: AllGestureStages(), QuestionsPerStage: 10})
 	if other.MaxOutputTokens != 32000 {
 		t.Errorf("GimKit got %d output tokens", other.MaxOutputTokens)
@@ -467,7 +525,7 @@ func TestGenerateCreativeCallsResponses(t *testing.T) {
 
 	level, lesson := 1, 1
 	c := NewClient(llm.URL+"/v1", "key", "gpt-x", nil, slog.New(slog.DiscardHandler))
-	csv, err := c.Generate(context.Background(), nil, true, Options{ExportType: Wayground, CourseType: Hsk, Level: &level, LessonNumber: &lesson})
+	csv, err := c.Generate(context.Background(), nil, true, Options{ExportType: Wayground, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -523,21 +581,31 @@ func TestParseCreativeOptionsForTextbooks(t *testing.T) {
 		wantErr string
 		course  string
 	}{
-		{query: "exportType=0&courseType=0&hskStandard=3&level=2&lessonNumber=15", course: "《新HSK教程2》 (New HSK Course 2), the HSK 3.0 level 2 textbook"},
-		{query: "exportType=0&courseType=0&hskStandard=3&level=1&lessonNumber=1", course: "《新HSK教程1》 (New HSK Course 1), the HSK 3.0 level 1 textbook"},
-		{query: "exportType=0&courseType=0&hskStandard=3&level=3&lessonNumber=18", course: "《新HSK教程3》 (New HSK Course 3), the HSK 3.0 level 3 textbook"},
-		{query: "exportType=0&courseType=1&level=6&lessonNumber=15", course: "《YCT标准教程6》 (YCT Standard Course 6), the YCT level 6 textbook"},
-		{query: "exportType=0&courseType=0&hskStandard=3&level=2&lessonNumber=16", wantErr: "Lesson must be 1 to 15 for 《新HSK教程2》."},
-		{query: "exportType=0&courseType=0&hskStandard=2&level=2&lessonNumber=16", wantErr: "Lesson must be 1 to 15 for 《HSK标准教程2》."},
-		{query: "exportType=0&courseType=0&hskStandard=3&level=3&lessonNumber=19", wantErr: "Lesson must be 1 to 18 for 《新HSK教程3》."},
-		{query: "exportType=0&courseType=0&hskStandard=3&level=1&lessonNumber=0", wantErr: "Invalid or missing lessonNumber parameter."},
-		{query: "exportType=0&courseType=1&level=6&lessonNumber=16", wantErr: "Lesson must be 1 to 15 for 《YCT标准教程6》."},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=2&lessonNumbers=15", course: "《新HSK教程2》 (New HSK Course 2), the HSK 3.0 level 2 textbook"},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=1&lessonNumbers=1", course: "《新HSK教程1》 (New HSK Course 1), the HSK 3.0 level 1 textbook"},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=3&lessonNumbers=18", course: "《新HSK教程3》 (New HSK Course 3), the HSK 3.0 level 3 textbook"},
+		{query: "exportType=0&courseType=1&level=6&lessonNumbers=15", course: "《YCT标准教程6》 (YCT Standard Course 6), the YCT level 6 textbook"},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=2&lessonNumbers=16", wantErr: "Lesson must be 1 to 15 for 《新HSK教程2》."},
+		{query: "exportType=0&courseType=0&hskStandard=2&level=2&lessonNumbers=16", wantErr: "Lesson must be 1 to 15 for 《HSK标准教程2》."},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=3&lessonNumbers=19", wantErr: "Lesson must be 1 to 18 for 《新HSK教程3》."},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=1&lessonNumbers=0", wantErr: "Invalid or missing lessonNumbers parameter."},
+		{query: "exportType=0&courseType=1&level=6&lessonNumbers=16", wantErr: "Lesson must be 1 to 15 for 《YCT标准教程6》."},
+		// Every lesson of a list must be in the book, whichever place it has in the list.
+		{query: "exportType=0&courseType=0&hskStandard=3&level=2&lessonNumbers=3,14,15", course: "《新HSK教程2》 (New HSK Course 2), the HSK 3.0 level 2 textbook"},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=2&lessonNumbers=3,16", wantErr: "Lesson must be 1 to 15 for 《新HSK教程2》."},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=2&lessonNumbers=16,3", wantErr: "Lesson must be 1 to 15 for 《新HSK教程2》."},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=3&lessonNumbers=17,18,19", wantErr: "Lesson must be 1 to 18 for 《新HSK教程3》."},
+		{query: "exportType=0&courseType=1&level=6&lessonNumbers=1,16", wantErr: "Lesson must be 1 to 15 for 《YCT标准教程6》."},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=2&lessonNumbers=1,0", wantErr: "Invalid or missing lessonNumbers parameter."},
+		// The size of the list is checked before the book's lesson count.
+		{query: "exportType=0&courseType=0&hskStandard=3&level=2&lessonNumbers=1,2,3,4,5,16", wantErr: "At most 5 lessons per quiz."},
+		{query: "exportType=0&courseType=0&level=4&lessonNumbers=3,40,99", course: "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"},
 		// Courses without material are not limited: the model reads the number as a position in a book.
-		{query: "exportType=0&courseType=0&level=4&lessonNumber=16", course: "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"},
-		{query: "exportType=0&courseType=0&level=4&lessonNumber=40", course: "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"},
-		{query: "exportType=0&courseType=1&level=5&lessonNumber=99", course: "YCT (Youth Chinese Test), taught from 《YCT标准教程》 YCT Standard Course (Giáo trình chuẩn YCT)"},
-		{query: "exportType=0&courseType=0&hskStandard=3&level=4&lessonNumber=30", course: "HSK 3.0 (the nine-level standard GF 0025-2021), taught from the HSK 3.0 edition of 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK 3.0)"},
-		{query: "exportType=0&courseType=2&courseName=Boya&level=2&lessonNumber=99", course: "Boya"},
+		{query: "exportType=0&courseType=0&level=4&lessonNumbers=16", course: "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"},
+		{query: "exportType=0&courseType=0&level=4&lessonNumbers=40", course: "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"},
+		{query: "exportType=0&courseType=1&level=5&lessonNumbers=99", course: "YCT (Youth Chinese Test), taught from 《YCT标准教程》 YCT Standard Course (Giáo trình chuẩn YCT)"},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=4&lessonNumbers=30", course: "HSK 3.0 (the nine-level standard GF 0025-2021), taught from the HSK 3.0 edition of 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK 3.0)"},
+		{query: "exportType=0&courseType=2&courseName=Boya&level=2&lessonNumbers=99", course: "Boya"},
 	}
 	for _, tt := range tests {
 		q, _ := url.ParseQuery(tt.query)
@@ -557,8 +625,8 @@ func TestParseCreativeOptionsForTextbooks(t *testing.T) {
 func TestBuildCreativeRequestWithLessonMaterial(t *testing.T) {
 	useFixtureLibrary(t)
 	level, lesson := 2, 7
-	opts := Options{ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumber: &lesson}
-	material := lessonMaterial(textbookFor(opts), lesson)
+	opts := Options{ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumbers: []int{lesson}}
+	material := lessonMaterial(textbookFor(opts), []int{lesson})
 	if !strings.HasPrefix(material, "LESSON MATERIAL: 《新HSK教程2》") {
 		t.Fatalf("unexpected material %q", material)
 	}
@@ -604,15 +672,90 @@ func TestBuildCreativeRequestWithLessonMaterial(t *testing.T) {
 	}
 }
 
+func TestLessonMessages(t *testing.T) {
+	level := 2
+	opts := Options{ExportType: GimKit, CourseType: Yct, Level: &level}
+	tests := []struct {
+		lessons []int
+		want    string // the last message, empty when there is none after the level
+	}{
+		{nil, ""},
+		{[]int{5}, "Lesson number: 5"},
+		{[]int{3, 5}, "Lesson numbers: 3 and 5. Write one quiz that reviews all of these lessons together."},
+		{[]int{3, 4, 5}, "Lesson numbers: 3, 4 and 5. Write one quiz that reviews all of these lessons together."},
+		{[]int{1, 2, 3, 4, 5}, "Lesson numbers: 1, 2, 3, 4 and 5. Write one quiz that reviews all of these lessons together."},
+	}
+	for _, tt := range tests {
+		opts.LessonNumbers = tt.lessons
+		msgs := lessonMessages(opts)
+		if tt.want == "" {
+			if len(msgs) != 2 || msgs[1] != "Level: 2" {
+				t.Errorf("no lessons: %q", msgs)
+			}
+			continue
+		}
+		if len(msgs) != 3 || msgs[2] != tt.want {
+			t.Errorf("lessons %v: %q, want a last message %q", tt.lessons, msgs, tt.want)
+		}
+	}
+}
+
+func TestBuildCreativeRequestForSeveralLessons(t *testing.T) {
+	useFixtureLibrary(t)
+	images := []Image{{ContentType: "image/png", Data: []byte{1, 2}}}
+	const lessonLine = "Lesson numbers: 3, 4 and 5. Write one quiz that reviews all of these lessons together."
+	lessons := []int{3, 4, 5}
+
+	// Without a textbook the model recalls the lessons: each of them, in one CSV.
+	hsk2Level := 4
+	noBook := Options{ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk2, Level: &hsk2Level, LessonNumbers: lessons}
+	rest := append(exportTypeMessages(noBook), "Course: "+noBook.CourseDisplayName(), "Level: 4", lessonLine)
+	want := append([]string{"No image is provided. Follow the LESSON SOURCE section: identify the textbook for the course and level below, recall the new words of each of those lessons, and generate one CSV that covers all of them, using the required format."}, rest...)
+	if texts := textsOf(t, buildCreativeRequest("m", nil, noBook)); !slices.Equal(texts, want) {
+		t.Errorf("no images, no textbook:\n%q\nwant\n%q", texts, want)
+	}
+	// With images and no textbook the images are the lessons, whatever their number.
+	want = append([]string{"Convert the images to CSV using the required format."}, rest...)
+	if texts := textsOf(t, buildCreativeRequest("m", images, noBook)); !slices.Equal(texts, want) {
+		t.Errorf("images, no textbook:\n%q\nwant\n%q", texts, want)
+	}
+
+	// With a textbook the material holds all the lessons in one message, after the lesson numbers.
+	level := 2
+	opts := Options{ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumbers: lessons}
+	material := lessonMaterial(textbookFor(opts), lessons)
+	if !strings.HasPrefix(material, "LESSON MATERIAL: 《新HSK教程2》 (New HSK Course 2), lessons 3, 4 and 5 of 15, taken from the textbook itself.\n\n") {
+		t.Fatalf("unexpected material %q", material)
+	}
+	rest = append(exportTypeMessages(opts), "Course: 《新HSK教程2》 (New HSK Course 2), the HSK 3.0 level 2 textbook", "Level: 2", lessonLine, material)
+	want = append([]string{"Follow the LESSON SOURCE section: the LESSON MATERIAL message below holds the lessons, taken from the textbook. Generate one CSV that covers all of them, using the required format."}, rest...)
+	if texts := textsOf(t, buildCreativeRequest("m", nil, opts)); !slices.Equal(texts, want) {
+		t.Errorf("textbook, no images:\n%q\nwant\n%q", texts, want)
+	}
+	want = append([]string{"The LESSON MATERIAL message below holds the lessons, taken from the textbook; the images show the part of them to focus on. Generate one CSV that covers all of them, using the required format."}, rest...)
+	withImages := buildCreativeRequest("m", images, opts)
+	if texts := textsOf(t, withImages); !slices.Equal(texts, want) {
+		t.Errorf("textbook, images:\n%q\nwant\n%q", texts, want)
+	}
+	if parts := withImages.Input[0].Content; len(parts) != len(want)+1 || parts[len(parts)-2].Text != material || parts[len(parts)-1].Type != "input_image" {
+		t.Errorf("the material must come right before the images: %+v", parts)
+	}
+	// A lesson the book lacks leaves no material, and the request reads as one without a textbook.
+	opts.LessonNumbers = []int{3, 16}
+	if texts := textsOf(t, buildCreativeRequest("m", nil, opts)); strings.Contains(strings.Join(texts, "\n"), "LESSON MATERIAL: ") {
+		t.Errorf("material for a lesson the book does not have: %q", texts)
+	}
+}
+
 // A course without material gets exactly the request it always had, whatever the library holds.
 func TestBuildCreativeRequestWithoutLessonMaterial(t *testing.T) {
 	level, lesson := 5, 7
 	hsk2Level := 4
 	tests := []Options{
-		{ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk2, Level: &hsk2Level, LessonNumber: &lesson},
-		{ExportType: Wayground, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumber: &lesson},
-		{ExportType: GimKit, CourseType: Yct, Level: &level, LessonNumber: &lesson},
-		{ExportType: GestureQuiz, CourseType: Other, CourseName: "Boya", LessonNumber: &lesson},
+		{ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk2, Level: &hsk2Level, LessonNumbers: []int{lesson}},
+		{ExportType: Wayground, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumbers: []int{lesson}},
+		{ExportType: GimKit, CourseType: Yct, Level: &level, LessonNumbers: []int{lesson}},
+		{ExportType: GestureQuiz, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{lesson}},
 	}
 	for _, opts := range tests {
 		for _, images := range [][]Image{nil, {{ContentType: "image/png", Data: []byte{1}}}} {

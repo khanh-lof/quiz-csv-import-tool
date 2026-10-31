@@ -113,7 +113,8 @@ or, for a Game job, "Chơi ngay" (played in the app, see
 [the gesture quiz](#the-gesture-quiz-game)): the user picks the delivery per job once the AI is done. A **failed** job
 gets "Tạo lại" (see [Retrying AI requests](#retrying-ai-requests)). The table's search covers titles, errors and the generated
 CSV; its filters are status, mode, platform, course type, HSK standard, level and lesson number (the server
-keeps those on each creative job; jobs from before it did have none and drop out when one is set).
+keeps those on each creative job; jobs from before it did have none and drop out when one is set; a job of several
+lessons matches each of them).
 
 - **`Formatted`** → `POST csv/jobs` (only a `title` query param) → server's simple prompt
   (`Server/internal/csvgen/prompts/simple_system.txt`, two columns, `Câu hỏi`/`Đáp án`) → client parses the CSV
@@ -121,7 +122,7 @@ keeps those on each creative job; jobs from before it did have none and drop out
   then navigates to `/quiz`) when the user clicks "Mở trong bảng" on the job, where the user edits
   them and later exports via `FileExportService.exportFile` (client-side builders synthesize the
   distractors).
-- **`Auto`** (sent as `isCreative=true`, alongside `exportType`, `courseType`, `lessonNumber`, and
+- **`Auto`** (sent as `isCreative=true`, alongside `exportType`, `courseType`, `lessonNumbers`, and
   `level`/`courseName` depending on the course, and for Game `gestureStages`/`questionsPerStage`, see
   [the gesture quiz](#the-gesture-quiz-game)) → server's creative prompt
   (`csvgen.buildCreativeRequest`, `prompts/creative_system.txt`), a long Chinese-teacher prompt that is told the exact
@@ -131,7 +132,7 @@ keeps those on each creative job; jobs from before it did have none and drop out
   played in the app, its third delivery). **Images are optional in this
   mode.** The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`, another
   by-ordinal enum duplicated on both sides), a `level` that is required for HSK and YCT but optional
-  for `Other`, a `courseName` required only for `Other`, and a `lessonNumber`. For HSK the user
+  for `Other`, a `courseName` required only for `Other`, and the lessons. For HSK the user
   also picks the standard, `HskStandard` 2.0 (levels 1–6, the server's default) or 3.0 (levels 1–9; the form's
   default), sent as `hskStandard=2|3` by value, not ordinal; the server rejects a level outside the standard's range.
   Everything the prompt needs travels in `csvgen.Options` (`Server/internal/csvgen/options.go`). Where the lesson's
@@ -141,6 +142,16 @@ keeps those on each creative job; jobs from before it did have none and drop out
   - **Any other course:** the photos when there are some. With none, the model rebuilds the lesson from its own
     knowledge of the textbook (the prompt's LESSON SOURCE, Steps 1–3).
   - **The web search tool** (Wayground only) is for finding illustrations and is never used to look up the lesson.
+
+  **One quiz of several lessons.** The Bài field is a multiple select: the teacher picks 1 to 5 lessons
+  (`MaxLessons` in `csvgen/options.go`, `MAX_LESSONS` in `Client/src/models/lesson-numbers.ts`, kept in step by
+  hand), sent as `lessonNumbers=3,4,5` (ascending). Several lessons are still one job and one quiz: the prompt says "Lesson numbers: …",
+  a textbook course sends the documents of all of them in one LESSON MATERIAL, and the creative prompt asks for the
+  questions to be spread over the lessons and mixed. The quiz's size does not grow with the lessons (a Game keeps
+  its questions per stage). Refusals: 400 `Invalid or missing lessonNumbers parameter.` (an empty, non-positive,
+  non-integer or repeated element) and `At most 5 lessons per quiz.`. The job keeps `lessonNumbers` and `GET csv/jobs`
+  returns it (`null` when none). Jobs stored with the single `lessonNumber` of before were migrated in the
+  database to `lessonNumbers: [n]`; nothing reads the old field.
 
 Consequences to keep in mind when changing anything here:
 
@@ -179,7 +190,9 @@ For seven books QuizTool holds the lessons themselves:
   (`Server/internal/csvgen/textbooks/<book>/lesson-NN.md`) and sent with a request for that lesson as its
   LESSON MATERIAL. The document holds the lesson's new words (pinyin, part of speech, English, Vietnamese, ★ for
   words beyond the syllabus), its language points and its texts. The words of the earlier lessons and of the
-  lower books are sent with it as the vocabulary the learner already knows.
+  lower books are sent with it as the vocabulary the learner already knows. For several lessons the documents
+  go in one message, and the known words are those of the lower books and of the book's lessons before the last
+  chosen one that were not chosen.
 - **Where it comes from.** The documents were written from the scanned books and their typed word lists, which
   live in `Textbooks/` together with the format (`Textbooks/LESSON_DOC_FORMAT.md`) and how to add a book
   (`Textbooks/README.md`). The PDFs and raw OCR there are gitignored.
@@ -188,7 +201,7 @@ For seven books QuizTool holds the lessons themselves:
   counts.
 - **What each side does with it.**
   - The server refuses a lesson beyond the book: 400 `Lesson must be 1 to <M> for <title>.`
-  - The client caps the lesson field the same way, and tells the user under it whether the course has a book.
+  - The client caps the lesson field's options the same way, and tells the user under it whether the course has a book.
 - **The tests pin the documents.** `go test` fails when a registered lesson is missing or malformed. It also
   fails when a lesson's New words disagree with that book's `vocabulary-index.md`: a missing or extra word, its
   pinyin, or its ★.

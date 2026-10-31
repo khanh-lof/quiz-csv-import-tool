@@ -85,7 +85,7 @@ function gestureJob(overrides: Partial<AiJob> = {}): AiJob {
     courseName: '',
     hskStandard: null,
     level: null,
-    lessonNumber: null,
+    lessonNumbers: null,
     retryable: false,
     retryUntil: null,
     csv: DEMO_QUIZ_CSV,

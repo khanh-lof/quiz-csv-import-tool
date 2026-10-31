@@ -9,7 +9,8 @@ export interface AiGenerationRequest {
   // Only sent for HSK.
   hskStandard: HskStandard | null;
   level: number | null;
-  lessonNumber: number | null;
+  // The lessons one quiz covers (1 to MAX_LESSONS of them); sent ascending.
+  lessonNumbers: number[] | null;
   AIMode: AIGenerationMode | null;
   exportType: ExportType | null;
   // "Độ thông minh" 1 = Thấp, 2 = Cao, only used in Auto mode; the server maps it to a model (LLM_INTELLIGENCE_MODELS).

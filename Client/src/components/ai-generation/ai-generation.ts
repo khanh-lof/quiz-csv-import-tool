@@ -39,6 +39,7 @@ import {
   QUESTIONS_PER_STAGE_MIN,
   questionsPerStageOf
 } from '../../models/gesture-quiz-options';
+import { formatLessonNumbers, lessonNumbersOf, MAX_LESSONS } from '../../models/lesson-numbers';
 import { STAGES } from '../../game/stages';
 import { finalize } from 'rxjs';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
@@ -76,7 +77,7 @@ interface AiGenerationForm {
   courseName: FormControl<string | null>;
   hskStandard: FormControl<HskStandard | null>;
   level: FormControl<number | null>;
-  lessonNumber: FormControl<number | null>;
+  lessonNumbers: FormControl<number[] | null>;
   AIMode: FormControl<AIGenerationMode | null>;
   exportType: FormControl<ExportType | null>;
   intelligence: FormControl<number | null>;
@@ -125,11 +126,16 @@ export class AiGeneration {
   protected readonly HskStandard = HskStandard;
   protected readonly questionsPerStageMin = QUESTIONS_PER_STAGE_MIN;
   protected readonly questionsPerStageMax = QUESTIONS_PER_STAGE_MAX;
+  protected readonly maxLessons = MAX_LESSONS;
   // One checkbox per game, easiest first; the value is the stage number the game is known by everywhere.
   protected readonly gestureStageOptions: NzCheckboxOption[] = STAGES.map(def => ({
     label: `${def.icon} ${def.name}`,
     value: def.stage,
   }));
+
+  // The options are rebuilt only when `lessonOptionsKey` changes, so the select is not handed a new list on every check.
+  private lessonOptionsKey = '';
+  private lessonOptionsList: number[] = [];
 
   constructor(
     private readonly router: Router,
@@ -148,7 +154,7 @@ export class AiGeneration {
       // 3.0 by default: the textbooks the server holds are all HSK 3.0.
       hskStandard: formBuilder.control<HskStandard | null>(HskStandard.V3),
       level: formBuilder.control<number | null>(null),
-      lessonNumber: formBuilder.control<number | null>(null),
+      lessonNumbers: formBuilder.control<number[] | null>([]),
       exportType: formBuilder.control<ExportType | null>(null),
       intelligence: formBuilder.control<number | null>(1),
       gestureStages: formBuilder.control<number[] | null>([...ALL_GESTURE_STAGES]),
@@ -196,6 +202,19 @@ export class AiGeneration {
 
   protected get maxLesson(): number {
     return this.textbook?.lessons ?? 100;
+  }
+
+  // 1 to the book's lessons, plus any chosen lesson past them (left over from another level): the select hides
+  // a value that has no option, so without its option the teacher could not see or remove what the form refuses.
+  protected get lessonOptions(): number[] {
+    const max = this.maxLesson;
+    const leftOver = (this.formGroup.controls.lessonNumbers.value ?? []).filter(lesson => lesson > max);
+    const key = [max, ...leftOver].join(',');
+    if (key !== this.lessonOptionsKey) {
+      this.lessonOptionsKey = key;
+      this.lessonOptionsList = [...Array.from({ length: max }, (_, index) => index + 1), ...leftOver];
+    }
+    return this.lessonOptionsList;
   }
 
   // Listens on the whole document so Ctrl+V works as soon as the page is open, without clicking the
@@ -276,8 +295,6 @@ export class AiGeneration {
     input.value = '';
   }
 
-  // Names the lesson for the download, e.g. "HSK3-Bai5" (HSK 2.0), "HSK3.0-3-Bai5", or "Boya-Bai2" for a
-
   removeImage(index: number): void {
     this.selectedImages.update(images => images.filter((_, i) => i !== index));
   }
@@ -321,7 +338,7 @@ export class AiGeneration {
         hskStandard: this.formGroup.controls.hskStandard.value,
         level: this.formGroup.controls.level.value,
         AIMode: this.formGroup.controls.AIMode.value,
-        lessonNumber: this.formGroup.controls.lessonNumber.value,
+        lessonNumbers: this.formGroup.controls.lessonNumbers.value,
         exportType: this.formGroup.controls.exportType.value,
         intelligence: this.formGroup.controls.intelligence.value,
         gestureStages: this.formGroup.controls.gestureStages.value,
@@ -349,7 +366,7 @@ export class AiGeneration {
 
     this.setRequired(aiGenerationForm.controls.exportType, isAutoMode);
     this.setRequired(aiGenerationForm.controls.courseType, isAutoMode);
-    this.setRequired(aiGenerationForm.controls.lessonNumber, isAutoMode);
+    this.setRequired(aiGenerationForm.controls.lessonNumbers, isAutoMode);
     // HSK and YCT always have a level; a course typed in by hand may not, so there the level is optional.
     this.setRequired(aiGenerationForm.controls.level, isAutoMode && courseType !== null && courseType !== CourseType.Other);
     this.setRequired(aiGenerationForm.controls.courseName, isAutoMode && courseType === CourseType.Other);
@@ -359,10 +376,10 @@ export class AiGeneration {
       && level > hskMaxLevel(aiGenerationForm.controls.hskStandard.value));
     // A course with a textbook has as many lessons as the book; switching from HSK 3.0 level 3 (18 lessons) to
     // level 1 can leave a lesson 16 to 18 behind, which the server would refuse.
-    const lesson = aiGenerationForm.controls.lessonNumber.value;
+    const lessons = aiGenerationForm.controls.lessonNumbers.value ?? [];
     const book = this.textbookOf(aiGenerationForm);
-    this.setError(aiGenerationForm.controls.lessonNumber, 'max', isAutoMode && book !== undefined && lesson !== null
-      && lesson > book.lessons);
+    this.setError(aiGenerationForm.controls.lessonNumbers, 'max', isAutoMode && book !== undefined
+      && lessons.some(lesson => lesson > book.lessons));
     // The game and question-count controls are only on the page for a Game; for any other platform
     // they are hidden, so they must not block the form.
     const isGestureQuiz = isAutoMode && aiGenerationForm.controls.exportType.value === ExportType.GestureQuiz;
@@ -397,10 +414,11 @@ export class AiGeneration {
       const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
       if (saved) {
         const settings = JSON.parse(saved);
-        // The two quiz options go through their sanitizers: a save from before they existed, or one
-        // that was edited or corrupted, still gives a form the server will accept.
+        // The lessons and the two quiz options go through their sanitizers: a save from before they existed,
+        // or one that was edited or corrupted, still gives a form the server will accept.
         this.formGroup.patchValue({
           ...settings,
+          lessonNumbers: lessonNumbersOf(settings?.lessonNumbers),
           gestureStages: gestureStagesOf(settings?.gestureStages),
           questionsPerStage: questionsPerStageOf(settings?.questionsPerStage),
         });
@@ -451,19 +469,20 @@ export class AiGeneration {
     });
   }
 
-  // course typed in by hand.
+  // Names the lesson for the download, e.g. "HSK3-Bai5" (HSK 2.0), "HSK3.0-3-Bai5", "HSK3.0-3-Bai3-5+7" for
+  // several lessons, or "Boya-Bai2" for a course typed in by hand.
   private lessonLabel(): string {
     const {
       courseType,
       courseName,
       hskStandard,
       level,
-      lessonNumber
+      lessonNumbers
     } = this.formGroup.getRawValue();
     const course = courseType === CourseType.Hsk ? (hskStandard === HskStandard.V3 ? 'HSK3.0-' : 'HSK')
       : courseType === CourseType.Yct ? 'YCT'
         : (courseName ?? '');
-    return `${course}${level ?? ''}-Bai${lessonNumber ?? ''}`;
+    return `${course}${level ?? ''}-Bai${formatLessonNumbers(lessonNumbers ?? [], '-', '+')}`;
   }
 
   // is reported by AiJobService when the history table sees it fail.

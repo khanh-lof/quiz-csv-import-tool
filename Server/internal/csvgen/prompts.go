@@ -102,20 +102,30 @@ func buildSimpleRequest(model string, images []Image) chatRequest {
 // platform; the client prepends the header and downloads the file directly (or, for GestureQuiz,
 // plays it itself).
 func buildCreativeRequest(model string, images []Image, opts Options) responsesRequest {
+	several := len(opts.LessonNumbers) > 1
 	intro := "Convert the images to CSV using the required format."
 	if len(images) == 0 {
 		intro = "No image is provided. Follow the LESSON SOURCE section: identify the textbook for the course and level below, recall the new words of that lesson, and generate the CSV using the required format."
+		if several {
+			intro = "No image is provided. Follow the LESSON SOURCE section: identify the textbook for the course and level below, recall the new words of each of those lessons, and generate one CSV that covers all of them, using the required format."
+		}
 	}
-	// A lesson of an embedded textbook is sent as the LESSON MATERIAL, after the course, level and
-	// lesson number and before the images, and replaces the model's recall of the lesson.
+	// The lessons of an embedded textbook are sent as the LESSON MATERIAL, after the course, level and
+	// lesson numbers and before the images, and replace the model's recall of them.
 	material := ""
-	if book, lesson := textbookFor(opts), opts.LessonNumber; book != nil && lesson != nil {
-		material = lessonMaterial(book, *lesson)
+	if book := textbookFor(opts); book != nil {
+		material = lessonMaterial(book, opts.LessonNumbers)
 	}
 	if material != "" {
-		intro = "The LESSON MATERIAL message below is the lesson, taken from the textbook; the images show the part of it to focus on. Generate the CSV using the required format."
-		if len(images) == 0 {
+		switch {
+		case several && len(images) == 0:
+			intro = "Follow the LESSON SOURCE section: the LESSON MATERIAL message below holds the lessons, taken from the textbook. Generate one CSV that covers all of them, using the required format."
+		case several:
+			intro = "The LESSON MATERIAL message below holds the lessons, taken from the textbook; the images show the part of them to focus on. Generate one CSV that covers all of them, using the required format."
+		case len(images) == 0:
 			intro = "Follow the LESSON SOURCE section: the LESSON MATERIAL message below is the lesson, taken from the textbook. Generate the CSV using the required format."
+		default:
+			intro = "The LESSON MATERIAL message below is the lesson, taken from the textbook; the images show the part of it to focus on. Generate the CSV using the required format."
 		}
 	}
 	texts := append([]string{intro}, exportTypeMessages(opts)...)
@@ -156,8 +166,12 @@ func lessonMessages(opts Options) []string {
 	} else {
 		msgs = append(msgs, "Level: this course has no level, none was given.")
 	}
-	if opts.LessonNumber != nil {
-		msgs = append(msgs, fmt.Sprintf("Lesson number: %d", *opts.LessonNumber))
+	switch len(opts.LessonNumbers) {
+	case 0:
+	case 1:
+		msgs = append(msgs, fmt.Sprintf("Lesson number: %d", opts.LessonNumbers[0]))
+	default:
+		msgs = append(msgs, fmt.Sprintf("Lesson numbers: %s. Write one quiz that reviews all of these lessons together.", joinWords(numberStrings(opts.LessonNumbers), "and")))
 	}
 	return msgs
 }
@@ -263,7 +277,7 @@ func buildGestureQuizMessage(opts Options) string {
 		"Skipped":      len(stages) < GestureStageCount,
 		"Count":        len(stages),
 		"StageList":    joinWords(stageList, "and"),
-		"Numbers":      joinWords(stageNumbers(stages), "or"),
+		"Numbers":      joinWords(numberStrings(stages), "or"),
 		"Rules":        strings.Join(rules, "\n\n"),
 		"OptionStages": optionStages,
 		"Questions":    questions,
@@ -276,9 +290,9 @@ func buildGestureQuizMessage(opts Options) string {
 	return normalizePrompt(out.String())
 }
 
-func stageNumbers(stages []int) []string {
-	numbers := make([]string, len(stages))
-	for i, n := range stages {
+func numberStrings(values []int) []string {
+	numbers := make([]string, len(values))
+	for i, n := range values {
 		numbers[i] = strconv.Itoa(n)
 	}
 	return numbers
@@ -293,7 +307,7 @@ func describeStages(stages []int) string {
 	if first, last := stages[0], stages[len(stages)-1]; len(stages) >= 3 && last-first == len(stages)-1 {
 		return fmt.Sprintf("stages %d to %d", first, last)
 	}
-	return "stages " + joinWords(stageNumbers(stages), "and")
+	return "stages " + joinWords(numberStrings(stages), "and")
 }
 
 // joinWords joins items as "a", "a and b" or "a, b and c".

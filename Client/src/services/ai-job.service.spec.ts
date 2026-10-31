@@ -22,7 +22,7 @@ function job(id: string, status: AiJob['status'], overrides: Partial<AiJob> = {}
     courseName: '',
     hskStandard: null,
     level: null,
-    lessonNumber: null,
+    lessonNumbers: null,
     retryable: false,
     retryUntil: null,
     csv: '',
