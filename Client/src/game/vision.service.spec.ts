@@ -175,8 +175,7 @@ describe('VisionService', () => {
 
     function expectFailure(state: CameraState): void {
       expect(service.cameraState()).toBe(state);
-      // Every explanation reminds the player that the quiz still works without the camera.
-      expect(service.cameraMessage()).toContain('chuột');
+      expect(service.cameraMessage()).not.toBe('');
     }
 
     it('maps a refused permission to denied', async () => {
@@ -204,7 +203,7 @@ describe('VisionService', () => {
       getUserMedia.and.rejectWith(new DOMException('busy', 'NotReadableError'));
       await service.startCamera();
       expectFailure('error');
-      expect(service.cameraMessage()).toContain('ứng dụng khác');
+      expect(service.cameraMessage()).toContain('Ứng dụng khác');
     });
 
     it('maps anything else to a generic error', async () => {
@@ -266,7 +265,7 @@ describe('VisionService', () => {
 
       track.dispatchEvent(new Event('ended'));
       expect(service.cameraState()).toBe('off');
-      expect(service.cameraMessage()).toContain('ngắt kết nối');
+      expect(service.cameraMessage()).toContain('bị ngắt');
       expect(service.video.srcObject).toBeNull();
     });
 

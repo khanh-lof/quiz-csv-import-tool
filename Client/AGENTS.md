@@ -351,7 +351,7 @@ routes added for this (see above for their guards).
 |---|---|---|---|---|
 | Route | `/play` | `/play/:jobId` | `/play/s/:code` | `/play/preview/:assignmentId` |
 | Quiz comes from | a file or the sample | `AiJobService` | the server, one question at a time | `AssignmentService.get`, the snapshot |
-| Topbar link | Về bảng quiz, Mở quiz khác | Về lịch sử AI | none | Về bảng xếp hạng |
+| Topbar link | Về Quiz thủ công, Mở quiz khác | Về Lịch sử | none | Về bảng xếp hạng |
 | Progress key | the quiz's hash | the quiz's hash | `asg:<CODE>:<playerId>` | the quiz's hash, never written |
 | Time mode | the player's setting | the player's setting | the teacher's, fixed | the teacher's, fixed |
 | Map | locks, reset | locks, reset | locks (or all open, by the teacher's `stageLock`), no reset | every stage open, no reset |
@@ -381,7 +381,7 @@ routes added for this (see above for their guards).
   of the server's `top` are not drawn), and the student's own place: a "Chúc mừng!" line when they are on the podium,
   otherwise their own row under it (rank, avatar, marquee name, "Bạn" tag, "Hạng N · N/M màn · C/P câu"). A student
   who comes onto the podium hears `GameAudio`'s `finish` fanfare once per arrival (not on each poll; leaving the
-  podium and returning plays it again). It also shows "Bạn chưa có kết quả…" before
+  podium and returning plays it again). It also shows "Bạn chưa có kết quả." before
   their first result, "Chưa ai có kết quả." on an empty board, and a compact `MarqueePauseButton`. It loads on
   init and when `code` or `refreshKey` changes, every 30 s (`BOARD_POLL_MS`) while the tab is visible and once
   when it comes back; a failed load quietly keeps the last board and an older answer never replaces a newer
@@ -436,14 +436,15 @@ routes added for this (see above for their guards).
   and time mode, every stage with questions is open (`allOpen` on the map, `openIntro` skips the lock check),
   `finishRun` works the verdict out with `passMark` instead of recording, and `hasNext` is true whenever a later
   stage has questions (so `GestureStageResult` offers "Màn tiếp theo" on `hasNext` alone, not only after a
-  pass). No result is recorded or sent anywhere. A banner says so on every screen but loading and error,
-  and the result screen's `preview` input shows that in place of a save state. It reads (never writes) the
-  quiz's own progress key, so the map may show the teacher's earlier results of the same quiz from `/play`. It
+  pass). No result is recorded or sent anywhere. A banner says so on every screen but loading and error. It
+  reads (never writes) the quiz's own progress key, so the map may show the teacher's earlier results of the
+  same quiz from `/play`, but `StageRunResult.allPassed` ("Bạn đã qua hết các màn…") is never true there. It
   works on a closed assignment, and a missing one gets an error card with a link to `/assignments`.
 - **Inputs added to the map and the result.** `GestureStageMap`: `lockedTimeMode` (the teacher's mode, shown as
   text instead of the radios), `allowReset` (false hides "Chơi lại từ đầu": a student's results are the
-  teacher's), `allOpen`, and a content projection above its summary. `GestureStageResult`: `saveState` and
-  `preview`.
+  teacher's), `allOpen`, and a content projection above its summary. `GestureStageResult`: `saveState`. The result's
+  `allPassed` (this run passed and every stage of the quiz is passed with it) is set by `finishRun` from
+  `GestureProgressService.isPassed`, after the run is recorded.
 
 - **The stage lock.** An assignment's `stageLock` (`sequential` | `open`, `StageLock` in `models/assignment.ts`) reaches
   the page with the time mode (`assignmentStageLock`). `allStagesOpen` is true in a preview or when it is `open`,

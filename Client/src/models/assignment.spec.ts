@@ -215,8 +215,8 @@ describe('assignmentStatusText', () => {
 describe('TIME_MODE_LABELS', () => {
   it('names the three time modes', () => {
     expect(TIME_MODE_LABELS).toEqual({
-      standard: 'Bình thường',
-      extra: 'Thêm thời gian (×1.5)',
+      standard: 'Chuẩn',
+      extra: 'Thêm giờ (×1,5)',
       unlimited: 'Không giới hạn',
     });
   });
@@ -404,11 +404,11 @@ describe('assignmentErrorMessage', () => {
   });
 
   it('turns the plain-text answers of the server into advice', () => {
-    expect(assignmentErrorMessage(failure(409, 'Too many assignments.'))).toContain('100 bài giao');
+    expect(assignmentErrorMessage(failure(409, 'Too many assignments.'))).toContain('Tối đa 100 bài');
     expect(assignmentErrorMessage(failure(404, 'Job not found'))).toContain('Không tìm thấy quiz');
     expect(assignmentErrorMessage(failure(400, 'Invalid closing time.\n'))).toContain('tương lai');
     expect(assignmentErrorMessage(failure(400, 'Invalid pass percents.'))).toContain('10% đến 100%');
-    expect(assignmentErrorMessage(failure(400, 'Invalid replay limit.'))).toContain('từ 1 đến 10');
+    expect(assignmentErrorMessage(failure(400, 'Invalid replay limit.'))).toContain('1–10');
     expect(assignmentErrorMessage(failure(400, 'Invalid board setting.'))).toContain('Cài đặt bảng xếp hạng');
   });
 
@@ -416,7 +416,7 @@ describe('assignmentErrorMessage', () => {
     expect(assignmentErrorMessage(failure(0))).toContain('Mất kết nối');
     expect(assignmentErrorMessage(failure(401))).toContain('đăng nhập');
     expect(assignmentErrorMessage(failure(400, 'Something else'))).toBe('Yêu cầu chưa hợp lệ.');
-    expect(assignmentErrorMessage(failure(500))).toContain('thử lại');
-    expect(assignmentErrorMessage(new Error('x'))).toContain('thử lại');
+    expect(assignmentErrorMessage(failure(500))).toBe('Thử lại.');
+    expect(assignmentErrorMessage(new Error('x'))).toBe('Thử lại.');
   });
 });

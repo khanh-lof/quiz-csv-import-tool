@@ -58,7 +58,6 @@
         <div class="load-body">
           <div aria-hidden="true" class="big-emoji">🙌</div>
           <h2>Game</h2>
-          <p class="muted">Mở file quiz hoặc thử quiz mẫu.</p>
 
           @if (problem()) {
             <p class="problem" role="alert">{{ problem() }}</p>
@@ -278,7 +277,7 @@
               <div class="explanation">{{ explanation }}</div>
             }
             @if (connectionLost()) {
-              <div class="connection">Mất kết nối. Hãy kiểm tra mạng rồi bấm Thử lại.</div>
+              <div class="connection">Mất kết nối.</div>
             }
           </div>
           @if (connectionLost()) {
@@ -290,7 +289,7 @@
           }
         } @else if (connectionLost()) {
           <div class="feedback-text">
-            <div class="connection">Mất kết nối. Hãy kiểm tra mạng rồi bấm Thử lại.</div>
+            <div class="connection">Mất kết nối.</div>
           </div>
           <button (click)="retryConnection()" nz-button nzType="primary" type="button">Thử lại</button>
         } @else if (answering()) {
@@ -303,8 +302,7 @@
     @case ('result') {
       @if (result(); as run) {
         <app-gesture-stage-result (nextStage)="openNextStage()" (retry)="retryStage()" (toMap)="backToMap()"
-                                  [attemptsLeft]="resultAttemptsLeft()" [preview]="mode() === 'preview'"
-                                  [result]="run" [saveState]="saveState()"/>
+                                  [attemptsLeft]="resultAttemptsLeft()" [result]="run" [saveState]="saveState()"/>
       }
     }
   }

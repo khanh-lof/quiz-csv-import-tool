@@ -202,13 +202,9 @@
     <!-- A template, not nzTitle: the dialog is reused for both uses, and a string title is read once. -->
     <ng-container *nzModalTitle>{{ deadlineMode() === 'reopen' ? 'Mở lại bài' : 'Hẹn giờ đóng' }}</ng-container>
     <ng-container *nzModalContent>
-      <p class="deadline-help">
-        {{
-          deadlineMode() === 'reopen'
-            ? 'Mở lại bằng cùng link.'
-            : 'Chọn giờ bài tự đóng.'
-        }}
-      </p>
+      @if (deadlineMode() === 'reopen') {
+        <p class="deadline-help">Mở lại bằng cùng link.</p>
+      }
       <app-deadline-picker [(value)]="deadline"/>
     </ng-container>
   </nz-modal>

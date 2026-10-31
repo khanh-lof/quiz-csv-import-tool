@@ -134,7 +134,7 @@ describe('AssignmentList', () => {
     });
     await settle();
 
-    expect(notifications.error).toHaveBeenCalledTimes(1);
+    expect(notifications.error).not.toHaveBeenCalled();
     expect(text()).toContain('Chưa tải được danh sách');
   });
 

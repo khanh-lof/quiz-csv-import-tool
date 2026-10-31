@@ -95,10 +95,7 @@ export class AssignmentList implements OnInit {
         this.failed.set(false);
         this.now.set(new Date());
       },
-      error: err => {
-        this.failed.set(true);
-        this.fail('Không tải được danh sách', err);
-      },
+      error: () => this.failed.set(true),
     });
   }
 

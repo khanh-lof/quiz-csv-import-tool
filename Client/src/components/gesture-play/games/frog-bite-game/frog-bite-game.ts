@@ -103,7 +103,7 @@ export class FrogBiteGame extends StageGameBase {
   protected readonly mouthPercent = computed(() => clamp(this.jawOpen() / MOUTH_FULL, 0, 1) * 100);
   protected readonly biteMarkPercent = (BITE_OPEN / MOUTH_FULL) * 100;
   protected readonly hintText = computed(() =>
-    this.reveal() !== null ? 'Xem đáp án nhé!' : this.picked() !== null ? 'Đớp!' : this.hint(),
+    this.reveal() !== null ? 'Xem đáp án!' : this.picked() !== null ? 'Đớp!' : this.hint(),
   );
   private readonly vision = inject(VisionService);
   private readonly audio = inject(GameAudio);

@@ -29,17 +29,12 @@ const MIN_DETECT_INTERVAL_MS = 28;
 const MAX_CONSECUTIVE_FAILURES = 6;
 
 const CAMERA_MESSAGES = {
-  denied:
-    'Quyền dùng camera đã bị từ chối. Hãy cho phép camera cho trang này trong trình duyệt rồi bật lại, hoặc chơi bằng chuột và bàn phím.',
-  unavailable:
-    'Không tìm thấy camera trên thiết bị này. Bạn vẫn chơi được bằng chuột và bàn phím.',
-  unsupported:
-    'Trình duyệt này không hỗ trợ camera (hãy dùng Chrome hoặc Edge, và mở trang qua HTTPS). Bạn vẫn chơi được bằng chuột và bàn phím.',
-  inUse:
-    'Camera đang được ứng dụng khác sử dụng (ví dụ Zoom hoặc Meet). Hãy đóng ứng dụng đó rồi bật lại, hoặc chơi bằng chuột và bàn phím.',
-  other: 'Không bật được camera. Bạn vẫn chơi được bằng chuột và bàn phím.',
-  disconnected:
-    'Camera đã bị ngắt kết nối. Hãy cắm lại camera rồi bật lại, hoặc chơi bằng chuột và bàn phím.',
+  denied: 'Camera bị chặn. Cho phép camera cho trang này rồi bật lại.',
+  unavailable: 'Không tìm thấy camera.',
+  unsupported: 'Trình duyệt không hỗ trợ camera. Dùng Chrome hoặc Edge qua HTTPS.',
+  inUse: 'Ứng dụng khác đang dùng camera (Zoom, Meet…). Đóng nó rồi bật lại.',
+  other: 'Không bật được camera.',
+  disconnected: 'Camera bị ngắt. Cắm lại rồi bật lại.',
 } as const;
 
 // The slices of MediaPipe's results the converters read. Typed structurally (MediaPipe's own result

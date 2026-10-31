@@ -234,7 +234,7 @@ describe('AssignmentLeaderboard', () => {
     expect(root().querySelector('.title')?.textContent).toBe('HSK1 bài 1');
     expect(text()).toContain('Lớp 6A');
     expect(text()).toContain('Đang mở · đóng lúc');
-    expect(text()).toContain('Thời gian mỗi câu: Bình thường');
+    expect(text()).toContain('Thời gian mỗi câu: Chuẩn');
     expect(text()).toContain('3 học sinh');
     leave();
   }));
@@ -923,7 +923,7 @@ describe('AssignmentLeaderboard', () => {
       expect(rows().length).toBe(3);
       expect(text()).toContain('Mở lại');
       expect(text()).not.toContain('Hẹn giờ đóng');
-      expect(notifications.success).toHaveBeenCalledTimes(1);
+      expect(notifications.success).not.toHaveBeenCalled();
       leave();
     }));
 

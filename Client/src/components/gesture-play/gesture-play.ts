@@ -97,13 +97,13 @@ interface SharedInfo {
   closesAt: string | null;
 }
 
-const SHARED_CLOSED = 'Bài này đã đóng. Cảm ơn bạn đã tham gia!';
-const SHARED_MISSING = 'Không tìm thấy bài này. Hãy kiểm tra lại link thầy cô gửi.';
-const SHARED_FAILED = 'Không tải được bài. Hãy kiểm tra mạng rồi tải lại trang.';
+const SHARED_CLOSED = 'Bài này đã đóng.';
+const SHARED_MISSING = 'Không tìm thấy bài này. Kiểm tra lại link thầy cô gửi.';
+const SHARED_FAILED = 'Không tải được bài. Kiểm tra mạng rồi tải lại trang.';
 
 // What the page says when a quiz has nothing to play, by how it was opened (a job reads like a file).
 const NO_QUESTIONS = {
-  local: 'Không tìm thấy câu hỏi hợp lệ trong quiz này. Hãy dùng file Game do AI tạo (mục "AI › Tạo quiz").',
+  local: 'Không có câu hỏi hợp lệ. Dùng file Game tạo ở AI › Tạo quiz.',
   shared: 'Bài này chưa có câu hỏi nào chơi được. Hãy báo thầy cô.',
   preview: 'Không tìm thấy câu hỏi hợp lệ trong bài này.',
 };
@@ -143,8 +143,8 @@ const DEADLINE_MARGIN_MS = 1000;
 const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
 
 const STAND_TIP: Record<VisionKind, string> = {
-  hand: 'Đứng cách webcam 0,6–1,2 m, tay trong khung hình, đủ sáng (đừng ngược sáng).',
-  face: 'Cách webcam 0,6–1,2 m, nhìn thẳng, mặt đủ sáng, chỉ một người trong khung hình.',
+  hand: 'Đứng cách camera 0,6–1,2 m, tay trong khung hình, đủ sáng (đừng ngược sáng).',
+  face: 'Cách camera 0,6–1,2 m, nhìn thẳng, mặt đủ sáng, chỉ một người trong khung hình.',
 };
 
 // The question a student plays when the server deals it: what the games show and nothing else. The answer, which
@@ -261,7 +261,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       case 'job':
         return {
           url: '/ai-history',
-          text: 'Về lịch sử AI'
+          text: 'Về Lịch sử'
         };
       case 'preview':
         return {
@@ -271,7 +271,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       case 'local':
         return {
           url: '/quiz',
-          text: 'Về bảng quiz'
+          text: 'Về Quiz thủ công'
         };
       default:
         return null;
@@ -501,7 +501,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       return message;
     }
     return this.cameraOn() && this.modelState() === 'error'
-      ? 'Không tải được bộ nhận diện cử chỉ. Bạn vẫn chơi được bằng chuột và bàn phím.'
+      ? 'Không tải được bộ nhận diện cử chỉ.'
       : '';
   });
   private readonly audio = inject(GameAudio);
@@ -660,7 +660,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
     const reader = new FileReader();
     reader.onload = () => this.openCsv(String(reader.result ?? ''), titleFromFileName(file.name));
-    reader.onerror = () => this.fail('Không đọc được file này. Hãy thử lại hoặc chọn file khác.');
+    reader.onerror = () => this.fail('Không đọc được file này.');
     reader.readAsText(file);
   }
 
@@ -974,19 +974,19 @@ export class GesturePlay implements OnInit, OnDestroy {
     // The table's list is empty when the page was opened directly (or the job is new): ask once.
     this.jobService.refresh().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => this.openJob(find()),
-      error: () => this.fail('Không tải được quiz từ máy chủ. Hãy kiểm tra kết nối rồi thử lại.'),
+      error: () => this.fail('Không tải được quiz. Kiểm tra mạng rồi thử lại.'),
     });
   }
 
   private openJob(job: AiJob | undefined): void {
     if (!job) {
-      this.fail('Không tìm thấy quiz này. Có thể nó đã bị xóa khỏi bảng lịch sử.');
+      this.fail('Không tìm thấy quiz này trong Lịch sử.');
     } else if (job.status === 'running') {
-      this.fail('AI vẫn đang tạo quiz này. Hãy quay lại bảng lịch sử và thử lại khi nó xong.');
+      this.fail('AI chưa tạo xong quiz này.');
     } else if (job.status !== 'done') {
-      this.fail('Lần tạo này không thành công nên chưa có quiz để chơi.');
+      this.fail('Lần tạo này bị lỗi.');
     } else if (job.exportType !== ExportType.GestureQuiz) {
-      this.fail('Đây không phải game. Hãy chọn nền tảng "Game" khi nhờ AI tạo.');
+      this.fail('Quiz này không phải Game.');
     } else {
       this.openCsv(this.aiCsvService.extractCsvContent(job.csv), job.title);
     }
@@ -1111,7 +1111,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     // An assignment that is gone has no leaderboard page to return to, only the list.
     this.errorLink.set(missing ? {
       url: '/assignments',
-      text: 'Về danh sách bài đã giao'
+      text: 'Về Bài đã giao'
     } : this.backLink());
   }
 
@@ -1351,6 +1351,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     } else {
       passed = this.progress.record(quiz.key, stage, correct, total, percent);
     }
+    const allPassed = passed && !preview && [...quiz.stages.keys()].every(stageNumber => this.progress.isPassed(quiz.key, stageNumber));
     this.result.set({
       stage,
       position: stagePosition(quiz.stages.keys(), stage),
@@ -1362,6 +1363,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       bestStreak: this.bestStreak,
       missed: this.missed,
       hasNext: (this.allStagesOpen() || passed) && this.nextStageWithQuestions(stage) !== null,
+      allPassed,
     });
     this.reveal.set(null);
     this.audio.play(passed ? 'finish' : 'wrong');

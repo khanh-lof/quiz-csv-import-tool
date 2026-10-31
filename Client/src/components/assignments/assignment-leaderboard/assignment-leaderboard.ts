@@ -291,8 +291,6 @@ export class AssignmentLeaderboard {
 
   protected closeAssignment(): void {
     this.change({ closed: true }).subscribe({
-      next: () => this.notificationService.success('Đã đóng bài',
-        '', { nzPlacement: 'top' }),
       error: err => this.fail('Không đóng được bài', err),
     });
   }
@@ -315,13 +313,7 @@ export class AssignmentLeaderboard {
       closed: false,
       closesAt
     } : { closesAt }).subscribe({
-      next: () => {
-        this.deadlineOpen.set(false);
-        this.notificationService.success(
-          reopen ? 'Đã mở lại bài' : closesAt === null ? 'Đã bỏ giờ đóng' : 'Đã hẹn giờ đóng',
-          '',
-          { nzPlacement: 'top' });
-      },
+      next: () => this.deadlineOpen.set(false),
       error: err => this.fail(reopen ? 'Không mở lại được bài' : 'Không hẹn giờ được', err),
     });
   }
