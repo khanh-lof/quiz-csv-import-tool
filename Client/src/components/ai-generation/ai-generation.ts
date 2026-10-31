@@ -47,6 +47,7 @@ import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { ImageCompressionService, UploadTooLargeError } from '../../services/image-compression.service';
 import { UsageGuide } from '../usage-guide/usage-guide';
 import { WaygroundExtensionService } from '../../services/wayground-extension.service';
+import { escapeHtml } from '../../services/escape-html';
 import { NzContentComponent, NzLayoutComponent } from 'ng-zorro-antd/layout';
 
 interface ImageItem {
@@ -172,7 +173,7 @@ export class AiGeneration {
 
   protected get submitButtonLabel(): string {
     if (this.isGenerating()) {
-      return 'Đang gửi...';
+      return 'Đang gửi…';
     }
     return this.selectedImages().length > 0
       ? `Tạo câu hỏi (${this.selectedImages().length} ảnh)`
@@ -198,6 +199,14 @@ export class AiGeneration {
   // The book of the chosen course, if the server holds one: its lessons are used instead of photos.
   protected get textbook(): Textbook | undefined {
     return this.textbookOf(this.formGroup);
+  }
+
+  protected get isCourseChosen(): boolean {
+    const {
+      courseType,
+      level
+    } = this.formGroup.controls;
+    return courseType.value === CourseType.Other || (courseType.value !== null && level.value !== null);
   }
 
   protected get maxLesson(): number {
@@ -309,7 +318,7 @@ export class AiGeneration {
     this.formGroup.markAllAsDirty();
     this.formGroup.updateValueAndValidity();
     if (this.formGroup.invalid) {
-      this.notificationService.error('Thiếu thông tin', 'Nhập đủ thông tin.', { nzPlacement: 'top' });
+      this.notificationService.error('Thiếu thông tin', '', { nzPlacement: 'top' });
       return;
     }
     // Only the formatted mode needs images: the creative mode can work from the lesson identifiers alone.
@@ -444,7 +453,7 @@ export class AiGeneration {
   private processImageFiles(files: File[]): void {
     const validFiles = files.filter(file => {
       if (!file.type.startsWith('image/')) {
-        this.notificationService.error('File không hợp lệ', file.name, { nzPlacement: 'top' });
+        this.notificationService.error('Không phải ảnh', escapeHtml(file.name), { nzPlacement: 'top' });
         return false;
       }
       return true;
@@ -457,7 +466,7 @@ export class AiGeneration {
         // Compared by content, not name/size/date: every paste yields a fresh "image.png" stamped with
         // the current time, so pasting the same image twice would otherwise slip through.
         if (this.selectedImages().some(x => x.preview === preview)) {
-          this.notificationService.error('Ảnh trùng lặp', file.name, { nzPlacement: 'top' });
+          this.notificationService.error('Ảnh trùng lặp', escapeHtml(file.name), { nzPlacement: 'top' });
           return;
         }
         this.selectedImages.update(images => [...images, {
@@ -516,7 +525,7 @@ export class AiGeneration {
       return;
     }
     if (status === HttpStatusCode.BadRequest && serverMessage) {
-      this.notificationService.error('Yêu cầu không hợp lệ', serverMessage, { nzPlacement: 'top' });
+      this.notificationService.error('Yêu cầu không hợp lệ', escapeHtml(serverMessage), { nzPlacement: 'top' });
       return;
     }
     if (err instanceof UploadTooLargeError || status === HttpStatusCode.PayloadTooLarge) {
@@ -528,6 +537,6 @@ export class AiGeneration {
         });
       return;
     }
-    this.notificationService.error('Lỗi tạo câu hỏi', err instanceof Error ? err.message : 'Không thể tạo câu hỏi.', { nzPlacement: 'top' });
+    this.notificationService.error('Chưa gửi được yêu cầu', 'Thử lại.', { nzPlacement: 'top' });
   }
 }

@@ -15,9 +15,7 @@
     } @else {
       <b>{{ cards().length }}</b> màn, <b>{{ total() }}</b> câu, từ dễ đến khó.
       @if (commonPercent(); as percent) {
-        Đúng từ {{ percent }}% số câu để mở màn sau.
-      } @else {
-        Điểm qua màn ghi trên thẻ từng màn.
+        Đúng từ {{ percent }}% số câu {{ allOpen() ? 'là qua màn' : 'để mở màn sau' }}.
       }
     }
   </p>
@@ -84,9 +82,9 @@
         <span class="setting-label">Thời gian mỗi câu</span>
         <nz-radio-group (ngModelChange)="setTimeMode($event)" [ngModel]="settings().timeMode"
                         nzButtonStyle="solid" nzSize="small">
-          <label nz-radio-button nzValue="standard">Chuẩn</label>
-          <label nz-radio-button nzValue="extra">Thêm giờ (×1,5)</label>
-          <label nz-radio-button nzValue="unlimited">Không giới hạn</label>
+          <label nz-radio-button nzValue="standard">{{ timeModeLabels.standard }}</label>
+          <label nz-radio-button nzValue="extra">{{ timeModeLabels.extra }}</label>
+          <label nz-radio-button nzValue="unlimited">{{ timeModeLabels.unlimited }}</label>
         </nz-radio-group>
       }
     </div>
@@ -97,7 +95,7 @@
     </div>
     @if (allowReset()) {
       <button (nzOnConfirm)="resetProgress()" class="reset-button" nz-button nz-popconfirm
-              nzCancelText="Thôi" nzDanger
+              nzCancelText="Hủy" nzDanger
               nzOkDanger nzOkText="Chơi lại" nzPopconfirmPlacement="top" nzPopconfirmTitle="Xóa tiến độ của quiz này và chơi lại từ đầu?"
               type="button">
         <nz-icon nzTheme="outline" nzType="reload"/>

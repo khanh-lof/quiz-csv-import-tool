@@ -82,11 +82,11 @@ export class LoginComponent implements OnInit {
       },
       error: (error) => {
         this.isLoading = false;
-        let errorMessage = 'Vui lòng thử lại.';
+        let errorMessage = 'Thử lại.';
         if (error.status === 401) {
           errorMessage = 'Sai tên đăng nhập hoặc mật khẩu.';
         } else if (error.status === 0) {
-          errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối của bạn.';
+          errorMessage = 'Kiểm tra mạng rồi thử lại.';
         }
         this.notificationService.error('Đăng nhập thất bại', errorMessage, { nzPlacement: 'top' });
       }

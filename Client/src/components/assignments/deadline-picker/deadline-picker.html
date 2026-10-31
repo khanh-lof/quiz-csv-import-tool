@@ -14,8 +14,6 @@
 
 @if (closeText(); as text) {
   <p [class.text-error]="inThePast()" class="close-text">
-    {{ text }}{{ inThePast() ? '. Giờ này đã qua, hãy chọn giờ khác.' : '' }}
+    {{ text }}{{ inThePast() ? '. Giờ này đã qua.' : '' }}
   </p>
-} @else if (preset() === 'none') {
-  <p class="close-text muted">Bài mở cho đến khi bạn bấm đóng.</p>
 }

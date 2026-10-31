@@ -201,8 +201,8 @@ export interface StudentBoard {
 }
 
 export const TIME_MODE_LABELS: Record<TimeMode, string> = {
-  standard: 'Bình thường',
-  extra: 'Thêm thời gian (×1.5)',
+  standard: 'Chuẩn',
+  extra: 'Thêm giờ (×1,5)',
   unlimited: 'Không giới hạn',
 };
 
@@ -310,31 +310,31 @@ function spreadsheetSafe(text: string): string {
 
 // The server's plain-text answers to a teacher's assignment request, in words a teacher can act on.
 const TEACHER_ERRORS: Record<string, string> = {
-  'Assignment not found': 'Không tìm thấy bài này, có thể nó đã bị xóa.',
-  'Job not found': 'Không tìm thấy quiz này, có thể nó đã bị xóa khỏi bảng lịch sử.',
-  'Player not found': 'Học sinh này đã được xóa rồi.',
-  'Too many assignments.': 'Bạn đã có 100 bài giao. Hãy xóa bớt bài cũ ở trang Bài đã giao.',
+  'Assignment not found': 'Không tìm thấy bài này.',
+  'Job not found': 'Không tìm thấy quiz này trong Lịch sử.',
+  'Player not found': 'Học sinh này đã bị xóa.',
+  'Too many assignments.': 'Tối đa 100 bài. Xóa bớt ở Bài đã giao.',
   'Job is not a finished gesture quiz.': 'Chỉ giao được Game đã tạo xong và có câu hỏi hợp lệ.',
   'Invalid closing time.': 'Giờ đóng phải ở tương lai (tối đa 180 ngày).',
-  'Label is too long.': 'Tên lớp/nhóm dài tối đa 60 ký tự.',
-  'Invalid pass percents.': 'Điểm qua màn phải là số nguyên từ 10% đến 100%.',
-  'Invalid replay limit.': 'Số lần chơi mỗi màn phải từ 1 đến 10, và chỉ đặt được khi mở tất cả các màn.',
+  'Label is too long.': 'Tên lớp / nhóm tối đa 60 ký tự.',
+  'Invalid pass percents.': 'Điểm qua màn phải từ 10% đến 100%.',
+  'Invalid replay limit.': 'Số lần chơi mỗi màn: 1–10, chỉ khi mở tất cả các màn.',
   'Invalid board setting.': 'Cài đặt bảng xếp hạng cho học sinh không hợp lệ.',
 };
 
 // What to tell the teacher when an AssignmentService call fails.
 export function assignmentErrorMessage(err: unknown): string {
   if (!(err instanceof HttpErrorResponse)) {
-    return 'Có lỗi xảy ra, vui lòng thử lại.';
+    return 'Thử lại.';
   }
   if (err.status === 0) {
-    return 'Mất kết nối tới máy chủ. Hãy kiểm tra mạng rồi thử lại.';
+    return 'Mất kết nối. Kiểm tra mạng rồi thử lại.';
   }
   if (err.status === 401) {
-    return 'Phiên đăng nhập đã hết, hãy đăng nhập lại.';
+    return 'Hết phiên đăng nhập. Đăng nhập lại.';
   }
   const body = typeof err.error === 'string' ? err.error.trim() : '';
-  return TEACHER_ERRORS[body] ?? (err.status === 400 ? 'Yêu cầu chưa hợp lệ.' : 'Có lỗi xảy ra, vui lòng thử lại.');
+  return TEACHER_ERRORS[body] ?? (err.status === 400 ? 'Yêu cầu chưa hợp lệ.' : 'Thử lại.');
 }
 
 // The leaderboard as a CSV file, rows in the order given (the server's leaderboard order). It starts with a BOM

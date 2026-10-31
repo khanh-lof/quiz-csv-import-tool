@@ -5,6 +5,7 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiJob } from '../models/ai-job';
 import { AuthService } from './auth.service';
 import { SubmittedJob } from './ai-csv.service';
+import { escapeHtml } from './escape-html';
 
 const POLL_INTERVAL_MS = 3000;
 // Polling stops after this many answers in a row without a running job, and gives up after this many
@@ -33,11 +34,6 @@ export class AiJobService {
               private readonly notificationService: NzNotificationService,
               authService: AuthService) {
     authService.cleared$.subscribe(() => this.reset());
-  }
-
-  // The notification renders HTML, and a title is user-chosen text.
-  private static escapeHtml(text: string): string {
-    return text.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
   }
 
   // Starts polling if it is not already, and keeps it going for at least `idlePolls` answers without a
@@ -110,7 +106,7 @@ export class AiJobService {
   }
 
   private announce(job: AiJob): void {
-    const title = AiJobService.escapeHtml(job.title);
+    const title = escapeHtml(job.title);
     if (job.status === 'done') {
       this.notificationService.success('AI đã tạo xong',
         `"${title}" — xem ở AI › Lịch sử.`, { nzPlacement: 'top' });
@@ -120,8 +116,8 @@ export class AiJobService {
       ? 'Quá lâu. Gửi lại hoặc giảm số ảnh.'
       : job.errorStatus === HttpStatusCode.BadGateway
         ? 'Thử lại sau ít phút.'
-        : AiJobService.escapeHtml(job.errorMessage || 'Không rõ lỗi.');
-    this.notificationService.error('AI tạo không được',
+        : escapeHtml(job.errorMessage || 'Không rõ lỗi.');
+    this.notificationService.error('AI không tạo được quiz',
       `"${title}": ${reason}`, {
         nzPlacement: 'top',
         nzDuration: 0

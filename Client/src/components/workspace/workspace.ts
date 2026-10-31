@@ -47,7 +47,7 @@ export const NAV: NavEntry[] = [
     route: '/quiz',
     label: 'Quiz thủ công',
     icon: 'table',
-    hint: 'Tự nhập câu hỏi và đáp án vào bảng, rồi tải file quiz. Không cần đăng nhập.'
+    hint: 'Tự nhập câu hỏi rồi tải file quiz. Không cần đăng nhập.'
   },
   {
     label: 'AI',
@@ -57,13 +57,13 @@ export const NAV: NavEntry[] = [
         route: '/ai',
         label: 'Tạo quiz',
         icon: 'thunderbolt',
-        hint: 'Gửi ảnh bài học (hoặc chỉ chọn bài) để AI soạn câu hỏi giúp. Cần đăng nhập.'
+        hint: 'AI soạn câu hỏi từ bài học. Cần đăng nhập.'
       },
       {
         route: '/ai-history',
         label: 'Lịch sử',
         icon: 'history',
-        hint: 'Các lần tạo bằng AI: xem trạng thái, tải file, chơi ngay hoặc giao bài. Cần đăng nhập.'
+        hint: 'Kết quả AI: tải file, chơi, giao bài. Cần đăng nhập.'
       }
     ]
   },
@@ -75,13 +75,13 @@ export const NAV: NavEntry[] = [
         route: '/play',
         label: 'Chơi game',
         icon: 'play-circle',
-        hint: 'Chơi quiz do AI tạo bằng cử chỉ trước camera, hoặc thử quiz mẫu.'
+        hint: 'Chơi quiz bằng cử chỉ trước camera.'
       },
       {
         route: '/assignments',
         label: 'Bài đã giao',
         icon: 'trophy',
-        hint: 'Các game đã giao cho học sinh: link, mã QR và bảng xếp hạng. Cần đăng nhập.'
+        hint: 'Link, mã QR và bảng xếp hạng. Cần đăng nhập.'
       }
     ]
   }

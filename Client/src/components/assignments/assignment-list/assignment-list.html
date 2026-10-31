@@ -84,7 +84,7 @@
      empty list that was not loaded. -->
 <ng-template #emptyTemplate>
   @if (failed()) {
-    <p class="help">Chưa tải được danh sách. Bấm Làm mới để thử lại.</p>
+    <p class="help">Chưa tải được danh sách.</p>
   } @else if (loaded()) {
     <div class="empty">
       <p class="help">{{ helpText }}</p>

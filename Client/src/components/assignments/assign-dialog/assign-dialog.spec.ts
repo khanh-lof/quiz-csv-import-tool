@@ -442,7 +442,7 @@ describe('AssignDialog', () => {
       });
       await settle();
 
-      expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain('từ 1 đến 10');
+      expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain('1–10');
     });
   });
 
@@ -546,7 +546,7 @@ describe('AssignDialog', () => {
     });
     await settle();
 
-    expect(text()).toContain('Đã giao bài!');
+    expect(text()).toContain('Đã giao bài.');
     expect(dialog()!.querySelector('app-share-link')).not.toBeNull();
     expect(dialog()!.querySelector('nz-qrcode')).not.toBeNull();
     expect(text()).toContain('K7M2X9QD4P');
@@ -574,7 +574,7 @@ describe('AssignDialog', () => {
     await settle();
 
     const alert = dialog()!.querySelector('[role="alert"]');
-    expect(alert?.textContent).toContain('100 bài giao');
+    expect(alert?.textContent).toContain('Tối đa 100 bài');
     expect(created).toEqual([]);
     expect(button('Giao bài').disabled).toBeFalse();
   });
@@ -610,14 +610,14 @@ describe('AssignDialog', () => {
       statusText: 'Created'
     });
     await settle();
-    expect(text()).toContain('Đã giao bài!');
+    expect(text()).toContain('Đã giao bài.');
 
     fixture.componentInstance.open.set(false);
     await settle();
     fixture.componentInstance.open.set(true);
     await settle();
 
-    expect(text()).not.toContain('Đã giao bài!');
+    expect(text()).not.toContain('Đã giao bài.');
     expect(dialog()!.querySelector<HTMLInputElement>('#assign-label')!.value).toBe('');
   });
 });

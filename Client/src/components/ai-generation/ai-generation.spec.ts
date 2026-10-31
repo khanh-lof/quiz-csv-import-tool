@@ -119,7 +119,26 @@ describe('AiGeneration', () => {
 
     expect(page.maxLesson).toBe(100);
     expect(page.formGroup.valid).toBeTrue();
-    expect(hint()).toContain('Chưa có giáo trình');
+    expect(hint()).toContain('Chưa có sẵn sách này');
+  });
+
+  it('shows no book hint until the course type and level are picked', () => {
+    expect(hint()).toBe('');
+
+    page.formGroup.patchValue({ courseType: CourseType.Yct });
+    fixture.detectChanges();
+    expect(hint()).toBe('');
+
+    page.formGroup.patchValue({ level: 5 });
+    fixture.detectChanges();
+    expect(hint()).toBe('Chưa có sẵn sách này.');
+  });
+
+  it('says there is no book for a course typed in by hand even without a level', () => {
+    page.formGroup.patchValue({ courseType: CourseType.Other });
+    fixture.detectChanges();
+
+    expect(hint()).toBe('Chưa có sẵn sách này.');
   });
 
   it('applies the YCT book\'s lesson count', () => {

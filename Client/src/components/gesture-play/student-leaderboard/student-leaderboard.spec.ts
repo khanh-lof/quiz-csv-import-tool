@@ -198,7 +198,7 @@ describe('StudentLeaderboard', () => {
       })));
       open();
 
-      expect(clean(root())).toContain('Bạn chưa có kết quả, chơi màn đầu tiên nhé!');
+      expect(clean(root())).toContain('Bạn chưa có kết quả.');
       expect(root().querySelector('.own')).toBeNull();
       expect(audio.play).not.toHaveBeenCalled();
       leave();

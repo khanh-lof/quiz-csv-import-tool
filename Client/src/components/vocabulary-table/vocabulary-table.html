@@ -87,16 +87,16 @@
                 <textarea #rowSourceInputs [formControl]="item.controls.question" cdkTextareaAutosize
                           nz-input></textarea>
                 <ng-container
-                  *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: 'Trùng câu hỏi nàa', $implicit: item.controls.question}"/>
+                  *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: 'Trùng câu hỏi', $implicit: item.controls.question}"/>
                 <ng-container
-                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: item.controls.question}"/>
+                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Chưa nhập', $implicit: item.controls.question}"/>
               </td>
               <td class="cell-flex">
                 <textarea #rowSourceInputs [formControl]="item.controls.answer" cdkTextareaAutosize nz-input></textarea>
                 <ng-container
-                  *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: 'Trùng đáp án nàa', $implicit: item.controls.answer}"/>
+                  *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: 'Trùng đáp án', $implicit: item.controls.answer}"/>
                 <ng-container
-                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàa', $implicit: item.controls.answer}"/>
+                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Chưa nhập', $implicit: item.controls.answer}"/>
               </td>
               @if (formGroup.get('exportType')?.value === ExportType.Wayground) {
                 <td class="cell-flex">

@@ -3,7 +3,7 @@
 
   <div class="jobs-filters">
     <input (ngModelChange)="search.set($event ?? '')" [ngModel]="search()" aria-label="Tìm kiếm" class="search-input"
-           nz-input placeholder="Tìm trong tiêu đề, câu hỏi, đáp án..." type="search"/>
+           nz-input placeholder="Tìm trong tiêu đề, câu hỏi, đáp án…" type="search"/>
     <nz-select (ngModelChange)="status.set($event ?? null)" [ngModel]="status()" class="filter-select" nzAllowClear
                nzPlaceHolder="Trạng thái">
       <nz-option nzLabel="Đang chạy" nzValue="running"></nz-option>
@@ -48,7 +48,7 @@
     }
   </div>
 
-  <nz-table #jobsTable [nzData]="filtered()" [nzLoading]="!loaded()" [nzNoResult]="isFiltering() ? 'Không có kết quả nào khớp.' : 'Chưa có lần tạo nào. Gửi yêu cầu ở mục AI › Tạo quiz, kết quả sẽ hiện ở đây.'" [nzPageSize]="pageSize"
+  <nz-table #jobsTable [nzData]="filtered()" [nzLoading]="!loaded()" [nzNoResult]="isFiltering() ? 'Không có kết quả nào khớp.' : 'Chưa có lần tạo nào. Tạo ở AI › Tạo quiz.'" [nzPageSize]="pageSize"
             [nzShowPagination]="filtered().length > pageSize" class="jobs-table"
             nzSize="small">
     <thead>

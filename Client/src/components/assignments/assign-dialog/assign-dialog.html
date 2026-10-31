@@ -6,7 +6,7 @@
     @if (assignment(); as made) {
       <p class="done-text">
         <nz-icon class="done-icon" nzTheme="fill" nzType="check-circle"/>
-        Đã giao bài! Gửi link hoặc cho học sinh quét mã QR để vào chơi, chỉ cần nhập tên.
+        Đã giao bài. Gửi link hoặc mã QR cho học sinh.
       </p>
       <app-share-link [code]="made.code" [qrSize]="200"/>
       <div class="actions">
@@ -65,7 +65,6 @@
             <label [nzValue]="lock.value" nz-radio>{{ lock.label }}</label>
           }
         </nz-radio-group>
-        <p class="muted hint">Mở tất cả: chơi màn nào cũng được.</p>
       </div>
 
       @if (stageLock() === 'open') {

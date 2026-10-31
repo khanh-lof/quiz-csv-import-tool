@@ -13,13 +13,13 @@
   </p>
   <p class="rule">Đúng ít nhất <b>{{ result().passMark }}/{{ result().total }}</b> câu để qua màn.</p>
   @if (saveText()) {
-    <p [attr.data-state]="preview() ? 'preview' : saveState()" aria-live="polite" class="save-state" role="status">
+    <p [attr.data-state]="saveState()" aria-live="polite" class="save-state" role="status">
       {{ saveText() }}
     </p>
   }
 
   @if (attemptsLeft() === 0) {
-    <p class="save-state" data-state="limit" role="status">Bạn đã dùng hết lượt chơi màn này.</p>
+    <p class="save-state" data-state="limit" role="status">Hết lượt chơi màn này.</p>
   }
 
   @if (result().missed.length > 0) {
@@ -43,10 +43,10 @@
       </ol>
     </div>
   } @else {
-    <p class="perfect">Bạn trả lời đúng hết, không có câu nào cần xem lại.</p>
+    <p class="perfect">Không có câu sai.</p>
   }
 
-  @if (result().passed && !result().hasNext) {
+  @if (result().allPassed) {
     <p class="all-done">Bạn đã qua hết các màn của quiz này.</p>
   }
 

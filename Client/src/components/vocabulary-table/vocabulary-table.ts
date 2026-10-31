@@ -188,7 +188,7 @@ export class VocabularyTable implements OnInit {
     const exportTypeControl = this.formGroup.get('exportType')!;
     if (exportTypeControl.value === null) {
       exportTypeControl.markAsDirty();
-      this.notificationService.error('Chưa chọn nền tảng', 'Chọn nền tảng trước.', { nzPlacement: 'top' });
+      this.notificationService.error('Chưa chọn nền tảng', '', { nzPlacement: 'top' });
       return;
     }
     // Rows left completely empty are ignored rather than blocking the export, as long as enough real
@@ -204,10 +204,10 @@ export class VocabularyTable implements OnInit {
 
     this.formGroup.markAllAsDirty();
     if (this.formGroup.invalid) {
-      const message = this.questionForms.hasError('duplicateExists')
-        ? 'Có câu hỏi hoặc đáp án trùng.'
-        : 'Còn ô trống.';
-      this.notificationService.error('Thiếu thông tin', message, { nzPlacement: 'top' });
+      const problem = this.questionForms.hasError('duplicateExists')
+        ? 'Có câu hỏi hoặc đáp án trùng'
+        : 'Còn ô trống';
+      this.notificationService.error(problem, '', { nzPlacement: 'top' });
       return;
     }
     const exportType: ExportType = exportTypeControl.value;
@@ -232,7 +232,6 @@ export class VocabularyTable implements OnInit {
     }
     this.modalService.confirm({
       nzTitle: 'Xóa tất cả câu hỏi?',
-      nzContent: 'Toàn bộ câu hỏi và đáp án trong bảng sẽ bị xóa.',
       nzOkText: 'Xóa',
       nzOkDanger: true,
       nzClassName: 'qt-confirm-danger',

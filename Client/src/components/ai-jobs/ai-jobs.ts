@@ -209,7 +209,7 @@ export class AiJobs implements OnInit {
       this.notificationService.info('Đang tạo quiz trên Wayground…',
         'Xong sẽ báo link ở đây.', { nzPlacement: 'top' });
     } else if (exportType === ExportType.GestureQuiz) {
-      this.notificationService.success('Đã tải file', 'Mở file ở trang Game để chơi.', { nzPlacement: 'top' });
+      this.notificationService.success('Đã tải file', 'Mở file ở trang Chơi game.', { nzPlacement: 'top' });
     }
   }
 
@@ -223,7 +223,7 @@ export class AiJobs implements OnInit {
       return '';
     }
     return job.imageCount > 0
-      ? 'Ảnh của lần gửi này đã hết hạn lưu. Gửi lại ở AI › Tạo quiz.'
+      ? 'Ảnh đã hết hạn lưu. Gửi lại ở AI › Tạo quiz.'
       : 'Mục này quá cũ để tạo lại. Gửi lại ở AI › Tạo quiz.';
   }
 
@@ -236,7 +236,6 @@ export class AiJobs implements OnInit {
     this.jobService.retry(job).pipe(
       finalize(() => this.retrying.update(ids => new Set([...ids].filter(id => id !== job.id)))),
     ).subscribe({
-      next: () => this.notificationService.info('Đã gửi lại yêu cầu', 'Kết quả sẽ hiện trong bảng này.', { nzPlacement: 'top' }),
       error: err => this.showRetryError(err),
     });
   }

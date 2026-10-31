@@ -26,6 +26,8 @@ export interface StageRunResult {
   missed: MissedQuestion[];
   // Whether a later stage with questions can be opened now: after a pass, or at once in the teacher's preview.
   hasNext: boolean;
+  // Whether this run passed and every stage of the quiz is passed with it; never in the teacher's preview.
+  allPassed: boolean;
 }
 
 // What a student's result screen says about the run's record. The server records a run itself as it judges the
@@ -37,8 +39,8 @@ const SAVE_TEXT: Record<SaveState, string> = {
 };
 
 // The screen after a stage: the verdict against the pass mark, the questions to learn from, and where
-// to go next. For a student's assignment it also says the run was kept (`saveState`), and in the
-// teacher's preview (`preview`) that nothing is kept. A stage with no runs left (`attemptsLeft` 0) cannot be replayed.
+// to go next. For a student's assignment it also says the run was kept (`saveState`). A stage with no runs
+// left (`attemptsLeft` 0) cannot be replayed.
 @Component({
   selector: 'app-gesture-stage-result',
   imports: [NzButtonComponent, NzIconDirective],
@@ -49,7 +51,6 @@ const SAVE_TEXT: Record<SaveState, string> = {
 export class GestureStageResult {
   readonly result = input.required<StageRunResult>();
   readonly saveState = input<SaveState | null>(null);
-  readonly preview = input(false);
   // The runs left on this stage when the teacher limited them (null: no limit). At 0 there is no replay.
   readonly attemptsLeft = input<number | null>(null);
 
@@ -59,9 +60,6 @@ export class GestureStageResult {
 
   protected readonly def = computed(() => stageDef(this.result().stage));
   protected readonly saveText = computed(() => {
-    if (this.preview()) {
-      return 'Xem thử: kết quả không được lưu.';
-    }
     const state = this.saveState();
     return state ? SAVE_TEXT[state] : '';
   });

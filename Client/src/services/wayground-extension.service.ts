@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { WaygroundDelivery } from '../models/wayground-delivery';
 import { FileExportService } from './file-export.service';
+import { escapeHtml } from './escape-html';
 
 // The user's last choice between downloading the Wayground file and letting the extension publish it,
 // shared by the table and the AI page.
@@ -47,10 +48,6 @@ export class WaygroundExtensionService {
     window.addEventListener('message', event => this.onMessage(event));
   }
 
-  private static escapeHtml(text: string): string {
-    return text.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
-  }
-
   // Chunked, since String.fromCharCode(...bytes) overflows the call stack on a large file.
   private static toBase64(bytes: Uint8Array): string {
     let binary = '';
@@ -64,7 +61,7 @@ export class WaygroundExtensionService {
   public downloadExtension(): void {
     this.httpClient.get(EXTENSION_ZIP_URL, { responseType: 'blob' }).subscribe({
       next: zip => this.fileExportService.downloadBlob(EXTENSION_ZIP_NAME, zip),
-      error: () => this.notificationService.error('Không tải được tiện ích', 'Hãy đăng nhập rồi thử lại.',
+      error: () => this.notificationService.error('Không tải được tiện ích', 'Thử lại.',
         { nzPlacement: 'top' }),
     });
   }
@@ -129,8 +126,8 @@ export class WaygroundExtensionService {
       // The file was not downloaded when the extension took it, so fetch it now for the manual import.
       this.fileExportService.downloadXlsx(file.fileName, file.xlsx);
       this.notificationService.error('Wayground chưa publish được',
-        `Tiện ích dừng lại (${WaygroundExtensionService.escapeHtml(result.error ?? 'không rõ lỗi')}). ` +
-        `Đã tải ${WaygroundExtensionService.escapeHtml(file.fileName)}, import bằng tay.`,
+        `Tiện ích dừng lại (${escapeHtml(result.error ?? 'không rõ lỗi')}). ` +
+        `Đã tải ${escapeHtml(file.fileName)}, import bằng tay.`,
         {
           nzPlacement: 'top',
           nzDuration: 0
@@ -145,9 +142,9 @@ export class WaygroundExtensionService {
   }
 
   private showPublished(result: WaygroundImportResult, copied: boolean): void {
-    const url = WaygroundExtensionService.escapeHtml(result.shareUrl!);
+    const url = escapeHtml(result.shareUrl!);
     this.notificationService.success('Đã publish quiz trên Wayground',
-      `"${WaygroundExtensionService.escapeHtml(result.title)}"${copied ? ' (đã copy)' : ''}: ` +
+      `"${escapeHtml(result.title)}"${copied ? ' (đã sao chép)' : ''}: ` +
       `<a href="${url}" target="_blank" rel="noopener">${url}</a>`,
       {
         nzPlacement: 'top',

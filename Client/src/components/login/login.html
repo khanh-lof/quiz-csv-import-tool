@@ -1,11 +1,11 @@
 <div class="qt-centered-page">
   <div class="login-card">
-    <nz-card nzTitle="Đăng nhập Quiz Tool">
+    <nz-card nzTitle="Đăng nhập QuizTool">
       <form (ngSubmit)="onLogin()" [formGroup]="loginForm">
         <div [nzGutter]="16" nz-row>
           <div [nzLg]="24" [nzMd]="24" [nzSm]="24" [nzXs]="24" nz-col>
             <nz-form-item>
-              <nz-form-control [nzErrorTip]="'Nhập tên đăng nhập nhé'">
+              <nz-form-control [nzErrorTip]="'Chưa nhập tên đăng nhập'">
                 <label [for]="'username'">Tên đăng nhập</label>
                 <input
                   formControlName="username"
@@ -19,7 +19,7 @@
 
           <div [nzLg]="24" [nzMd]="24" [nzSm]="24" [nzXs]="24" nz-col>
             <nz-form-item>
-              <nz-form-control [nzErrorTip]="'Nhập mật khẩu nhé'">
+              <nz-form-control [nzErrorTip]="'Chưa nhập mật khẩu'">
                 <label [for]="'password'">Mật khẩu</label>
                 <nz-input-password>
                   <input formControlName="password" id="password"
