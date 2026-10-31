@@ -6,7 +6,7 @@ The user may provide:
 
 * The course the lesson belongs to: HSK 2.0, HSK 3.0, YCT, or another named Chinese course or textbook, possibly written in Vietnamese.
 * The course level, which for a textbook series usually means the book or volume number. Some courses have no level, in which case no level is given.
-* The lesson number.
+* The lesson number, or several lesson numbers when the teacher wants one quiz that reviews several lessons together.
 * Optionally, a LESSON MATERIAL message: the lesson itself, taken from the textbook, with its new words, language points and texts, and the vocabulary the learner already knows.
 * Optionally, one or more images containing Chinese vocabulary, example sentences, dialogues, or grammar from that lesson.
 * A CSV template required by the user's online quiz platform.
@@ -16,9 +16,11 @@ The user may provide:
 
 The LESSON MATERIAL and the images are both optional. Determine the lesson vocabulary as follows.
 
+When several lesson numbers are given, write one quiz that reviews all of those lessons together. Everything this prompt says about the lesson then applies to the chosen lessons as a whole: the words of all of them are the lesson vocabulary, and the words of the earlier lessons that were not chosen are known to the learner. Without material, rebuild each chosen lesson as described below. Spread the questions over the chosen lessons in proportion to their new words, so that none is left out, and mix them through the set instead of grouping the questions lesson by lesson. When there are more words than questions, prefer the key words of each lesson over the minor ones.
+
 ### When a LESSON MATERIAL message is provided
 
-The LESSON MATERIAL is the lesson, taken from the textbook itself, and the only source of its content. Its New words table is the complete list of the lesson's words. Never invent lesson words, and never use your own memory or a web search to add, remove, or change a word of the lesson.
+The LESSON MATERIAL is the lesson, taken from the textbook itself, and the only source of its content. Its New words table is the complete list of the lesson's words; material that holds several lessons has one table per lesson, and together they are the list. Never invent lesson words, and never use your own memory or a web search to add, remove, or change a word of the lesson.
 
 * Test only the words of the New words table. When the table has enough rows, test every one of them at least once.
 * Do not make a word marked ★ in the Note column, or a proper noun (the Proper nouns section), the target of a question. They may appear in the context of a question or in an example sentence.

@@ -103,11 +103,14 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   100 runes) names the job. `listJobs` returns the user's jobs newest first (JSON `{"jobs": [...]}`,
   the CSV included, and `retryable`/`retryUntil` from `retryState`) after failing any job running past `LLM_TIMEOUT_SECONDS` + 1 min as abandoned (and
   refunding its call). `isCreative=true` switches to the creative prompt and requires `exportType`,
-  `courseType`, `lessonNumber`, plus `level` (HSK/YCT) or `courseName` (`Other`), and for GestureQuiz the
+  `courseType`, `lessonNumbers`, plus `level` (HSK/YCT) or `courseName` (`Other`), and for GestureQuiz the
   optional `gestureStages` and `questionsPerStage` (see [Choosing the games](../AGENTS.md#the-gesture-quiz-game)) — parsed by
-  `csvgen.ParseCreativeOptions` (400 with the message on failure). `lessonNumber` must be 1 or more (400
-  `Invalid or missing lessonNumber parameter.`), and for a textbook with embedded lessons (below) at most its
-  lesson count: 400 `Lesson must be 1 to <M> for <title>.`, e.g. `Lesson must be 1 to 15 for 《新HSK教程2》.` Images are optional only in
+  `csvgen.ParseCreativeOptions` (400 with the message on failure). `lessonNumbers` is a comma-separated list
+  of distinct lessons, each 1 or more, in any order (kept ascending in `Options.LessonNumbers`). A missing or
+  bad list is 400 `Invalid or missing lessonNumbers
+  parameter.`, more than `MaxLessons` (5) is 400 `At most 5 lessons per quiz.`, and for a textbook with embedded
+  lessons (below) each must be at most its lesson count: 400 `Lesson must be 1 to <M> for <title>.`, e.g.
+  `Lesson must be 1 to 15 for 《新HSK教程2》.` Images are optional only in
   creative mode. The LLM call runs under `LLM_TIMEOUT_SECONDS`; hitting it fails the job with
   `errorStatus` 504 ("AI generation timed out."), other LLM failures with 502. Either failure refunds the
   rate-limit slot (`RefundAICall`) so the user can resubmit without losing quota. See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
@@ -312,13 +315,19 @@ cookie.
     itself.`, the normalized document, and a last line `Known vocabulary (words of …, which the learner already
     knows; …): w1、w2、…`: the New words of the lower books of the series (all their lessons) and then of lessons
     1 to N-1 of the book, deduplicated in that order. Lesson 1 of the first book has no such words and says so;
-    `yct-6` ends with a sentence that the learner also knows the words of YCT levels 1 to 5.
+    `yct-6` ends with a sentence that the learner also knows the words of YCT levels 1 to 5. Several lessons make
+    one message, `…, lessons 3, 4 and 5 of M, …` and their documents in order; the known words are then those of
+    the book's lessons before the last chosen one that were not chosen. With one lesson every message is exactly
+    what it was before several could be chosen.
   - **The request** (`buildCreativeRequest`): the input parts are the intro, `exportTypeMessages`, the Course /
-    Level / Lesson number messages, the material, then the images. The intro says the material is the lesson
-    (with images: that the images show the part to focus on); for any course without a book the request is
+    Level / Lesson number messages (`Lesson numbers: …` with one more sentence asking for one quiz over all of
+    them, for several), the material, then the images. The intro says the material is the lesson
+    (with images: that the images show the part to focus on; for several lessons, it asks for one CSV covering all
+    of them); for any course without a book the request is
     exactly what it was before (`TestBuildCreativeRequestWithoutLessonMaterial`). Token caps and the
     `web_search` tool are unchanged. `creative_system.txt`'s LESSON SOURCE has a case for each of material,
-    only images and neither: with material the model tests only the New words (no ★ word or proper noun as the
+    only images and neither, after a paragraph on several lessons (one quiz, questions spread over the lessons and
+    mixed, the unchosen earlier lessons known): with material the model tests only the New words (no ★ word or proper noun as the
     target), takes pinyin and meanings from the table, builds sentences from the Language points and Texts,
     and draws distractors only from the lesson and the Known vocabulary; the web search tool stays for
     illustrations and is never used to look the lesson up.
@@ -346,7 +355,7 @@ Jobs (`internal/store/jobs*.go`): `store.Jobs` is implemented by `MongoJobs` (co
 `MONGODB_JOBS_COLLECTION`) and `MemoryJobs` (tests), and every method is scoped to a username. A `Job`
 holds the request's metadata (title, mode, export type ordinal, intelligence, image count — never the
 images — and, for a creative job, the lesson: course type ordinal, course name, HSK standard, level and
-lesson number, which `listJobs` returns so the client can filter by them, and for a GestureQuiz job its
+lesson numbers (`lessonNumbers`), which `listJobs` returns so the client can filter by them, and for a GestureQuiz job its
 `gestureStages` and `questionsPerStage`, kept so `retryJob` can ask for the same quiz again), `status` (`running`/`done`/`failed`), the raw model `csv`, `errorStatus`/`errorMessage`, the
 rate-limit `roundStart` (for refunds) and timestamps. `Complete`/`Fail` only touch a job that is still
 `running`, so an expired job is never revived by a late answer; `Prune` never deletes a running job.

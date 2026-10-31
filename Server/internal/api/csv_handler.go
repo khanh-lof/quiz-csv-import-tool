@@ -141,7 +141,7 @@ func newJob(title string, creative bool, imageCount int, opts csvgen.Options) *s
 	exportType := int(opts.ExportType)
 	courseType := int(opts.CourseType)
 	job.ExportType, job.Intelligence, job.CourseType = &exportType, opts.Intelligence, &courseType
-	job.Level, job.LessonNumber = opts.Level, opts.LessonNumber
+	job.Level, job.LessonNumbers = opts.Level, opts.LessonNumbers
 	if opts.CourseType == csvgen.Hsk {
 		hskStandard := int(opts.HskStandard)
 		job.HskStandard = &hskStandard
@@ -162,12 +162,12 @@ func retryOptions(job *store.Job) (csvgen.Options, bool) {
 	if !job.Creative {
 		return csvgen.Options{}, true
 	}
-	if job.ExportType == nil || job.CourseType == nil || job.LessonNumber == nil {
+	if job.ExportType == nil || job.CourseType == nil || len(job.LessonNumbers) == 0 {
 		return csvgen.Options{}, false
 	}
 	opts := csvgen.Options{
 		ExportType: csvgen.ExportType(*job.ExportType), CourseType: csvgen.CourseType(*job.CourseType),
-		CourseName: job.CourseName, Level: job.Level, LessonNumber: job.LessonNumber, Intelligence: job.Intelligence,
+		CourseName: job.CourseName, Level: job.Level, LessonNumbers: job.LessonNumbers, Intelligence: job.Intelligence,
 	}
 	if opts.CourseType == csvgen.Hsk {
 		opts.HskStandard = csvgen.Hsk2
@@ -283,23 +283,23 @@ func (s *Server) recordJob(r *http.Request, write func(context.Context) error, j
 
 // jobView is a job as the client sees it. The CSV is empty until the job is done.
 type jobView struct {
-	ID           string     `json:"id"`
-	Status       string     `json:"status"`
-	Title        string     `json:"title"`
-	Creative     bool       `json:"creative"`
-	ExportType   *int       `json:"exportType"`
-	Intelligence int        `json:"intelligence"`
-	ImageCount   int        `json:"imageCount"`
-	CourseType   *int       `json:"courseType"`
-	CourseName   string     `json:"courseName"`
-	HskStandard  *int       `json:"hskStandard"`
-	Level        *int       `json:"level"`
-	LessonNumber *int       `json:"lessonNumber"`
-	CSV          string     `json:"csv"`
-	ErrorStatus  int        `json:"errorStatus"`
-	ErrorMessage string     `json:"errorMessage"`
-	CreatedAt    time.Time  `json:"createdAt"`
-	FinishedAt   *time.Time `json:"finishedAt"`
+	ID            string     `json:"id"`
+	Status        string     `json:"status"`
+	Title         string     `json:"title"`
+	Creative      bool       `json:"creative"`
+	ExportType    *int       `json:"exportType"`
+	Intelligence  int        `json:"intelligence"`
+	ImageCount    int        `json:"imageCount"`
+	CourseType    *int       `json:"courseType"`
+	CourseName    string     `json:"courseName"`
+	HskStandard   *int       `json:"hskStandard"`
+	Level         *int       `json:"level"`
+	LessonNumbers []int      `json:"lessonNumbers"`
+	CSV           string     `json:"csv"`
+	ErrorStatus   int        `json:"errorStatus"`
+	ErrorMessage  string     `json:"errorMessage"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	FinishedAt    *time.Time `json:"finishedAt"`
 	// Retryable says whether retryJob would take the job; RetryUntil is when its images stop being kept,
 	// null for a job without images or that cannot be retried.
 	Retryable  bool       `json:"retryable"`
@@ -341,7 +341,7 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 		views[i] = jobView{
 			ID: j.ID, Status: string(j.Status), Title: j.Title, Creative: j.Creative, ExportType: j.ExportType,
 			Intelligence: j.Intelligence, ImageCount: j.ImageCount, CourseType: j.CourseType, CourseName: j.CourseName,
-			HskStandard: j.HskStandard, Level: j.Level, LessonNumber: j.LessonNumber, CSV: j.CSV,
+			HskStandard: j.HskStandard, Level: j.Level, LessonNumbers: j.LessonNumbers, CSV: j.CSV,
 			ErrorStatus: j.ErrorStatus, ErrorMessage: j.ErrorMessage, CreatedAt: j.CreatedAt, FinishedAt: j.FinishedAt,
 			Retryable: retryable, RetryUntil: retryUntil,
 		}

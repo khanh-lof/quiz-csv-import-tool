@@ -30,12 +30,13 @@ type Job struct {
 
 	// The lesson a creative job was asked for, kept so the client can filter by it. CourseType is the
 	// csvgen.CourseType ordinal and HskStandard the standard itself (2 or 3, HSK only); Level and
-	// LessonNumber are absent when not given. Jobs from before these were stored have none of them.
-	CourseType   *int   `bson:"courseType,omitempty"`
-	CourseName   string `bson:"courseName,omitempty"`
-	HskStandard  *int   `bson:"hskStandard,omitempty"`
-	Level        *int   `bson:"level,omitempty"`
-	LessonNumber *int   `bson:"lessonNumber,omitempty"`
+	// LessonNumbers are absent when not given. Jobs from before these were stored have none of them.
+	CourseType  *int   `bson:"courseType,omitempty"`
+	CourseName  string `bson:"courseName,omitempty"`
+	HskStandard *int   `bson:"hskStandard,omitempty"`
+	Level       *int   `bson:"level,omitempty"`
+	// LessonNumbers are the lessons the quiz covers together, ascending.
+	LessonNumbers []int `bson:"lessonNumbers,omitempty"`
 	// The games a GestureQuiz job was asked for and the questions each gets, kept so the client can submit
 	// the same request again. Absent on the other platforms and on jobs from before these were stored.
 	GestureStages     []int `bson:"gestureStages,omitempty"`

@@ -12,6 +12,12 @@
       "runtimeExecutable": "go",
       "runtimeArgs": ["-C", "Server", "run", "./cmd/server"],
       "port": 7071
+    },
+    {
+      "name": "quiz-tool-server-podman",
+      "runtimeExecutable": "pwsh",
+      "runtimeArgs": ["-NoProfile", "-File", "Server/run-server-podman.ps1"],
+      "port": 7071
     }
   ]
 }

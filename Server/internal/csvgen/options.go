@@ -77,6 +77,10 @@ const (
 	DefaultQuestionsPerStage = 5
 )
 
+// MaxLessons is how many lessons one quiz may cover together. It keeps the material and the quiz to a size
+// a single quiz can cover. The client mirrors it as MAX_LESSONS in Client/src/models/lesson-numbers.ts.
+const MaxLessons = 5
+
 // AllGestureStages returns every stage number, the quiz a teacher gets without choosing games.
 func AllGestureStages() []int {
 	stages := make([]int, GestureStageCount)
@@ -95,9 +99,11 @@ type Options struct {
 	// CourseName is free text, only used when CourseType is Other.
 	CourseName string
 	// HskStandard is only used when CourseType is Hsk.
-	HskStandard  HskStandard
-	Level        *int
-	LessonNumber *int
+	HskStandard HskStandard
+	Level       *int
+	// LessonNumbers are the lessons one quiz covers together (ascending, unique, 1 to MaxLessons of them).
+	// ParseCreativeOptions always fills them.
+	LessonNumbers []int
 	// Intelligence is 1..IntelligenceLevels and selects the model, see Client.modelFor.
 	Intelligence int
 	// GestureStages (ascending, unique, each 1..GestureStageCount) and QuestionsPerStage describe the
@@ -190,14 +196,14 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 		return Options{}, errors.New("Invalid or missing level parameter.")
 	}
 
-	lesson, err := strconv.Atoi(strings.TrimSpace(q.Get("lessonNumber")))
-	if err != nil || lesson < 1 {
-		return Options{}, errors.New("Invalid or missing lessonNumber parameter.")
+	lessons, err := parseLessonNumbers(q.Get("lessonNumbers"))
+	if err != nil {
+		return Options{}, err
 	}
-	opts.LessonNumber = &lesson
-	// A book we hold the lessons of has a known number of them; for any other course the number is the
-	// teacher's word, since the model only reads it as a position in a book it recalls.
-	if book := textbookFor(opts); book != nil && lesson > book.lessons {
+	opts.LessonNumbers = lessons
+	// A book we hold the lessons of has a known number of them; for any other course the numbers are the
+	// teacher's word, since the model only reads them as positions in a book it recalls.
+	if book := textbookFor(opts); book != nil && lessons[len(lessons)-1] > book.lessons {
 		return Options{}, fmt.Errorf("Lesson must be 1 to %d for %s.", book.lessons, book.title)
 	}
 
@@ -226,6 +232,25 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 		}
 	}
 	return opts, nil
+}
+
+// parseLessonNumbers reads the comma-separated lesson numbers, in any order, and returns them ascending.
+// A blank list, an empty element, a number below 1, a non-integer and a repeat are all invalid rather than
+// guessed at.
+func parseLessonNumbers(raw string) ([]int, error) {
+	var lessons []int
+	for _, part := range strings.Split(raw, ",") {
+		lesson, err := strconv.Atoi(strings.TrimSpace(part))
+		if err != nil || lesson < 1 || slices.Contains(lessons, lesson) {
+			return nil, errors.New("Invalid or missing lessonNumbers parameter.")
+		}
+		lessons = append(lessons, lesson)
+	}
+	if len(lessons) > MaxLessons {
+		return nil, fmt.Errorf("At most %d lessons per quiz.", MaxLessons)
+	}
+	slices.Sort(lessons)
+	return lessons, nil
 }
 
 // parseGestureStages reads the comma-separated stage numbers, in any order, and returns them

@@ -1,6 +1,7 @@
 import { ExportType } from './export-type';
 import { CourseType } from './course-type';
 import { HskStandard } from './hsk-standard';
+import { formatLessonNumbers } from './lesson-numbers';
 
 export type AiJobStatus = 'running' | 'done' | 'failed';
 
@@ -15,13 +16,13 @@ export interface AiJob {
   exportType: ExportType | null;
   intelligence: number;
   imageCount: number;
-  // The lesson a creative job was asked for. Null on formatted jobs, and on creative jobs made before
-  // the server kept these. `hskStandard` is HSK only; `courseName` is for CourseType.Other.
+  // The lessons a creative job was asked for, ascending. Null on formatted jobs, and on creative jobs made
+  // before the server kept these. `hskStandard` is HSK only; `courseName` is for CourseType.Other.
   courseType: CourseType | null;
   courseName: string;
   hskStandard: HskStandard | null;
   level: number | null;
-  lessonNumber: number | null;
+  lessonNumbers: number[] | null;
   csv: string;
   errorStatus: number;
   errorMessage: string;
@@ -60,11 +61,11 @@ export function filterJobs(jobs: AiJob[], filter: AiJobFilter): AiJob[] {
     && (filter.courseType === null || job.courseType === filter.courseType)
     && (filter.hskStandard === null || job.hskStandard === filter.hskStandard)
     && (filter.level === null || job.level === filter.level)
-    && (filter.lessonNumber === null || job.lessonNumber === filter.lessonNumber)
+    && (filter.lessonNumber === null || (job.lessonNumbers?.includes(filter.lessonNumber) ?? false))
     && (needle === '' || normalizeForSearch(`${job.title}\n${job.errorMessage}\n${job.csv}`).includes(needle)));
 }
 
-// The lesson of a creative job in words, e.g. "HSK 3.0 · cấp 4 · bài 5"; "–" when the job has none.
+// The lesson of a creative job in words, e.g. "HSK 3.0 · cấp 4 · bài 3–5, 7"; "–" when the job has none.
 export function lessonLabel(job: AiJob): string {
   if (job.courseType === null) {
     return '–';
@@ -72,6 +73,7 @@ export function lessonLabel(job: AiJob): string {
   const course = job.courseType === CourseType.Hsk ? `HSK ${job.hskStandard === HskStandard.V3 ? '3.0' : '2.0'}`
     : job.courseType === CourseType.Yct ? 'YCT'
       : (job.courseName || 'Khác');
-  return [course, job.level === null ? null : `cấp ${job.level}`, job.lessonNumber === null ? null : `bài ${job.lessonNumber}`]
+  const lessons = job.lessonNumbers ?? [];
+  return [course, job.level === null ? null : `cấp ${job.level}`, lessons.length === 0 ? null : `bài ${formatLessonNumbers(lessons)}`]
     .filter(part => part !== null).join(' · ');
 }

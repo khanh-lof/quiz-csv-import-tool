@@ -212,24 +212,38 @@ func textbookFor(opts Options) *textbook {
 	return nil
 }
 
-// lessonMaterial is the message that carries a lesson of the book to the model: the lesson document
-// and the vocabulary the learner already knows, which for a book of a series includes the lower books
-// of the library. It is empty for a lesson the book does not have.
-func lessonMaterial(book *textbook, lesson int) string {
-	if lesson < 1 || lesson > book.lessons {
+// lessonMaterial is the message that carries the lessons of the book to the model: the document of each
+// lesson, in the order given, and the vocabulary the learner already knows, which for a book of a series
+// includes the lower books of the library. The lessons are ascending and unique, as Options.LessonNumbers
+// is. It is empty when there are none or the book lacks one of them.
+func lessonMaterial(book *textbook, lessons []int) string {
+	if len(lessons) == 0 {
 		return ""
 	}
+	docs := make([]string, len(lessons))
+	for i, lesson := range lessons {
+		if lesson < 1 || lesson > book.lessons {
+			return ""
+		}
+		docs[i] = book.docs[lesson-1]
+	}
 	var out strings.Builder
-	fmt.Fprintf(&out, "LESSON MATERIAL: %s, lesson %d of %d, taken from the textbook itself.\n\n", book.fullName(), lesson, book.lessons)
-	out.WriteString(book.docs[lesson-1])
+	if len(lessons) == 1 {
+		fmt.Fprintf(&out, "LESSON MATERIAL: %s, lesson %d of %d, taken from the textbook itself.\n\n", book.fullName(), lessons[0], book.lessons)
+	} else {
+		fmt.Fprintf(&out, "LESSON MATERIAL: %s, lessons %s of %d, taken from the textbook itself.\n\n",
+			book.fullName(), joinWords(numberStrings(lessons), "and"), book.lessons)
+	}
+	out.WriteString(strings.Join(docs, "\n\n"))
 	out.WriteString("\n\n")
-	out.WriteString(knownVocabulary(book, lesson))
+	out.WriteString(knownVocabulary(book, lessons))
 	return out.String()
 }
 
-// knownVocabulary is the last line of the material: the New words of the lower books of the series
-// and of the earlier lessons of the book, deduplicated and in book order, as the learner knows them.
-func knownVocabulary(book *textbook, lesson int) string {
+// knownVocabulary is the last line of the material: the New words of the lower books of the series and of
+// the lessons of the book that come before the highest lesson asked for and are not asked for themselves,
+// deduplicated and in book order, as the learner knows them. The lessons asked for are the ones to learn.
+func knownVocabulary(book *textbook, lessons []int) string {
 	var words []string
 	var sources []string
 	if book.series != "" {
@@ -247,10 +261,14 @@ func knownVocabulary(book *textbook, lesson int) string {
 			sources = append(sources, "the lower levels of the series")
 		}
 	}
-	if lesson > 1 {
-		for _, lessonWords := range book.words[:lesson-1] {
-			words = append(words, lessonWords...)
+	earlier := false
+	for lesson := 1; lesson < lessons[len(lessons)-1]; lesson++ {
+		if !slices.Contains(lessons, lesson) {
+			words = append(words, book.words[lesson-1]...)
+			earlier = true
 		}
+	}
+	if earlier {
 		// Named first, although the lower levels come first in the list itself.
 		sources = slices.Insert(sources, 0, "the earlier lessons of this book")
 	}

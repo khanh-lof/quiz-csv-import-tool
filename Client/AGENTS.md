@@ -115,7 +115,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      `CsvImportService.parseCsv` → rows left in `PendingImportService` (in memory) and the app
      navigates to `/quiz`, where `VocabularyTable.ngOnInit` takes them and adds them like any other
      import.
-   - **`Auto`** (requires `courseType`/`lessonNumber`/`exportType` in the page's form, plus `level`
+   - **`Auto`** (requires `courseType`/`lessonNumbers`/`exportType` in the page's form, plus `level`
      for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — or `courseName` for `Other`, and for Game
      `gestureStages`, a checkbox per game with at least one ticked, and `questionsPerStage`, 4–10; images are
      optional here. The two quiz controls are validated only for that platform, their limits and the sanitizers
@@ -133,10 +133,18 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
 hand-kept mirror of the server's registry of curated books (`Server/internal/csvgen/textbooks.go`): HSK 3.0 levels 1–3
 and YCT 6 for now. For these the server sends the lesson's real material to the AI, so no photo is needed. In Auto
 mode `AiGeneration` looks the book up from course type, standard and level (the `textbook` getter, like `maxLevel`)
-and shows under the Cấp/Bài row either "Dùng giáo trình …" or a muted "Chưa có giáo trình …" line; the Bài box is
-capped at the book's `lessons` (100 without a book), and a lesson left over the cap (HSK 3.0 level 3 lesson 18, then
-level 1) gets a `max` error from the form validator like the level's, so the form cannot be submitted. Adding a book
-means editing both lists together; the server also checks the lesson number (400 `Lesson must be 1 to <M> …`).
+and shows under the Cấp/Bài row either "Dùng giáo trình …" or a muted "Chưa có giáo trình …" line; the Bài select
+offers lessons 1 to the book's `lessons` (100 without a book), and a lesson left over the cap (HSK 3.0 level 3 lesson 18, then
+level 1) gets a `max` error from the form validator like the level's, so the form cannot be submitted; `lessonOptions`
+keeps an option for such a lesson, since ng-zorro's select hides a value without one and it could not be removed. Adding a book
+means editing both lists together; the server also checks the lesson numbers (400 `Lesson must be 1 to <M> …`).
+
+**Several lessons.** The Bài select is `nzMode="multiple"`, up to `MAX_LESSONS` (5, `models/lesson-numbers.ts`, the
+server's `MaxLessons`): the AI makes one quiz of all of them (see
+[../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes)). `AiCsvService` sends them as `lessonNumbers=3,4,5`, sorted.
+`lessonNumbersOf` reads them back from the saved settings; `formatLessonNumbers` writes them for people, "3–5, 7" in the jobs table's `lessonLabel` and
+"3-5+7" in the job's title (`HSK3.0-3-Bai3-5+7`). A job's `lessonNumbers` is a list (`null` without a lesson), and
+the table's single "Bài" filter matches a job that has that lesson among its own.
 
 Export: `exportFile()` validates the form, then `FileExportService` dispatches to `GimkitCsvBuilder`,
 `BlooketCsvBuilder`, or `WaygroundCsvBuilder` (all extend `CsvBuilderBase`, selected by the
