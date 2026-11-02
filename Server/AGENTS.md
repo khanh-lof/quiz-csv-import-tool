@@ -25,7 +25,10 @@ Module `quiz-csv-import-tool/server`, laid out as:
   (`/chat/completions` for the formatted mode, `/responses` for the creative mode). `radicals.go` is the
   "Ghép bộ thủ" platform's side of it: where a lesson's words come from (typed, the textbook's tables, or the model),
   the two JSON requests (`prompts/radicals_vocabulary.txt`, `prompts/radicals_details.txt`) and their merging, then
-  the calls into `internal/radicals`; `Generate` returns the exercise's JSON for that platform.
+  the calls into `internal/radicals`; `Generate` returns a `Result`, whose `CSV` is the exercise's JSON for that
+  platform and whose `Source` is what it was built from (`radicals_source.go`: `radicalsSource`, its words flagged
+  with where their notes came from). `radicals_edit.go` is the teacher's side: `RadicalsEditOf` (the table of what
+  can be corrected) and `ReviseRadicals` (the corrections applied to the source and the exercise built again, no LLM).
 - `internal/radicals` — the "Ghép bộ thủ" engine, a port of the GhepBoThu KIT (Python): `Plan` validates the
   lessons and solves the groups (1 example + 5 questions, 6 distinct missing components), `Draft.Needs` says which
   word, character and component notes the curated pools (`data/pool_*.json`) lack, `Draft.Build` assembles the
@@ -111,7 +114,12 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
 - **CSV jobs** (`csv_handler.go`): `POST csv/jobs`, `GET csv/jobs`, `DELETE csv/jobs/{id}`,
   `POST csv/jobs/{id}/retry`, `GET csv/jobs/{id}/page` (the page of a finished Radicals job, `text/html`, drawn
   from the job's exercise JSON on each request; 404 `Job not found`, 409 `Job is not a finished radicals
-  exercise.`). All wrapped in
+  exercise.`), and in `radicals_handlers.go` `GET` and `PUT csv/jobs/{id}/radicals` (the teacher's corrections of a
+  Radicals exercise; `radicalsJob` gives the page's two refusals, `editableRadicalsJob` adds 409 `Job cannot be
+  edited.` for a job without its source; `reviseRadicals` then reads the body, maps `csvgen.ErrInvalidCorrections` to
+  400, `csvgen.ErrIncomplete` to 422 with the flagged table, `radicals.ErrNothingToPlay` to 409, and saves with
+  `Jobs.Revise`, never touching the rate limit or the generator; see
+  [../AGENTS.md](../AGENTS.md#ghép-bộ-thủ-the-radicals-exercise)). All wrapped in
   `authenticate` (Bearer JWT → 401 with `WWW-Authenticate`) and `requireRole(auth.RoleUser, auth.RoleAdmin)`
   (→ 403); handlers read the claims with `auth.FromContext`. `createJob` loads the user (404 if deleted
   since the token was issued), reads a multipart body of zero or more files (and, for a Radicals job, the `vocabulary` text field), enforces the rate limit,
@@ -380,9 +388,11 @@ Jobs (`internal/store/jobs*.go`): `store.Jobs` is implemented by `MongoJobs` (co
 holds the request's metadata (title, mode, export type ordinal, intelligence, image count — never the
 images — and, for a creative job, the lesson: course type ordinal, course name, HSK standard, level and
 lesson numbers (`lessonNumbers`), which `listJobs` returns so the client can filter by them, and for a GestureQuiz job its
-`gestureStages` and `questionsPerStage`, kept so `retryJob` can ask for the same quiz again), `status` (`running`/`done`/`failed`), the raw model `csv`, `errorStatus`/`errorMessage`, the
+`gestureStages` and `questionsPerStage`, kept so `retryJob` can ask for the same quiz again), `status` (`running`/`done`/`failed`), the raw model `csv`, for a Radicals job its `source` (what csvgen rebuilds the exercise from), `errorStatus`/`errorMessage`, the
 rate-limit `roundStart` (for refunds) and timestamps. `Complete`/`Fail` only touch a job that is still
 `running`, so an expired job is never revived by a late answer; `Prune` never deletes a running job.
+`Revise(username, id, csv, source)` replaces the result of a `done` job only (`ErrNotFound` otherwise). `List` leaves
+the `source` out (Mongo projects it away), since the history never needs it.
 `Get(username, id)` returns one job, `ErrNotFound` for another user's too (`createAssignment` is its caller).
 `MongoJobs.EnsureIndexes` (username + createdAt) is, like the users' one, not called on start.
 

@@ -41,8 +41,8 @@ func TestGenerateRetriesTransientStatuses(t *testing.T) {
 		http.StatusServiceUnavailable, http.StatusGatewayTimeout} {
 		c, calls := flakyLLM(t, []int{status, status}, nil)
 		got, err := c.Generate(context.Background(), nil, true, Options{})
-		if err != nil || got != "a,b" || calls.Load() != 3 {
-			t.Errorf("status %d: got %q, %v after %d calls", status, got, err, calls.Load())
+		if err != nil || got.CSV != "a,b" || calls.Load() != 3 {
+			t.Errorf("status %d: got %q, %v after %d calls", status, got.CSV, err, calls.Load())
 		}
 	}
 }
@@ -100,8 +100,8 @@ func TestGenerateRetriesInterruptedGenerations(t *testing.T) {
 	for name, tc := range cases {
 		c, calls := answeringLLM(t, tc.interrupted, tc.done)
 		got, err := c.Generate(context.Background(), nil, tc.creative, Options{})
-		if err != nil || got != "a,b" || calls.Load() != 2 {
-			t.Errorf("%s: got %q, %v after %d calls", name, got, err, calls.Load())
+		if err != nil || got.CSV != "a,b" || calls.Load() != 2 {
+			t.Errorf("%s: got %q, %v after %d calls", name, got.CSV, err, calls.Load())
 		}
 	}
 }

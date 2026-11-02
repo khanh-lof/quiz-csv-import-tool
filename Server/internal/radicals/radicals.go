@@ -64,6 +64,16 @@ func IsHanzi(s string) bool {
 	return true
 }
 
+// PoolWordMeaning is the curated Vietnamese meaning of a word, which Build uses for a word without a Meaning of its
+// own; "" when the pool has none.
+func PoolWordMeaning(hanzi string) string {
+	data, err := loadData()
+	if err != nil {
+		return ""
+	}
+	return data.poolWords[hanzi]
+}
+
 // ErrNothingToPlay is Build's error when no lesson has enough words for a group.
 var ErrNothingToPlay = errors.New("No lesson has enough words for a group.")
 

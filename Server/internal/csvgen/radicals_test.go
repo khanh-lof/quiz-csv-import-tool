@@ -129,12 +129,12 @@ func TestParseCreativeOptionsForRadicals(t *testing.T) {
 
 func TestMergeVocabulary(t *testing.T) {
 	lessons := []radicalsLesson{
-		{Lesson: radicals.Lesson{Number: 1, Words: []radicals.Word{
-			{Hanzi: "借"},
-			{Hanzi: "图书馆", Pinyin: "túshūguǎn", Syllables: []string{"tú", "shū", "guǎn"}, Meaning: "thư viện"},
-			{Hanzi: "还"},
-		}}, source: wordsGiven},
-		{Lesson: radicals.Lesson{Number: 2}, source: wordsFromModel},
+		{Number: 1, Words: []radicalsWord{
+			{Word: radicals.Word{Hanzi: "借"}},
+			{Word: radicals.Word{Hanzi: "图书馆", Pinyin: "túshūguǎn", Syllables: []string{"tú", "shū", "guǎn"}, Meaning: "thư viện"}},
+			{Word: radicals.Word{Hanzi: "还"}},
+		}, source: wordsGiven},
+		{Number: 2, source: wordsFromModel},
 	}
 	answer := vocabularyAnswer{Lessons: []vocabularyLesson{
 		{Number: 1, TitleZh: "学习", Words: []vocabularyWord{
@@ -151,9 +151,9 @@ func TestMergeVocabulary(t *testing.T) {
 			{Hanzi: "复习", Pinyin: "fùxí", Syllables: []string{"fù", "xí"}, Meaning: "ôn tập"},
 		}},
 	}}
-	got, review := mergeVocabulary(lessons, answer)
+	got := mergeVocabulary(lessons, answer)
 
-	hanzi := func(words []radicals.Word) []string {
+	hanzi := func(words []radicalsWord) []string {
 		var out []string
 		for _, w := range words {
 			out = append(out, w.Hanzi)
@@ -167,15 +167,35 @@ func TestMergeVocabulary(t *testing.T) {
 	if got[0].Words[1].Meaning != "thư viện" || got[0].Words[0].Meaning != "mượn" || got[0].TitleZh != "学习" {
 		t.Fatalf("lesson 1 = %+v", got[0])
 	}
-	// The model's list minus what is no word, with a pinyin that splits on its own kept, and an unsplittable one dropped.
-	if h := hanzi(got[1].Words); !reflect.DeepEqual(h, []string{"复习", "作业"}) {
+	// Where each note came from: the model filled in 借 and 还, and was unsure of 还; the textbook's 图书馆 is kept.
+	flags := func(w radicalsWord) [3]bool { return [3]bool{w.AIPinyin, w.AIMeaning, w.Uncertain} }
+	if f := flags(got[0].Words[0]); f != [3]bool{true, true, false} {
+		t.Errorf("借 flags = %v", f)
+	}
+	if f := flags(got[0].Words[1]); f != [3]bool{} {
+		t.Errorf("图书馆 flags = %v", f)
+	}
+	if f := flags(got[0].Words[2]); f != [3]bool{true, true, true} {
+		t.Errorf("还 flags = %v", f)
+	}
+	// The model's list minus what is no word, with a pinyin that splits on its own kept, and an unsplittable one kept
+	// without a reading, to be left out of the exercise.
+	if h := hanzi(got[1].Words); !reflect.DeepEqual(h, []string{"复习", "作业", "好人"}) {
 		t.Fatalf("lesson 2 words = %v", h)
 	}
 	if !reflect.DeepEqual(got[1].Words[1].Syllables, []string{"zuò", "yè"}) {
 		t.Fatalf("作业 syllables = %v", got[1].Words[1].Syllables)
 	}
-	if !reflect.DeepEqual(review.words, []string{"借", "还", "复习", "作业"}) || !reflect.DeepEqual(review.uncertain, []string{"还"}) ||
-		!reflect.DeepEqual(review.dropped, []string{"好人"}) {
+	if w := got[1].Words[2]; hasReading(w.Word) || w.Pinyin != "xian" || w.Meaning != "người tốt" || !w.AIPinyin {
+		t.Fatalf("好人 = %+v", w)
+	}
+
+	src := &radicalsSource{Lessons: got, AIChars: []string{"借"}}
+	var review radicals.Review
+	src.fillReview(&review)
+	if !reflect.DeepEqual(review.AIWords, []string{"借", "还", "复习", "作业"}) || !reflect.DeepEqual(review.UncertainWords, []string{"还"}) ||
+		!reflect.DeepEqual(review.DroppedWords, []string{"好人"}) || !reflect.DeepEqual(review.AIChars, []string{"借"}) ||
+		review.AIComponents == nil {
 		t.Fatalf("review = %+v", review)
 	}
 }
@@ -245,14 +265,14 @@ func TestGenerateRadicalsFromTextbook(t *testing.T) {
 	llm, calls := fakeRadicalsModel(t, `{"lessons":[]}`)
 	level := 1
 	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
-	out, err := c.Generate(context.Background(), nil, true, Options{
+	result, err := c.Generate(context.Background(), nil, true, Options{
 		ExportType: Radicals, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumbers: []int{5, 6}, ColorPreset: "jade",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	var exercise radicals.Exercise
-	if err := json.Unmarshal([]byte(out), &exercise); err != nil {
+	if err := json.Unmarshal([]byte(result.CSV), &exercise); err != nil {
 		t.Fatalf("result is not an exercise: %v", err)
 	}
 	if exercise.LessonTitles["5"] == "" {
@@ -268,23 +288,25 @@ func TestGenerateRadicalsFromTextbook(t *testing.T) {
 	}
 }
 
+// modelVocabulary is the model's answer to the vocabulary request for a lesson of 12 words.
+const modelVocabulary = `{"lessons":[{"number":1,"titleZh":"","titleVi":"","words":[` +
+	`{"hanzi":"图书馆","pinyin":"túshūguǎn","syllables":["tú","shū","guǎn"],"meaning":"thư viện"},` +
+	`{"hanzi":"借","pinyin":"jiè","syllables":["jiè"],"meaning":"mượn"},` +
+	`{"hanzi":"复习","pinyin":"fùxí","syllables":["fù","xí"],"meaning":"ôn tập"},` +
+	`{"hanzi":"作业","pinyin":"zuòyè","syllables":["zuò","yè"],"meaning":"bài tập"},` +
+	`{"hanzi":"句子","pinyin":"jùzi","syllables":["jù","zi"],"meaning":"câu"},` +
+	`{"hanzi":"词典","pinyin":"cídiǎn","syllables":["cí","diǎn"],"meaning":"từ điển"},` +
+	`{"hanzi":"练习","pinyin":"liànxí","syllables":["liàn","xí"],"meaning":"luyện tập"},` +
+	`{"hanzi":"讲","pinyin":"jiǎng","syllables":["jiǎng"],"meaning":"giảng"},` +
+	`{"hanzi":"解决","pinyin":"jiějué","syllables":["jiě","jué"],"meaning":"giải quyết"},` +
+	`{"hanzi":"努力","pinyin":"nǔlì","syllables":["nǔ","lì"],"meaning":"nỗ lực"},` +
+	`{"hanzi":"成绩","pinyin":"chéngjì","syllables":["chéng","jì"],"meaning":"thành tích"},` +
+	`{"hanzi":"健康","pinyin":"jiànkāng","syllables":["jiàn","kāng"],"meaning":"khỏe mạnh"}]}]}`
+
 func TestGenerateRadicalsFromModel(t *testing.T) {
-	vocabulary := `{"lessons":[{"number":1,"titleZh":"","titleVi":"","words":[` +
-		`{"hanzi":"图书馆","pinyin":"túshūguǎn","syllables":["tú","shū","guǎn"],"meaning":"thư viện"},` +
-		`{"hanzi":"借","pinyin":"jiè","syllables":["jiè"],"meaning":"mượn"},` +
-		`{"hanzi":"复习","pinyin":"fùxí","syllables":["fù","xí"],"meaning":"ôn tập"},` +
-		`{"hanzi":"作业","pinyin":"zuòyè","syllables":["zuò","yè"],"meaning":"bài tập"},` +
-		`{"hanzi":"句子","pinyin":"jùzi","syllables":["jù","zi"],"meaning":"câu"},` +
-		`{"hanzi":"词典","pinyin":"cídiǎn","syllables":["cí","diǎn"],"meaning":"từ điển"},` +
-		`{"hanzi":"练习","pinyin":"liànxí","syllables":["liàn","xí"],"meaning":"luyện tập"},` +
-		`{"hanzi":"讲","pinyin":"jiǎng","syllables":["jiǎng"],"meaning":"giảng"},` +
-		`{"hanzi":"解决","pinyin":"jiějué","syllables":["jiě","jué"],"meaning":"giải quyết"},` +
-		`{"hanzi":"努力","pinyin":"nǔlì","syllables":["nǔ","lì"],"meaning":"nỗ lực"},` +
-		`{"hanzi":"成绩","pinyin":"chéngjì","syllables":["chéng","jì"],"meaning":"thành tích"},` +
-		`{"hanzi":"健康","pinyin":"jiànkāng","syllables":["jiàn","kāng"],"meaning":"khỏe mạnh"}]}]}`
-	llm, calls := fakeRadicalsModel(t, vocabulary)
+	llm, calls := fakeRadicalsModel(t, modelVocabulary)
 	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
-	out, err := c.Generate(context.Background(), nil, true, Options{
+	result, err := c.Generate(context.Background(), nil, true, Options{
 		ExportType: Radicals, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{1}, ColorPreset: "blue",
 	})
 	if err != nil {
@@ -294,7 +316,7 @@ func TestGenerateRadicalsFromModel(t *testing.T) {
 		t.Fatalf("calls = %v", *calls)
 	}
 	var exercise radicals.Exercise
-	if err := json.Unmarshal([]byte(out), &exercise); err != nil {
+	if err := json.Unmarshal([]byte(result.CSV), &exercise); err != nil {
 		t.Fatal(err)
 	}
 	if exercise.Preset != "blue" || exercise.Review.Groups["1"] == 0 || len(exercise.Review.AIWords) != 12 {
