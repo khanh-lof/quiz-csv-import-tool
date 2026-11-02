@@ -172,14 +172,8 @@ share link it sends back (see [../AGENTS.md](../AGENTS.md#the-wayground-browser-
 
 The exercise page the AI page can build instead of a quiz; the contract and the server's half are in
 [../AGENTS.md](../AGENTS.md#ghép-bộ-thủ-the-radicals-exercise).
-- **Form.** Choosing "Ghép bộ thủ" as the platform shows, under it, one tag input (`nz-select nzMode="tags"`) per
-  chosen lesson, "Từ bài N", optional: a typed or pasted line is split on spaces, commas and 、 by `splitWords`
-  (`models/radicals-options.ts`), which keeps Chinese words only (8 characters at most, no repeats) and reports the
-  rest, shown once as "Bỏ qua (không phải chữ Hán): …". Then the colour preset (`RADICALS_PRESETS`, a swatch per
-  option) and, with two lessons or more, "Thiếu từ thì mượn từ bài trước" (`reviewPrevious`). The words are not
-  remembered with the page's settings; the preset and the checkbox are. `AiCsvService.submitCreative` sends
-  `reviewPrevious`/`colorPreset` as parameters and the words (`vocabularyFor`: chosen lessons that have words) as the
-  form field `vocabulary`, for this platform only.
+- **Form.** "Ghép bộ thủ" has no field of its own: the course, level, lessons, photos and intelligence, like every
+  `Auto` platform, and `AiCsvService.submitCreative` sends nothing more for it.
 - **History.** A finished job has "Chơi ngay" (`/ai-history/radicals/<id>`) and "Tải file" (`RadicalsPageService`
   fetches `GET csv/jobs/{id}/page` and saves `<title>-GhepBoThu.html`), and no "Xem kết quả": its `csv` is the
   exercise's JSON. A job that failed with 422 (no lesson had enough words) is worded by `failedJobMessage`.
@@ -199,7 +193,7 @@ The exercise page the AI page can build instead of a quiz; the contract and the 
   back with rows flagged (`flaggedEdit`), shown as red inputs with "Pinyin không khớp số chữ" or "Cần nhập"; other
   refusals are worded by `radicalsEditError`. The inputs' `maxlength` are the server's limits
   (`MAX_EDIT_PINYIN_LENGTH`, `MAX_EDIT_NOTE_LENGTH`).
-- **Specs:** `models/radicals-options.spec.ts`, `models/radicals-edit.spec.ts`, `components/radicals-play/radicals-play.spec.ts`
+- **Specs:** `models/radicals-review.spec.ts`, `models/radicals-edit.spec.ts`, `components/radicals-play/radicals-play.spec.ts`
   (`reviewLines`, and the page's edit flow over `HttpTestingController`), `services/radicals-page.service.spec.ts`, and
   the platform's cases in `services/ai-csv.service.spec.ts`, `models/ai-job.spec.ts` and `workspace.spec.ts`.
 

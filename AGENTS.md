@@ -510,17 +510,12 @@ component missing from a character, and the learner picks the six missing compon
 port of a Python toolkit, the "GhepBoThu KIT", which kept a model with code execution busy for minutes. Here the
 model only answers what needs language knowledge, and `Server/internal/radicals` (pure Go, no LLM) does the rest.
 
-- **The request.** The same form fields as every `Auto` platform (course, level, lessons, photos, intelligence), plus
-  `reviewPrevious` (earlier lessons of the exercise may fill a group of six) and `colorPreset` (`jade`, `blue`,
-  `lilac`, `terracotta`, `rose`, `red_black`; the client's `RADICALS_PRESETS` and the engine's `Presets()` are kept in
-  step by hand) as query parameters, and the words the teacher typed per lesson as the multipart field
-  `vocabulary`, JSON `{"3":["图书馆","借"]}` (`csvgen.ParseVocabulary`: chosen lessons only, Chinese characters
-  only, at most `MaxVocabularyWords` words of `MaxWordRunes` characters, no repeats; 400 `Invalid vocabulary.`). The
-  job keeps all three (`Vocabulary`, `ReviewPrevious`, `ColorPreset`) for "Tạo lại".
-- **Where the words come from**, per lesson (`csvgen.gatherRadicalsLessons`): the typed words, kept as typed and in
-  that order; without them, the textbook lesson's New words and Proper nouns tables when the course is one of the
-  embedded books (with pinyin, Vietnamese meaning and ★, so no model is needed); otherwise the model lists them from
-  the photos or from the lesson as it knows it.
+- **The request.** Only the form fields of every `Auto` platform (course, level, lessons, photos, intelligence): the
+  platform has no option of its own. The page uses the engine's default colours (`jade`), and each lesson makes its
+  own groups (earlier lessons of the exercise never fill one in).
+- **Where the words come from**, per lesson (`csvgen.gatherRadicalsLessons`): the textbook lesson's New words and
+  Proper nouns tables when the course is one of the embedded books (with pinyin, Vietnamese meaning and ★, so no model
+  is needed); otherwise the model lists them from the photos or from the lesson as it knows it.
 - **At most two model calls, one rate-limit unit.** (1) `prompts/radicals_vocabulary.txt`, only when some lesson's
   words are the model's or a word has no pinyin yet: JSON words with pinyin cut into one syllable per character,
   meanings, proper nouns and an `uncertain` flag. (2) `prompts/radicals_details.txt`, only for what the curated pools

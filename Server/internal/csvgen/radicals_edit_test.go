@@ -23,7 +23,7 @@ func generatedRadicals(t *testing.T) Result {
 	llm, _ := fakeRadicalsModel(t, vocabulary)
 	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
 	result, err := c.Generate(context.Background(), nil, true, Options{
-		ExportType: Radicals, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{1}, ColorPreset: "blue",
+		ExportType: Radicals, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{1},
 	})
 	if err != nil {
 		t.Fatal(err)

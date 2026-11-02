@@ -14,47 +14,17 @@ import (
 	"quiz-csv-import-tool/server/internal/store"
 )
 
-const radicalsQuery = "?title=Boya-Bai3-4&isCreative=true&exportType=4&courseType=2&courseName=Boya&lessonNumbers=4,3" +
-	"&reviewPrevious=true&colorPreset=blue"
+const radicalsQuery = "?title=Boya-Bai3-4&isCreative=true&exportType=4&courseType=2&courseName=Boya&lessonNumbers=4,3"
 
-func TestCreateJobReadsRadicalsOptions(t *testing.T) {
+func TestCreateJobForRadicals(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 
-	rec := env.upload(t, upload{token: token, query: radicalsQuery,
-		fields: map[string]string{"vocabulary": `{"3":["图书馆","借"],"4":[]}`}})
-	if rec.Code != http.StatusAccepted {
+	if rec := env.upload(t, upload{token: token, query: radicalsQuery}); rec.Code != http.StatusAccepted {
 		t.Fatalf("create: %d %q", rec.Code, rec.Body)
 	}
-	opts := env.gen.opts
-	if opts.ExportType != csvgen.Radicals || !opts.ReviewPrevious || opts.ColorPreset != "blue" ||
-		!reflect.DeepEqual(opts.Vocabulary, map[int][]string{3: {"图书馆", "借"}}) {
+	if opts := env.gen.opts; opts.ExportType != csvgen.Radicals || !reflect.DeepEqual(opts.LessonNumbers, []int{3, 4}) {
 		t.Fatalf("generator got %+v", opts)
-	}
-	job := env.onlyJob(t, "alice")
-	if !job.ReviewPrevious || job.ColorPreset != "blue" || !reflect.DeepEqual(job.Vocabulary, map[string][]string{"3": {"图书馆", "借"}}) {
-		t.Fatalf("job %+v", job)
-	}
-}
-
-func TestCreateJobRefusesBadVocabulary(t *testing.T) {
-	env := newEnv(t)
-	token, _ := env.login(t, "alice", "pw")
-
-	for _, vocabulary := range []string{`{"5":["好"]}`, `{"3":["hao"]}`, `[1]`} {
-		rec := env.upload(t, upload{token: token, query: radicalsQuery, fields: map[string]string{"vocabulary": vocabulary}})
-		if rec.Code != http.StatusBadRequest || rec.Body.String() != "Invalid vocabulary." {
-			t.Errorf("vocabulary %s: %d %q", vocabulary, rec.Code, rec.Body)
-		}
-	}
-	// Only a Radicals job reads the field.
-	rec := env.upload(t, upload{token: token, query: "?isCreative=true&exportType=0&courseType=2&courseName=Boya&lessonNumbers=1",
-		fields: map[string]string{"vocabulary": "not json"}})
-	if rec.Code != http.StatusAccepted {
-		t.Fatalf("GimKit with a vocabulary field: %d %q", rec.Code, rec.Body)
-	}
-	if env.gen.calls != 1 {
-		t.Fatalf("generator calls = %d", env.gen.calls)
 	}
 }
 
@@ -62,7 +32,7 @@ func TestRetryRadicalsJobSendsTheSameRequestAgain(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 	env.gen.err = radicals.ErrNothingToPlay
-	env.upload(t, upload{token: token, query: radicalsQuery, fields: map[string]string{"vocabulary": `{"4":["好"]}`}})
+	env.upload(t, upload{token: token, query: radicalsQuery})
 	failed := env.onlyJob(t, "alice")
 	if failed.Status != store.JobFailed || failed.ErrorStatus != http.StatusUnprocessableEntity ||
 		failed.ErrorMessage != radicals.ErrNothingToPlay.Error() {

@@ -25,10 +25,9 @@ var (
 type wordSource int
 
 const (
-	// wordsGiven: the teacher typed them; the model only fills in what neither the teacher nor the textbook has.
-	wordsGiven wordSource = iota
-	// wordsFromBook: the lesson document of an embedded textbook has all of them.
-	wordsFromBook
+	// wordsFromBook: the lesson document of an embedded textbook has all of them; the model only fills in a
+	// reading the document lacks.
+	wordsFromBook wordSource = iota
 	// wordsFromModel: the model lists them, from the photos or from its knowledge of the lesson.
 	wordsFromModel
 )
@@ -73,8 +72,8 @@ func withSyllables(word radicals.Word) radicals.Word {
 // generateRadicals builds a "Ghép bộ thủ" exercise and returns it as JSON (radicals.Exercise), which is what a
 // Radicals job stores in place of a CSV, with the source it was built from (radicalsSource), from which
 // ReviseRadicals builds it again with the teacher's corrections. It asks the model at most twice: once for the
-// words that neither the teacher nor the textbook gave in full, once for the meanings of characters and the names
-// of components that the curated pools lack. The rest is package radicals' work.
+// words that the textbook does not give in full, once for the meanings of characters and the names of components
+// that the curated pools lack. The rest is package radicals' work.
 func (c *Client) generateRadicals(ctx context.Context, images []Image, opts Options) (Result, error) {
 	model := c.modelFor(opts)
 	lessons := gatherRadicalsLessons(opts)
@@ -93,7 +92,7 @@ func (c *Client) generateRadicals(ctx context.Context, images []Image, opts Opti
 	src := &radicalsSource{
 		Version: radicalsSourceVersion, Lessons: lessons,
 		Chars: map[string]string{}, Components: map[string]radicals.ComponentInfo{}, AIChars: []string{}, AIComponents: []string{},
-		ReviewPrevious: opts.ReviewPrevious, Preset: opts.ColorPreset, Level: radicalsLevel(opts), CourseName: radicalsCourseName(opts),
+		Level: radicalsLevel(opts), CourseName: radicalsCourseName(opts),
 	}
 	draft, err := src.plan()
 	if err != nil {
@@ -120,29 +119,17 @@ func needsModel(lesson radicalsLesson) bool {
 }
 
 // gatherRadicalsLessons sets out the lessons of the request with what is known of their words before asking
-// the model: the teacher's words, completed from the textbook where it has them, or the textbook's own list.
+// the model: the textbook's own list when the course is one of the embedded books.
 func gatherRadicalsLessons(opts Options) []radicalsLesson {
 	book := textbookFor(opts)
 	lessons := make([]radicalsLesson, 0, len(opts.LessonNumbers))
 	for _, number := range opts.LessonNumbers {
 		lesson := radicalsLesson{Number: number, source: wordsFromModel}
-		var bookWords []radicals.Word
 		if book != nil && number <= book.lessons {
 			lesson.TitleZh, lesson.TitleVi = lessonTitles(book.docs[number-1])
-			bookWords = lessonVocabulary(book.docs[number-1])
 			lesson.source = wordsFromBook
-			for _, word := range bookWords {
+			for _, word := range lessonVocabulary(book.docs[number-1]) {
 				lesson.Words = append(lesson.Words, radicalsWord{Word: word})
-			}
-		}
-		if typed := opts.Vocabulary[number]; len(typed) > 0 {
-			lesson.source = wordsGiven
-			lesson.Words = make([]radicalsWord, len(typed))
-			for i, hanzi := range typed {
-				lesson.Words[i] = radicalsWord{Word: radicals.Word{Hanzi: hanzi}}
-				if j := slices.IndexFunc(bookWords, func(w radicals.Word) bool { return w.Hanzi == hanzi }); j >= 0 {
-					lesson.Words[i].Word = bookWords[j]
-				}
 			}
 		}
 		lessons = append(lessons, lesson)
@@ -313,7 +300,7 @@ type detailsAnswer struct {
 	Components map[string]radicals.ComponentInfo `json:"components"`
 }
 
-// mergeVocabulary completes the lessons with the model's answer. What the teacher or the textbook gave is kept,
+// mergeVocabulary completes the lessons with the model's answer. What the textbook gave is kept,
 // and a lesson whose words are the model's takes them as they come, minus anything that is not a word. A word
 // still without a reading, one pinyin syllable per character, stays in its lesson, to be left out of the exercise
 // and named for the teacher.
@@ -411,7 +398,7 @@ func appendNew(list []string, item string) []string {
 	return append(list, item)
 }
 
-// buildRadicalsVocabularyRequest asks the model for the words of the lessons that need it: the teacher's
+// buildRadicalsVocabularyRequest asks the model for the words of the lessons that need it: the textbook's
 // incomplete words to fill in, or a whole list from the photos or the lesson as the model knows it.
 func buildRadicalsVocabularyRequest(model string, images []Image, opts Options, lessons []radicalsLesson) responsesRequest {
 	texts := append([]string{"Return the vocabulary of the lessons below as the JSON object described in your instructions."}, lessonMessages(opts)...)

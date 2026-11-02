@@ -23,7 +23,7 @@ Module `quiz-csv-import-tool/server`, laid out as:
   templates (all embedded from `prompts/*.txt`), the embedded lesson documents of four textbooks
   (`textbooks/`), and the OpenAI-compatible client
   (`/chat/completions` for the formatted mode, `/responses` for the creative mode). `radicals.go` is the
-  "Ghép bộ thủ" platform's side of it: where a lesson's words come from (typed, the textbook's tables, or the model),
+  "Ghép bộ thủ" platform's side of it: where a lesson's words come from (the textbook's tables, or the model),
   the two JSON requests (`prompts/radicals_vocabulary.txt`, `prompts/radicals_details.txt`) and their merging, then
   the calls into `internal/radicals`; `Generate` returns a `Result`, whose `CSV` is the exercise's JSON for that
   platform and whose `Source` is what it was built from (`radicals_source.go`: `radicalsSource`, its words flagged
@@ -122,7 +122,7 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   [../AGENTS.md](../AGENTS.md#ghép-bộ-thủ-the-radicals-exercise)). All wrapped in
   `authenticate` (Bearer JWT → 401 with `WWW-Authenticate`) and `requireRole(auth.RoleUser, auth.RoleAdmin)`
   (→ 403); handlers read the claims with `auth.FromContext`. `createJob` loads the user (404 if deleted
-  since the token was issued), reads a multipart body of zero or more files (and, for a Radicals job, the `vocabulary` text field), enforces the rate limit,
+  since the token was issued), reads a multipart body of zero or more files, enforces the rate limit,
   stores a running `store.Job`, prunes the user's jobs to the newest 30, answers `202 {"id"}` (flushed
   early, `Connection: close`) and keeps running in the same handler: `runJob` calls the generator on a
   context detached from the request (`context.WithoutCancel`), so the client leaving does not cancel it,

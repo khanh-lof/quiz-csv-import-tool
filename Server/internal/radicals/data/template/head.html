@@ -236,7 +236,18 @@ button{font:inherit;color:inherit}
 .vocab .vlist{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));padding:6px 0 14px}
 footer{max-width:1500px;margin:0 auto;padding:6px 28px 30px;color:#7a8791;font-size:12.5px}
 
-@media (min-width:1101px){ #vocabBox{display:none!important} }
+@media (min-width:1101px){
+  #vocabBox{display:none!important}
+  /* The page never scrolls: the questions and the panel scroll on their own between the header and the footer,
+     so no page scrollbar sits beside the panel's. The stage's padding keeps focus rings and shadows from being clipped. */
+  html,body{height:100%}
+  body{display:flex;flex-direction:column;overflow:hidden}
+  .top,footer{flex:0 0 auto;width:100%}
+  .layout{flex:1 1 auto;min-height:0;width:100%;grid-template-rows:minmax(0,1fr);padding-top:0;padding-bottom:0}
+  .stage{align-self:stretch;overflow-y:auto;overscroll-behavior:contain;margin:0 -10px;padding:4px 10px 16px}
+  .panel{position:static;max-height:100%}
+  footer{padding-top:8px;padding-bottom:10px}
+}
 @media (max-width:1100px){
   .layout{grid-template-columns:minmax(0,1fr)}
   .howto{display:none}
@@ -286,6 +297,9 @@ footer{max-width:1500px;margin:0 auto;padding:6px 28px 30px;color:#7a8791;font-s
   .row.ex.n3 .exrow,.row.ex.n4 .exrow,.row.ex.n5 .exrow{flex-direction:column;align-items:flex-start;gap:0}
   .row.ex.n3 .exrow .arrow,.row.ex.n4 .exrow .arrow,.row.ex.n5 .exrow .arrow{width:30px;height:18px;transform:rotate(90deg);margin:6px 0 6px 18px}
 }
+/* an example too wide for its column at any screen size (see fitExample) is stacked the same way */
+.row.ex.stack .exrow{flex-direction:column;align-items:flex-start;gap:0}
+.row.ex.stack .exrow .arrow{width:30px;height:18px;transform:rotate(90deg);margin:6px 0 6px 18px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>

@@ -43,7 +43,7 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	images, fields, uploadErr := readUpload(w, r)
+	images, uploadErr := readImages(w, r)
 	if uploadErr != nil {
 		writeText(w, uploadErr.status, uploadErr.msg)
 		return
@@ -62,12 +62,6 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 		if opts, err = csvgen.ParseCreativeOptions(r.URL.Query()); err != nil {
 			writeText(w, http.StatusBadRequest, err.Error())
 			return
-		}
-		if opts.ExportType == csvgen.Radicals {
-			if opts.Vocabulary, err = csvgen.ParseVocabulary(fields[vocabularyField], opts.LessonNumbers); err != nil {
-				writeText(w, http.StatusBadRequest, err.Error())
-				return
-			}
 		}
 	}
 
@@ -160,15 +154,6 @@ func newJob(title string, creative bool, imageCount int, opts csvgen.Options) *s
 		questionsPerStage := opts.GestureQuizQuestions()
 		job.GestureStages, job.QuestionsPerStage = opts.GestureQuizStages(), &questionsPerStage
 	}
-	if opts.ExportType == csvgen.Radicals {
-		job.ReviewPrevious, job.ColorPreset = opts.ReviewPrevious, opts.ColorPreset
-		if len(opts.Vocabulary) > 0 {
-			job.Vocabulary = make(map[string][]string, len(opts.Vocabulary))
-			for lesson, words := range opts.Vocabulary {
-				job.Vocabulary[strconv.Itoa(lesson)] = words
-			}
-		}
-	}
 	return job
 }
 
@@ -196,22 +181,6 @@ func retryOptions(job *store.Job) (csvgen.Options, bool) {
 			return csvgen.Options{}, false
 		}
 		opts.GestureStages, opts.QuestionsPerStage = job.GestureStages, *job.QuestionsPerStage
-	}
-	if opts.ExportType == csvgen.Radicals {
-		if job.ColorPreset == "" {
-			return csvgen.Options{}, false
-		}
-		opts.ReviewPrevious, opts.ColorPreset = job.ReviewPrevious, job.ColorPreset
-		for key, words := range job.Vocabulary {
-			lesson, err := strconv.Atoi(key)
-			if err != nil {
-				return csvgen.Options{}, false
-			}
-			if opts.Vocabulary == nil {
-				opts.Vocabulary = make(map[int][]string, len(job.Vocabulary))
-			}
-			opts.Vocabulary[lesson] = words
-		}
 	}
 	return opts, true
 }
@@ -484,61 +453,42 @@ func (s *Server) refundAICall(r *http.Request, username string, roundStart time.
 	}
 }
 
-// vocabularyField is the multipart field that carries the words the teacher typed for a Radicals exercise, as
-// csvgen.ParseVocabulary reads them. It is a form field rather than a query parameter because it can be long.
-const vocabularyField = "vocabulary"
-
-// maxFieldBytes bounds a non-file field of the upload; a long vocabulary is a few kilobytes.
-const maxFieldBytes = 64 << 10
-
-// readUpload collects every file part of the multipart body as an image, and the text fields by name. A body
-// with no file at all is fine: creative mode can run without images.
-func readUpload(w http.ResponseWriter, r *http.Request) ([]csvgen.Image, map[string]string, *requestError) {
+// readImages collects every file part of the multipart body. A body with no file at all is fine:
+// creative mode can run without images.
+func readImages(w http.ResponseWriter, r *http.Request) ([]csvgen.Image, *requestError) {
 	contentType := r.Header.Get("Content-Type")
 	if contentType == "" {
-		return nil, nil, &requestError{http.StatusBadRequest, "Missing Content-Type header"}
+		return nil, &requestError{http.StatusBadRequest, "Missing Content-Type header"}
 	}
 	if !strings.Contains(strings.ToLower(contentType), "multipart/form-data") {
-		return nil, nil, &requestError{http.StatusBadRequest, "Expected multipart/form-data"}
+		return nil, &requestError{http.StatusBadRequest, "Expected multipart/form-data"}
 	}
 	_, params, err := mime.ParseMediaType(contentType)
 	if err != nil || params["boundary"] == "" {
-		return nil, nil, &requestError{http.StatusBadRequest, "Missing multipart boundary"}
+		return nil, &requestError{http.StatusBadRequest, "Missing multipart boundary"}
 	}
 
 	reader := multipart.NewReader(http.MaxBytesReader(w, r.Body, maxUploadBytes), params["boundary"])
 	var images []csvgen.Image
-	fields := map[string]string{}
 	for {
 		part, err := reader.NextPart()
 		// Only a bare io.EOF marks the closing delimiter; a wrapped EOF means the body was truncated
 		// (even an empty multipart body must end with its closing delimiter).
 		if err == io.EOF {
-			return images, fields, nil
+			return images, nil
 		}
 		if err != nil {
-			return nil, nil, uploadError(err)
+			return nil, uploadError(err)
 		}
 
 		disposition, dispParams, _ := mime.ParseMediaType(part.Header.Get("Content-Disposition"))
-		if disposition != "form-data" {
+		if disposition != "form-data" || dispParams["filename"] == "" {
 			_ = part.Close()
-			continue
-		}
-		if dispParams["filename"] == "" {
-			value, err := io.ReadAll(io.LimitReader(part, maxFieldBytes+1))
-			if err != nil {
-				return nil, nil, uploadError(err)
-			}
-			if len(value) > maxFieldBytes {
-				return nil, nil, &requestError{http.StatusRequestEntityTooLarge, "Upload is too large."}
-			}
-			fields[dispParams["name"]] = string(value)
 			continue
 		}
 		data, err := io.ReadAll(part)
 		if err != nil {
-			return nil, nil, uploadError(err)
+			return nil, uploadError(err)
 		}
 		partType := part.Header.Get("Content-Type")
 		if partType == "" {

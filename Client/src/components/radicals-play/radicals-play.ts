@@ -13,7 +13,7 @@ import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
 import { AiJob } from '../../models/ai-job';
 import { ExportType } from '../../models/export-type';
-import { hasReviewItems, RadicalsReview, radicalsReviewOf } from '../../models/radicals-options';
+import { hasReviewItems, RadicalsReview, radicalsReviewOf } from '../../models/radicals-review';
 import {
   editRowCount,
   flaggedEdit,
