@@ -507,6 +507,10 @@ only as a `403` with a plain-text body from `POST csv/jobs`, which
 empty body is the role check instead, shown as "Không có quyền"). A job whose generation fails (recorded as
 `502`/`504`) is given back (`RefundAICall`), so resubmitting after a failure does not use up the user's quota.
 
+Login is limited separately, per username (`LOGIN_MAX_ATTEMPTS` per `LOGIN_WINDOW_MINUTES`, see
+[Server/AGENTS.md](Server/AGENTS.md)): beyond it `auth/login` answers `429` with `Retry-After`, which the login
+page shows as the minutes to wait.
+
 ## Upload size and LLM timeout (Vercel limits)
 
 Vercel functions reject request bodies over 4.5 MB (413) and stop after 300 s by default (504). The

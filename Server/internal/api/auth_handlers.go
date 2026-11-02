@@ -1,10 +1,14 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,6 +34,20 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Counted before the password is checked, so concurrent attempts cannot slip past the limit together.
+	attemptKey := loginAttemptKey(req.Username)
+	retryAt, ok, err := s.LoginAttempts.TryConsume(r.Context(), attemptKey, s.LoginMaxAttempts, s.LoginWindow)
+	if err != nil {
+		s.internalError(w, r, "counting login attempt failed", err)
+		return
+	}
+	if !ok {
+		retryAfter := int(math.Ceil(retryAt.Sub(s.now()).Seconds()))
+		w.Header().Set("Retry-After", strconv.Itoa(max(retryAfter, 1)))
+		writeText(w, http.StatusTooManyRequests, "Too many login attempts")
+		return
+	}
+
 	session, err := s.Auth.Login(r.Context(), req.Username, req.Password)
 	if errors.Is(err, auth.ErrInvalidCredentials) {
 		writeText(w, http.StatusUnauthorized, "Invalid credentials")
@@ -39,7 +57,17 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "login failed", err)
 		return
 	}
+	if err := s.LoginAttempts.Reset(r.Context(), attemptKey); err != nil {
+		s.Logger.Warn("resetting login attempts failed", "error", err)
+	}
 	s.writeSession(w, session)
+}
+
+// loginAttemptKey hashes the typed username, so the attempts collection never stores what was typed in the
+// field (sometimes a password) and every key has the same size.
+func loginAttemptKey(username string) string {
+	sum := sha256.Sum256([]byte(username))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
 func (s *Server) refresh(w http.ResponseWriter, r *http.Request) {

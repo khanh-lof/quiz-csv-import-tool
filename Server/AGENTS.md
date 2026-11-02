@@ -50,7 +50,8 @@ without them.
 - `MONGODB_URI`, `MONGODB_DATABASE` (default `QuizDb`), `MONGODB_COLLECTION` (default `Users`),
   `MONGODB_JOBS_COLLECTION` (default `Jobs`, the AI generation jobs),
   `MONGODB_ASSIGNMENTS_COLLECTION` (default `Assignments`) and `MONGODB_PLAYERS_COLLECTION` (default
-  `AssignmentPlayers`): the quizzes teachers handed to students, and the students who joined them with their results
+  `AssignmentPlayers`): the quizzes teachers handed to students, and the students who joined them with their results,
+  `MONGODB_LOGIN_ATTEMPTS_COLLECTION` (default `LoginAttempts`): the login attempts counted per username
 - `JWT_SECRET` (≥ 32 bytes, RFC 7518 §3.2 for HS256), `JWT_ISSUER` (default `quiztool`),
   `JWT_AUDIENCE` (default `quiztool-api`) — issuer and audience are always set and validated
 - `JWT_ACCESS_TOKEN_EXPIRES_MINUTES` (15), `JWT_REFRESH_TOKEN_EXPIRES_DAYS` (30),
@@ -64,6 +65,7 @@ without them.
 - `LLM_TIMEOUT_SECONDS` (280) — per-call LLM deadline; kept under Vercel's 300 s function limit so
   the handler answers 504 itself. The HTTP server's write timeout is derived from it
 - `CALL_COUNT_ACCEPTED_IN_A_ROUND` (2), `ROUND_MINUTES` (1) — AI-call rate limit per user
+- `LOGIN_MAX_ATTEMPTS` (5), `LOGIN_WINDOW_MINUTES` (15) — login limit per username, see Auth below
 - `GAME_STAGE_SECONDS` (`12,12,15,15,20,45`) — the seconds per question of the Game's stages 1–6, in order, for
   assignments: exactly 6 whole numbers, 5–600 each, else the server refuses to start. The run handlers time
   answers by it (with the assignment's time mode applied) and the share answer and every assignment view send the
@@ -80,6 +82,16 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   device (capped); `logout` revokes the calling device's token, `logout-all` every token of that user.
   Refresh rotates the token; replaying a rotated token later than 30 s after its rotation is
   treated as theft and revokes every session of the user (see the data model below).
+  Login is limited per username: `LOGIN_MAX_ATTEMPTS` password checks in a window of `LOGIN_WINDOW_MINUTES`
+  that starts with the first attempt, after which every attempt (even with the right password) answers
+  `429 Too many login attempts` with `Retry-After` (seconds to the window's end) and checks no password. An
+  attempt is counted before the password is checked, so concurrent attempts cannot slip past together; a
+  successful login clears the count. Unknown usernames are counted alike, so the limit does not reveal which
+  exist. The count is `store.LoginAttempts` (`MongoLoginAttempts`, one document per SHA-256 of the typed
+  username, so a password typed into the username field is never stored; `MemoryLoginAttempts` in tests),
+  shared by every instance. Its `EnsureIndexes` (a TTL index on `expiresAt` that deletes ended windows) is,
+  like the others, not called on start. The limit also lets anyone lock a user out for one window by typing
+  wrong passwords under their name; there is no per-IP limit.
 - **Users** (`auth_handlers.go`): `users`, admin-only via `X-Admin-Key` (replaces the Azure Functions
   admin key), enforced by the `requireAdminKey` middleware. 409 if the user exists.
 - **Extension** (`extension_handler.go`): `GET extension`, behind the same `authenticate` + `requireRole` as the

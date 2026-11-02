@@ -82,19 +82,22 @@ func run(logger *slog.Logger) error {
 
 	jwt := auth.NewJWT(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, cfg.AccessTokenTTL)
 	srv := &api.Server{
-		Users:           users,
-		Jobs:            jobs,
-		Assignments:     assignments,
-		Auth:            auth.NewService(users, jwt, cfg.RefreshTokenTTL, cfg.MaxRefreshTokensPerUser),
-		JWT:             jwt,
-		Generator:       generator,
-		AdminAPIKey:     cfg.AdminAPIKey,
-		RefreshTokenTTL: cfg.RefreshTokenTTL,
-		AICallsPerRound: cfg.AICallsPerRound,
-		RoundDuration:   cfg.RoundDuration,
-		LLMTimeout:      cfg.LLM.Timeout,
-		StageSeconds:    cfg.GameStageSeconds,
-		Logger:          logger,
+		Users:            users,
+		Jobs:             jobs,
+		Assignments:      assignments,
+		LoginAttempts:    store.NewMongoLoginAttempts(db.Collection(cfg.MongoLoginAttemptsCollection)),
+		Auth:             auth.NewService(users, jwt, cfg.RefreshTokenTTL, cfg.MaxRefreshTokensPerUser),
+		JWT:              jwt,
+		Generator:        generator,
+		AdminAPIKey:      cfg.AdminAPIKey,
+		RefreshTokenTTL:  cfg.RefreshTokenTTL,
+		AICallsPerRound:  cfg.AICallsPerRound,
+		RoundDuration:    cfg.RoundDuration,
+		LoginMaxAttempts: cfg.LoginMaxAttempts,
+		LoginWindow:      cfg.LoginWindow,
+		LLMTimeout:       cfg.LLM.Timeout,
+		StageSeconds:     cfg.GameStageSeconds,
+		Logger:           logger,
 	}
 
 	httpServer := &http.Server{
