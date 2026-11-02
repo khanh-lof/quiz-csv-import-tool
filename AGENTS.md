@@ -77,6 +77,7 @@ no configurable backend URL:
 | `SharedPlayService.setAvatar` | `PATCH share/{code}/player` (`share_handlers.go`, anonymous, `X-Player-Token` header) |
 | `WaygroundExtensionService.downloadExtension` | `GET extension` (`internal/api/extension_handler.go`) |
 | `RadicalsPageService.page` | `GET csv/jobs/{id}/page` (`csv_handler.go`) |
+| `RadicalsPageService.edit` / `.revise` | `GET csv/jobs/{id}/radicals`, `PUT csv/jobs/{id}/radicals` (`internal/api/radicals_handlers.go`) |
 | `SharedPlayService.leaderboard` | `GET share/{code}/leaderboard` (`share_handlers.go`, anonymous, optional `X-Player-Token` header) |
 
 Three things make the wiring non-obvious:
@@ -525,7 +526,8 @@ model only answers what needs language knowledge, and `Server/internal/radicals`
   meanings, proper nouns and an `uncertain` flag. (2) `prompts/radicals_details.txt`, only for what the curated pools
   lack once the groups are known (`Draft.Needs`): meanings of words and characters, and the Hán-Việt name, reading
   and meaning of components. Both answers are JSON; a word left without a pinyin that splits into syllables is
-  dropped. Everything the model wrote is listed in the exercise's `review`, which the client shows as "Cần xem lại".
+  left out of the exercise. Everything the model wrote is listed in the exercise's `review`, which the client shows
+  as "Cần xem lại".
 - **The engine** (`radicals.Plan` → `Draft.Needs` → `Draft.Build`, then `RenderHTML`) decomposes characters with
   Make Me a Hanzi (`data/mmah.jsonl.gz`, trimmed to GB2312 and the components they use, with its licences in
   `data/MMAH-LICENSE.md`), solves the groups (the KIT's rules: which components may be answers, look-alike pairs
@@ -537,7 +539,27 @@ model only answers what needs language knowledge, and `Server/internal/radicals`
   (409 `Job is not a finished radicals exercise.` for any other job). The page is the KIT's template: student-facing
   text in Vietnamese, the fonts (LXGW WenKai, Be Vietnam Pro) loaded from CDNs with system fallbacks offline. The
   client shows it in a sandboxed frame on `/ai-history/radicals/<id>` ("Chơi ngay") and saves it as
-  `<title>-GhepBoThu.html` ("Tải file").
+  `<title>-GhepBoThu.html` ("Tải file"). Beside it the job keeps its `source` (`csvgen.radicalsSource`, JSON): every
+  word with where its pinyin and meaning came from (the textbook, the model or the teacher), the words
+  left out, the model's notes for the characters and components the pools lack, and the settings. `GET csv/jobs`
+  never sends it.
+- **The teacher's corrections** ("Sửa" on the page). `GET csv/jobs/{id}/radicals` answers the table of what can be
+  corrected (`csvgen.RadicalsEdit`): `words` (each once, with its `lessons`, `pinyin`, `meaning` and the flags `ai`,
+  `uncertain`, `dropped`) for the words whose pinyin or meaning the model wrote, the teacher changed, or that were left
+  out; `chars` (`meaning`, `inWords`, `ai`) and `components` (`name`, `pinyin`, `meaning`, `inChars`, `ai`) for every
+  character and component the pools lack. `PUT` takes the same table back with values changed (the flags are
+  ignored) and `csvgen.ReviseRadicals` builds the exercise again from the source, **without the model and without the
+  rate limit**: a value equal to the one shown changes nothing, a changed one becomes the teacher's and leaves the
+  review's lists of what the model wrote (and its pinyin warnings), a pinyin given to a left-out word brings it back,
+  and an empty pinyin leaves a word out. The questions depend only on the words' characters, so a corrected pinyin or
+  note keeps the same groups; only a word brought back or left out can change them. It answers 200 with the job as
+  `GET csv/jobs` lists it (the new exercise in `csv`) and saves exercise and source together (`Jobs.Revise`). Refusals:
+  404 `Job not found`, 409 `Job is not a finished radicals exercise.`, 409 `Job cannot be edited.` (a job from before
+  the source was kept), `readJSON`'s 400s, 400 `Invalid corrections.` (a word not in the exercise, a character that is
+  not one Chinese character, a value over 200 characters, a pinyin over 100), 409 `No lesson has enough words for a
+  group.`, and **422 with the table** (JSON) when a pinyin does not cut into one syllable per character (`problem:
+  "pinyin"`, shown as typed) or a meaning the exercise needs is empty (`problem: "missing"`, which is also how the
+  notes of a word brought back that the pools lack are asked for). Nothing is saved on a refusal.
 
 ## Rate limiting
 

@@ -219,6 +219,9 @@ func TestPoolWinsOverInfoAndMeaningWinsOverPool(t *testing.T) {
 	if !strings.Contains(string(ex.Lessons), "mượn của giáo viên") {
 		t.Error("the word's own meaning was lost")
 	}
+	if PoolWordMeaning("你好") != "xin chào" || !strings.Contains(string(ex.Lessons), `"vi":"xin chào"`) || PoolWordMeaning("不是词") != "" {
+		t.Errorf("PoolWordMeaning(你好) = %q", PoolWordMeaning("你好"))
+	}
 }
 
 func TestDeterministic(t *testing.T) {

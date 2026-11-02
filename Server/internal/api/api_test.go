@@ -29,21 +29,21 @@ type fakeGenerator struct {
 	err      error
 	// block makes Generate wait for the context to end, like a stalled LLM call.
 	block bool
-	// result is what Generate answers; empty means "a,b".
-	result string
+	// result is the CSV Generate answers, empty meaning "a,b", and source the source it answers with it.
+	result, source string
 }
 
-func (g *fakeGenerator) Generate(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (string, error) {
+func (g *fakeGenerator) Generate(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (csvgen.Result, error) {
 	g.calls++
 	g.images, g.creative, g.opts = images, creative, opts
 	if g.block {
 		<-ctx.Done()
-		return "", ctx.Err()
+		return csvgen.Result{}, ctx.Err()
 	}
 	if g.result != "" {
-		return g.result, g.err
+		return csvgen.Result{CSV: g.result, Source: g.source}, g.err
 	}
-	return "a,b", g.err
+	return csvgen.Result{CSV: "a,b"}, g.err
 }
 
 // testClockStart is where newEnv's clock begins; tests build closing times from it.

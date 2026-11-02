@@ -50,6 +50,9 @@ type Job struct {
 
 	// CSV is the model's answer; for a Radicals job it is the exercise's JSON (radicals.Exercise).
 	CSV string `bson:"csv"`
+	// Source is, for a Radicals job, what csvgen builds the exercise from (JSON), kept so the teacher's corrections
+	// can rebuild it without the model. Empty on the other platforms. List leaves it out.
+	Source string `bson:"source,omitempty"`
 	// ErrorStatus is the HTTP status the failure used to be answered with (502, 504), zero otherwise.
 	ErrorStatus  int    `bson:"errorStatus"`
 	ErrorMessage string `bson:"errorMessage"`
@@ -64,13 +67,15 @@ type Job struct {
 // one user, so a user can never read or change another's jobs.
 type Jobs interface {
 	Create(ctx context.Context, job *Job) error
-	// Complete stores the answer of a running job. Finished jobs are left alone.
-	Complete(ctx context.Context, username, id, csv string) error
+	// Complete stores the answer of a running job, and the source of a Radicals one. Finished jobs are left alone.
+	Complete(ctx context.Context, username, id, csv, source string) error
+	// Revise replaces the answer and the source of a done job; ErrNotFound when the user has no done job by that id.
+	Revise(ctx context.Context, username, id, csv, source string) error
 	// Fail marks a running job as failed. Finished jobs are left alone.
 	Fail(ctx context.Context, username, id string, errorStatus int, message string) error
 	// Get returns one job; ErrNotFound when the user has no such job, which includes another user's.
 	Get(ctx context.Context, username, id string) (*Job, error)
-	// List returns the user's newest jobs first, at most limit of them.
+	// List returns the user's newest jobs first, at most limit of them, without their Source.
 	List(ctx context.Context, username string, limit int) ([]Job, error)
 	// Delete removes one job; ErrNotFound when the user has no such job.
 	Delete(ctx context.Context, username, id string) error
