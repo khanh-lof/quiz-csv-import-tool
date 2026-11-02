@@ -9,7 +9,7 @@
           <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình, cấp, một hoặc nhiều bài (gộp thành 1 quiz) và nền tảng (Game: chọn thêm các màn và số câu mỗi
             màn; Ghép bộ thủ: có thể gõ hoặc dán từ của từng bài).
           </li>
-          <li><b>Từ ảnh</b>: câu hỏi "Tiếng Việt + pinyin + chữ Hán là gì?", cần ít nhất 1 ảnh.</li>
+          <li><b>Tiếng Việt + pinyin + chữ Hán là gì?</b>: câu hỏi "Tiếng Việt + pinyin + chữ Hán là gì?", cần ít nhất 1 ảnh.</li>
         </ul>
       </li>
       <li>Có thể đóng trang; kết quả ở <b>AI › Lịch sử</b>.</li>
@@ -68,7 +68,7 @@
         <label>Chọn chế độ: </label>
         <nz-radio-group [formControl]="formGroup.controls.AIMode" nzButtonStyle="solid">
           <label [nzValue]="AIGenerationMode.Auto" nz-radio-button>AI tự nghĩ câu hỏi</label>
-          <label [nzValue]="AIGenerationMode.Formatted" nz-radio-button>Từ ảnh</label>
+          <label [nzValue]="AIGenerationMode.Formatted" nz-radio-button>Tiếng Việt + pinyin + chữ Hán là gì?</label>
         </nz-radio-group>
       </div>
 
@@ -210,7 +210,6 @@
             @if (rejectedWords().length > 0) {
               <small class="text-error">Bỏ qua (không phải chữ Hán): {{ rejectedWords().join(' ') }}</small>
             }
-            <small class="export-hint">Để trống thì lấy từ {{ textbook ? 'giáo trình' : 'ảnh hoặc AI' }}.</small>
             <div class="field-row">
               <label class="field-label" for="colorPreset">Màu</label>
               <nz-select [formControl]="formGroup.controls.colorPreset" class="color-select" nzId="colorPreset">
