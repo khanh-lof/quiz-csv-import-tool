@@ -34,6 +34,15 @@ export interface AiJob {
   retryUntil: string | null;
 }
 
+// What a failed job says to the user. A "Ghép bộ thủ" job whose lessons were too short fails with 422, whose
+// server message is English; any other message is shown as the server wrote it.
+export function failedJobMessage(job: AiJob): string {
+  if (job.errorStatus === 422) {
+    return 'Không bài nào đủ từ để ghép bộ. Thêm từ rồi gửi lại.';
+  }
+  return job.errorMessage || 'Không rõ lỗi.';
+}
+
 export interface AiJobFilter {
   search: string;
   status: AiJobStatus | null;

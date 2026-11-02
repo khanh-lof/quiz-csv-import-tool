@@ -56,8 +56,12 @@ func (c *Client) modelFor(opts Options) string {
 // Generate returns the CSV the model produced. creative selects the platform-specific prompt
 // (rows only, no header) over the simple two-column vocabulary prompt (header included).
 // The creative mode goes through /responses, whose web search tool finds the Wayground images; the
-// simple mode stays on /chat/completions.
+// simple mode stays on /chat/completions. A Radicals exercise is not a CSV: Generate returns its JSON
+// (see generateRadicals).
 func (c *Client) Generate(ctx context.Context, images []Image, creative bool, opts Options) (string, error) {
+	if creative && opts.ExportType == Radicals {
+		return c.generateRadicals(ctx, images, opts)
+	}
 	var (
 		content string
 		err     error

@@ -1,0 +1,370 @@
+{
+ "_note": "EXAMPLE spec: a sample vocabulary set (not from any textbook), used to try the KIT with different vocabulary and colours.",
+ "course": {
+  "name": "Giáo trình ví dụ",
+  "level": "Sơ trung cấp (thử)",
+  "page_title": "",
+  "vocab_source": "bảng từ vựng ví dụ",
+  "star_note": "",
+  "extra_footer": "",
+  "output_file": "GhepBoThu_VIDU.html"
+ },
+ "colors": {
+  "primary": "#1f5fbf",
+  "accent": "#e0562b",
+  "background": "#eef3fb",
+  "tray": "#14233b"
+ },
+ "options": {
+  "review_previous": false,
+  "seed": 1,
+  "tries": 400
+ },
+ "lessons": [
+  {
+   "number": 1,
+   "title_vi": "Học tập",
+   "title_zh": "学习",
+   "words": [
+    {
+     "h": "图书馆",
+     "p": "túshūguǎn",
+     "vi": "thư viện"
+    },
+    {
+     "h": "借",
+     "p": "jiè",
+     "vi": "mượn; cho mượn"
+    },
+    {
+     "h": "还",
+     "p": "huán",
+     "vi": "trả lại"
+    },
+    {
+     "h": "复习",
+     "p": "fùxí",
+     "vi": "ôn tập"
+    },
+    {
+     "h": "作业",
+     "p": "zuòyè",
+     "vi": "bài tập về nhà"
+    },
+    {
+     "h": "句子",
+     "p": "jùzi",
+     "vi": "câu"
+    },
+    {
+     "h": "词典",
+     "p": "cídiǎn",
+     "vi": "từ điển"
+    },
+    {
+     "h": "练习",
+     "p": "liànxí",
+     "vi": "luyện tập"
+    },
+    {
+     "h": "讲",
+     "p": "jiǎng",
+     "vi": "nói, giảng"
+    },
+    {
+     "h": "解决",
+     "p": "jiějué",
+     "vi": "giải quyết"
+    },
+    {
+     "h": "努力",
+     "p": "nǔlì",
+     "vi": "nỗ lực, cố gắng"
+    },
+    {
+     "h": "成绩",
+     "p": "chéngjì",
+     "vi": "thành tích, điểm số"
+    }
+   ]
+  },
+  {
+   "number": 2,
+   "title_vi": "Sức khỏe",
+   "title_zh": "健康",
+   "words": [
+    {
+     "h": "健康",
+     "p": "jiànkāng",
+     "vi": "khỏe mạnh, sức khỏe"
+    },
+    {
+     "h": "感冒",
+     "p": "gǎnmào",
+     "vi": "cảm cúm"
+    },
+    {
+     "h": "发烧",
+     "p": "fāshāo",
+     "vi": "sốt"
+    },
+    {
+     "h": "咳嗽",
+     "p": "késou",
+     "vi": "ho"
+    },
+    {
+     "h": "医院",
+     "p": "yīyuàn",
+     "vi": "bệnh viện"
+    },
+    {
+     "h": "护士",
+     "p": "hùshi",
+     "vi": "y tá"
+    },
+    {
+     "h": "睡觉",
+     "p": "shuìjiào",
+     "vi": "ngủ"
+    },
+    {
+     "h": "减肥",
+     "p": "jiǎnféi",
+     "vi": "giảm cân"
+    },
+    {
+     "h": "锻炼",
+     "p": "duànliàn",
+     "vi": "rèn luyện, tập thể dục"
+    },
+    {
+     "h": "饮料",
+     "p": "yǐnliào",
+     "vi": "đồ uống"
+    },
+    {
+     "h": "空调",
+     "p": "kōngtiáo",
+     "vi": "máy điều hòa"
+    },
+    {
+     "h": "干净",
+     "p": "gānjìng",
+     "vi": "sạch sẽ"
+    }
+   ]
+  },
+  {
+   "number": 3,
+   "title_vi": "Du lịch",
+   "title_zh": "旅行",
+   "words": [
+    {
+     "h": "护照",
+     "p": "hùzhào",
+     "vi": "hộ chiếu"
+    },
+    {
+     "h": "地图",
+     "p": "dìtú",
+     "vi": "bản đồ"
+    },
+    {
+     "h": "景色",
+     "p": "jǐngsè",
+     "vi": "cảnh sắc, phong cảnh"
+    },
+    {
+     "h": "海洋",
+     "p": "hǎiyáng",
+     "vi": "đại dương"
+    },
+    {
+     "h": "游客",
+     "p": "yóukè",
+     "vi": "du khách"
+    },
+    {
+     "h": "导游",
+     "p": "dǎoyóu",
+     "vi": "hướng dẫn viên du lịch"
+    },
+    {
+     "h": "迷路",
+     "p": "mílù",
+     "vi": "lạc đường"
+    },
+    {
+     "h": "租",
+     "p": "zū",
+     "vi": "thuê"
+    },
+    {
+     "h": "钱包",
+     "p": "qiánbāo",
+     "vi": "ví tiền"
+    },
+    {
+     "h": "照相机",
+     "p": "zhàoxiàngjī",
+     "vi": "máy ảnh"
+    },
+    {
+     "h": "拍",
+     "p": "pāi",
+     "vi": "chụp, vỗ"
+    },
+    {
+     "h": "邮局",
+     "p": "yóujú",
+     "vi": "bưu điện"
+    }
+   ]
+  }
+ ],
+ "char_meanings": {
+  "图": "tranh, hình; bản đồ (地图)",
+  "借": "mượn; cho mượn",
+  "复": "lại, lặp lại (复习: ôn tập)",
+  "业": "nghề, nghiệp; công việc (作业: bài tập)",
+  "句": "câu (句子)",
+  "典": "sách kinh điển; điển tích (词典: từ điển)",
+  "练": "luyện, tập luyện",
+  "讲": "nói, giảng giải",
+  "解": "cởi ra; giải thích",
+  "决": "quyết, quyết định",
+  "努": "cố gắng",
+  "力": "sức, sức lực",
+  "成": "thành, trở thành; hoàn thành",
+  "绩": "thành tích, công lao",
+  "健": "khỏe mạnh",
+  "康": "khỏe mạnh, yên ổn",
+  "感": "cảm giác; cảm (感冒: cảm cúm)",
+  "冒": "liều, mạo hiểm; bốc lên (感冒: cảm cúm)",
+  "发": "phát ra, gửi đi; xảy ra",
+  "烧": "đốt, nung; sốt",
+  "咳": "ho",
+  "嗽": "ho",
+  "护": "bảo vệ, che chở",
+  "减": "giảm, bớt",
+  "肥": "béo; mỡ",
+  "锻": "rèn (kim loại)",
+  "炼": "luyện, rèn luyện",
+  "饮": "uống",
+  "料": "nguyên liệu, vật liệu",
+  "空": "trống, rỗng; (空调) không khí",
+  "调": "điều chỉnh, điều hòa (tiáo); điệu (diào)",
+  "干": "khô; (干净) sạch sẽ",
+  "净": "sạch",
+  "照": "chiếu, soi; chụp ảnh",
+  "景": "cảnh, phong cảnh",
+  "海": "biển",
+  "洋": "đại dương",
+  "导": "dẫn, hướng dẫn",
+  "迷": "mê; lạc (迷路: lạc đường)",
+  "相": "hình ảnh, chụp ảnh (xiàng: 照相); lẫn nhau (xiāng)",
+  "拍": "vỗ; chụp",
+  "邮": "bưu điện; gửi thư",
+  "局": "cục, cơ quan"
+ },
+ "components": {
+  "柬": {
+   "name": "Giản",
+   "zh": "柬",
+   "py": "jiǎn",
+   "vi": "thiệp, thư (nghĩa cổ)",
+   "tip": ""
+  },
+  "争": {
+   "name": "Tranh",
+   "zh": "争",
+   "py": "zhēng",
+   "vi": "tranh giành, tranh đấu",
+   "tip": ""
+  },
+  "建": {
+   "name": "Kiến",
+   "zh": "建",
+   "py": "jiàn",
+   "vi": "xây dựng, kiến thiết",
+   "tip": ""
+  },
+  "隶": {
+   "name": "Lệ",
+   "zh": "隶",
+   "py": "lì",
+   "vi": "nô lệ; thuộc về (nghĩa cổ)",
+   "tip": ""
+  },
+  "火": {
+   "name": "Hỏa",
+   "zh": "火",
+   "py": "huǒ",
+   "vi": "lửa",
+   "tip": "Hình ngọn lửa đang cháy (nghĩa gốc)."
+  },
+  "尧": {
+   "name": "Nghiêu",
+   "zh": "尧",
+   "py": "yáo",
+   "vi": "vua Nghiêu (nhân vật cổ đại)",
+   "tip": ""
+  },
+  "段": {
+   "name": "Đoạn",
+   "zh": "段",
+   "py": "duàn",
+   "vi": "đoạn, khúc, giai đoạn",
+   "tip": ""
+  },
+  "咸": {
+   "name": "Hàm",
+   "zh": "咸",
+   "py": "xián",
+   "vi": "mặn; tất cả (nghĩa cổ)",
+   "tip": ""
+  },
+  "昭": {
+   "name": "Chiêu",
+   "zh": "昭",
+   "py": "zhāo",
+   "vi": "sáng, rõ ràng",
+   "tip": ""
+  },
+  "由": {
+   "name": "Do",
+   "zh": "由",
+   "py": "yóu",
+   "vi": "do, bởi; từ",
+   "tip": ""
+  },
+  "责": {
+   "name": "Trách",
+   "zh": "责",
+   "py": "zé",
+   "vi": "trách nhiệm; trách mắng",
+   "tip": ""
+  },
+  "每": {
+   "name": "Mỗi",
+   "zh": "每",
+   "py": "měi",
+   "vi": "mỗi, mọi",
+   "tip": ""
+  }
+ },
+ "excluded_chars": [
+  "复",
+  "干"
+ ],
+ "approved_splits": [
+  "绩",
+  "料",
+  "空",
+  "调",
+  "景",
+  "海",
+  "导"
+ ]
+}

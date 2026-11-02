@@ -98,7 +98,7 @@ func TestParseCreativeOptions(t *testing.T) {
 			return o.CourseName == "" // courseName only applies to Other
 		}},
 		{query: "courseType=0&level=1&lessonNumbers=1", wantErr: "Invalid or missing exportType parameter."},
-		{query: "exportType=4&courseType=0&level=1&lessonNumbers=1", wantErr: "Invalid or missing exportType parameter."},
+		{query: "exportType=5&courseType=0&level=1&lessonNumbers=1", wantErr: "Invalid or missing exportType parameter."},
 		{query: "exportType=0&courseType=9&level=1&lessonNumbers=1", wantErr: "Invalid or missing courseType parameter."},
 		{query: "exportType=0&courseType=2&lessonNumbers=1", wantErr: "Invalid or missing courseName parameter."},
 		{query: "exportType=0&courseType=0&level=x&lessonNumbers=1", wantErr: "Invalid level parameter."},

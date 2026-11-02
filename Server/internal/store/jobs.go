@@ -41,7 +41,14 @@ type Job struct {
 	// the same request again. Absent on the other platforms and on jobs from before these were stored.
 	GestureStages     []int `bson:"gestureStages,omitempty"`
 	QuestionsPerStage *int  `bson:"questionsPerStage,omitempty"`
+	// What a Radicals job was asked for beyond the lesson, kept for the same reason: the words the teacher
+	// typed, by lesson number (absent when none were), whether earlier lessons may fill a group, and the
+	// colour preset. Absent on the other platforms.
+	Vocabulary     map[string][]string `bson:"vocabulary,omitempty"`
+	ReviewPrevious bool                `bson:"reviewPrevious,omitempty"`
+	ColorPreset    string              `bson:"colorPreset,omitempty"`
 
+	// CSV is the model's answer; for a Radicals job it is the exercise's JSON (radicals.Exercise).
 	CSV string `bson:"csv"`
 	// ErrorStatus is the HTTP status the failure used to be answered with (502, 504), zero otherwise.
 	ErrorStatus  int    `bson:"errorStatus"`

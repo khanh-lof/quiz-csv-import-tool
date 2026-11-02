@@ -7,7 +7,7 @@
       <li>Chọn chế độ:
         <ul>
           <li><b>AI tự nghĩ câu hỏi</b>: chọn giáo trình, cấp, một hoặc nhiều bài (gộp thành 1 quiz) và nền tảng (Game: chọn thêm các màn và số câu mỗi
-            màn).
+            màn; Ghép bộ thủ: có thể gõ hoặc dán từ của từng bài).
           </li>
           <li><b>Từ ảnh</b>: câu hỏi "Tiếng Việt + pinyin + chữ Hán là gì?", cần ít nhất 1 ảnh.</li>
         </ul>
@@ -147,6 +147,7 @@
               <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
               <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
               <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Game (camera)"></nz-option>
+              <nz-option [nzValue]="ExportType.Radicals" nzLabel="Ghép bộ thủ"></nz-option>
             </nz-select>
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Chưa nhập', $implicit: formGroup.controls.exportType}"/>
@@ -191,6 +192,38 @@
             @if (gestureQuizHint) {
               <small class="export-hint">{{ gestureQuizHint }}</small>
             }
+          </div>
+        }
+        @if (formGroup.controls.exportType.value === ExportType.Radicals) {
+          <!-- One word input per chosen lesson. Typed words are kept as they are; an empty lesson takes its words from
+               the textbook, the photos or the AI. -->
+          <div class="radicals-options">
+            @for (lesson of chosenLessons; track lesson) {
+              <div class="field-row vocabulary-row">
+                <label [for]="'vocabulary-' + lesson" class="field-label">Từ bài {{ lesson }}</label>
+                <nz-select (ngModelChange)="setVocabulary(lesson, $event)" [nzId]="'vocabulary-' + lesson"
+                           [nzMaxMultipleCount]="maxVocabularyWords" [nzTokenSeparators]="wordSeparators"
+                           [ngModel]="vocabularyOf(lesson)" appOutsideFormContainer class="vocabulary-select"
+                           nzMode="tags" nzPlaceHolder="Không bắt buộc"></nz-select>
+              </div>
+            }
+            @if (rejectedWords().length > 0) {
+              <small class="text-error">Bỏ qua (không phải chữ Hán): {{ rejectedWords().join(' ') }}</small>
+            }
+            <small class="export-hint">Để trống thì lấy từ {{ textbook ? 'giáo trình' : 'ảnh hoặc AI' }}.</small>
+            <div class="field-row">
+              <label class="field-label" for="colorPreset">Màu</label>
+              <nz-select [formControl]="formGroup.controls.colorPreset" class="color-select" nzId="colorPreset">
+                @for (preset of radicalsPresets; track preset.value) {
+                  <nz-option [nzLabel]="preset.label" [nzValue]="preset.value" nzCustomContent>
+                    <span [style.background]="preset.color" class="color-swatch"></span>{{ preset.label }}
+                  </nz-option>
+                }
+              </nz-select>
+              @if (chosenLessons.length > 1) {
+                <label [formControl]="formGroup.controls.reviewPrevious" nz-checkbox>Thiếu từ thì mượn từ bài trước</label>
+              }
+            </div>
           </div>
         }
       }

@@ -7,7 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 QuizTool turns photos of a Chinese (HSK) lesson into a quiz file that can be imported into GimKit,
 Blooket, or Wayground, or into a quiz that QuizTool plays itself as a webcam gesture game
 ("Game"). A teacher can also hand a Game to students as a link ("Giao bài"): they play it
-with no account and the teacher watches their leaderboard. It is one git repo holding two independently built
+with no account and the teacher watches their leaderboard. Besides quizzes, the AI page builds one
+exercise page, "Ghép bộ thủ" (the learner completes each character of the lesson's words by choosing its
+missing component, see [Ghép bộ thủ](#ghép-bộ-thủ-the-radicals-exercise)). It is one git repo holding two independently built
 and independently deployed projects, plus an optional browser extension:
 
 - `Client/` — Angular 22 SPA (standalone components, ng-zorro-antd).
@@ -74,6 +76,7 @@ no configurable backend URL:
 | `SharedPlayService.nextQuestion` / `.answer` | `POST share/{code}/runs/{runId}/next`, `POST share/{code}/runs/{runId}/answers` (`run_handlers.go`, anonymous, `X-Player-Token` header) |
 | `SharedPlayService.setAvatar` | `PATCH share/{code}/player` (`share_handlers.go`, anonymous, `X-Player-Token` header) |
 | `WaygroundExtensionService.downloadExtension` | `GET extension` (`internal/api/extension_handler.go`) |
+| `RadicalsPageService.page` | `GET csv/jobs/{id}/page` (`csv_handler.go`) |
 | `SharedPlayService.leaderboard` | `GET share/{code}/leaderboard` (`share_handlers.go`, anonymous, optional `X-Player-Token` header) |
 
 Three things make the wiring non-obvious:
@@ -157,7 +160,7 @@ Consequences to keep in mind when changing anything here:
 
 - The `ExportType` enum exists twice (`Client/src/models/export-type.ts` and
   `Server/internal/csvgen/options.go`) and is passed over the wire **by ordinal**: `GimKit`, `Blooket`,
-  `Wayground`, `GestureQuiz` (0–3). Adding or reordering a member on one side silently mis-maps the other.
+  `Wayground`, `GestureQuiz`, `Radicals` (0–4). Adding or reordering a member on one side silently mis-maps the other.
 - Adding a new export platform means three coordinated changes: a client `CsvBuilder` (with a
   `CsvHeader` matching what the platform expects on import), an `exportTypeMessages` case
   on the server describing the same columns to the LLM, and the enum entry on both sides. `GestureQuiz`
@@ -497,6 +500,44 @@ the right screen without a round trip.
 
 The Client's half is in [Client/AGENTS.md](Client/AGENTS.md#giao-bài-assignments), the Server's (the store, its
 collections and indexes, the handlers' order of checks) in [Server/AGENTS.md](Server/AGENTS.md).
+
+## Ghép bộ thủ (the radicals exercise)
+
+`ExportType.Radicals` (ordinal 4) is an `Auto`-mode platform of the AI page that makes neither a CSV nor a quiz:
+the job's result is an exercise, a standalone page in which each group shows an example and five words with one
+component missing from a character, and the learner picks the six missing components from a tray (A–F). It is a
+port of a Python toolkit, the "GhepBoThu KIT", which kept a model with code execution busy for minutes. Here the
+model only answers what needs language knowledge, and `Server/internal/radicals` (pure Go, no LLM) does the rest.
+
+- **The request.** The same form fields as every `Auto` platform (course, level, lessons, photos, intelligence), plus
+  `reviewPrevious` (earlier lessons of the exercise may fill a group of six) and `colorPreset` (`jade`, `blue`,
+  `lilac`, `terracotta`, `rose`, `red_black`; the client's `RADICALS_PRESETS` and the engine's `Presets()` are kept in
+  step by hand) as query parameters, and the words the teacher typed per lesson as the multipart field
+  `vocabulary`, JSON `{"3":["图书馆","借"]}` (`csvgen.ParseVocabulary`: chosen lessons only, Chinese characters
+  only, at most `MaxVocabularyWords` words of `MaxWordRunes` characters, no repeats; 400 `Invalid vocabulary.`). The
+  job keeps all three (`Vocabulary`, `ReviewPrevious`, `ColorPreset`) for "Tạo lại".
+- **Where the words come from**, per lesson (`csvgen.gatherRadicalsLessons`): the typed words, kept as typed and in
+  that order; without them, the textbook lesson's New words and Proper nouns tables when the course is one of the
+  embedded books (with pinyin, Vietnamese meaning and ★, so no model is needed); otherwise the model lists them from
+  the photos or from the lesson as it knows it.
+- **At most two model calls, one rate-limit unit.** (1) `prompts/radicals_vocabulary.txt`, only when some lesson's
+  words are the model's or a word has no pinyin yet: JSON words with pinyin cut into one syllable per character,
+  meanings, proper nouns and an `uncertain` flag. (2) `prompts/radicals_details.txt`, only for what the curated pools
+  lack once the groups are known (`Draft.Needs`): meanings of words and characters, and the Hán-Việt name, reading
+  and meaning of components. Both answers are JSON; a word left without a pinyin that splits into syllables is
+  dropped. Everything the model wrote is listed in the exercise's `review`, which the client shows as "Cần xem lại".
+- **The engine** (`radicals.Plan` → `Draft.Needs` → `Draft.Build`, then `RenderHTML`) decomposes characters with
+  Make Me a Hanzi (`data/mmah.jsonl.gz`, trimmed to GB2312 and the components they use, with its licences in
+  `data/MMAH-LICENSE.md`), solves the groups (the KIT's rules: which components may be answers, look-alike pairs
+  kept apart, conflicts that would make another real character), and draws every glyph from MMAH's stroke outlines,
+  so a component is exactly its strokes and needs no visual check. A lesson that cannot make a group of six is
+  skipped and named in the review; when none can, the job fails with 422 `No lesson has enough words for a group.`
+- **What is stored and served.** The job's `csv` field holds the exercise as JSON (`radicals.Exercise`: the page's
+  data without the glyph outlines, so the jobs list stays small). `GET csv/jobs/{id}/page` draws the page from it
+  (409 `Job is not a finished radicals exercise.` for any other job). The page is the KIT's template: student-facing
+  text in Vietnamese, the fonts (LXGW WenKai, Be Vietnam Pro) loaded from CDNs with system fallbacks offline. The
+  client shows it in a sandboxed frame on `/ai-history/radicals/<id>` ("Chơi ngay") and saves it as
+  `<title>-GhepBoThu.html` ("Tải file").
 
 ## Rate limiting
 

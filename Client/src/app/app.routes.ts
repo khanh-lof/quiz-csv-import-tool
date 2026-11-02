@@ -75,6 +75,13 @@ export const routes: Routes = [
         component: AiJobs,
         canActivate: [authGuard]
       },
+      // A finished "Ghép bộ thủ" job, played in a frame under the history it was opened from. Lazy: only a teacher
+      // who makes one opens it.
+      {
+        path: 'ai-history/radicals/:jobId',
+        loadComponent: () => import('../components/radicals-play/radicals-play').then(m => m.RadicalsPlay),
+        canActivate: [authGuard]
+      },
       // The teacher's assignments and their leaderboards: lazy, like the game, since only a teacher opens them.
       {
         path: 'assignments',

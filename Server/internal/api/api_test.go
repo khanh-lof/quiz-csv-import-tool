@@ -29,6 +29,8 @@ type fakeGenerator struct {
 	err      error
 	// block makes Generate wait for the context to end, like a stalled LLM call.
 	block bool
+	// result is what Generate answers; empty means "a,b".
+	result string
 }
 
 func (g *fakeGenerator) Generate(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (string, error) {
@@ -37,6 +39,9 @@ func (g *fakeGenerator) Generate(ctx context.Context, images []csvgen.Image, cre
 	if g.block {
 		<-ctx.Done()
 		return "", ctx.Err()
+	}
+	if g.result != "" {
+		return g.result, g.err
 	}
 	return "a,b", g.err
 }
@@ -320,6 +325,8 @@ type upload struct {
 	files   int
 	rawBody *string // overrides the multipart body when set
 	ctype   *string
+	// fields are text fields of the multipart body, beside the files.
+	fields map[string]string
 }
 
 func (e *testEnv) upload(t *testing.T, u upload) *httptest.ResponseRecorder {
@@ -327,6 +334,9 @@ func (e *testEnv) upload(t *testing.T, u upload) *httptest.ResponseRecorder {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	_ = mw.WriteField("note", "not a file")
+	for name, value := range u.fields {
+		_ = mw.WriteField(name, value)
+	}
 	for range u.files {
 		fw, _ := mw.CreateFormFile("images", "lesson.png")
 		_, _ = fw.Write([]byte("png-bytes"))

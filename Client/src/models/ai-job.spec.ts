@@ -1,4 +1,4 @@
-import { AiJob, AiJobFilter, filterJobs, lessonLabel } from './ai-job';
+import { AiJob, AiJobFilter, failedJobMessage, filterJobs, lessonLabel } from './ai-job';
 import { ExportType } from './export-type';
 import { CourseType } from './course-type';
 import { HskStandard } from './hsk-standard';
@@ -264,5 +264,17 @@ describe('lessonLabel', () => {
       creative: false,
       exportType: null
     }))).toBe('–');
+  });
+});
+
+describe('failedJobMessage', () => {
+  it('words the "not enough words" failure of a Ghép bộ thủ job', () => {
+    const failed = job({ status: 'failed', exportType: ExportType.Radicals, errorStatus: 422, errorMessage: 'No lesson has enough words for a group.' });
+    expect(failedJobMessage(failed)).toContain('đủ từ');
+  });
+
+  it('shows any other message as the server wrote it', () => {
+    expect(failedJobMessage(job({ status: 'failed', errorStatus: 502, errorMessage: 'AI generation failed.' }))).toBe('AI generation failed.');
+    expect(failedJobMessage(job({ status: 'failed', errorStatus: 0, errorMessage: '' }))).toBe('Không rõ lỗi.');
   });
 });

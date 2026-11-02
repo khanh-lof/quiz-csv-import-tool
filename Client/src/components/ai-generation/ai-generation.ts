@@ -7,7 +7,7 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiCsvService } from '../../services/ai-csv.service';
 import { AiJobService, NEW_JOB_IDLE_POLLS } from '../../services/ai-job.service';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
-import { NzCheckboxGroupComponent, NzCheckboxOption } from 'ng-zorro-antd/checkbox';
+import { NzCheckboxComponent, NzCheckboxGroupComponent, NzCheckboxOption } from 'ng-zorro-antd/checkbox';
 import {
   AbstractControl,
   ControlContainer,
@@ -40,6 +40,13 @@ import {
   questionsPerStageOf
 } from '../../models/gesture-quiz-options';
 import { formatLessonNumbers, lessonNumbersOf, MAX_LESSONS } from '../../models/lesson-numbers';
+import {
+  DEFAULT_RADICALS_PRESET,
+  MAX_VOCABULARY_WORDS,
+  RADICALS_PRESETS,
+  radicalsPresetOf,
+  splitWords
+} from '../../models/radicals-options';
 import { STAGES } from '../../game/stages';
 import { finalize } from 'rxjs';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
@@ -85,6 +92,10 @@ interface AiGenerationForm {
   // Only for a Game: the stage numbers of the games the quiz has, and the questions each gets.
   gestureStages: FormControl<number[] | null>;
   questionsPerStage: FormControl<number | null>;
+  // Only for "Ghép bộ thủ": the words typed per lesson number, whether earlier lessons may fill a group, the colours.
+  vocabulary: FormControl<Record<number, string[]> | null>;
+  reviewPrevious: FormControl<boolean | null>;
+  colorPreset: FormControl<string | null>;
 }
 
 @Component({
@@ -101,6 +112,7 @@ interface AiGenerationForm {
     NzRadioComponent,
     NzInputNumberComponent,
     NzCheckboxGroupComponent,
+    NzCheckboxComponent,
     OutsideFormContainer,
     ReactiveFormsModule,
     NzOptionComponent,
@@ -134,6 +146,13 @@ export class AiGeneration {
     value: def.stage,
   }));
 
+  protected readonly radicalsPresets = RADICALS_PRESETS;
+  protected readonly maxVocabularyWords = MAX_VOCABULARY_WORDS;
+  // What the word inputs split a typed or pasted line on.
+  protected readonly wordSeparators = [',', ' ', '、', '，', ';', '；', '\n'];
+  // The entries of the last edit that were not Chinese words, shown so the teacher sees they were left out.
+  protected readonly rejectedWords = signal<string[]>([]);
+
   // The options are rebuilt only when `lessonOptionsKey` changes, so the select is not handed a new list on every check.
   private lessonOptionsKey = '';
   private lessonOptionsList: number[] = [];
@@ -160,6 +179,9 @@ export class AiGeneration {
       intelligence: formBuilder.control<number | null>(1),
       gestureStages: formBuilder.control<number[] | null>([...ALL_GESTURE_STAGES]),
       questionsPerStage: formBuilder.control<number | null>(QUESTIONS_PER_STAGE_DEFAULT),
+      vocabulary: formBuilder.control<Record<number, string[]> | null>({}),
+      reviewPrevious: formBuilder.control<boolean | null>(false),
+      colorPreset: formBuilder.control<string | null>(DEFAULT_RADICALS_PRESET),
     }, {
       validators: [this.requiredIfAIAutoMode]
     })
@@ -188,6 +210,25 @@ export class AiGeneration {
       return '';
     }
     return `${stageCount} màn, ${stageCount * perStage} câu.`;
+  }
+
+  // The chosen lessons in order, one word input each.
+  protected get chosenLessons(): number[] {
+    return [...(this.formGroup.controls.lessonNumbers.value ?? [])].sort((a, b) => a - b);
+  }
+
+  protected vocabularyOf(lesson: number): string[] {
+    return this.formGroup.controls.vocabulary.value?.[lesson] ?? [];
+  }
+
+  // Each tag is split again (a pasted line can arrive as one tag) and only Chinese words are kept.
+  protected setVocabulary(lesson: number, tags: string[] | null): void {
+    const { words, rejected } = splitWords((tags ?? []).join(' '));
+    this.rejectedWords.set(rejected);
+    this.formGroup.controls.vocabulary.setValue({
+      ...this.formGroup.controls.vocabulary.value,
+      [lesson]: words.slice(0, MAX_VOCABULARY_WORDS)
+    });
   }
 
   protected get maxLevel(): number {
@@ -352,6 +393,9 @@ export class AiGeneration {
         intelligence: this.formGroup.controls.intelligence.value,
         gestureStages: this.formGroup.controls.gestureStages.value,
         questionsPerStage: this.formGroup.controls.questionsPerStage.value,
+        vocabulary: this.formGroup.controls.vocabulary.value,
+        reviewPrevious: this.formGroup.controls.reviewPrevious.value,
+        colorPreset: this.formGroup.controls.colorPreset.value,
       } satisfies AiGenerationRequest, this.lessonLabel());
     submit$.pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.setGenerating(false))).subscribe({
       next: () => {
@@ -430,6 +474,9 @@ export class AiGeneration {
           lessonNumbers: lessonNumbersOf(settings?.lessonNumbers),
           gestureStages: gestureStagesOf(settings?.gestureStages),
           questionsPerStage: questionsPerStageOf(settings?.questionsPerStage),
+          vocabulary: {},
+          reviewPrevious: settings?.reviewPrevious === true,
+          colorPreset: radicalsPresetOf(settings?.colorPreset),
         });
       }
     } catch {
@@ -439,7 +486,9 @@ export class AiGeneration {
 
   private saveSettings(): void {
     try {
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(this.formGroup.getRawValue()));
+      // The words belong to one lesson, so they are not carried over to the next visit.
+      const { vocabulary, ...settings } = this.formGroup.getRawValue();
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     } catch {
       // Remembering the settings is only a convenience.
     }
