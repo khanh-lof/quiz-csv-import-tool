@@ -60,7 +60,7 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
   retries with the new token. A failed refresh clears the token but does not redirect.
 - `/quiz` (the vocabulary table), `/play` (the gesture quiz, from a file or the sample) and `/play/s/:code`
   (a student's link to an assignment, which has no account) are open to anonymous users; only `/ai` (AI
-  generation), `/ai-history` (its history), `/play/:jobId` (a gesture quiz taken from one of the user's AI jobs), `/play/preview/:assignmentId`
+  generation), `/ai-history` (its history), `/ai-history/radicals/:jobId` (a "Ghép bộ thủ" exercise), `/play/:jobId` (a gesture quiz taken from one of the user's AI jobs), `/play/preview/:assignmentId`
   and the `/assignments` pages need a login, enforced by `authGuard` (`services/auth.guard.ts`), which redirects to
   `/login?returnUrl=/ai`. `LoginComponent` navigates to `returnUrl` after login (only in-app paths
   are accepted, otherwise `/quiz`). A 401 from the AI endpoint sends the user the same way. The
@@ -167,6 +167,30 @@ buttons on each finished Wayground job, the extension one disabled without `../E
 extension is used, the file is not downloaded and `WaygroundExtensionService.sendImport` hands the bytes to it. The
 extension imports and publishes the quiz in the user's Wayground tab, and the service later shows the
 share link it sends back (see [../AGENTS.md](../AGENTS.md#the-wayground-browser-extension)).
+
+### Ghép bộ thủ (`ExportType.Radicals`)
+
+The exercise page the AI page can build instead of a quiz; the contract and the server's half are in
+[../AGENTS.md](../AGENTS.md#ghép-bộ-thủ-the-radicals-exercise).
+- **Form.** Choosing "Ghép bộ thủ" as the platform shows, under it, one tag input (`nz-select nzMode="tags"`) per
+  chosen lesson, "Từ bài N", optional: a typed or pasted line is split on spaces, commas and 、 by `splitWords`
+  (`models/radicals-options.ts`), which keeps Chinese words only (8 characters at most, no repeats) and reports the
+  rest, shown once as "Bỏ qua (không phải chữ Hán): …". Then the colour preset (`RADICALS_PRESETS`, a swatch per
+  option) and, with two lessons or more, "Thiếu từ thì mượn từ bài trước" (`reviewPrevious`). The words are not
+  remembered with the page's settings; the preset and the checkbox are. `AiCsvService.submitCreative` sends
+  `reviewPrevious`/`colorPreset` as parameters and the words (`vocabularyFor`: chosen lessons that have words) as the
+  form field `vocabulary`, for this platform only.
+- **History.** A finished job has "Chơi ngay" (`/ai-history/radicals/<id>`) and "Tải file" (`RadicalsPageService`
+  fetches `GET csv/jobs/{id}/page` and saves `<title>-GhepBoThu.html`), and no "Xem kết quả": its `csv` is the
+  exercise's JSON. A job that failed with 422 (no lesson had enough words) is worded by `failedJobMessage`.
+- **Page.** `RadicalsPlay` (`components/radicals-play/`, lazy, inside `Workspace`; the breadcrumb is AI › Lịch sử ›
+  Ghép bộ thủ through `NavPage.childLabel`) takes the job from `AiJobService` (fetching the list once on a direct
+  link), shows the server's page in an `iframe` whose `srcdoc` is that HTML and whose `sandbox` is `allow-scripts
+  allow-popups` without `allow-same-origin`, so the page's scripts run as another origin and cannot reach the session.
+  Above it, "Cần xem lại" lists what the AI wrote or doubted (`reviewLines` over the job's `review`), and the topbar
+  has "Tải file" and "Toàn màn hình" (full-screens the frame).
+- **Specs:** `models/radicals-options.spec.ts`, `components/radicals-play/radicals-play.spec.ts` (`reviewLines`), and
+  the platform's cases in `services/ai-csv.service.spec.ts`, `models/ai-job.spec.ts` and `workspace.spec.ts`.
 
 ### Gesture quiz (`/play`)
 

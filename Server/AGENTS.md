@@ -22,7 +22,17 @@ Module `quiz-csv-import-tool/server`, laid out as:
 - `internal/csvgen` — creative-mode option parsing, the two system prompts and the per-platform
   templates (all embedded from `prompts/*.txt`), the embedded lesson documents of four textbooks
   (`textbooks/`), and the OpenAI-compatible client
-  (`/chat/completions` for the formatted mode, `/responses` for the creative mode).
+  (`/chat/completions` for the formatted mode, `/responses` for the creative mode). `radicals.go` is the
+  "Ghép bộ thủ" platform's side of it: where a lesson's words come from (typed, the textbook's tables, or the model),
+  the two JSON requests (`prompts/radicals_vocabulary.txt`, `prompts/radicals_details.txt`) and their merging, then
+  the calls into `internal/radicals`; `Generate` returns the exercise's JSON for that platform.
+- `internal/radicals` — the "Ghép bộ thủ" engine, a port of the GhepBoThu KIT (Python): `Plan` validates the
+  lessons and solves the groups (1 example + 5 questions, 6 distinct missing components), `Draft.Needs` says which
+  word, character and component notes the curated pools (`data/pool_*.json`) lack, `Draft.Build` assembles the
+  `Exercise` (stored on the job as JSON), `RenderHTML` draws the standalone page from `data/template/` with the glyphs
+  of `data/mmah.jsonl.gz` (Make Me a Hanzi, trimmed by `internal/genmmah`; licences in `data/MMAH-LICENSE.md`). No
+  LLM, no I/O beyond the embedded data, deterministic for the same input. See
+  [../AGENTS.md](../AGENTS.md#ghép-bộ-thủ-the-radicals-exercise).
 - `internal/gesturequiz` — the Game quiz as the server reads it: `ExtractCSV` and `SplitRows` (ports of the
   client's `extractCsvContent` and `parseCsvRows`), `Parse` (a port of `parseGestureQuiz`, the same rules and
   the same `skipped` count), the stage table (option counts, seconds per question, `TimeLimit` per time mode)
@@ -99,10 +109,12 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   ./internal/extension` ran before the build, as the Vercel `buildCommand` does; otherwise packed from
   `../Extension` on first use), or 404 `Extension not available.`. See [../AGENTS.md](../AGENTS.md#the-wayground-browser-extension).
 - **CSV jobs** (`csv_handler.go`): `POST csv/jobs`, `GET csv/jobs`, `DELETE csv/jobs/{id}`,
-  `POST csv/jobs/{id}/retry`. All wrapped in
+  `POST csv/jobs/{id}/retry`, `GET csv/jobs/{id}/page` (the page of a finished Radicals job, `text/html`, drawn
+  from the job's exercise JSON on each request; 404 `Job not found`, 409 `Job is not a finished radicals
+  exercise.`). All wrapped in
   `authenticate` (Bearer JWT → 401 with `WWW-Authenticate`) and `requireRole(auth.RoleUser, auth.RoleAdmin)`
   (→ 403); handlers read the claims with `auth.FromContext`. `createJob` loads the user (404 if deleted
-  since the token was issued), reads a multipart body of zero or more files, enforces the rate limit,
+  since the token was issued), reads a multipart body of zero or more files (and, for a Radicals job, the `vocabulary` text field), enforces the rate limit,
   stores a running `store.Job`, prunes the user's jobs to the newest 30, answers `202 {"id"}` (flushed
   early, `Connection: close`) and keeps running in the same handler: `runJob` calls the generator on a
   context detached from the request (`context.WithoutCancel`), so the client leaving does not cancel it,

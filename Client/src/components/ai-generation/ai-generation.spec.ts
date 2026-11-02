@@ -265,4 +265,55 @@ describe('AiGeneration', () => {
       expect(params.get('title')).toBe('Boya-Bai2+6');
     });
   });
+
+  describe('"Ghép bộ thủ"', () => {
+    const inputs = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.vocabulary-row label'))
+      .map(label => label.textContent?.trim());
+
+    beforeEach(() => {
+      page.formGroup.patchValue({
+        courseType: CourseType.Other,
+        courseName: 'Boya',
+        level: null,
+        lessonNumbers: [4, 2],
+        exportType: ExportType.Radicals
+      });
+      fixture.detectChanges();
+    });
+
+    it('offers one word input per chosen lesson, in order', () => {
+      expect(inputs()).toEqual(['Từ bài 2', 'Từ bài 4']);
+    });
+
+    it('keeps only the Chinese words of what is typed, and says what it left out', () => {
+      const setVocabulary = (page as unknown as { setVocabulary(lesson: number, tags: string[]): void }).setVocabulary
+        .bind(page);
+      setVocabulary(2, ['图书馆, 借', 'túshūguǎn']);
+      fixture.detectChanges();
+
+      expect(page.formGroup.get('vocabulary')?.value).toEqual({ 2: ['图书馆', '借'] });
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('Bỏ qua (không phải chữ Hán): túshūguǎn');
+    });
+
+    it('sends the words as a form field and the options as parameters', async () => {
+      page.formGroup.patchValue({ vocabulary: { 2: ['图书馆', '借'] }, reviewPrevious: true, colorPreset: 'lilac' });
+      await page.generate();
+
+      const request = http.expectOne(r => r.url === '/api/csv/jobs').request;
+      expect(request.params.get('exportType')).toBe(String(ExportType.Radicals));
+      expect(request.params.get('reviewPrevious')).toBe('true');
+      expect(request.params.get('colorPreset')).toBe('lilac');
+      expect(JSON.parse((request.body as FormData).get('vocabulary') as string)).toEqual({ 2: ['图书馆', '借'] });
+    });
+
+    it('does not remember the words with the other settings', async () => {
+      page.formGroup.patchValue({ vocabulary: { 2: ['图书馆'] }, colorPreset: 'rose' });
+      await page.generate();
+      http.expectOne(r => r.url === '/api/csv/jobs');
+
+      const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!);
+      expect(saved.vocabulary).toBeUndefined();
+      expect(saved.colorPreset).toBe('rose');
+    });
+  });
 });

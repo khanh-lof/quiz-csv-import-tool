@@ -1,0 +1,52 @@
+<section aria-label="Ghép bộ thủ" class="radicals-play">
+  <div class="topbar">
+    <a nz-button nzType="default" routerLink="/ai-history">
+      <nz-icon nzTheme="outline" nzType="arrow-left"/>
+      Về Lịch sử
+    </a>
+    @if (job(); as current) {
+      <h2 class="title">{{ current.title }}</h2>
+    }
+    @if (screen() === 'ready') {
+      <div class="actions">
+        <button (click)="download()" nz-button nzType="primary" type="button">
+          <nz-icon nzTheme="outline" nzType="download"/>
+          Tải file
+        </button>
+        <button (click)="fullScreen()" nz-button nzType="default" type="button">
+          <nz-icon nzTheme="outline" nzType="fullscreen"/>
+          Toàn màn hình
+        </button>
+      </div>
+    }
+  </div>
+
+  @switch (screen()) {
+    @case ('loading') {
+      <div class="state">
+        <nz-spin nzSimple nzSize="large"/>
+      </div>
+    }
+    @case ('error') {
+      <div class="state">
+        <p>{{ errorText() }}</p>
+      </div>
+    }
+    @case ('ready') {
+      @if (review().length > 0) {
+        <nz-alert [nzDescription]="reviewList" class="review" nzMessage="Cần xem lại" nzShowIcon nzType="warning"/>
+        <ng-template #reviewList>
+          <ul class="review-list">
+            @for (line of review(); track $index) {
+              <li><b>{{ line.label }}:</b> {{ line.text }}</li>
+            }
+          </ul>
+        </ng-template>
+      }
+      <div #frameBox class="frame-box">
+        <!-- allow-scripts without allow-same-origin: the exercise runs, but as another origin than QuizTool. -->
+        <iframe [srcdoc]="frameContent()" class="frame" sandbox="allow-scripts allow-popups" title="Bài tập ghép bộ thủ"></iframe>
+      </div>
+    }
+  }
+</section>

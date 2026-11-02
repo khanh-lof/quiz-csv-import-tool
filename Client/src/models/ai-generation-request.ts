@@ -20,4 +20,12 @@ export interface AiGenerationRequest {
   gestureStages: number[] | null;
   // How many questions each of those stages gets (4-10); null asks for the server's default.
   questionsPerStage: number | null;
+  // The three below only apply to "Ghép bộ thủ" (ExportType.Radicals) and are sent for it alone.
+  // The words typed for each lesson, by lesson number; a lesson left out takes its words from the textbook,
+  // the photos or the AI.
+  vocabulary: Record<number, string[]> | null;
+  // Whether words of earlier lessons may complete a group of six.
+  reviewPrevious: boolean | null;
+  // One of RADICALS_PRESETS; null asks for the server's default.
+  colorPreset: string | null;
 }

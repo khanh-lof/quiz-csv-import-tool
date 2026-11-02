@@ -1,0 +1,1928 @@
+{
+"邦": {
+"name": "Bang",
+"zh": "邦",
+"py": "bāng",
+"vi": "nước, quốc gia (nghĩa cổ)",
+"st": 6
+},
+"巠": {
+"name": "Kinh",
+"zh": "巠",
+"py": "jīng",
+"vi": "dòng nước ngầm (nghĩa gốc, ít dùng độc lập)",
+"st": 5,
+"noGlyph": true
+},
+"京": {
+"name": "Kinh",
+"zh": "京字头",
+"py": "jīng",
+"vi": "kinh đô, thủ đô",
+"st": 8
+},
+"尤": {
+"name": "Vưu",
+"zh": "尤",
+"py": "yóu",
+"vi": "đặc biệt, nhất là (尤其)",
+"st": 4
+},
+"董": {
+"name": "Đổng",
+"zh": "董",
+"py": "dǒng",
+"vi": "họ Đổng; trông coi, giám sát",
+"st": 12
+},
+"斿": {
+"name": "Du",
+"zh": "斿",
+"py": "yóu",
+"vi": "tua cờ (nghĩa gốc, ít dùng độc lập)",
+"st": 9
+},
+"上": {
+"name": "Thượng",
+"zh": "上",
+"py": "shàng",
+"vi": "trên; lên",
+"st": 3
+},
+"旦": {
+"name": "Đán",
+"zh": "旦",
+"py": "dàn",
+"vi": "sáng sớm, buổi sáng",
+"st": 5,
+"tip": "Mặt trời 日 vừa nhô lên khỏi đường chân trời 一."
+},
+"阿": {
+"name": "A",
+"zh": "阿",
+"py": "ā",
+"vi": "tiền tố thân mật (阿姨); dùng phiên âm",
+"st": 7
+},
+"示": {
+"name": "Thị",
+"zh": "示",
+"py": "shì",
+"vi": "bàn thờ; chỉ ra, bày tỏ",
+"st": 5,
+"tip": "Hình cái bàn thờ (nghĩa gốc). Là gốc của bộ 礻."
+},
+"另": {
+"name": "Lánh",
+"zh": "另",
+"py": "lìng",
+"vi": "khác, riêng, ngoài ra",
+"st": 5
+},
+"孝": {
+"name": "Hiếu",
+"zh": "孝",
+"py": "xiào",
+"vi": "hiếu thảo",
+"st": 7,
+"tip": "Hình người con 子 đỡ người già 耂 → nghĩa “hiếu”."
+},
+"攵": {
+"name": "Phộc (đánh nhẹ)",
+"zh": "反文旁",
+"py": "pū",
+"vi": "đánh nhẹ, gõ; (hành động bằng tay)",
+"st": 4,
+"tip": "Luôn đứng bên PHẢI chữ. Chữ có 攵 thường liên quan đến hành động của tay (教, 收, 放, 数…)."
+},
+"昔": {
+"name": "Tích",
+"zh": "昔",
+"py": "xī",
+"vi": "ngày xưa, trước đây",
+"st": 8
+},
+"糸": {
+"name": "Mịch (sợi tơ)",
+"zh": "糸字底",
+"py": "mì",
+"vi": "sợi tơ, sợi chỉ",
+"st": 6,
+"tip": "Dạng đầy đủ của 纟; đứng ở dưới chữ thì giữ dạng 糸 (累)."
+},
+"先": {
+"name": "Tiên",
+"zh": "先",
+"py": "xiān",
+"vi": "trước, đầu tiên",
+"st": 6
+},
+"关": {
+"name": "Quan",
+"zh": "关",
+"py": "guān",
+"vi": "đóng; liên quan (关系)",
+"st": 6
+},
+"录": {
+"name": "Lục",
+"zh": "录",
+"py": "lù",
+"vi": "ghi chép, ghi lại",
+"st": 8
+},
+"工": {
+"name": "Công",
+"zh": "工字旁",
+"py": "gōng",
+"vi": "công việc; thợ",
+"st": 3
+},
+"衤": {
+"name": "Y (áo)",
+"zh": "衣字旁",
+"py": "yī",
+"vi": "áo, quần áo",
+"st": 5,
+"tip": "Dạng rút gọn của 衣, đứng bên TRÁI chữ. Chữ có 衤 thường liên quan đến quần áo (裤, 衬, 衫…). Dễ nhầm với 礻 (4 nét): 衤 có 5 nét."
+},
+"库": {
+"name": "Khố",
+"zh": "库",
+"py": "kù",
+"vi": "kho, kho chứa (车库: nhà để xe)",
+"st": 7
+},
+"户": {
+"name": "Hộ",
+"zh": "户字头",
+"py": "hù",
+"vi": "cửa; hộ (gia đình)",
+"st": 4,
+"tip": "Hình cánh cửa một cánh (nghĩa gốc: cửa)."
+},
+"井": {
+"name": "Tỉnh",
+"zh": "井",
+"py": "jǐng",
+"vi": "giếng",
+"st": 4,
+"tip": "Hình miệng giếng (nghĩa gốc)."
+},
+"式": {
+"name": "Thức",
+"zh": "式",
+"py": "shì",
+"vi": "kiểu, mẫu, công thức",
+"st": 6
+},
+"勿": {
+"name": "Vật",
+"zh": "勿",
+"py": "wù",
+"vi": "đừng, chớ",
+"st": 3
+},
+"彦": {
+"name": "Ngạn",
+"zh": "彦",
+"py": "yàn",
+"vi": "người tài giỏi (từ cổ, ít dùng)",
+"st": 9
+},
+"页": {
+"name": "Hiệt",
+"zh": "页字旁",
+"py": "yè",
+"vi": "trang (sách); đầu (nghĩa gốc)",
+"st": 6,
+"tip": "Gốc là hình cái đầu người; chữ có 页 thường liên quan đến đầu, mặt (颜, 题, 顺, 须)."
+},
+"足": {
+"name": "Túc",
+"zh": "足字旁",
+"py": "zú",
+"vi": "chân; đủ",
+"st": 7,
+"tip": "Đứng bên TRÁI chữ. Chữ có 足 thường liên quan đến chân, động tác của chân (跑, 跳, 踢, 跟, 路)."
+},
+"酉": {
+"name": "Dậu",
+"zh": "酉字旁",
+"py": "yǒu",
+"vi": "bình rượu; Dậu (chi thứ 10)",
+"st": 7,
+"tip": "Hình cái bình đựng rượu (nghĩa gốc). Chữ có 酉 thường liên quan đến rượu (酒)."
+},
+"卩": {
+"name": "Tiết",
+"zh": "单耳旁",
+"py": "jié",
+"vi": "hình người quỳ (nghĩa gốc)",
+"st": 2
+},
+"乚": {
+"name": "Nét sổ cong móc",
+"zh": "竖弯钩",
+"py": "shù wān gōu",
+"vi": "nét sổ cong móc (một nét bút)",
+"st": 1
+},
+"止": {
+"name": "Chỉ",
+"zh": "止",
+"py": "zhǐ",
+"vi": "dừng lại",
+"st": 4,
+"tip": "Gốc là hình bàn chân (nghĩa gốc); nghĩa mở rộng: dừng lại."
+},
+"米": {
+"name": "Mễ",
+"zh": "米字旁",
+"py": "mǐ",
+"vi": "gạo",
+"st": 6,
+"tip": "Hình hạt gạo (nghĩa gốc). Chữ có 米 thường liên quan đến lương thực dạng hạt, bột (糕, 粉)."
+},
+"羔": {
+"name": "Cao",
+"zh": "羔",
+"py": "gāo",
+"vi": "cừu non, dê con",
+"st": 10
+},
+"毛": {
+"name": "Mao",
+"zh": "毛",
+"py": "máo",
+"vi": "lông; họ Mao",
+"st": 4,
+"tip": "笔 = ⺮ (tre) + 毛 (lông): cây bút làm bằng tre và lông."
+},
+"求": {
+"name": "Cầu",
+"zh": "求",
+"py": "qiú",
+"vi": "cầu xin, tìm kiếm",
+"st": 7
+},
+"台": {
+"name": "Đài",
+"zh": "台",
+"py": "tái",
+"vi": "đài, bục, sân khấu; (lượng từ) máy",
+"st": 5
+},
+"包": {
+"name": "Bao",
+"zh": "包",
+"py": "bāo",
+"vi": "gói, bọc",
+"st": 5
+},
+"易": {
+"name": "Dịch / Dị",
+"zh": "易",
+"py": "yì",
+"vi": "dễ; đổi, trao đổi",
+"st": 8
+},
+"永": {
+"name": "Vĩnh",
+"zh": "永",
+"py": "yǒng",
+"vi": "mãi mãi, lâu dài",
+"st": 5
+},
+"妻字头": {
+"name": "Đầu chữ 妻",
+"zh": "妻字头",
+"py": "—",
+"vi": "phần phía trên của chữ 妻 (không dùng độc lập)",
+"st": 5,
+"noGlyph": true
+},
+"官": {
+"name": "Quan",
+"zh": "官",
+"py": "guān",
+"vi": "quan chức; cơ quan",
+"st": 8
+},
+"非": {
+"name": "Phi",
+"zh": "非",
+"py": "fēi",
+"vi": "không phải; sai; trái ngược",
+"st": 8,
+"tip": "Hình hai cánh chim xòe ra hai bên (nghĩa gốc) → nghĩa “không, trái ngược”."
+},
+"吉": {
+"name": "Cát",
+"zh": "吉",
+"py": "jí",
+"vi": "tốt lành, may mắn",
+"st": 6
+},
+"司": {
+"name": "Ti",
+"zh": "司",
+"py": "sī",
+"vi": "quản lý, phụ trách (公司: công ty)",
+"st": 5
+},
+"是": {
+"name": "Thị",
+"zh": "是",
+"py": "shì",
+"vi": "là; đúng",
+"st": 9
+},
+"本": {
+"name": "Bản",
+"zh": "本",
+"py": "běn",
+"vi": "gốc, rễ; (lượng từ) quyển",
+"st": 5,
+"tip": "Cây 木 có nét ngang đánh dấu phần rễ → nghĩa gốc là “gốc, rễ”."
+},
+"曼": {
+"name": "Mạn",
+"zh": "曼",
+"py": "màn",
+"vi": "dài, kéo dài",
+"st": 11
+},
+"冬": {
+"name": "Đông",
+"zh": "冬",
+"py": "dōng",
+"vi": "mùa đông",
+"st": 5
+},
+"取": {
+"name": "Thủ",
+"zh": "取",
+"py": "qǔ",
+"vi": "lấy, nhận",
+"st": 8
+},
+"失": {
+"name": "Thất",
+"zh": "失",
+"py": "shī",
+"vi": "mất, đánh mất; sai sót",
+"st": 5
+},
+"娄": {
+"name": "Lâu",
+"zh": "娄",
+"py": "lóu",
+"vi": "họ Lâu; tên một chòm sao (ít dùng độc lập)",
+"st": 9
+},
+"斥": {
+"name": "Xích",
+"zh": "斥",
+"py": "chì",
+"vi": "quở trách, bác bỏ",
+"st": 5
+},
+"兆": {
+"name": "Triệu",
+"zh": "兆",
+"py": "zhào",
+"vi": "điềm báo; triệu (10⁶)",
+"st": 6
+},
+"立": {
+"name": "Lập",
+"zh": "立字旁",
+"py": "lì",
+"vi": "đứng; dựng lên",
+"st": 5,
+"tip": "Hình người 大 đứng trên mặt đất 一 (nghĩa gốc: đứng)."
+},
+"方": {
+"name": "Phương",
+"zh": "方",
+"py": "fāng",
+"vi": "vuông; phương hướng",
+"st": 4
+},
+"象": {
+"name": "Tượng",
+"zh": "象",
+"py": "xiàng",
+"vi": "con voi; hình tượng",
+"st": 11,
+"tip": "Hình con voi (nghĩa gốc)."
+},
+"亻": {
+"name": "Nhân đứng",
+"zh": "单人旁",
+"py": "rén",
+"vi": "người",
+"st": 2,
+"tip": "Dạng viết rút gọn của 人, luôn đứng bên TRÁI chữ.",
+"base_role": "Nghĩa phù (义符): chữ có 亻 thường liên quan đến người."
+},
+"尔": {
+"name": "Nhĩ",
+"zh": "尔",
+"py": "ěr",
+"vi": "ngươi, ấy (nghĩa cổ)",
+"st": 5,
+"tip": "你 = 亻 (người) + 尔: 尔 gợi âm.",
+"base_role": "Thanh phù (声符) trong 你."
+},
+"女": {
+"name": "Nữ",
+"zh": "女",
+"py": "nǚ",
+"vi": "phụ nữ, con gái",
+"st": 3,
+"tip": "好 = 女 + 子: người mẹ (女) bên đứa con (子) → tốt đẹp.",
+"base_role": "Nghĩa phù (义符): liên quan đến phụ nữ."
+},
+"子": {
+"name": "Tử",
+"zh": "子",
+"py": "zǐ",
+"vi": "con; đứa trẻ",
+"st": 3,
+"tip": "学: đứa trẻ (子) dưới mái che đang học. 好 = 女 + 子.",
+"base_role": "Chữ độc lập; còn là bộ phận trong 好, 学, 字 và nghĩa phù trong 孩."
+},
+"门": {
+"name": "Môn",
+"zh": "门字框",
+"py": "mén",
+"vi": "cửa, cổng",
+"st": 3,
+"tip": "Hình hai cánh cửa. 们 = 亻 (người) + 门: chỉ nhiều người.",
+"base_role": "Gợi âm trong 们 (mén → men); cũng là bộ phận trong 问, 间."
+},
+"讠": {
+"name": "Ngôn",
+"zh": "言字旁",
+"py": "yán",
+"vi": "lời nói, ngôn ngữ",
+"st": 2,
+"tip": "Dạng giản thể của 言, đứng bên TRÁI chữ.",
+"base_role": "Nghĩa phù (义符): chữ có 讠 liên quan đến nói năng."
+},
+"射": {
+"name": "Xạ",
+"zh": "射",
+"py": "shè",
+"vi": "bắn",
+"st": 10,
+"tip": "谢 = 讠 (lời nói) + 射: lời cảm ơn \"bắn\" tới người khác.",
+"base_role": "Thanh phù (声符) trong 谢 (shè ≈ xiè)."
+},
+"你": {
+"name": "Chữ 你",
+"zh": "你",
+"py": "nǐ",
+"vi": "bạn, anh/chị",
+"st": 7,
+"tip": "您 = 你 + 心.",
+"base_role": "Phần phía trên của chữ 您."
+},
+"心": {
+"name": "Tâm",
+"zh": "心",
+"py": "xīn",
+"vi": "tim; tấm lòng",
+"st": 4,
+"tip": "您 = 你 + 心: đặt tấm lòng (心) dưới chữ 你 → cách gọi kính trọng.",
+"base_role": "Nghĩa phù (义符): liên quan đến tâm tư, tình cảm."
+},
+"宀": {
+"name": "Miên",
+"zh": "宝盖头",
+"py": "mián",
+"vi": "mái nhà",
+"st": 3,
+"tip": "Hình mái nhà nhìn từ phía trước, luôn nằm TRÊN cùng của chữ.",
+"base_role": "Nghĩa phù (义符): liên quan đến nhà cửa."
+},
+"各": {
+"name": "Các",
+"zh": "各",
+"py": "gè",
+"vi": "mỗi, từng",
+"st": 6,
+"tip": "客 = 宀 (nhà) + 各: người từ nơi khác (各) đến nhà (宀) → khách.",
+"base_role": "Thanh phù (声符) trong 客 (gè ≈ kè)."
+},
+"豕": {
+"name": "Thỉ",
+"zh": "豕",
+"py": "shǐ",
+"vi": "con heo (lợn)",
+"st": 7,
+"tip": "家 = 宀 (mái nhà) + 豕 (con heo): xưa nhà nào cũng nuôi heo → nhà, gia đình.",
+"base_role": "Bộ phận cấu tạo chữ 家 (nằm phía dưới)."
+},
+"冂": {
+"name": "Quynh",
+"zh": "冂字框",
+"py": "jiōng",
+"vi": "khung, vùng biên",
+"st": 2,
+"tip": "Khung hở phía dưới.",
+"base_role": "Bộ phận cấu tạo chữ 同 (khung bao) và 见 (phía trên)."
+},
+"一": {
+"name": "Nhất",
+"zh": "一",
+"py": "yī",
+"vi": "một",
+"st": 1,
+"tip": "同: khung 冂 bao quanh 一 và 口.",
+"base_role": "Bộ phận cấu tạo chữ 同 (nét ngang bên trong khung)."
+},
+"口": {
+"name": "Khẩu",
+"zh": "口",
+"py": "kǒu",
+"vi": "miệng",
+"st": 3,
+"tip": "同 = 冂 + 一 + 口: mọi người cùng một lời → \"cùng, giống nhau\".",
+"base_role": "Nghĩa phù (义符): chữ có 口 thường liên quan đến miệng, ăn nói (问, 叫, 哪, 喂, 吗, 和, 呢, 吃, 喝, 唱…). Trong 同: ô vuông nhỏ nằm bên trong khung 冂."
+},
+"学字头": {
+"name": "Đầu chữ 学",
+"zh": "学字头",
+"py": "—",
+"vi": "phần mái che phía trên chữ 学 (ba nét chấm và 冖)",
+"st": null,
+"tip": "学 = đầu chữ + 子: đứa trẻ (子) dưới mái che đang học.",
+"noGlyph": true,
+"base_role": "Bộ phận cấu tạo chữ 学 (nằm phía trên)."
+},
+"儿": {
+"name": "Nhân đi (Nhi)",
+"zh": "儿",
+"py": "ér",
+"vi": "con; hình người đang bước đi",
+"st": 2,
+"tip": "见 gốc là 見 = 目 (mắt) + 儿 (người): người dùng mắt để nhìn → thấy, gặp.",
+"base_role": "Bộ phận cấu tạo chữ 见 (nằm phía dưới)."
+},
+"耂": {
+"name": "Lão (đầu 老)",
+"zh": "老字头",
+"py": "lǎo",
+"vi": "người già (dạng rút gọn của 老)",
+"st": 4,
+"tip": "Luôn nằm TRÊN chữ, như trong 老.",
+"noGlyph": true,
+"base_role": "Nghĩa phù (义符): liên quan đến tuổi già."
+},
+"匕": {
+"name": "Chủy",
+"zh": "匕",
+"py": "bǐ",
+"vi": "cái thìa (nghĩa gốc)",
+"st": 2,
+"tip": "老 = 耂 + 匕: ông lão (耂) tóc đã biến thành bạc (匕).",
+"base_role": "Bộ phận cấu tạo chữ 老 (nằm phía dưới)."
+},
+"氵": {
+"name": "Thủy (ba chấm thủy)",
+"zh": "三点水",
+"py": "shuǐ",
+"vi": "nước",
+"st": 3,
+"tip": "Dạng rút gọn của 水, đứng bên TRÁI chữ. Chữ có 氵 thường liên quan đến nước, chất lỏng.",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 没, 漂. Bộ phận cấu tạo của 法, 汉."
+},
+"殳": {
+"name": "Thù",
+"zh": "殳字旁",
+"py": "shū",
+"vi": "vũ khí cán dài; động tác đánh",
+"st": 4,
+"base_role": "Thanh phù (声符) — gợi âm — của 没."
+},
+"走": {
+"name": "Tẩu",
+"zh": "走字旁",
+"py": "zǒu",
+"vi": "đi, chạy",
+"st": 7,
+"tip": "Nằm ở góc TRÁI–DƯỚI và bao lấy phần còn lại (起, 超).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 起, 超."
+},
+"己": {
+"name": "Kỷ",
+"zh": "己",
+"py": "jǐ",
+"vi": "mình, bản thân",
+"st": 3,
+"base_role": "Thanh phù (声符) — gợi âm — của 起."
+},
+"亠": {
+"name": "Đầu (nắp)",
+"zh": "京字头",
+"py": "tóu",
+"vi": "cái nắp (bộ Đầu)",
+"st": 2,
+"tip": "Nằm TRÊN cùng của chữ: 高, 六, 市, 京.",
+"base_role": "Bộ phận cấu tạo của 高, 六, 市, 京."
+},
+"冋": {
+"name": "Quynh (biến thể)",
+"zh": "冋",
+"py": "jiōng",
+"vi": "dạng biến thể của 冂 (khung, vùng biên)",
+"st": 5,
+"base_role": "Bộ phận cấu tạo của 高."
+},
+"彳": {
+"name": "Xích (bước chân)",
+"zh": "双人旁",
+"py": "chì",
+"vi": "bước đi",
+"st": 3,
+"tip": "Đứng bên TRÁI chữ; thường liên quan đến đi lại, đường đi.",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 很."
+},
+"艮": {
+"name": "Cấn",
+"zh": "艮",
+"py": "gèn",
+"vi": "quẻ Cấn; dừng lại",
+"st": 6,
+"base_role": "Thanh phù (声符) — gợi âm — của 很."
+},
+"十": {
+"name": "Thập",
+"zh": "十",
+"py": "shí",
+"vi": "mười",
+"st": 2,
+"base_role": "Bộ phận cấu tạo của 什, 早, 卖."
+},
+"日": {
+"name": "Nhật",
+"zh": "日字旁",
+"py": "rì",
+"vi": "mặt trời, ngày",
+"st": 4,
+"tip": "Hình mặt trời. Chữ có 日 thường liên quan đến ánh sáng, thời gian (明, 晚, 昨).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 星, 昨, 时. Bộ phận cấu tạo của 是, 明, 晚, 早, 间."
+},
+"疋": {
+"name": "Sơ",
+"zh": "疋",
+"py": "shū / pǐ",
+"vi": "bộ Sơ (hình bàn chân; còn là lượng từ cuộn vải)",
+"st": 5,
+"base_role": "Bộ phận cấu tạo của 是, 蛋."
+},
+"丩": {
+"name": "Củ",
+"zh": "丩",
+"py": "jiū",
+"vi": "dây quấn, xoắn lại",
+"st": 2,
+"base_role": "Thanh phù (声符) — gợi âm — của 叫."
+},
+"人": {
+"name": "Nhân",
+"zh": "人字头",
+"py": "rén",
+"vi": "người",
+"st": 2,
+"base_role": "Thanh phù (声符) — gợi âm — của 认. Bộ phận cấu tạo của 会, 茶."
+},
+"隹": {
+"name": "Chuy",
+"zh": "隹",
+"py": "zhuī",
+"vi": "chim đuôi ngắn",
+"st": 8,
+"base_role": "Thanh phù (声符) — gợi âm — của 谁."
+},
+"白": {
+"name": "Bạch",
+"zh": "白字旁",
+"py": "bái",
+"vi": "trắng",
+"st": 5,
+"base_role": "Thanh phù (声符) — gợi âm — của 百. Bộ phận cấu tạo của 的."
+},
+"勺": {
+"name": "Thược",
+"zh": "勺",
+"py": "sháo",
+"vi": "cái muôi, cái thìa",
+"st": 3,
+"base_role": "Bộ phận cấu tạo của 的."
+},
+"那": {
+"name": "Na",
+"zh": "那",
+"py": "nà",
+"vi": "kia, đó, ấy",
+"st": 6,
+"base_role": "Thanh phù (声符) — gợi âm — của 哪."
+},
+"𠂇": {
+"name": "Nét 𠂇",
+"zh": "𠂇",
+"py": "—",
+"vi": "phần phía trên-trái của 有 và 友 (không dùng độc lập)",
+"st": 2,
+"noGlyph": true,
+"base_role": "Bộ phận cấu tạo của 友, 有."
+},
+"又": {
+"name": "Hựu",
+"zh": "又字旁",
+"py": "yòu",
+"vi": "lại, lần nữa; (hình bàn tay)",
+"st": 2,
+"tip": "Ban đầu là hình bàn tay phải; dùng nhiều làm thành phần cấu tạo chữ.",
+"base_role": "Bộ phận cấu tạo của 友, 对, 欢, 汉."
+},
+"相": {
+"name": "Tương",
+"zh": "相",
+"py": "xiāng",
+"vi": "cùng nhau, lẫn nhau",
+"st": 9,
+"base_role": "Thanh phù (声符) — gợi âm — của 想."
+},
+"辶": {
+"name": "Sước (bước đi)",
+"zh": "走之旁",
+"py": "chuò",
+"vi": "đi, di chuyển",
+"st": 3,
+"tip": "Nằm ở góc TRÁI–DƯỚI, bao lấy phần còn lại. Chữ có 辶 thường liên quan đến đi lại, di chuyển (边, 这, 还, 道).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 边, 道. Bộ phận cấu tạo của 这, 还."
+},
+"文": {
+"name": "Văn",
+"zh": "文字旁",
+"py": "wén",
+"vi": "văn, chữ viết, văn hóa",
+"st": 4,
+"base_role": "Bộ phận cấu tạo của 这."
+},
+"去": {
+"name": "Khứ",
+"zh": "去",
+"py": "qù",
+"vi": "đi",
+"st": 5,
+"base_role": "Bộ phận cấu tạo của 法."
+},
+"寸": {
+"name": "Thốn",
+"zh": "寸字旁",
+"py": "cùn",
+"vi": "tấc (đơn vị đo); bàn tay",
+"st": 3,
+"base_role": "Bộ phận cấu tạo của 对, 时."
+},
+"囗": {
+"name": "Vi (khung bao)",
+"zh": "国字框",
+"py": "wéi",
+"vi": "bao quanh",
+"st": 3,
+"tip": "Khung bao kín bốn phía (国, 四, 回).",
+"base_role": "Bộ phận cấu tạo của 国, 四, 回."
+},
+"玉": {
+"name": "Ngọc",
+"zh": "玉",
+"py": "yù",
+"vi": "ngọc",
+"st": 5,
+"tip": "国 = 囗 (biên giới) + 玉 (ngọc báu): báu vật trong lãnh thổ → đất nước.",
+"base_role": "Bộ phận cấu tạo của 国."
+},
+"且": {
+"name": "Thả",
+"zh": "且",
+"py": "qiě",
+"vi": "vả lại, hơn nữa",
+"st": 5,
+"base_role": "Thanh phù (声符) — gợi âm — của 姐. Bộ phận cấu tạo của 租, 宜."
+},
+"忄": {
+"name": "Tâm đứng",
+"zh": "竖心旁",
+"py": "xīn",
+"vi": "tim, tâm trạng",
+"st": 3,
+"tip": "Dạng rút gọn của 心, đứng bên TRÁI chữ. Chữ có 忄 thường liên quan đến cảm xúc, tâm trạng.",
+"base_role": "Bộ phận cấu tạo của 忙."
+},
+"亡": {
+"name": "Vong",
+"zh": "亡",
+"py": "wáng",
+"vi": "mất, chết, diệt vong",
+"st": 3,
+"base_role": "Bộ phận cấu tạo của 忙."
+},
+"也": {
+"name": "Dã",
+"zh": "也",
+"py": "yě",
+"vi": "cũng",
+"st": 3,
+"base_role": "Bộ phận cấu tạo của 她, 他."
+},
+"乍": {
+"name": "Tạc",
+"zh": "乍",
+"py": "zhà",
+"vi": "chợt, đột nhiên",
+"st": 5,
+"base_role": "Thanh phù (声符) — gợi âm — của 怎, 昨. Bộ phận cấu tạo của 作."
+},
+"不": {
+"name": "Bất",
+"zh": "不",
+"py": "bù",
+"vi": "không",
+"st": 4,
+"base_role": "Thanh phù (声符) — gợi âm — của 杯. Bộ phận cấu tạo của 还."
+},
+"马": {
+"name": "Mã",
+"zh": "马字旁",
+"py": "mǎ",
+"vi": "con ngựa",
+"st": 3,
+"base_role": "Thanh phù (声符) — gợi âm — của 吗, 妈."
+},
+"大": {
+"name": "Đại",
+"zh": "大字头",
+"py": "dà",
+"vi": "to, lớn",
+"st": 3,
+"tip": "Hình người dang tay chân → \"to, lớn\".",
+"base_role": "Bộ phận cấu tạo của 太, 天."
+},
+"丶": {
+"name": "Chủ",
+"zh": "点",
+"py": "zhǔ",
+"vi": "nét chấm",
+"st": 1,
+"tip": "Chỉ là một nét chấm, thêm vào chữ 大 thành 太.",
+"base_role": "Bộ phận cấu tạo của 太."
+},
+"畏": {
+"name": "Úy",
+"zh": "畏",
+"py": "wèi",
+"vi": "sợ, kính sợ",
+"st": 9,
+"base_role": "Thanh phù (声符) — gợi âm — của 喂."
+},
+"禾": {
+"name": "Hòa",
+"zh": "禾木旁",
+"py": "hé",
+"vi": "cây lúa",
+"st": 5,
+"tip": "Hình cây lúa chín cúi đầu. Chữ có 禾 thường liên quan đến lúa, ngũ cốc, thu hoạch (租).",
+"base_role": "Thanh phù (声符) — gợi âm — của 和. Bộ phận cấu tạo của 租."
+},
+"父": {
+"name": "Phụ",
+"zh": "父字头",
+"py": "fù",
+"vi": "cha, bố",
+"st": 4,
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 爸."
+},
+"巴": {
+"name": "Ba",
+"zh": "巴",
+"py": "bā",
+"vi": "địa danh cổ nước Ba; thường dùng gợi âm",
+"st": 4,
+"base_role": "Thanh phù (声符) — gợi âm — của 爸, 吧."
+},
+"小": {
+"name": "Tiểu",
+"zh": "小字头",
+"py": "xiǎo",
+"vi": "nhỏ, bé",
+"st": 3,
+"base_role": "Bộ phận cấu tạo của 少, 京."
+},
+"丿": {
+"name": "Phiệt",
+"zh": "撇",
+"py": "piě",
+"vi": "nét phẩy",
+"st": 1,
+"base_role": "Bộ phận cấu tạo của 少."
+},
+"八": {
+"name": "Bát",
+"zh": "八字头",
+"py": "bā",
+"vi": "tám",
+"st": 2,
+"base_role": "Bộ phận cấu tạo của 六, 分, 只, 公."
+},
+"尼": {
+"name": "Ni",
+"zh": "尼",
+"py": "ní",
+"vi": "ni cô (thường dùng gợi âm)",
+"st": 5,
+"base_role": "Thanh phù (声符) — gợi âm — của 呢."
+},
+"亥": {
+"name": "Hợi",
+"zh": "亥",
+"py": "hài",
+"vi": "Hợi — chi thứ 12 (con heo)",
+"st": 6,
+"base_role": "Thanh phù (声符) — gợi âm — của 孩."
+},
+"雨": {
+"name": "Vũ",
+"zh": "雨字头",
+"py": "yǔ",
+"vi": "mưa",
+"st": 8,
+"tip": "Nằm TRÊN chữ; liên quan đến mưa, thời tiết (雪, 零).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 零, 雪."
+},
+"令": {
+"name": "Lệnh",
+"zh": "令",
+"py": "lìng",
+"vi": "lệnh; khiến",
+"st": 5,
+"base_role": "Thanh phù (声符) — gợi âm — của 零, 冷."
+},
+"未": {
+"name": "Vị",
+"zh": "未",
+"py": "wèi",
+"vi": "chưa; chi thứ 8 (Mùi)",
+"st": 5,
+"base_role": "Thanh phù (声符) — gợi âm — của 妹."
+},
+"山": {
+"name": "Sơn",
+"zh": "山字头",
+"py": "shān",
+"vi": "núi",
+"st": 3,
+"base_role": "Bộ phận cấu tạo của 岁."
+},
+"夕": {
+"name": "Tịch",
+"zh": "夕",
+"py": "xī",
+"vi": "buổi tối, chiều tà",
+"st": 3,
+"base_role": "Bộ phận cấu tạo của 岁, 外."
+},
+"月": {
+"name": "Nguyệt",
+"zh": "月字旁",
+"py": "yuè",
+"vi": "mặt trăng, tháng; (bên trái chữ) thịt",
+"st": 4,
+"tip": "Có thể là \"mặt trăng/tháng\" (明, 期) hoặc, ở bên TRÁI chữ như 脑, là dạng của 肉 (thịt) — liên quan đến cơ thể.",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 期. Bộ phận cấu tạo của 有, 脑, 明, 前, 服."
+},
+"艹": {
+"name": "Thảo (đầu cỏ)",
+"zh": "草字头",
+"py": "cǎo",
+"vi": "cỏ, cây cỏ",
+"st": 3,
+"tip": "Dạng rút gọn của 草, nằm TRÊN cùng của chữ. Chữ có 艹 thường liên quan đến cây cỏ, rau.",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 菜, 苹, 药, 茶."
+},
+"采": {
+"name": "Thải",
+"zh": "采",
+"py": "cǎi",
+"vi": "hái; tinh thần, vẻ",
+"st": 8,
+"base_role": "Thanh phù (声符) — gợi âm — của 菜."
+},
+"脑右": {
+"name": "Phần phải của 脑",
+"zh": "脑右",
+"py": "—",
+"vi": "phần bên phải của chữ 脑 (nghĩa gốc là \"óc\")",
+"st": 6,
+"noGlyph": true,
+"base_role": "Bộ phận cấu tạo của 脑."
+},
+"生": {
+"name": "Sinh",
+"zh": "生字旁",
+"py": "shēng",
+"vi": "sinh ra; sống; chưa chín",
+"st": 5,
+"base_role": "Thanh phù (声符) — gợi âm — của 星."
+},
+"木": {
+"name": "Mộc",
+"zh": "木字旁",
+"py": "mù",
+"vi": "cây, gỗ",
+"st": 4,
+"tip": "Hình cái cây. Chữ có 木 thường liên quan đến cây cối, đồ gỗ (桌, 椅, 床, 杯).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 椅, 杯, 样. Bộ phận cấu tạo của 休, 条, 机, 桌, 本, 果, 床, 茶."
+},
+"此": {
+"name": "Thử",
+"zh": "此",
+"py": "cǐ",
+"vi": "này, ấy",
+"st": 6,
+"base_role": "Thanh phù (声符) — gợi âm — của 些."
+},
+"二": {
+"name": "Nhị",
+"zh": "二",
+"py": "èr",
+"vi": "hai",
+"st": 2,
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 些. Bộ phận cấu tạo của 元."
+},
+"王": {
+"name": "Vương (Ngọc)",
+"zh": "王字旁",
+"py": "wáng",
+"vi": "vua; (bên trái chữ) ngọc",
+"st": 4,
+"tip": "Đứng bên TRÁI chữ, 王 là dạng của 玉 (ngọc) — chữ có 王 thường liên quan đến ngọc, đồ quý (玩, 现).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 玩. Bộ phận cấu tạo của 班, 现."
+},
+"刂": {
+"name": "Đao (dao đứng)",
+"zh": "立刀旁",
+"py": "dāo",
+"vi": "dao",
+"st": 2,
+"tip": "Dạng rút gọn của 刀, đứng bên PHẢI chữ. Chữ có 刂 thường liên quan đến dao, cắt.",
+"base_role": "Thanh phù (声符) — gợi âm — của 到. Bộ phận cấu tạo của 班, 前."
+},
+"手": {
+"name": "Thủ",
+"zh": "手字头",
+"py": "shǒu",
+"vi": "tay",
+"st": 4,
+"tip": "Ở trên chữ 看: tay (手) che trên mắt (目) để nhìn xa — \"xem, nhìn\".",
+"base_role": "Bộ phận cấu tạo của 看."
+},
+"目": {
+"name": "Mục",
+"zh": "目字旁",
+"py": "mù",
+"vi": "mắt",
+"st": 5,
+"tip": "Hình con mắt dựng đứng. Chữ có 目 thường liên quan đến mắt, nhìn (看, 睡).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 睡. Bộ phận cấu tạo của 看."
+},
+"夂": {
+"name": "Trĩ",
+"zh": "夂",
+"py": "zhǐ",
+"vi": "đi chậm (bộ Trĩ)",
+"st": 3,
+"base_role": "Bộ phận cấu tạo của 条."
+},
+"欠": {
+"name": "Khiếm",
+"zh": "欠字旁",
+"py": "qiàn",
+"vi": "thiếu; ngáp; há miệng",
+"st": 4,
+"tip": "Hình người há miệng. Chữ có 欠 thường liên quan đến miệng, hơi thở, hành động (歌, 欢).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 歌. Bộ phận cấu tạo của 欢."
+},
+"故": {
+"name": "Cố",
+"zh": "故",
+"py": "gù",
+"vi": "cớ, nguyên nhân; cũ; cố ý",
+"st": 9,
+"base_role": "Bộ phận cấu tạo của 做."
+},
+"其": {
+"name": "Kỳ",
+"zh": "其",
+"py": "qí",
+"vi": "nó, của nó; ấy",
+"st": 8,
+"base_role": "Thanh phù (声符) — gợi âm — của 期."
+},
+"丂": {
+"name": "Khảo",
+"zh": "丂",
+"py": "kǎo",
+"vi": "thành phần cổ, ít dùng độc lập",
+"st": 2,
+"base_role": "Thanh phù (声符) — gợi âm — của 号."
+},
+"饣": {
+"name": "Thực",
+"zh": "食字旁",
+"py": "shí",
+"vi": "ăn, thức ăn",
+"st": 3,
+"tip": "Dạng giản thể của 食, đứng bên TRÁI chữ. Chữ có 饣 thường liên quan đến ăn uống.",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 饺, 饭."
+},
+"交": {
+"name": "Giao",
+"zh": "交",
+"py": "jiāo",
+"vi": "giao, nộp; kết giao",
+"st": 6,
+"base_role": "Thanh phù (声符) — gợi âm — của 饺."
+},
+"反": {
+"name": "Phản",
+"zh": "反",
+"py": "fǎn",
+"vi": "ngược lại; chống lại",
+"st": 4,
+"base_role": "Thanh phù (声符) — gợi âm — của 饭."
+},
+"云": {
+"name": "Vân",
+"zh": "云",
+"py": "yún",
+"vi": "mây; (văn cổ) nói",
+"st": 4,
+"base_role": "Bộ phận cấu tạo của 会."
+},
+"亲": {
+"name": "Thân",
+"zh": "亲",
+"py": "qīn",
+"vi": "thân thiết; người thân; hôn",
+"st": 9,
+"base_role": "Bộ phận cấu tạo của 新."
+},
+"斤": {
+"name": "Cân",
+"zh": "斤",
+"py": "jīn",
+"vi": "cân (500 g); cái rìu (nghĩa gốc)",
+"st": 4,
+"base_role": "Bộ phận cấu tạo của 新, 听."
+},
+"勹": {
+"name": "Bao",
+"zh": "包字头",
+"py": "bāo",
+"vi": "bao bọc",
+"st": 2,
+"tip": "Hình người cúi mình ôm lấy một vật — ý \"bao bọc\".",
+"base_role": "Bộ phận cấu tạo của 包."
+},
+"巳": {
+"name": "Tỵ",
+"zh": "巳",
+"py": "sì",
+"vi": "Tỵ — con giáp thứ 6 (rắn)",
+"st": 3,
+"base_role": "Bộ phận cấu tạo của 包."
+},
+"乞": {
+"name": "Khất",
+"zh": "乞",
+"py": "qǐ",
+"vi": "xin, cầu xin",
+"st": 3,
+"base_role": "Thanh phù (声符) — gợi âm — của 吃."
+},
+"舌": {
+"name": "Thiệt",
+"zh": "舌字旁",
+"py": "shé",
+"vi": "cái lưỡi",
+"st": 6,
+"base_role": "Bộ phận cấu tạo của 话."
+},
+"尚": {
+"name": "Thượng",
+"zh": "尚",
+"py": "shàng",
+"vi": "còn, vẫn; chuộng",
+"st": 8,
+"base_role": "Thanh phù (声符) — gợi âm — của 常."
+},
+"巾": {
+"name": "Cân",
+"zh": "巾字旁",
+"py": "jīn",
+"vi": "cái khăn",
+"st": 3,
+"tip": "Chữ có 巾 thường liên quan đến vải, khăn (市, 常).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 常. Bộ phận cấu tạo của 市."
+},
+"冄": {
+"name": "Nhiễm",
+"zh": "冄",
+"py": "rǎn",
+"vi": "dạng cổ của 冉 (mềm yếu, dần dần)",
+"st": 4,
+"noGlyph": true,
+"base_role": "Bộ phận cấu tạo của 那."
+},
+"阝": {
+"name": "Phụ / Ấp (tai)",
+"zh": "耳刀旁",
+"py": "fù / yì",
+"vi": "gò đất (阝 bên trái); thành ấp (阝 bên phải)",
+"st": 2,
+"tip": "阝 bên TRÁI chữ = 阜 (gò đất, bậc thang: 院), bên PHẢI chữ = 邑 (thành ấp, địa danh: 那, 都). Hai bộ này viết giống nhau.",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 院, 都. Bộ phận cấu tạo của 那."
+},
+"几": {
+"name": "Kỷ",
+"zh": "几",
+"py": "jǐ",
+"vi": "mấy, bao nhiêu; cái bàn nhỏ (jī)",
+"st": 2,
+"base_role": "Bộ phận cấu tạo của 机."
+},
+"从": {
+"name": "Tòng",
+"zh": "从",
+"py": "cóng",
+"vi": "từ; theo",
+"st": 4,
+"tip": "坐 = 从 (hai người) + 土 (đất): hai người ngồi trên đất.",
+"base_role": "Bộ phận cấu tạo của 坐."
+},
+"土": {
+"name": "Thổ",
+"zh": "提土旁",
+"py": "tǔ",
+"vi": "đất",
+"st": 3,
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 在, 块. Bộ phận cấu tạo của 坐, 去, 里, 先."
+},
+"召": {
+"name": "Triệu",
+"zh": "召",
+"py": "zhào",
+"vi": "gọi đến, triệu tập",
+"st": 5,
+"base_role": "Thanh phù (声符) — gợi âm — của 超."
+},
+"力": {
+"name": "Lực",
+"zh": "力字旁",
+"py": "lì",
+"vi": "sức, sức lực",
+"st": 2,
+"base_role": "Bộ phận cấu tạo của 边, 男."
+},
+"乃": {
+"name": "Nãi",
+"zh": "乃",
+"py": "nǎi",
+"vi": "bèn, là (văn viết)",
+"st": 2,
+"base_role": "Thanh phù (声符) — gợi âm — của 奶."
+},
+"免": {
+"name": "Miễn",
+"zh": "免",
+"py": "miǎn",
+"vi": "miễn, tránh",
+"st": 7,
+"base_role": "Bộ phận cấu tạo của 晚."
+},
+"厶": {
+"name": "Tư",
+"zh": "厶",
+"py": "sī",
+"vi": "riêng tư (dạng cổ của 私)",
+"st": 2,
+"base_role": "Bộ phận cấu tạo của 去, 公."
+},
+"完": {
+"name": "Hoàn",
+"zh": "完",
+"py": "wán",
+"vi": "xong, hết",
+"st": 7,
+"base_role": "Thanh phù (声符) — gợi âm — của 院."
+},
+"果": {
+"name": "Quả",
+"zh": "果",
+"py": "guǒ",
+"vi": "quả, trái cây; kết quả",
+"st": 8,
+"base_role": "Thanh phù (声符) — gợi âm — của 课."
+},
+"占": {
+"name": "Chiếm",
+"zh": "占",
+"py": "zhàn / zhān",
+"vi": "chiếm (zhàn); bói (zhān)",
+"st": 5,
+"base_role": "Thanh phù (声符) — gợi âm — của 点, 店."
+},
+"灬": {
+"name": "Hỏa (bốn chấm)",
+"zh": "四点底",
+"py": "huǒ",
+"vi": "lửa",
+"st": 4,
+"tip": "Dạng rút gọn của 火, nằm ở PHÍA DƯỚI chữ. Chữ có 灬 thường liên quan đến lửa, nhiệt.",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 点, 热."
+},
+"𠂆": {
+"name": "Nét 𠂆",
+"zh": "𠂆",
+"py": "—",
+"vi": "phần phía trên-trái của 后 (không dùng độc lập)",
+"st": 3,
+"noGlyph": true,
+"base_role": "Bộ phận cấu tạo của 后."
+},
+"田": {
+"name": "Điền",
+"zh": "田字旁",
+"py": "tián",
+"vi": "ruộng",
+"st": 4,
+"tip": "Hình thửa ruộng chia ô.",
+"base_role": "Bộ phận cấu tạo của 里, 果, 男."
+},
+"才": {
+"name": "Tài",
+"zh": "才",
+"py": "cái",
+"vi": "mới, vừa; tài năng",
+"st": 3,
+"base_role": "Thanh phù (声符) — gợi âm — của 在."
+},
+"景": {
+"name": "Cảnh",
+"zh": "景",
+"py": "jǐng",
+"vi": "cảnh, phong cảnh",
+"st": 12,
+"base_role": "Thanh phù (声符) — gợi âm — của 影."
+},
+"彡": {
+"name": "Sam",
+"zh": "彡",
+"py": "shān",
+"vi": "lông, tia sáng, hoa văn",
+"st": 3,
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 影."
+},
+"钅": {
+"name": "Kim (đứng)",
+"zh": "金字旁",
+"py": "jīn",
+"vi": "kim loại, vàng",
+"st": 5,
+"tip": "Dạng giản thể của 金, đứng bên TRÁI chữ. Chữ có 钅 thường liên quan đến kim loại, tiền (钱, 钟).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 钟, 钱."
+},
+"中": {
+"name": "Trung",
+"zh": "中",
+"py": "zhōng",
+"vi": "giữa, trong",
+"st": 4,
+"base_role": "Thanh phù (声符) — gợi âm — của 钟. Bộ phận cấu tạo của 贵."
+},
+"见": {
+"name": "Kiến",
+"zh": "见字旁",
+"py": "jiàn",
+"vi": "thấy, gặp",
+"st": 4,
+"tip": "见 (見) = 目 (mắt) + 儿 (người): người dùng mắt để nhìn → thấy.",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 视, 觉. Bộ phận cấu tạo của 现."
+},
+"匸": {
+"name": "Hễ",
+"zh": "匸",
+"py": "xì",
+"vi": "cái hộp, tủ che chắn (bộ Hễ)",
+"st": 2,
+"base_role": "Bộ phận cấu tạo của 医."
+},
+"矢": {
+"name": "Thỉ",
+"zh": "矢字旁",
+"py": "shǐ",
+"vi": "mũi tên",
+"st": 5,
+"base_role": "Bộ phận cấu tạo của 医."
+},
+"广": {
+"name": "Nghiễm",
+"zh": "广字旁",
+"py": "guǎng",
+"vi": "mái nhà lớn, nhà rộng",
+"st": 3,
+"tip": "Bao phía TRÊN và bên TRÁI chữ. Chữ có 广 thường liên quan đến nhà cửa, công trình (店, 床).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 店. Bộ phận cấu tạo của 床."
+},
+"刀": {
+"name": "Đao",
+"zh": "刀字头",
+"py": "dāo",
+"vi": "con dao",
+"st": 2,
+"base_role": "Bộ phận cấu tạo của 分."
+},
+"疒": {
+"name": "Nạch",
+"zh": "病字旁",
+"py": "nè",
+"vi": "bệnh tật",
+"st": 5,
+"tip": "Chữ có 疒 thường liên quan đến bệnh tật (病, 痛, 疼).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 病."
+},
+"丙": {
+"name": "Bính",
+"zh": "丙",
+"py": "bǐng",
+"vi": "Bính — can thứ 3",
+"st": 5,
+"base_role": "Thanh phù (声符) — gợi âm — của 病."
+},
+"至": {
+"name": "Chí",
+"zh": "至",
+"py": "zhì",
+"vi": "đến, tới; cực kỳ",
+"st": 6,
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 到."
+},
+"犭": {
+"name": "Khuyển (chó đứng)",
+"zh": "反犬旁",
+"py": "quǎn",
+"vi": "chó, thú",
+"st": 3,
+"tip": "Dạng rút gọn của 犬, đứng bên TRÁI chữ. Chữ có 犭 thường liên quan đến thú vật (狗, 猫).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 猫, 狗."
+},
+"苗": {
+"name": "Miêu",
+"zh": "苗",
+"py": "miáo",
+"vi": "cây non, mầm",
+"st": 8,
+"base_role": "Thanh phù (声符) — gợi âm — của 猫."
+},
+"卓": {
+"name": "Trác",
+"zh": "卓",
+"py": "zhuó",
+"vi": "cao vút, xuất sắc",
+"st": 6,
+"base_role": "Bộ phận cấu tạo của 桌."
+},
+"票": {
+"name": "Phiếu",
+"zh": "票",
+"py": "piào",
+"vi": "vé, phiếu",
+"st": 11,
+"base_role": "Thanh phù (声符) — gợi âm — của 漂."
+},
+"前字头": {
+"name": "Đầu chữ 前",
+"zh": "前字头",
+"py": "—",
+"vi": "phần mái phía trên chữ 前 (hai chấm và nét ngang)",
+"st": 3,
+"noGlyph": true,
+"base_role": "Bộ phận cấu tạo của 前."
+},
+"卜": {
+"name": "Bốc",
+"zh": "卜",
+"py": "bǔ",
+"vi": "bói toán",
+"st": 2,
+"base_role": "Bộ phận cấu tạo của 外."
+},
+"礻": {
+"name": "Thị (thần)",
+"zh": "示字旁",
+"py": "shì",
+"vi": "thần linh, cúng tế",
+"st": 4,
+"tip": "Đứng bên TRÁI chữ; dạng rút gọn của 示. Phân biệt với 衤 (áo) có thêm một nét.",
+"base_role": "Thanh phù (声符) — gợi âm — của 视."
+},
+"昌": {
+"name": "Xương",
+"zh": "昌",
+"py": "chāng",
+"vi": "thịnh vượng, hưng thịnh",
+"st": 8,
+"base_role": "Thanh phù (声符) — gợi âm — của 唱."
+},
+"卖": {
+"name": "Mại",
+"zh": "卖",
+"py": "mài",
+"vi": "bán",
+"st": 8,
+"base_role": "Bộ phận cấu tạo của 读."
+},
+"⺮": {
+"name": "Trúc (đầu tre)",
+"zh": "竹字头",
+"py": "zhú",
+"vi": "tre, trúc",
+"st": 6,
+"noGlyph": true,
+"tip": "Dạng rút gọn của 竹, nằm TRÊN cùng của chữ. Chữ có ⺮ thường liên quan đến tre, đồ vật bằng tre, sách vở (第).",
+"base_role": "Bộ phận cấu tạo của 第."
+},
+"弟": {
+"name": "Đệ",
+"zh": "弟",
+"py": "dì",
+"vi": "em trai",
+"st": 5,
+"base_role": "Bộ phận cấu tạo của 第."
+},
+"哥": {
+"name": "Ca",
+"zh": "哥",
+"py": "gē",
+"vi": "anh trai",
+"st": 10,
+"base_role": "Thanh phù (声符) — gợi âm — của 歌."
+},
+"句": {
+"name": "Câu",
+"zh": "句",
+"py": "jù",
+"vi": "câu (trong văn bản)",
+"st": 5,
+"base_role": "Thanh phù (声符) — gợi âm — của 狗."
+},
+"奇": {
+"name": "Kỳ",
+"zh": "奇",
+"py": "qí",
+"vi": "lạ, kỳ lạ",
+"st": 8,
+"base_role": "Thanh phù (声符) — gợi âm — của 椅."
+},
+"元": {
+"name": "Nguyên",
+"zh": "元",
+"py": "yuán",
+"vi": "đầu tiên; đồng (tiền Trung Quốc)",
+"st": 4,
+"base_role": "Thanh phù (声符) — gợi âm — của 玩."
+},
+"牛": {
+"name": "Ngưu",
+"zh": "牛字旁",
+"py": "niú",
+"vi": "con bò",
+"st": 4,
+"base_role": "Bộ phận cấu tạo của 件."
+},
+"化": {
+"name": "Hóa",
+"zh": "化",
+"py": "huà",
+"vi": "biến đổi; (hậu tố) -hóa",
+"st": 4,
+"base_role": "Thanh phù (声符) — gợi âm — của 货."
+},
+"贝": {
+"name": "Bối",
+"zh": "贝字旁",
+"py": "bèi",
+"vi": "vỏ sò (tiền thời xưa)",
+"st": 4,
+"tip": "Xưa dùng vỏ sò làm tiền. Chữ có 贝 thường liên quan đến tiền bạc, của cải (贵, 货, 员).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 货, 贵, 员."
+},
+"穴": {
+"name": "Huyệt",
+"zh": "穴宝盖",
+"py": "xué",
+"vi": "hang, lỗ",
+"st": 5,
+"tip": "Nằm TRÊN chữ; chữ có 穴 thường liên quan đến hang, lỗ, khoảng trống (穿).",
+"base_role": "Bộ phận cấu tạo của 穿."
+},
+"牙": {
+"name": "Nha",
+"zh": "牙",
+"py": "yá",
+"vi": "răng",
+"st": 4,
+"base_role": "Bộ phận cấu tạo của 穿."
+},
+"夬": {
+"name": "Quyết",
+"zh": "夬",
+"py": "guài",
+"vi": "quyết đoán (thành phần gợi âm trong 块)",
+"st": 4,
+"base_role": "Thanh phù (声符) — gợi âm — của 块."
+},
+"羊": {
+"name": "Dương",
+"zh": "羊字旁",
+"py": "yáng",
+"vi": "con dê, cừu",
+"st": 6,
+"base_role": "Thanh phù (声符) — gợi âm — của 样."
+},
+"平": {
+"name": "Bình",
+"zh": "平",
+"py": "píng",
+"vi": "bằng phẳng; yên ổn",
+"st": 5,
+"base_role": "Thanh phù (声符) — gợi âm — của 苹."
+},
+"服右": {
+"name": "Phần phải của 服",
+"zh": "服右",
+"py": "—",
+"vi": "phần bên phải của chữ 服 (không dùng độc lập)",
+"st": 4,
+"noGlyph": true,
+"base_role": "Bộ phận cấu tạo của 服."
+},
+"更": {
+"name": "Canh / Cánh",
+"zh": "更",
+"py": "gèng / gēng",
+"vi": "càng, hơn nữa (gèng); canh, đổi (gēng)",
+"st": 7,
+"base_role": "Bộ phận cấu tạo của 便."
+},
+"戋": {
+"name": "Tiên",
+"zh": "戋",
+"py": "jiān",
+"vi": "nhỏ, ít (dạng giản thể của 戔)",
+"st": 5,
+"base_role": "Thanh phù (声符) — gợi âm — của 钱."
+},
+"兑": {
+"name": "Đoài",
+"zh": "兑",
+"py": "duì",
+"vi": "đổi, quy đổi",
+"st": 7,
+"base_role": "Thanh phù (声符) — gợi âm — của 说."
+},
+"垂": {
+"name": "Thùy",
+"zh": "垂",
+"py": "chuí",
+"vi": "rủ xuống, buông xuống",
+"st": 8,
+"base_role": "Thanh phù (声符) — gợi âm — của 睡."
+},
+"扌": {
+"name": "Thủ (tay đứng)",
+"zh": "提手旁",
+"py": "shǒu",
+"vi": "tay",
+"st": 3,
+"tip": "Dạng rút gọn của 手, đứng bên TRÁI chữ. Chữ có 扌 thường liên quan đến động tác của tay (打, 找, 接).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 打, 接. Bộ phận cấu tạo của 找."
+},
+"戈": {
+"name": "Qua",
+"zh": "戈字旁",
+"py": "gē",
+"vi": "cây qua (vũ khí cổ)",
+"st": 4,
+"base_role": "Bộ phận cấu tạo của 找."
+},
+"矦": {
+"name": "Hầu (biến thể)",
+"zh": "矦",
+"py": "hóu",
+"vi": "dạng biến thể của 侯 (hầu tước)",
+"st": 8,
+"noGlyph": true,
+"base_role": "Thanh phù (声符) — gợi âm — của 候."
+},
+"覀": {
+"name": "Á",
+"zh": "西字头",
+"py": "yà",
+"vi": "bộ Á (dạng gần với 西; nghĩa gốc là che đậy)",
+"st": 6,
+"base_role": "Bộ phận cấu tạo của 要."
+},
+"首": {
+"name": "Thủ",
+"zh": "首",
+"py": "shǒu",
+"vi": "đầu; đứng đầu",
+"st": 9,
+"base_role": "Thanh phù (声符) — gợi âm — của 道."
+},
+"曷": {
+"name": "Hạt",
+"zh": "曷",
+"py": "hé",
+"vi": "sao, vì sao (văn cổ)",
+"st": 9,
+"base_role": "Thanh phù (声符) — gợi âm — của 喝."
+},
+"冫": {
+"name": "Băng (hai chấm)",
+"zh": "两点水",
+"py": "bīng",
+"vi": "băng, lạnh",
+"st": 2,
+"tip": "Hai chấm bên trái; chữ có 冫 thường liên quan đến lạnh, băng giá (冷).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 冷."
+},
+"约": {
+"name": "Ước",
+"zh": "约",
+"py": "yuē",
+"vi": "hẹn, giao ước",
+"st": 6,
+"base_role": "Thanh phù (声符) — gợi âm — của 药."
+},
+"执": {
+"name": "Chấp",
+"zh": "执",
+"py": "zhí",
+"vi": "cầm, nắm; chấp hành",
+"st": 6,
+"base_role": "Thanh phù (声符) — gợi âm — của 热."
+},
+"彐": {
+"name": "Kệ",
+"zh": "彐",
+"py": "jì",
+"vi": "bộ Kệ — thành phần cấu tạo chữ, ít dùng độc lập",
+"st": 3,
+"base_role": "Bộ phận cấu tạo của 雪."
+},
+"虫": {
+"name": "Trùng",
+"zh": "虫字旁",
+"py": "chóng",
+"vi": "côn trùng, sâu bọ",
+"st": 6,
+"tip": "Chữ có 虫 thường liên quan đến côn trùng, động vật nhỏ (蛋).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 蛋."
+},
+"丁": {
+"name": "Đinh",
+"zh": "丁",
+"py": "dīng",
+"vi": "đinh; người đàn ông trưởng thành; can thứ 4",
+"st": 2,
+"base_role": "Thanh phù (声符) — gợi âm — của 打. Bộ phận cấu tạo của 可."
+},
+"买": {
+"name": "Mãi",
+"zh": "买",
+"py": "mǎi",
+"vi": "mua",
+"st": 6,
+"tip": "卖 (bán) = 十 + 买 (mua): dạng giản thể của 賣.",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 卖."
+},
+"𠂉": {
+"name": "Nét 𠂉",
+"zh": "𠂉",
+"py": "—",
+"vi": "phần phía trên-trái của 先 (không dùng độc lập)",
+"st": 1,
+"noGlyph": true,
+"base_role": "Bộ phận cấu tạo của 先."
+},
+"纟": {
+"name": "Mịch (sợi tơ)",
+"zh": "绞丝旁",
+"py": "sī",
+"vi": "sợi tơ",
+"st": 3,
+"tip": "Dạng giản thể của 糸, đứng bên TRÁI chữ. Chữ có 纟 thường liên quan đến tơ, sợi (给).",
+"base_role": "Nghĩa phù (义符) — gợi ý nghĩa — của 给."
+},
+"合": {
+"name": "Hợp",
+"zh": "合",
+"py": "hé",
+"vi": "hợp, gộp lại",
+"st": 6,
+"base_role": "Thanh phù (声符) — gợi âm — của 给."
+},
+"青": {
+"name": "Thanh",
+"zh": "青",
+"py": "qīng",
+"vi": "xanh (xanh lam, xanh lục)",
+"st": 8,
+"base_role": "Thanh phù (声符) — gợi âm — của 请."
+},
+"吾": {
+"name": "Ngô",
+"zh": "吾",
+"py": "wú",
+"vi": "tôi, ta (văn cổ)",
+"st": 7,
+"base_role": "Thanh phù (声符) — gợi âm — của 语."
+},
+"者": {
+"name": "Giả",
+"zh": "者",
+"py": "zhě",
+"vi": "người (làm việc gì đó); kẻ",
+"st": 8,
+"base_role": "Thanh phù (声符) — gợi âm — của 都."
+},
+"冖": {
+"name": "Mịch (khăn phủ)",
+"zh": "秃宝盖",
+"py": "mì",
+"vi": "tấm khăn phủ",
+"st": 2,
+"tip": "Giống 宀 nhưng không có nét chấm trên đỉnh (\"宝盖头 bị trọc\").",
+"base_role": "Bộ phận cấu tạo của 写, 爱."
+},
+"与": {
+"name": "Dữ",
+"zh": "与",
+"py": "yǔ",
+"vi": "cùng, và; cho, tặng",
+"st": 3,
+"base_role": "Bộ phận cấu tạo của 写."
+},
+"爫": {
+"name": "Trảo (móng vuốt)",
+"zh": "爪字头",
+"py": "zhǎo",
+"vi": "móng vuốt, bàn tay nắm lấy",
+"st": 4,
+"tip": "Dạng rút gọn của 爪, nằm TRÊN cùng của chữ.",
+"base_role": "Bộ phận cấu tạo của 爱."
+},
+"友": {
+"name": "Hữu",
+"zh": "友",
+"py": "yǒu",
+"vi": "bạn bè",
+"st": 4,
+"base_role": "Bộ phận cấu tạo của 爱."
+},
+"主": {
+"name": "Chủ",
+"zh": "主",
+"py": "zhǔ",
+"vi": "chủ, người chủ",
+"st": 5,
+"base_role": "Bộ phận cấu tạo của 住."
+},
+"妾": {
+"name": "Thiếp",
+"zh": "妾",
+"py": "qiè",
+"vi": "thiếp, vợ lẽ",
+"st": 8,
+"base_role": "Thanh phù (声符) — gợi âm — của 接."
+}
+}

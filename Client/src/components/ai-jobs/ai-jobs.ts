@@ -15,7 +15,7 @@ import { NzTagComponent } from 'ng-zorro-antd/tag';
 import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { AiJob, AiJobStatus, filterJobs, lessonLabel } from '../../models/ai-job';
+import { AiJob, AiJobStatus, failedJobMessage, filterJobs, lessonLabel } from '../../models/ai-job';
 import { ExportType } from '../../models/export-type';
 import { GESTURE_QUIZ_COLUMNS } from '../../models/gesture-quiz';
 import { CourseType } from '../../models/course-type';
@@ -26,6 +26,7 @@ import { CsvImportService } from '../../services/csv-import.service';
 import { PendingImportService } from '../../services/pending-import.service';
 import { FileExportService } from '../../services/file-export.service';
 import { WaygroundExtensionService } from '../../services/wayground-extension.service';
+import { RadicalsPageService } from '../../services/radicals-page.service';
 import { AssignDialog } from '../assignments/assign-dialog/assign-dialog';
 
 const PAGE_SIZE = 10;
@@ -37,6 +38,8 @@ const CREATIVE_COLUMNS: Record<ExportType, string[]> = {
   [ExportType.Wayground]: ['Question Text', 'Question Type', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'Option 5',
     'Correct Answer', 'Time in seconds', 'Image Link', 'Answer explanation'],
   [ExportType.GestureQuiz]: GESTURE_QUIZ_COLUMNS,
+  // Never shown: a finished Radicals job is JSON, opened as a page rather than viewed as rows.
+  [ExportType.Radicals]: [],
 };
 
 interface ResultTable {
@@ -75,6 +78,7 @@ export class AiJobs implements OnInit {
   protected readonly CourseType = CourseType;
   protected readonly HskStandard = HskStandard;
   protected readonly lessonLabel = lessonLabel;
+  protected readonly failedJobMessage = failedJobMessage;
   // Lets the filter accept any level a job could have (HSK 3.0 goes to 9).
   protected readonly maxLevel = hskMaxLevel(HskStandard.V3);
   // Publishing needs the extension; without it only the download works.
@@ -125,6 +129,7 @@ export class AiJobs implements OnInit {
     private readonly pendingImportService: PendingImportService,
     private readonly fileExportService: FileExportService,
     private readonly waygroundExtensionService: WaygroundExtensionService,
+    private readonly radicalsPageService: RadicalsPageService,
     private readonly notificationService: NzNotificationService,
     private readonly modalService: NzModalService,
     private readonly router: Router,
@@ -187,6 +192,18 @@ export class AiJobs implements OnInit {
   // A gesture quiz is played on QuizTool itself, straight from its job; the page loads the job by id.
   protected play(job: AiJob): void {
     this.router.navigateByUrl('/play/' + job.id);
+  }
+
+  // A "Ghép bộ thủ" exercise opens on its own page, with what the teacher should check beside it.
+  protected openRadicals(job: AiJob): void {
+    this.router.navigateByUrl('/ai-history/radicals/' + job.id);
+  }
+
+  protected downloadRadicals(job: AiJob): void {
+    this.radicalsPageService.page(job.id).subscribe({
+      next: html => this.radicalsPageService.download(job, html),
+      error: () => this.notificationService.error('Không tải được', 'Thử lại.', { nzPlacement: 'top' }),
+    });
   }
 
   // Giving a gesture quiz to students happens in a dialog; it opens at the form each time.

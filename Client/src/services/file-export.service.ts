@@ -38,6 +38,8 @@ export class FileExportService {
         return 'Wayground';
       case ExportType.GestureQuiz:
         return 'Game';
+      case ExportType.Radicals:
+        return 'Ghép bộ thủ';
       default:
         return 'Quiz';
     }

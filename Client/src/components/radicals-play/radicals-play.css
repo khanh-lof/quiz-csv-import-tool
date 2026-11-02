@@ -1,0 +1,52 @@
+.radicals-play {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.title {
+  flex: 1 1 200px;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.state {
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+}
+
+.review-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+/* The exercise lays itself out for phones and desktops, so the frame only has to be tall enough. */
+.frame-box {
+  height: max(600px, calc(100vh - 220px));
+}
+
+.frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: var(--qt-radius);
+  background: #fff;
+}
