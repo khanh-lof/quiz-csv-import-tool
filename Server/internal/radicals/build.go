@@ -260,7 +260,7 @@ func (d *Draft) assemble(info Info) assembled {
 		preset = "jade"
 	}
 	exercise := &Exercise{
-		Version: 1, Config: b.config(), Title: title, Footer: b.footer(), Preset: preset,
+		Version: 1, Config: b.config(), Title: title, Footer: "", Preset: preset,
 		Parts: partsJSON.json(), Chars: charsJSON.json(), Words: wordsJSON.json(), Lessons: lessonsJSON.json(),
 		LessonTitles: titles, Glyphs: glyphs, Review: review,
 	}
@@ -299,15 +299,6 @@ func (b *builder) config() map[string]string {
 		starTitle += " (theo " + o.VocabSource + ")"
 	}
 	return map[string]string{"level": o.Level, "starTitle": starTitle, "starNote": starNote}
-}
-
-func (b *builder) footer() string {
-	var parts []string
-	if source := b.source(); source != "" {
-		parts = append(parts, "Từ vựng theo "+pyEscape(source)+".")
-	}
-	parts = append(parts, "Chữ Khải: LXGW WenKai (霞鹜文楷). Phông giao diện: Be Vietnam Pro. Cả hai theo giấy phép SIL Open Font License 1.1, được tải từ CDN khi mở trang.")
-	return strings.Join(parts, " ")
 }
 
 // pyEscape escapes like Python's html.escape.

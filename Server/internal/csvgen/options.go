@@ -2,16 +2,12 @@
 package csvgen
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
 	"slices"
 	"strconv"
 	"strings"
-	"unicode/utf8"
-
-	"quiz-csv-import-tool/server/internal/radicals"
 )
 
 // ExportType is the quiz platform the CSV is meant for. The client sends it by ordinal, so the
@@ -118,13 +114,6 @@ type Options struct {
 	// always fills them for GestureQuiz; the accessors below also give a hand-built Options its defaults.
 	GestureStages     []int
 	QuestionsPerStage int
-	// Vocabulary, ReviewPrevious and ColorPreset describe a Radicals exercise and stay zero for the other
-	// platforms. Vocabulary holds the words the teacher typed, by lesson number; a lesson without any takes
-	// its words from the textbook, the images or the model. ParseVocabulary reads it from the request body,
-	// ParseCreativeOptions the other two from the query.
-	Vocabulary     map[int][]string
-	ReviewPrevious bool
-	ColorPreset    string
 }
 
 // GestureQuizStages returns the stage numbers of a gesture quiz, all of them when none were chosen.
@@ -245,65 +234,7 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 			opts.QuestionsPerStage = n
 		}
 	}
-	if opts.ExportType == Radicals {
-		switch strings.ToLower(strings.TrimSpace(q.Get("reviewPrevious"))) {
-		case "", "false":
-		case "true":
-			opts.ReviewPrevious = true
-		default:
-			return Options{}, errors.New("Invalid reviewPrevious parameter.")
-		}
-		opts.ColorPreset = strings.TrimSpace(q.Get("colorPreset"))
-		if opts.ColorPreset == "" {
-			opts.ColorPreset = radicals.Presets()[0]
-		} else if !slices.Contains(radicals.Presets(), opts.ColorPreset) {
-			return Options{}, errors.New("Invalid colorPreset parameter.")
-		}
-	}
 	return opts, nil
-}
-
-// MaxVocabularyWords is how many words the teacher may type for one lesson of a Radicals exercise, and
-// MaxWordRunes how long one may be. Keep in step with Client/src/models/radicals-options.ts.
-const (
-	MaxVocabularyWords = 60
-	MaxWordRunes       = 8
-)
-
-// ParseVocabulary reads the words the teacher typed for a Radicals exercise: a JSON object from lesson number
-// to the lesson's words, in order. Every lesson must be one of lessons, every word Chinese characters only
-// (MaxWordRunes at most, no repeats within a lesson). A lesson with an empty list is left out; a blank raw
-// value means none were typed.
-func ParseVocabulary(raw string, lessons []int) (map[int][]string, error) {
-	invalid := errors.New("Invalid vocabulary.")
-	if strings.TrimSpace(raw) == "" {
-		return nil, nil
-	}
-	var byLesson map[string][]string
-	if err := json.Unmarshal([]byte(raw), &byLesson); err != nil {
-		return nil, invalid
-	}
-	vocabulary := make(map[int][]string, len(byLesson))
-	for key, words := range byLesson {
-		lesson, err := strconv.Atoi(key)
-		if err != nil || !slices.Contains(lessons, lesson) || len(words) > MaxVocabularyWords {
-			return nil, invalid
-		}
-		seen := make(map[string]bool, len(words))
-		for _, word := range words {
-			if !radicals.IsHanzi(word) || utf8.RuneCountInString(word) > MaxWordRunes || seen[word] {
-				return nil, invalid
-			}
-			seen[word] = true
-		}
-		if len(words) > 0 {
-			vocabulary[lesson] = words
-		}
-	}
-	if len(vocabulary) == 0 {
-		return nil, nil
-	}
-	return vocabulary, nil
 }
 
 // parseLessonNumbers reads the comma-separated lesson numbers, in any order, and returns them ascending.

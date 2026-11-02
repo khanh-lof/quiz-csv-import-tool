@@ -358,45 +358,6 @@
   min-width: 0;
 }
 
-/* The "Ghép bộ thủ" choices under the platform row: a word input per lesson, then the colours. */
-.radicals-options {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-
-.radicals-options .field-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-}
-
-.radicals-options .field-label {
-  min-width: 56px;
-  white-space: nowrap;
-}
-
-/* The tags wrap onto more lines inside the box; min-width 0 keeps a long list from widening the page. */
-.radicals-options .vocabulary-select {
-  flex: 1 1 300px;
-  min-width: 0;
-}
-
-.radicals-options .color-select {
-  width: 160px;
-}
-
-.color-swatch {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-right: 8px;
-  border-radius: 50%;
-  vertical-align: -1px;
-}
-
 /* A line under the choices. */
 .export-hint {
   color: var(--qt-text-muted);

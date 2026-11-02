@@ -247,8 +247,16 @@ function renderVocab(){
 }
 function render(){
   document.documentElement.style.setProperty('--cwd',SIZES[state.size]+'px');
-  renderLessons(); renderStage(); renderPanel(); renderVocab();
+  renderLessons(); renderStage(); renderPanel(); renderVocab(); fitExample();
 }
+/* The example's two words side by side can be wider than the column beside the panel: then it is stacked. */
+function fitExample(){
+  const row=$('.row.ex'); if(!row) return;
+  row.classList.remove('stack');
+  if(row.scrollWidth>row.clientWidth) row.classList.add('stack');
+}
+let paperWidth=0;
+new ResizeObserver(([e])=>{ if(e.contentRect.width!==paperWidth){ paperWidth=e.contentRect.width; fitExample(); } }).observe($('#paper'));
 
 /* ===================== ACTIONS ===================== */
 function place(qi,comp){
@@ -277,7 +285,7 @@ function handle(t){
   switch(act){
     case 'lesson': state.lesson=+t.dataset.n; state.group=0; state.info=null; state.sheet=false; break;
     case 'group': state.group=+t.dataset.g; state.info=null; state.sheet=false; break;
-    case 'next': state.group=Math.min(state.group+1,L.groups.length-1); state.info=null; state.sheet=false; window.scrollTo({top:0,behavior:'smooth'}); break;
+    case 'next': state.group=Math.min(state.group+1,L.groups.length-1); state.info=null; state.sheet=false; window.scrollTo({top:0,behavior:'smooth'}); $('.stage').scrollTo({top:0,behavior:'smooth'}); break;
     case 'size': state.size=+t.dataset.s; break;
     case 'close': state.info=null; state.sheet=false; break;
     case 'more': { const c=gs&&gs.selChip; if(c&&!(state.info&&state.info.t==='part'&&state.info.comp===c)) state.info={t:'part',comp:c,from:'chip'}; state.sheet=true; break;}

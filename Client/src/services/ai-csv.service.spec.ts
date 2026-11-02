@@ -48,9 +48,6 @@ describe('AiCsvService', () => {
       intelligence: 2,
       gestureStages: [1, 3],
       questionsPerStage: 7,
-      vocabulary: { 5: ['图书馆'] },
-      reviewPrevious: true,
-      colorPreset: 'blue',
     }, 'HSK3.0-4-Bai5').subscribe();
 
     const params = http.expectOne(r => r.url === URL).request.params;
@@ -64,9 +61,6 @@ describe('AiCsvService', () => {
     expect(params.has('lessonNumber')).toBeFalse();
     expect(params.get('intelligence')).toBe('2');
     expect(params.has('courseName')).toBeFalse();
-    // The "Ghép bộ thủ" options belong to that platform alone.
-    expect(params.has('reviewPrevious')).toBeFalse();
-    expect(params.has('colorPreset')).toBeFalse();
   });
 
   describe('the lessons', () => {
@@ -81,9 +75,6 @@ describe('AiCsvService', () => {
       intelligence: 1,
       gestureStages: null,
       questionsPerStage: null,
-      vocabulary: null,
-      reviewPrevious: null,
-      colorPreset: null,
     });
 
     it('sends several lessons in ascending order, whatever order they were picked in', () => {
@@ -113,9 +104,6 @@ describe('AiCsvService', () => {
       intelligence: 1,
       gestureStages,
       questionsPerStage,
-      vocabulary: null,
-      reviewPrevious: null,
-      colorPreset: null,
     });
 
     it('sends the chosen games in ascending order and the question count for a Game', () => {
@@ -191,40 +179,25 @@ describe('AiCsvService', () => {
     expect(service.extractCsvContent('')).toBe('');
   });
 
-  describe('the "Ghép bộ thủ" options', () => {
-    const request = (vocabulary: Record<number, string[]> | null, lessonNumbers = [3, 4]) => ({
+  it('sends only the lesson for "Ghép bộ thủ"', () => {
+    service.submitCreative([], {
       courseType: CourseType.Other,
       courseName: 'Boya',
       hskStandard: null,
       level: null,
-      lessonNumbers,
+      lessonNumbers: [3, 4],
       AIMode: AIGenerationMode.Auto,
       exportType: ExportType.Radicals,
       intelligence: 1,
       gestureStages: [1],
       questionsPerStage: 5,
-      vocabulary,
-      reviewPrevious: true,
-      colorPreset: 'rose',
-    });
+    }, 'Boya-Bai3-4').subscribe();
 
-    it('sends the options as parameters and the typed words as a form field', () => {
-      service.submitCreative([], request({ 3: ['图书馆', '借'], 4: [] }), 'Boya-Bai3-4').subscribe();
-
-      const req = http.expectOne(r => r.url === URL);
-      expect(req.request.params.get('exportType')).toBe(String(ExportType.Radicals));
-      expect(req.request.params.get('reviewPrevious')).toBe('true');
-      expect(req.request.params.get('colorPreset')).toBe('rose');
-      expect(req.request.params.has('gestureStages')).toBeFalse();
-      const body = req.request.body as FormData;
-      expect(JSON.parse(body.get('vocabulary') as string)).toEqual({ 3: ['图书馆', '借'] });
-    });
-
-    it('leaves out the words of a lesson that is no longer chosen, and the field when none are left', () => {
-      service.submitCreative([], request({ 7: ['好'] }), 'Boya-Bai3-4').subscribe();
-
-      const body = http.expectOne(r => r.url === URL).request.body as FormData;
-      expect(body.has('vocabulary')).toBeFalse();
-    });
+    const req = http.expectOne(r => r.url === URL);
+    expect(req.request.params.get('exportType')).toBe(String(ExportType.Radicals));
+    expect(req.request.params.get('courseName')).toBe('Boya');
+    expect(req.request.params.get('lessonNumbers')).toBe('3,4');
+    expect(req.request.params.has('gestureStages')).toBeFalse();
+    expect(Array.from((req.request.body as FormData).keys())).toEqual([]);
   });
 });

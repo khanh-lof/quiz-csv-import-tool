@@ -325,8 +325,6 @@ type upload struct {
 	files   int
 	rawBody *string // overrides the multipart body when set
 	ctype   *string
-	// fields are text fields of the multipart body, beside the files.
-	fields map[string]string
 }
 
 func (e *testEnv) upload(t *testing.T, u upload) *httptest.ResponseRecorder {
@@ -334,9 +332,6 @@ func (e *testEnv) upload(t *testing.T, u upload) *httptest.ResponseRecorder {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	_ = mw.WriteField("note", "not a file")
-	for name, value := range u.fields {
-		_ = mw.WriteField(name, value)
-	}
 	for range u.files {
 		fw, _ := mw.CreateFormFile("images", "lesson.png")
 		_, _ = fw.Write([]byte("png-bytes"))

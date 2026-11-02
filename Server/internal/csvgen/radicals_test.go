@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"reflect"
 	"slices"
 	"strings"
@@ -79,61 +78,13 @@ func TestTextbookLessonsGiveRadicalsWords(t *testing.T) {
 	}
 }
 
-func TestParseVocabulary(t *testing.T) {
-	lessons := []int{3, 4}
-	got, err := ParseVocabulary(`{"3":["图书馆","借"],"4":[]}`, lessons)
-	if err != nil || !reflect.DeepEqual(got, map[int][]string{3: {"图书馆", "借"}}) {
-		t.Fatalf("ParseVocabulary = %v, %v", got, err)
-	}
-	if got, err := ParseVocabulary("  ", lessons); got != nil || err != nil {
-		t.Fatalf("blank = %v, %v", got, err)
-	}
-	for _, raw := range []string{
-		`not json`, `{"5":["好"]}`, `{"x":["好"]}`, `{"3":["hao"]}`, `{"3":["好","好"]}`, `{"3":["一二三四五六七八九"]}`,
-		`{"3":["` + strings.Repeat("好\",\"", MaxVocabularyWords) + `好"]}`,
-	} {
-		if _, err := ParseVocabulary(raw, lessons); err == nil || err.Error() != "Invalid vocabulary." {
-			t.Errorf("ParseVocabulary(%.40q) error = %v, want Invalid vocabulary.", raw, err)
-		}
-	}
-}
-
-func TestParseCreativeOptionsForRadicals(t *testing.T) {
-	base := url.Values{"exportType": {"4"}, "courseType": {"2"}, "courseName": {"Boya"}, "lessonNumbers": {"1"}}
-	opts, err := ParseCreativeOptions(base)
-	if err != nil || opts.ExportType != Radicals || opts.ReviewPrevious || opts.ColorPreset != "jade" {
-		t.Fatalf("defaults = %+v, %v", opts, err)
-	}
-	q := url.Values{"reviewPrevious": {"true"}, "colorPreset": {"blue"}}
-	for k, v := range base {
-		q[k] = v
-	}
-	if opts, err := ParseCreativeOptions(q); err != nil || !opts.ReviewPrevious || opts.ColorPreset != "blue" {
-		t.Fatalf("set = %+v, %v", opts, err)
-	}
-	q.Set("colorPreset", "purple")
-	if _, err := ParseCreativeOptions(q); err == nil || err.Error() != "Invalid colorPreset parameter." {
-		t.Fatalf("bad preset error = %v", err)
-	}
-	q.Set("colorPreset", "jade")
-	q.Set("reviewPrevious", "yes")
-	if _, err := ParseCreativeOptions(q); err == nil || err.Error() != "Invalid reviewPrevious parameter." {
-		t.Fatalf("bad reviewPrevious error = %v", err)
-	}
-	// The options belong to the platform: a GimKit request with a stale value still parses.
-	q.Set("exportType", "0")
-	if _, err := ParseCreativeOptions(q); err != nil {
-		t.Fatalf("GimKit with radicals options: %v", err)
-	}
-}
-
 func TestMergeVocabulary(t *testing.T) {
 	lessons := []radicalsLesson{
 		{Number: 1, Words: []radicalsWord{
 			{Word: radicals.Word{Hanzi: "借"}},
 			{Word: radicals.Word{Hanzi: "图书馆", Pinyin: "túshūguǎn", Syllables: []string{"tú", "shū", "guǎn"}, Meaning: "thư viện"}},
 			{Word: radicals.Word{Hanzi: "还"}},
-		}, source: wordsGiven},
+		}, source: wordsFromBook},
 		{Number: 2, source: wordsFromModel},
 	}
 	answer := vocabularyAnswer{Lessons: []vocabularyLesson{
@@ -160,7 +111,7 @@ func TestMergeVocabulary(t *testing.T) {
 		}
 		return out
 	}
-	// The teacher's words, in the teacher's order, nothing added, and what was known kept.
+	// The textbook's words, in its order, nothing added, and what was known kept.
 	if h := hanzi(got[0].Words); !reflect.DeepEqual(h, []string{"借", "图书馆", "还"}) {
 		t.Fatalf("lesson 1 words = %v", h)
 	}
@@ -266,7 +217,7 @@ func TestGenerateRadicalsFromTextbook(t *testing.T) {
 	level := 1
 	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
 	result, err := c.Generate(context.Background(), nil, true, Options{
-		ExportType: Radicals, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumbers: []int{5, 6}, ColorPreset: "jade",
+		ExportType: Radicals, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumbers: []int{5, 6},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -307,7 +258,7 @@ func TestGenerateRadicalsFromModel(t *testing.T) {
 	llm, calls := fakeRadicalsModel(t, modelVocabulary)
 	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
 	result, err := c.Generate(context.Background(), nil, true, Options{
-		ExportType: Radicals, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{1}, ColorPreset: "blue",
+		ExportType: Radicals, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{1},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -319,7 +270,7 @@ func TestGenerateRadicalsFromModel(t *testing.T) {
 	if err := json.Unmarshal([]byte(result.CSV), &exercise); err != nil {
 		t.Fatal(err)
 	}
-	if exercise.Preset != "blue" || exercise.Review.Groups["1"] == 0 || len(exercise.Review.AIWords) != 12 {
+	if exercise.Preset != "jade" || exercise.Review.Groups["1"] == 0 || len(exercise.Review.AIWords) != 12 {
 		t.Fatalf("exercise = preset %q, groups %v, aiWords %v", exercise.Preset, exercise.Review.Groups, exercise.Review.AIWords)
 	}
 }
@@ -328,11 +279,10 @@ func TestGenerateRadicalsWithTooFewWords(t *testing.T) {
 	llm, _ := fakeRadicalsModel(t, `{"lessons":[]}`)
 	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
 	_, err := c.Generate(context.Background(), nil, true, Options{
-		ExportType: Radicals, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{1}, ColorPreset: "jade",
-		Vocabulary: map[int][]string{1: {"好"}},
+		ExportType: Radicals, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{1},
 	})
 	if err == nil {
-		t.Fatal("want an error for a lesson of one word without a reading")
+		t.Fatal("want an error for a lesson the model gave no word")
 	}
 	if !errors.Is(err, radicals.ErrNothingToPlay) {
 		t.Fatalf("error = %v, want ErrNothingToPlay", err)

@@ -5,7 +5,6 @@ import { AiGenerationRequest } from '../models/ai-generation-request';
 import { AIGenerationMode } from '../models/aigeneration-mode';
 import { CourseType } from '../models/course-type';
 import { ExportType } from '../models/export-type';
-import { vocabularyFor } from '../models/radicals-options';
 
 // What the server answers when it accepts a generation. The result is not in it: the server keeps
 // working on the job after answering, and `AiJobService` follows it.
@@ -56,20 +55,7 @@ export class AiCsvService {
       }
     }
 
-    const body = this.buildBody(imageFiles);
-    if (aiGenerationRequest.exportType === ExportType.Radicals) {
-      params = params.set('reviewPrevious', aiGenerationRequest.reviewPrevious ?? false);
-      if (aiGenerationRequest.colorPreset !== null) {
-        params = params.set('colorPreset', aiGenerationRequest.colorPreset);
-      }
-      // A form field rather than a parameter: the words of five lessons make a long value.
-      const vocabulary = vocabularyFor(aiGenerationRequest.vocabulary, aiGenerationRequest.lessonNumbers ?? []);
-      if (vocabulary !== null) {
-        body.append('vocabulary', JSON.stringify(vocabulary));
-      }
-    }
-
-    return this.httpClient.post<SubmittedJob>(this.endpointUrl, body, { params });
+    return this.httpClient.post<SubmittedJob>(this.endpointUrl, this.buildBody(imageFiles), { params });
   }
 
   submitFormatted(imageFiles: File[], title: string): Observable<SubmittedJob> {
