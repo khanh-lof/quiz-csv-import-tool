@@ -14,7 +14,7 @@
             <nz-icon nzTheme="outline" nzType="save"/>
             Lưu
           </button>
-          <button (click)="cancelEdit()" [disabled]="saving()" nz-button nzType="default" type="button">Huỷ</button>
+          <button (click)="cancelEdit()" [disabled]="saving()" nz-button nzType="default" type="button">Hủy</button>
         } @else {
           <button (click)="startEdit()" [nzLoading]="editLoading()" nz-button nzType="default" type="button">
             <nz-icon nzTheme="outline" nzType="edit"/>
@@ -47,6 +47,9 @@
     @case ('ready') {
       @if (editError()) {
         <nz-alert [nzMessage]="editError()" class="edit-error" nzShowIcon nzType="error"/>
+      }
+      @if (saveNotice()) {
+        <nz-alert [nzMessage]="saveNotice()" class="edit-error" nzShowIcon nzType="warning"/>
       }
       @if (edit(); as table) {
         <div class="edit">
@@ -97,7 +100,7 @@
                              [attr.maxlength]="maxNoteLength" [ngModel]="row.meaning" [nzStatus]="row.problem === 'missing' ? 'error' : ''"
                              class="note-input" nz-input/>
                       @if (row.problem === 'missing') {
-                        <div class="problem">Cần nhập</div>
+                        <div class="problem">Chưa nhập</div>
                       }
                     </td>
                   </tr>
@@ -131,7 +134,7 @@
                              [attr.maxlength]="maxNoteLength" [ngModel]="row.meaning" [nzStatus]="row.problem ? 'error' : ''"
                              class="note-input" nz-input/>
                       @if (row.problem) {
-                        <div class="problem">Cần nhập</div>
+                        <div class="problem">Chưa nhập</div>
                       }
                     </td>
                   </tr>
@@ -175,7 +178,7 @@
                              [attr.maxlength]="maxNoteLength" [ngModel]="row.meaning" [nzStatus]="row.problem ? 'error' : ''"
                              class="note-input" nz-input/>
                       @if (row.problem) {
-                        <div class="problem">Cần nhập</div>
+                        <div class="problem">Chưa nhập</div>
                       }
                     </td>
                   </tr>

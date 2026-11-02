@@ -38,7 +38,7 @@ export interface AiJob {
 // server message is English; any other message is shown as the server wrote it.
 export function failedJobMessage(job: AiJob): string {
   if (job.errorStatus === 422) {
-    return 'Không bài nào đủ từ để ghép bộ. Thêm từ rồi gửi lại.';
+    return 'Không bài nào đủ từ để ghép bộ. Chọn bài khác rồi gửi lại.';
   }
   return job.errorMessage || 'Không rõ lỗi.';
 }

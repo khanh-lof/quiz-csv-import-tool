@@ -188,9 +188,9 @@ The exercise page the AI page can build instead of a quiz; the contract and the 
   three `nz-table`s, Từ (pinyin and meaning inputs, tags AI / AI không chắc / Đã bỏ, and under a pinyin the
   dictionary's readings when the review warns about it), Chữ (meaning) and Bộ (name, pinyin, meaning). Every change
   goes through `withWord` / `withChar` / `withComponent`, which also clear the row's `problem`. While editing, the
-  topbar has "Lưu" and "Huỷ". "Lưu" sends the whole table (`revise`, `PUT`), and on 200 puts the returned job in
+  topbar has "Lưu" and "Hủy"; "Hủy", leaving the page (`unsavedChangesGuard`) or closing the tab after typing asks first. "Lưu" sends the whole table (`revise`, `PUT`), and on 200 puts the returned job in
   `AiJobService` (`replace`), so the review follows, and loads the page again into the frame. A 422 brings the table
-  back with rows flagged (`flaggedEdit`), shown as red inputs with "Pinyin không khớp số chữ" or "Cần nhập"; other
+  back with rows flagged (`flaggedEdit`), shown as red inputs with "Pinyin không khớp số chữ" or "Chưa nhập"; other
   refusals are worded by `radicalsEditError`. The inputs' `maxlength` are the server's limits
   (`MAX_EDIT_PINYIN_LENGTH`, `MAX_EDIT_NOTE_LENGTH`).
 - **Specs:** `models/radicals-review.spec.ts`, `models/radicals-edit.spec.ts`, `components/radicals-play/radicals-play.spec.ts`
@@ -603,6 +603,8 @@ overlays (modals, confirms, dropdowns, notifications) that render outside any co
 `provideNzI18n(en_US)` is set in `app.config.ts` despite most user-facing
 notification strings in the codebase being written in Vietnamese directly at the call site (not via
 i18n).
+
+### User messages
 - Messages shown to the user (notifications, hints, helper text, empty states): keep them short and don't
   explain much. Add one only when the user could not tell how to use the feature without it; a self-evident
-  control or result needs no message.
+  control or result needs no message. NEVER put technical things into user messages.
