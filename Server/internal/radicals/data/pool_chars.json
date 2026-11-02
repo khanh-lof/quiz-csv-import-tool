@@ -1,0 +1,3257 @@
+{
+"爱": {
+"py": "ài",
+"vi": "yêu; thích",
+"st": 10,
+"parts": [
+"爫",
+"冖",
+"友"
+],
+"struct": "Trên – dưới"
+},
+"八": {
+"py": "bā",
+"vi": "tám",
+"st": 2
+},
+"爸": {
+"py": "bà",
+"vi": "bố, ba",
+"st": 8,
+"parts": [
+"父",
+"巴"
+],
+"struct": "Trên – dưới"
+},
+"吧": {
+"py": "ba",
+"vi": "(trợ từ) nhé, đi, nhỉ",
+"st": 7,
+"parts": [
+"口",
+"巴"
+],
+"struct": "Trái – phải"
+},
+"白": {
+"py": "bái",
+"vi": "trắng",
+"st": 5
+},
+"天": {
+"py": "tiān",
+"vi": "trời; ngày",
+"st": 4,
+"parts": [
+"一",
+"大"
+],
+"struct": "Trên – dưới"
+},
+"百": {
+"py": "bǎi",
+"vi": "trăm",
+"st": 6,
+"parts": [
+"一",
+"白"
+],
+"struct": "Trên – dưới"
+},
+"半": {
+"py": "bàn",
+"vi": "nửa, rưỡi",
+"st": 5
+},
+"包": {
+"py": "bāo",
+"vi": "bọc, gói; cái bao, bánh bao",
+"st": 5,
+"parts": [
+"勹",
+"巳"
+],
+"struct": "Bao nửa (từ trên-phải)"
+},
+"子": {
+"py": "zǐ",
+"vi": "con; (hậu tố danh từ) cái …, đứa …",
+"st": 3
+},
+"杯": {
+"py": "bēi",
+"vi": "cốc, ly",
+"st": 8,
+"parts": [
+"木",
+"不"
+],
+"struct": "Trái – phải"
+},
+"本": {
+"py": "běn",
+"vi": "(lượng từ) quyển, cuốn; gốc",
+"st": 5,
+"parts": [
+"木",
+"一"
+],
+"struct": "Đan xen"
+},
+"边": {
+"py": "biān",
+"vi": "bên, phía",
+"st": 5,
+"parts": [
+"辶",
+"力"
+],
+"struct": "Bao nửa (từ dưới-trái)"
+},
+"病": {
+"py": "bìng",
+"vi": "bệnh, ốm",
+"st": 10,
+"parts": [
+"疒",
+"丙"
+],
+"struct": "Bao nửa (từ trên-trái)"
+},
+"人": {
+"py": "rén",
+"vi": "người",
+"st": 2
+},
+"不": {
+"py": "bù",
+"vi": "không",
+"st": 4
+},
+"客": {
+"py": "kè",
+"vi": "khách",
+"st": 9,
+"parts": [
+"宀",
+"各"
+],
+"struct": "Trên – dưới"
+},
+"气": {
+"py": "qì",
+"vi": "khí, hơi",
+"st": 4
+},
+"要": {
+"py": "yào",
+"vi": "muốn, cần; phải; sắp, sẽ",
+"st": 9,
+"parts": [
+"覀",
+"女"
+],
+"struct": "Trên – dưới"
+},
+"菜": {
+"py": "cài",
+"vi": "món ăn; rau",
+"st": 11,
+"parts": [
+"艹",
+"采"
+],
+"struct": "Trên – dưới"
+},
+"茶": {
+"py": "chá",
+"vi": "trà",
+"st": 9,
+"parts": [
+"艹",
+"人",
+"木"
+],
+"struct": "Trên – dưới"
+},
+"唱": {
+"py": "chàng",
+"vi": "hát",
+"st": 11,
+"parts": [
+"口",
+"昌"
+],
+"struct": "Trái – phải"
+},
+"超": {
+"py": "chāo",
+"vi": "vượt, siêu",
+"st": 12,
+"parts": [
+"走",
+"召"
+],
+"struct": "Bao nửa (từ dưới-trái)"
+},
+"市": {
+"py": "shì",
+"vi": "chợ; thành phố",
+"st": 5,
+"parts": [
+"亠",
+"巾"
+],
+"struct": "Trên – dưới"
+},
+"车": {
+"py": "chē",
+"vi": "xe",
+"st": 4
+},
+"吃": {
+"py": "chī",
+"vi": "ăn",
+"st": 6,
+"parts": [
+"口",
+"乞"
+],
+"struct": "Trái – phải"
+},
+"出": {
+"py": "chū",
+"vi": "ra, đi ra",
+"st": 5
+},
+"租": {
+"py": "zū",
+"vi": "thuê",
+"st": 10,
+"parts": [
+"禾",
+"且"
+],
+"struct": "Trái – phải"
+},
+"穿": {
+"py": "chuān",
+"vi": "mặc",
+"st": 9,
+"parts": [
+"穴",
+"牙"
+],
+"struct": "Trên – dưới"
+},
+"打": {
+"py": "dǎ",
+"vi": "đánh; chơi (bóng); gọi (điện thoại)",
+"st": 5,
+"parts": [
+"扌",
+"丁"
+],
+"struct": "Trái – phải"
+},
+"电": {
+"py": "diàn",
+"vi": "điện",
+"st": 5
+},
+"话": {
+"py": "huà",
+"vi": "lời nói; điện thoại (电话)",
+"st": 8,
+"parts": [
+"讠",
+"舌"
+],
+"struct": "Trái – phải"
+},
+"大": {
+"py": "dà",
+"vi": "lớn, to",
+"st": 3
+},
+"家": {
+"py": "jiā",
+"vi": "nhà, gia đình",
+"st": 10,
+"parts": [
+"宀",
+"豕"
+],
+"struct": "Trên – dưới"
+},
+"学": {
+"py": "xué",
+"vi": "học",
+"st": 8,
+"parts": [
+"学字头",
+"子"
+],
+"struct": "Trên – dưới"
+},
+"生": {
+"py": "shēng",
+"vi": "sinh, sống; (học) sinh",
+"st": 5
+},
+"到": {
+"py": "dào",
+"vi": "đến, tới",
+"st": 8,
+"parts": [
+"至",
+"刂"
+],
+"struct": "Trái – phải"
+},
+"的": {
+"py": "de",
+"vi": "(trợ từ kết cấu) của",
+"st": 8,
+"parts": [
+"白",
+"勺"
+],
+"struct": "Trái – phải"
+},
+"弟": {
+"py": "dì",
+"vi": "em trai",
+"st": 7
+},
+"第": {
+"py": "dì",
+"vi": "thứ (số thứ tự)",
+"st": 11,
+"parts": [
+"⺮",
+"弟"
+],
+"struct": "Trên – dưới"
+},
+"点": {
+"py": "diǎn",
+"vi": "giờ; chấm, điểm; gọi (món)",
+"st": 9,
+"parts": [
+"占",
+"灬"
+],
+"struct": "Trên – dưới"
+},
+"脑": {
+"py": "nǎo",
+"vi": "óc, não (电脑: máy tính)",
+"st": 10,
+"parts": [
+"月",
+"脑右"
+],
+"struct": "Trái – phải"
+},
+"视": {
+"py": "shì",
+"vi": "nhìn, xem (电视: tivi)",
+"st": 8,
+"parts": [
+"礻",
+"见"
+],
+"struct": "Trái – phải"
+},
+"影": {
+"py": "yǐng",
+"vi": "bóng; hình ảnh (电影: phim)",
+"st": 15,
+"parts": [
+"景",
+"彡"
+],
+"struct": "Trái – phải"
+},
+"院": {
+"py": "yuàn",
+"vi": "sân; viện (医院: bệnh viện, 电影院: rạp phim)",
+"st": 9,
+"parts": [
+"阝",
+"完"
+],
+"struct": "Trái – phải"
+},
+"店": {
+"py": "diàn",
+"vi": "cửa hàng, tiệm",
+"st": 8,
+"parts": [
+"广",
+"占"
+],
+"struct": "Bao nửa (từ trên-trái)"
+},
+"东": {
+"py": "dōng",
+"vi": "phía đông",
+"st": 5
+},
+"西": {
+"py": "xī",
+"vi": "phía tây",
+"st": 6
+},
+"都": {
+"py": "dōu",
+"vi": "đều, tất cả (dū: thủ đô)",
+"st": 10,
+"parts": [
+"者",
+"阝"
+],
+"struct": "Trái – phải"
+},
+"读": {
+"py": "dú",
+"vi": "đọc; học (ở trường)",
+"st": 10,
+"parts": [
+"讠",
+"卖"
+],
+"struct": "Trái – phải"
+},
+"书": {
+"py": "shū",
+"vi": "sách",
+"st": 4
+},
+"对": {
+"py": "duì",
+"vi": "đúng, phải; đối với",
+"st": 5,
+"parts": [
+"又",
+"寸"
+],
+"struct": "Trái – phải"
+},
+"起": {
+"py": "qǐ",
+"vi": "dậy, nổi lên",
+"st": 10,
+"parts": [
+"走",
+"己"
+],
+"struct": "Bao nửa (từ dưới-trái)"
+},
+"多": {
+"py": "duō",
+"vi": "nhiều",
+"st": 6
+},
+"少": {
+"py": "shǎo",
+"vi": "ít",
+"st": 4,
+"parts": [
+"小",
+"丿"
+],
+"struct": "Trên – dưới"
+},
+"儿": {
+"py": "ér",
+"vi": "con; hậu tố “r” (âm uốn lưỡi)",
+"st": 2
+},
+"二": {
+"py": "èr",
+"vi": "hai",
+"st": 2
+},
+"饭": {
+"py": "fàn",
+"vi": "cơm, bữa ăn",
+"st": 7,
+"parts": [
+"饣",
+"反"
+],
+"struct": "Trái – phải"
+},
+"房": {
+"py": "fáng",
+"vi": "nhà, phòng",
+"st": 8,
+"parts": [
+"户",
+"方"
+],
+"struct": "Bao nửa (từ trên-trái)"
+},
+"间": {
+"py": "jiān",
+"vi": "gian, phòng; khoảng giữa",
+"st": 7,
+"parts": [
+"门",
+"日"
+],
+"struct": "Bao ba phía (hở dưới)"
+},
+"飞": {
+"py": "fēi",
+"vi": "bay",
+"st": 3
+},
+"机": {
+"py": "jī",
+"vi": "máy; cơ hội",
+"st": 6,
+"parts": [
+"木",
+"几"
+],
+"struct": "Trái – phải"
+},
+"非": {
+"py": "fēi",
+"vi": "không phải; rất (非常)",
+"st": 8
+},
+"常": {
+"py": "cháng",
+"vi": "thường, thường xuyên",
+"st": 11,
+"parts": [
+"尚",
+"巾"
+],
+"struct": "Trên – dưới"
+},
+"分": {
+"py": "fēn",
+"vi": "phút; chia, phân",
+"st": 4,
+"parts": [
+"八",
+"刀"
+],
+"struct": "Trên – dưới"
+},
+"钟": {
+"py": "zhōng",
+"vi": "chuông; đồng hồ",
+"st": 9,
+"parts": [
+"钅",
+"中"
+],
+"struct": "Trái – phải"
+},
+"服": {
+"py": "fú",
+"vi": "quần áo (衣服); phục vụ (服务)",
+"st": 8,
+"parts": [
+"月",
+"服右"
+],
+"struct": "Trái – phải"
+},
+"务": {
+"py": "wù",
+"vi": "việc, nghiệp vụ (服务: phục vụ)",
+"st": 5
+},
+"员": {
+"py": "yuán",
+"vi": "nhân viên, thành viên",
+"st": 7,
+"parts": [
+"口",
+"贝"
+],
+"struct": "Trên – dưới"
+},
+"高": {
+"py": "gāo",
+"vi": "cao",
+"st": 10,
+"parts": [
+"亠",
+"口",
+"冋"
+],
+"struct": "Trên – giữa – dưới"
+},
+"兴": {
+"py": "xìng / xīng",
+"vi": "vui, hứng thú (高兴); hưng thịnh",
+"st": 6
+},
+"哥": {
+"py": "gē",
+"vi": "anh trai",
+"st": 10
+},
+"歌": {
+"py": "gē",
+"vi": "bài hát; hát",
+"st": 14,
+"parts": [
+"哥",
+"欠"
+],
+"struct": "Trái – phải"
+},
+"个": {
+"py": "gè",
+"vi": "(lượng từ) cái, người, …",
+"st": 3
+},
+"给": {
+"py": "gěi",
+"vi": "cho, đưa cho",
+"st": 9,
+"parts": [
+"纟",
+"合"
+],
+"struct": "Trái – phải"
+},
+"工": {
+"py": "gōng",
+"vi": "công việc, công nhân",
+"st": 3
+},
+"作": {
+"py": "zuò",
+"vi": "làm; tác phẩm",
+"st": 7,
+"parts": [
+"亻",
+"乍"
+],
+"struct": "Trái – phải"
+},
+"公": {
+"py": "gōng",
+"vi": "chung, công cộng",
+"st": 4,
+"parts": [
+"八",
+"厶"
+],
+"struct": "Trên – dưới"
+},
+"司": {
+"py": "sī",
+"vi": "quản lý, phụ trách",
+"st": 5
+},
+"狗": {
+"py": "gǒu",
+"vi": "chó",
+"st": 8,
+"parts": [
+"犭",
+"句"
+],
+"struct": "Trái – phải"
+},
+"贵": {
+"py": "guì",
+"vi": "đắt; quý",
+"st": 9,
+"parts": [
+"中",
+"一",
+"贝"
+],
+"struct": "Trên – dưới"
+},
+"国": {
+"py": "guó",
+"vi": "nước, quốc gia",
+"st": 8,
+"parts": [
+"囗",
+"玉"
+],
+"struct": "Bao kín"
+},
+"还": {
+"py": "hái",
+"vi": "còn, vẫn (hái); trả lại (huán)",
+"st": 7,
+"parts": [
+"辶",
+"不"
+],
+"struct": "Bao nửa (từ dưới-trái)"
+},
+"孩": {
+"py": "hái",
+"vi": "trẻ con",
+"st": 9,
+"parts": [
+"子",
+"亥"
+],
+"struct": "Trái – phải"
+},
+"好": {
+"py": "hǎo",
+"vi": "tốt, hay, khỏe",
+"st": 6,
+"parts": [
+"女",
+"子"
+],
+"struct": "Trái – phải"
+},
+"看": {
+"py": "kàn",
+"vi": "xem, nhìn",
+"st": 9,
+"parts": [
+"手",
+"目"
+],
+"struct": "Trên – dưới"
+},
+"听": {
+"py": "tīng",
+"vi": "nghe",
+"st": 7,
+"parts": [
+"口",
+"斤"
+],
+"struct": "Trái – phải"
+},
+"玩": {
+"py": "wán",
+"vi": "chơi",
+"st": 8,
+"parts": [
+"王",
+"元"
+],
+"struct": "Trái – phải"
+},
+"号": {
+"py": "hào",
+"vi": "ngày (trong tháng); số",
+"st": 5,
+"parts": [
+"口",
+"丂"
+],
+"struct": "Trên – dưới"
+},
+"喝": {
+"py": "hē",
+"vi": "uống",
+"st": 12,
+"parts": [
+"口",
+"曷"
+],
+"struct": "Trái – phải"
+},
+"和": {
+"py": "hé",
+"vi": "và, với",
+"st": 8,
+"parts": [
+"禾",
+"口"
+],
+"struct": "Trái – phải"
+},
+"很": {
+"py": "hěn",
+"vi": "rất",
+"st": 9,
+"parts": [
+"彳",
+"艮"
+],
+"struct": "Trái – phải"
+},
+"后": {
+"py": "hòu",
+"vi": "sau, phía sau",
+"st": 6,
+"parts": [
+"𠂆",
+"口"
+],
+"struct": "Bao nửa (từ trên-trái)"
+},
+"回": {
+"py": "huí",
+"vi": "về, trở lại",
+"st": 6,
+"parts": [
+"囗",
+"口"
+],
+"struct": "Bao kín"
+},
+"会": {
+"py": "huì",
+"vi": "biết (nhờ học); sẽ; hội",
+"st": 6,
+"parts": [
+"人",
+"云"
+],
+"struct": "Trên – dưới"
+},
+"火": {
+"py": "huǒ",
+"vi": "lửa",
+"st": 4
+},
+"场": {
+"py": "chǎng",
+"vi": "bãi, sân",
+"st": 6,
+"parts": [
+"土",
+"勿"
+],
+"struct": "Trái – phải"
+},
+"鸡": {
+"py": "jī",
+"vi": "gà",
+"st": 7
+},
+"蛋": {
+"py": "dàn",
+"vi": "trứng",
+"st": 11,
+"parts": [
+"疋",
+"虫"
+],
+"struct": "Trên – dưới"
+},
+"几": {
+"py": "jǐ",
+"vi": "mấy, bao nhiêu (số nhỏ)",
+"st": 2
+},
+"见": {
+"py": "jiàn",
+"vi": "thấy, gặp",
+"st": 4,
+"parts": [
+"冂",
+"儿"
+],
+"struct": "Trên – dưới"
+},
+"件": {
+"py": "jiàn",
+"vi": "(lượng từ) cái, chiếc (áo, việc)",
+"st": 6,
+"parts": [
+"亻",
+"牛"
+],
+"struct": "Trái – phải"
+},
+"饺": {
+"py": "jiǎo",
+"vi": "sủi cảo (饺子)",
+"st": 9,
+"parts": [
+"饣",
+"交"
+],
+"struct": "Trái – phải"
+},
+"叫": {
+"py": "jiào",
+"vi": "gọi; tên là",
+"st": 5,
+"parts": [
+"口",
+"丩"
+],
+"struct": "Trái – phải"
+},
+"接": {
+"py": "jiē",
+"vi": "đón; nhận",
+"st": 11,
+"parts": [
+"扌",
+"妾"
+],
+"struct": "Trái – phải"
+},
+"姐": {
+"py": "jiě",
+"vi": "chị gái",
+"st": 8,
+"parts": [
+"女",
+"且"
+],
+"struct": "Trái – phải"
+},
+"斤": {
+"py": "jīn",
+"vi": "cân (500 g)",
+"st": 4
+},
+"今": {
+"py": "jīn",
+"vi": "nay, hiện nay",
+"st": 4
+},
+"年": {
+"py": "nián",
+"vi": "năm",
+"st": 6
+},
+"九": {
+"py": "jiǔ",
+"vi": "chín",
+"st": 2
+},
+"觉": {
+"py": "jué / jiào",
+"vi": "cảm thấy (jué); giấc ngủ (jiào)",
+"st": 9,
+"parts": [
+"学字头",
+"见"
+],
+"struct": "Trên – giữa – dưới"
+},
+"得": {
+"py": "de / dé / děi",
+"vi": "(trợ từ) nối động từ với bổ ngữ trạng thái (打得很好); còn đọc dé = được; děi = phải",
+"st": 11
+},
+"开": {
+"py": "kāi",
+"vi": "mở; lái; khởi hành",
+"st": 4
+},
+"可": {
+"py": "kě",
+"vi": "có thể, được",
+"st": 5,
+"parts": [
+"丁",
+"口"
+],
+"struct": "Đan xen"
+},
+"以": {
+"py": "yǐ",
+"vi": "dùng, lấy; để (可以: có thể)",
+"st": 4
+},
+"课": {
+"py": "kè",
+"vi": "tiết học, bài học",
+"st": 10,
+"parts": [
+"讠",
+"果"
+],
+"struct": "Trái – phải"
+},
+"口": {
+"py": "kǒu",
+"vi": "miệng; (lượng từ) khẩu — đếm số người trong nhà",
+"st": 3
+},
+"块": {
+"py": "kuài",
+"vi": "đồng (tệ, khẩu ngữ); cục, miếng",
+"st": 7,
+"parts": [
+"土",
+"夬"
+],
+"struct": "Trái – phải"
+},
+"来": {
+"py": "lái",
+"vi": "đến, tới",
+"st": 7
+},
+"老": {
+"py": "lǎo",
+"vi": "già; (tiền tố thân mật gọi người)",
+"st": 6,
+"parts": [
+"耂",
+"匕"
+],
+"struct": "Trên – dưới"
+},
+"师": {
+"py": "shī",
+"vi": "thầy, người dạy",
+"st": 6
+},
+"了": {
+"py": "le",
+"vi": "(trợ từ) đã, rồi",
+"st": 2
+},
+"冷": {
+"py": "lěng",
+"vi": "lạnh",
+"st": 7,
+"parts": [
+"冫",
+"令"
+],
+"struct": "Trái – phải"
+},
+"里": {
+"py": "lǐ",
+"vi": "trong, bên trong",
+"st": 7,
+"parts": [
+"田",
+"土"
+],
+"struct": "Trên – dưới"
+},
+"两": {
+"py": "liǎng",
+"vi": "hai (đứng trước lượng từ)",
+"st": 7
+},
+"零": {
+"py": "líng",
+"vi": "không, số 0",
+"st": 13,
+"parts": [
+"雨",
+"令"
+],
+"struct": "Trên – dưới"
+},
+"六": {
+"py": "liù",
+"vi": "sáu",
+"st": 4,
+"parts": [
+"亠",
+"八"
+],
+"struct": "Trên – dưới"
+},
+"妈": {
+"py": "mā",
+"vi": "mẹ, má",
+"st": 6,
+"parts": [
+"女",
+"马"
+],
+"struct": "Trái – phải"
+},
+"吗": {
+"py": "ma",
+"vi": "(trợ từ nghi vấn) …không?",
+"st": 6,
+"parts": [
+"口",
+"马"
+],
+"struct": "Trái – phải"
+},
+"买": {
+"py": "mǎi",
+"vi": "mua",
+"st": 6
+},
+"卖": {
+"py": "mài",
+"vi": "bán",
+"st": 8,
+"parts": [
+"十",
+"买"
+],
+"struct": "Trên – dưới"
+},
+"忙": {
+"py": "máng",
+"vi": "bận",
+"st": 6,
+"parts": [
+"忄",
+"亡"
+],
+"struct": "Trái – phải"
+},
+"猫": {
+"py": "māo",
+"vi": "mèo",
+"st": 11,
+"parts": [
+"犭",
+"苗"
+],
+"struct": "Trái – phải"
+},
+"没": {
+"py": "méi",
+"vi": "không, chưa (phủ định của 有)",
+"st": 7,
+"parts": [
+"氵",
+"殳"
+],
+"struct": "Trái – phải"
+},
+"关": {
+"py": "guān",
+"vi": "đóng; liên quan",
+"st": 6
+},
+"系": {
+"py": "xi",
+"vi": "quan hệ, hệ thống (关系: quan hệ)",
+"st": 7
+},
+"事": {
+"py": "shì",
+"vi": "việc, sự việc",
+"st": 8
+},
+"有": {
+"py": "yǒu",
+"vi": "có",
+"st": 6,
+"parts": [
+"𠂇",
+"月"
+],
+"struct": "Bao nửa (từ trên-trái)"
+},
+"妹": {
+"py": "mèi",
+"vi": "em gái",
+"st": 8,
+"parts": [
+"女",
+"未"
+],
+"struct": "Trái – phải"
+},
+"们": {
+"py": "men",
+"vi": "(hậu tố chỉ số nhiều của người)",
+"st": 5,
+"parts": [
+"亻",
+"门"
+],
+"struct": "Trái – phải"
+},
+"米": {
+"py": "mǐ",
+"vi": "gạo",
+"st": 6
+},
+"面": {
+"py": "miàn",
+"vi": "mặt; mì, bột",
+"st": 9
+},
+"条": {
+"py": "tiáo",
+"vi": "(lượng từ) sợi, dải; cành",
+"st": 7,
+"parts": [
+"夂",
+"木"
+],
+"struct": "Trên – dưới"
+},
+"名": {
+"py": "míng",
+"vi": "tên; danh",
+"st": 6,
+"parts": [
+"夕",
+"口"
+],
+"struct": "Bao nửa (từ trên-trái)"
+},
+"字": {
+"py": "zì",
+"vi": "chữ",
+"st": 6,
+"parts": [
+"宀",
+"子"
+],
+"struct": "Trên – dưới"
+},
+"明": {
+"py": "míng",
+"vi": "sáng; ngày mai (明天, 明年)",
+"st": 8,
+"parts": [
+"日",
+"月"
+],
+"struct": "Trái – phải"
+},
+"哪": {
+"py": "nǎ",
+"vi": "nào, đâu",
+"st": 9,
+"parts": [
+"口",
+"那"
+],
+"struct": "Trái – phải"
+},
+"些": {
+"py": "xiē",
+"vi": "(lượng từ) một ít, những",
+"st": 8,
+"parts": [
+"此",
+"二"
+],
+"struct": "Trên – dưới"
+},
+"那": {
+"py": "nà",
+"vi": "kia, đó, ấy",
+"st": 6,
+"parts": [
+"冄",
+"阝"
+],
+"struct": "Trái – phải"
+},
+"男": {
+"py": "nán",
+"vi": "nam, trai",
+"st": 7,
+"parts": [
+"田",
+"力"
+],
+"struct": "Trên – dưới"
+},
+"朋": {
+"py": "péng",
+"vi": "bạn (朋友)",
+"st": 8
+},
+"友": {
+"py": "yǒu",
+"vi": "bạn bè",
+"st": 4,
+"parts": [
+"𠂇",
+"又"
+],
+"struct": "Bao nửa (từ trên-trái)"
+},
+"呢": {
+"py": "ne",
+"vi": "(trợ từ) …thì sao?",
+"st": 8,
+"parts": [
+"口",
+"尼"
+],
+"struct": "Trái – phải"
+},
+"能": {
+"py": "néng",
+"vi": "có thể, được",
+"st": 10
+},
+"你": {
+"py": "nǐ",
+"vi": "bạn, anh/chị (ngôi thứ hai)",
+"st": 7,
+"parts": [
+"亻",
+"尔"
+],
+"struct": "Trái – phải"
+},
+"您": {
+"py": "nín",
+"vi": "ngài, ông/bà (cách xưng kính trọng)",
+"st": 11,
+"parts": [
+"你",
+"心"
+],
+"struct": "Trên – dưới"
+},
+"牛": {
+"py": "niú",
+"vi": "bò",
+"st": 4
+},
+"奶": {
+"py": "nǎi",
+"vi": "sữa; bà nội (奶奶)",
+"st": 5,
+"parts": [
+"女",
+"乃"
+],
+"struct": "Trái – phải"
+},
+"女": {
+"py": "nǚ",
+"vi": "nữ, gái",
+"st": 3
+},
+"士": {
+"py": "shì",
+"vi": "sĩ (người có học, quân nhân); cách gọi lịch sự (女士)",
+"st": 3
+},
+"便": {
+"py": "pián",
+"vi": "tiện (biàn); rẻ (便宜: pián)",
+"st": 9,
+"parts": [
+"亻",
+"更"
+],
+"struct": "Trái – phải"
+},
+"宜": {
+"py": "yi",
+"vi": "hợp, thích hợp",
+"st": 8,
+"parts": [
+"宀",
+"且"
+],
+"struct": "Trên – dưới"
+},
+"漂": {
+"py": "piào",
+"vi": "đẹp (漂亮); trôi nổi",
+"st": 14,
+"parts": [
+"氵",
+"票"
+],
+"struct": "Trái – phải"
+},
+"亮": {
+"py": "liang",
+"vi": "sáng; đẹp (漂亮)",
+"st": 9
+},
+"苹": {
+"py": "píng",
+"vi": "táo (苹果)",
+"st": 8,
+"parts": [
+"艹",
+"平"
+],
+"struct": "Trên – dưới"
+},
+"果": {
+"py": "guǒ",
+"vi": "quả, trái cây; kết quả",
+"st": 8,
+"parts": [
+"田",
+"木"
+],
+"struct": "Trên – dưới"
+},
+"七": {
+"py": "qī",
+"vi": "bảy",
+"st": 2
+},
+"床": {
+"py": "chuáng",
+"vi": "giường",
+"st": 7,
+"parts": [
+"广",
+"木"
+],
+"struct": "Bao nửa (từ trên-trái)"
+},
+"千": {
+"py": "qiān",
+"vi": "nghìn",
+"st": 3
+},
+"前": {
+"py": "qián",
+"vi": "trước, phía trước",
+"st": 9,
+"parts": [
+"前字头",
+"月",
+"刂"
+],
+"struct": "Trên – dưới"
+},
+"钱": {
+"py": "qián",
+"vi": "tiền",
+"st": 10,
+"parts": [
+"钅",
+"戋"
+],
+"struct": "Trái – phải"
+},
+"请": {
+"py": "qǐng",
+"vi": "mời, xin, làm ơn",
+"st": 10,
+"parts": [
+"讠",
+"青"
+],
+"struct": "Trái – phải"
+},
+"问": {
+"py": "wèn",
+"vi": "hỏi",
+"st": 6,
+"parts": [
+"门",
+"口"
+],
+"struct": "Bao ba phía (hở dưới)"
+},
+"去": {
+"py": "qù",
+"vi": "đi",
+"st": 5,
+"parts": [
+"土",
+"厶"
+],
+"struct": "Trên – dưới"
+},
+"热": {
+"py": "rè",
+"vi": "nóng",
+"st": 10,
+"parts": [
+"执",
+"灬"
+],
+"struct": "Trên – dưới"
+},
+"认": {
+"py": "rèn",
+"vi": "nhận ra, quen (认识)",
+"st": 4,
+"parts": [
+"讠",
+"人"
+],
+"struct": "Trái – phải"
+},
+"识": {
+"py": "shi",
+"vi": "biết, nhận biết (认识)",
+"st": 7
+},
+"日": {
+"py": "rì",
+"vi": "ngày; mặt trời",
+"st": 4
+},
+"三": {
+"py": "sān",
+"vi": "ba",
+"st": 3
+},
+"商": {
+"py": "shāng",
+"vi": "buôn bán, thương mại",
+"st": 11
+},
+"上": {
+"py": "shàng",
+"vi": "trên, bên trên; lên",
+"st": 3
+},
+"班": {
+"py": "bān",
+"vi": "ca làm việc; lớp",
+"st": 10,
+"parts": [
+"王",
+"刂",
+"王"
+],
+"struct": "Trái – giữa – phải"
+},
+"午": {
+"py": "wǔ",
+"vi": "trưa",
+"st": 4
+},
+"谁": {
+"py": "shéi / shuí",
+"vi": "ai",
+"st": 10,
+"parts": [
+"讠",
+"隹"
+],
+"struct": "Trái – phải"
+},
+"什": {
+"py": "shén",
+"vi": "gì (什么)",
+"st": 4,
+"parts": [
+"亻",
+"十"
+],
+"struct": "Trái – phải"
+},
+"么": {
+"py": "me",
+"vi": "(hậu tố trong 什么, 怎么)",
+"st": 3
+},
+"十": {
+"py": "shí",
+"vi": "mười",
+"st": 2
+},
+"时": {
+"py": "shí",
+"vi": "giờ, lúc, thời gian",
+"st": 7,
+"parts": [
+"日",
+"寸"
+],
+"struct": "Trái – phải"
+},
+"候": {
+"py": "hòu",
+"vi": "lúc, khoảng thời gian (时候)",
+"st": 10,
+"parts": [
+"亻",
+"矦"
+],
+"struct": "Trái – phải"
+},
+"是": {
+"py": "shì",
+"vi": "là",
+"st": 9,
+"parts": [
+"日",
+"疋"
+],
+"struct": "Trên – dưới"
+},
+"手": {
+"py": "shǒu",
+"vi": "tay",
+"st": 4
+},
+"售": {
+"py": "shòu",
+"vi": "bán",
+"st": 11
+},
+"货": {
+"py": "huò",
+"vi": "hàng hóa",
+"st": 8,
+"parts": [
+"化",
+"贝"
+],
+"struct": "Trên – dưới"
+},
+"水": {
+"py": "shuǐ",
+"vi": "nước",
+"st": 4
+},
+"睡": {
+"py": "shuì",
+"vi": "ngủ",
+"st": 13,
+"parts": [
+"目",
+"垂"
+],
+"struct": "Trái – phải"
+},
+"说": {
+"py": "shuō",
+"vi": "nói",
+"st": 9,
+"parts": [
+"讠",
+"兑"
+],
+"struct": "Trái – phải"
+},
+"四": {
+"py": "sì",
+"vi": "bốn",
+"st": 5,
+"parts": [
+"囗",
+"儿"
+],
+"struct": "Bao kín"
+},
+"岁": {
+"py": "suì",
+"vi": "tuổi",
+"st": 6,
+"parts": [
+"山",
+"夕"
+],
+"struct": "Trên – dưới"
+},
+"他": {
+"py": "tā",
+"vi": "anh ấy, ông ấy",
+"st": 5,
+"parts": [
+"亻",
+"也"
+],
+"struct": "Trái – phải"
+},
+"它": {
+"py": "tā",
+"vi": "nó (vật, con vật)",
+"st": 5,
+"parts": [
+"宀",
+"匕"
+],
+"struct": "Trên – dưới"
+},
+"她": {
+"py": "tā",
+"vi": "cô ấy, bà ấy, chị ấy",
+"st": 6,
+"parts": [
+"女",
+"也"
+],
+"struct": "Trái – phải"
+},
+"太": {
+"py": "tài",
+"vi": "quá, rất",
+"st": 4,
+"parts": [
+"大",
+"丶"
+],
+"struct": "Bao ba phía (hở dưới)"
+},
+"同": {
+"py": "tóng",
+"vi": "cùng, giống nhau",
+"st": 6,
+"parts": [
+"冂",
+"一",
+"口"
+],
+"struct": "Bao ba phía (冂 bao ngoài)"
+},
+"外": {
+"py": "wài",
+"vi": "ngoài, bên ngoài",
+"st": 5,
+"parts": [
+"夕",
+"卜"
+],
+"struct": "Trái – phải"
+},
+"晚": {
+"py": "wǎn",
+"vi": "muộn; buổi tối",
+"st": 11,
+"parts": [
+"日",
+"免"
+],
+"struct": "Trái – phải"
+},
+"喂": {
+"py": "wèi",
+"vi": "a lô, alô",
+"st": 12,
+"parts": [
+"口",
+"畏"
+],
+"struct": "Trái – phải"
+},
+"题": {
+"py": "tí",
+"vi": "đề, câu hỏi",
+"st": 15,
+"parts": [
+"是",
+"页"
+],
+"struct": "Bao nửa (từ dưới-trái)"
+},
+"我": {
+"py": "wǒ",
+"vi": "tôi, tớ, mình",
+"st": 7
+},
+"五": {
+"py": "wǔ",
+"vi": "năm (số 5)",
+"st": 4
+},
+"喜": {
+"py": "xǐ",
+"vi": "vui; thích",
+"st": 12
+},
+"欢": {
+"py": "huan",
+"vi": "vui, thích (喜欢)",
+"st": 6,
+"parts": [
+"又",
+"欠"
+],
+"struct": "Trái – phải"
+},
+"下": {
+"py": "xià",
+"vi": "dưới, bên dưới; xuống; rơi",
+"st": 3
+},
+"雨": {
+"py": "yǔ",
+"vi": "mưa",
+"st": 8
+},
+"先": {
+"py": "xiān",
+"vi": "trước, đầu tiên",
+"st": 6,
+"parts": [
+"𠂉",
+"土",
+"儿"
+],
+"struct": "Trên – dưới"
+},
+"现": {
+"py": "xiàn",
+"vi": "hiện, bây giờ",
+"st": 8,
+"parts": [
+"王",
+"见"
+],
+"struct": "Trái – phải"
+},
+"在": {
+"py": "zài",
+"vi": "ở, tại; đang",
+"st": 6,
+"parts": [
+"才",
+"土"
+],
+"struct": "Bao nửa (từ trên-trái)"
+},
+"想": {
+"py": "xiǎng",
+"vi": "muốn; nghĩ; nhớ",
+"st": 13,
+"parts": [
+"相",
+"心"
+],
+"struct": "Trên – dưới"
+},
+"小": {
+"py": "xiǎo",
+"vi": "nhỏ, bé",
+"st": 3
+},
+"写": {
+"py": "xiě",
+"vi": "viết",
+"st": 5,
+"parts": [
+"冖",
+"与"
+],
+"struct": "Trên – dưới"
+},
+"谢": {
+"py": "xiè",
+"vi": "cảm ơn",
+"st": 12,
+"parts": [
+"讠",
+"射"
+],
+"struct": "Trái – phải"
+},
+"新": {
+"py": "xīn",
+"vi": "mới",
+"st": 13,
+"parts": [
+"亲",
+"斤"
+],
+"struct": "Trái – phải"
+},
+"星": {
+"py": "xīng",
+"vi": "ngôi sao",
+"st": 9,
+"parts": [
+"日",
+"生"
+],
+"struct": "Trên – dưới"
+},
+"期": {
+"py": "qī",
+"vi": "kỳ, thời kỳ",
+"st": 12,
+"parts": [
+"其",
+"月"
+],
+"struct": "Trái – phải"
+},
+"休": {
+"py": "xiū",
+"vi": "nghỉ",
+"st": 6,
+"parts": [
+"亻",
+"木"
+],
+"struct": "Trái – phải"
+},
+"息": {
+"py": "xi",
+"vi": "nghỉ ngơi; tin tức (休息)",
+"st": 10
+},
+"习": {
+"py": "xí",
+"vi": "tập, luyện tập (学习)",
+"st": 3
+},
+"校": {
+"py": "xiào",
+"vi": "trường (学校)",
+"st": 10
+},
+"雪": {
+"py": "xuě",
+"vi": "tuyết",
+"st": 11,
+"parts": [
+"雨",
+"彐"
+],
+"struct": "Trên – dưới"
+},
+"药": {
+"py": "yào",
+"vi": "thuốc",
+"st": 9,
+"parts": [
+"艹",
+"约"
+],
+"struct": "Trên – dưới"
+},
+"也": {
+"py": "yě",
+"vi": "cũng",
+"st": 3
+},
+"一": {
+"py": "yī",
+"vi": "một",
+"st": 1
+},
+"衣": {
+"py": "yī",
+"vi": "áo, quần áo",
+"st": 6
+},
+"医": {
+"py": "yī",
+"vi": "y; chữa bệnh",
+"st": 7,
+"parts": [
+"匸",
+"矢"
+],
+"struct": "Bao ba phía (hở phải)"
+},
+"椅": {
+"py": "yǐ",
+"vi": "ghế (椅子)",
+"st": 12,
+"parts": [
+"木",
+"奇"
+],
+"struct": "Trái – phải"
+},
+"元": {
+"py": "yuán",
+"vi": "đồng (nhân dân tệ); đầu tiên",
+"st": 4,
+"parts": [
+"二",
+"儿"
+],
+"struct": "Trên – dưới"
+},
+"月": {
+"py": "yuè",
+"vi": "tháng; mặt trăng",
+"st": 4
+},
+"再": {
+"py": "zài",
+"vi": "lại, nữa",
+"st": 6
+},
+"早": {
+"py": "zǎo",
+"vi": "sớm; buổi sáng",
+"st": 6,
+"parts": [
+"日",
+"十"
+],
+"struct": "Trên – dưới"
+},
+"怎": {
+"py": "zěn",
+"vi": "sao, thế nào (怎么)",
+"st": 9,
+"parts": [
+"乍",
+"心"
+],
+"struct": "Trên – dưới"
+},
+"样": {
+"py": "yàng",
+"vi": "kiểu, dáng vẻ (怎么样)",
+"st": 10,
+"parts": [
+"木",
+"羊"
+],
+"struct": "Trái – phải"
+},
+"找": {
+"py": "zhǎo",
+"vi": "tìm",
+"st": 7,
+"parts": [
+"扌",
+"戈"
+],
+"struct": "Trái – phải"
+},
+"这": {
+"py": "zhè",
+"vi": "này, đây",
+"st": 7,
+"parts": [
+"辶",
+"文"
+],
+"struct": "Bao nửa (từ dưới-trái)"
+},
+"真": {
+"py": "zhēn",
+"vi": "thật, thật là",
+"st": 10
+},
+"正": {
+"py": "zhèng",
+"vi": "đang (正在); chính, ngay",
+"st": 5,
+"parts": [
+"一",
+"止"
+],
+"struct": "Trên – dưới"
+},
+"只": {
+"py": "zhī",
+"vi": "(lượng từ) con (động vật)",
+"st": 5,
+"parts": [
+"口",
+"八"
+],
+"struct": "Trên – dưới"
+},
+"知": {
+"py": "zhī",
+"vi": "biết",
+"st": 8
+},
+"道": {
+"py": "dào",
+"vi": "đường; nói (知道: biết)",
+"st": 12,
+"parts": [
+"辶",
+"首"
+],
+"struct": "Bao nửa (từ dưới-trái)"
+},
+"中": {
+"py": "zhōng",
+"vi": "giữa, trong; (中国) Trung Quốc",
+"st": 4
+},
+"住": {
+"py": "zhù",
+"vi": "ở, sống (ở)",
+"st": 7,
+"parts": [
+"亻",
+"主"
+],
+"struct": "Trái – phải"
+},
+"桌": {
+"py": "zhuō",
+"vi": "bàn (桌子)",
+"st": 10,
+"parts": [
+"卓",
+"木"
+],
+"struct": "Trên – dưới"
+},
+"昨": {
+"py": "zuó",
+"vi": "hôm qua (昨天)",
+"st": 9,
+"parts": [
+"日",
+"乍"
+],
+"struct": "Trái – phải"
+},
+"坐": {
+"py": "zuò",
+"vi": "ngồi; đi (bằng phương tiện)",
+"st": 7,
+"parts": [
+"从",
+"土"
+],
+"struct": "Đan xen"
+},
+"做": {
+"py": "zuò",
+"vi": "làm",
+"st": 11,
+"parts": [
+"亻",
+"故"
+],
+"struct": "Trái – phải"
+},
+"北": {
+"py": "běi",
+"vi": "phía bắc",
+"st": 5
+},
+"京": {
+"py": "jīng",
+"vi": "kinh đô (北京: Bắc Kinh)",
+"st": 8,
+"parts": [
+"亠",
+"口",
+"小"
+],
+"struct": "Trên – giữa – dưới"
+},
+"法": {
+"py": "fǎ",
+"vi": "phép; nước Pháp (法国)",
+"st": 8,
+"parts": [
+"氵",
+"去"
+],
+"struct": "Trái – phải"
+},
+"汉": {
+"py": "hàn",
+"vi": "Hán (汉语, 汉字)",
+"st": 5,
+"parts": [
+"氵",
+"又"
+],
+"struct": "Trái – phải"
+},
+"语": {
+"py": "yǔ",
+"vi": "ngôn ngữ, tiếng",
+"st": 9,
+"parts": [
+"讠",
+"吾"
+],
+"struct": "Trái – phải"
+},
+"胡": {
+"py": "hú",
+"vi": "họ Hồ",
+"st": 9
+},
+"泰": {
+"py": "tài",
+"vi": "Thái (泰国: Thái Lan)",
+"st": 10
+},
+"王": {
+"py": "wáng",
+"vi": "vua; họ Vương",
+"st": 4
+},
+"安": {
+"py": "ān",
+"vi": "yên, bình an",
+"st": 6,
+"parts": [
+"宀",
+"女"
+],
+"struct": "Trên – dưới"
+},
+"文": {
+"py": "wén",
+"vi": "văn, chữ viết",
+"st": 4
+},
+"啊": {
+"py": "a",
+"vi": "(trợ từ ngữ khí) à, nhỉ, đấy",
+"st": 10,
+"parts": [
+"口",
+"阿"
+],
+"struct": "Trái – phải"
+},
+"情": {
+"py": "qíng",
+"vi": "tình cảm; sự việc (事情)",
+"st": 11,
+"parts": [
+"忄",
+"青"
+],
+"struct": "Trái – phải"
+},
+"片": {
+"py": "piàn",
+"vi": "tấm, mảnh; phim (爱情片)",
+"st": 4
+},
+"色": {
+"py": "sè",
+"vi": "màu, màu sắc",
+"st": 6
+},
+"帮": {
+"py": "bāng",
+"vi": "giúp, giúp đỡ",
+"st": 9,
+"parts": [
+"邦",
+"巾"
+],
+"struct": "Trên – dưới"
+},
+"比": {
+"py": "bǐ",
+"vi": "so, so sánh",
+"st": 4
+},
+"笔": {
+"py": "bǐ",
+"vi": "bút",
+"st": 10,
+"parts": [
+"⺮",
+"毛"
+],
+"struct": "Trên – dưới"
+},
+"别": {
+"py": "bié",
+"vi": "đừng; khác; chia tay",
+"st": 7,
+"parts": [
+"另",
+"刂"
+],
+"struct": "Trái – phải"
+},
+"错": {
+"py": "cuò",
+"vi": "sai, nhầm; (不错: không tệ)",
+"st": 13,
+"parts": [
+"钅",
+"昔"
+],
+"struct": "Trái – phải"
+},
+"意": {
+"py": "yì",
+"vi": "ý, ý nghĩ",
+"st": 13
+},
+"思": {
+"py": "sī",
+"vi": "nghĩ, suy nghĩ (意思: ý nghĩa)",
+"st": 9,
+"parts": [
+"田",
+"心"
+],
+"struct": "Trên – dưới"
+},
+"长": {
+"py": "cháng",
+"vi": "dài",
+"st": 4
+},
+"站": {
+"py": "zhàn",
+"vi": "ga, trạm; đứng",
+"st": 10
+},
+"门": {
+"py": "mén",
+"vi": "cửa",
+"st": 3
+},
+"词": {
+"py": "cí",
+"vi": "từ, từ ngữ",
+"st": 7,
+"parts": [
+"讠",
+"司"
+],
+"struct": "Trái – phải"
+},
+"次": {
+"py": "cì",
+"vi": "(lượng từ) lần",
+"st": 6,
+"parts": [
+"冫",
+"欠"
+],
+"struct": "Trái – phải"
+},
+"从": {
+"py": "cóng",
+"vi": "từ (giới từ); theo",
+"st": 4
+},
+"但": {
+"py": "dàn",
+"vi": "nhưng",
+"st": 7,
+"parts": [
+"亻",
+"旦"
+],
+"struct": "Trái – phải"
+},
+"糕": {
+"py": "gāo",
+"vi": "bánh (蛋糕: bánh ngọt, bánh kem)",
+"st": 16,
+"parts": [
+"米",
+"羔"
+],
+"struct": "Trái – phải"
+},
+"地": {
+"py": "dì / de",
+"vi": "đất, nơi chốn (地铁); (trợ từ 地) một cách…",
+"st": 6,
+"parts": [
+"土",
+"也"
+],
+"struct": "Trái – phải"
+},
+"等": {
+"py": "děng",
+"vi": "đợi, chờ",
+"st": 12
+},
+"铁": {
+"py": "tiě",
+"vi": "sắt (地铁: tàu điện ngầm)",
+"st": 10,
+"parts": [
+"钅",
+"失"
+],
+"struct": "Trái – phải"
+},
+"懂": {
+"py": "dǒng",
+"vi": "hiểu",
+"st": 15,
+"parts": [
+"忄",
+"董"
+],
+"struct": "Trái – phải"
+},
+"动": {
+"py": "dòng",
+"vi": "động, cử động",
+"st": 6,
+"parts": [
+"云",
+"力"
+],
+"struct": "Trái – phải"
+},
+"馆": {
+"py": "guǎn",
+"vi": "quán, nhà (nơi, tòa nhà công cộng: 饭馆)",
+"st": 11,
+"parts": [
+"饣",
+"官"
+],
+"struct": "Trái – phải"
+},
+"告": {
+"py": "gào",
+"vi": "báo, bảo",
+"st": 7
+},
+"诉": {
+"py": "sù",
+"vi": "kể, nói (告诉: bảo, nói cho biết)",
+"st": 7,
+"parts": [
+"讠",
+"斥"
+],
+"struct": "Trái – phải"
+},
+"跟": {
+"py": "gēn",
+"vi": "cùng, với; theo; gót chân",
+"st": 13,
+"parts": [
+"足",
+"艮"
+],
+"struct": "Trái – phải"
+},
+"更": {
+"py": "gèng",
+"vi": "càng, hơn nữa",
+"st": 7
+},
+"交": {
+"py": "jiāo",
+"vi": "giao; nộp (公交: giao thông công cộng)",
+"st": 6
+},
+"过": {
+"py": "guò / guo",
+"vi": "qua; trải qua, đón; (trợ từ) từng",
+"st": 6,
+"parts": [
+"辶",
+"寸"
+],
+"struct": "Bao nửa (từ dưới-trái)"
+},
+"像": {
+"py": "xiàng",
+"vi": "giống; hình như (好像)",
+"st": 13,
+"parts": [
+"亻",
+"象"
+],
+"struct": "Trái – phải"
+},
+"黑": {
+"py": "hēi",
+"vi": "đen",
+"st": 12
+},
+"红": {
+"py": "hóng",
+"vi": "đỏ",
+"st": 6,
+"parts": [
+"纟",
+"工"
+],
+"struct": "Trái – phải"
+},
+"花": {
+"py": "huā",
+"vi": "hoa; tiêu (tiền, thời gian)",
+"st": 7,
+"parts": [
+"艹",
+"化"
+],
+"struct": "Trên – dưới"
+},
+"画": {
+"py": "huà",
+"vi": "vẽ; bức tranh",
+"st": 8
+},
+"坏": {
+"py": "huài",
+"vi": "xấu; hỏng",
+"st": 7,
+"parts": [
+"土",
+"不"
+],
+"struct": "Trái – phải"
+},
+"票": {
+"py": "piào",
+"vi": "vé",
+"st": 11,
+"parts": [
+"覀",
+"示"
+],
+"struct": "Trên – dưới"
+},
+"记": {
+"py": "jì",
+"vi": "nhớ; ghi",
+"st": 5,
+"parts": [
+"讠",
+"己"
+],
+"struct": "Trái – phải"
+},
+"教": {
+"py": "jiāo / jiào",
+"vi": "dạy; (教室: phòng học)",
+"st": 11,
+"parts": [
+"孝",
+"攵"
+],
+"struct": "Trái – phải"
+},
+"室": {
+"py": "shì",
+"vi": "phòng",
+"st": 9,
+"parts": [
+"宀",
+"至"
+],
+"struct": "Trên – dưới"
+},
+"介": {
+"py": "jiè",
+"vi": "ở giữa; (介绍: giới thiệu)",
+"st": 4
+},
+"绍": {
+"py": "shào",
+"vi": "tiếp nối; (介绍: giới thiệu)",
+"st": 8,
+"parts": [
+"纟",
+"召"
+],
+"struct": "Trái – phải"
+},
+"进": {
+"py": "jìn",
+"vi": "vào, tiến vào",
+"st": 7,
+"parts": [
+"辶",
+"井"
+],
+"struct": "Bao nửa (từ dưới-trái)"
+},
+"近": {
+"py": "jìn",
+"vi": "gần",
+"st": 7,
+"parts": [
+"辶",
+"斤"
+],
+"struct": "Bao nửa (từ dưới-trái)"
+},
+"经": {
+"py": "jīng",
+"vi": "trải qua; (经常: thường xuyên)",
+"st": 8,
+"parts": [
+"纟",
+"巠"
+],
+"struct": "Trái – phải"
+},
+"酒": {
+"py": "jiǔ",
+"vi": "rượu (酒店: khách sạn)",
+"st": 10,
+"parts": [
+"氵",
+"酉"
+],
+"struct": "Trái – phải"
+},
+"就": {
+"py": "jiù",
+"vi": "thì, liền, ngay",
+"st": 12,
+"parts": [
+"京",
+"尤"
+],
+"struct": "Trái – phải"
+},
+"咖": {
+"py": "kā",
+"vi": "âm dịch: 咖啡 (cà phê)",
+"st": 8
+},
+"啡": {
+"py": "fēi",
+"vi": "âm dịch: 咖啡 (cà phê)",
+"st": 11,
+"parts": [
+"口",
+"非"
+],
+"struct": "Trái – phải"
+},
+"始": {
+"py": "shǐ",
+"vi": "bắt đầu",
+"st": 8,
+"parts": [
+"女",
+"台"
+],
+"struct": "Trái – phải"
+},
+"考": {
+"py": "kǎo",
+"vi": "thi, kiểm tra",
+"st": 6,
+"parts": [
+"耂",
+"丂"
+],
+"struct": "Bao nửa (từ trên-trái)"
+},
+"试": {
+"py": "shì",
+"vi": "thử; (考试: thi)",
+"st": 8,
+"parts": [
+"讠",
+"式"
+],
+"struct": "Trái – phải"
+},
+"裤": {
+"py": "kù",
+"vi": "quần",
+"st": 12,
+"parts": [
+"衤",
+"库"
+],
+"struct": "Trái – phải"
+},
+"快": {
+"py": "kuài",
+"vi": "nhanh; vui (快乐); sắp (快要)",
+"st": 7,
+"parts": [
+"忄",
+"夬"
+],
+"struct": "Trái – phải"
+},
+"乐": {
+"py": "lè",
+"vi": "vui (快乐: vui vẻ)",
+"st": 5
+},
+"篮": {
+"py": "lán",
+"vi": "cái giỏ, rổ (篮球: bóng rổ)",
+"st": 16
+},
+"球": {
+"py": "qiú",
+"vi": "bóng, quả bóng",
+"st": 11,
+"parts": [
+"王",
+"求"
+],
+"struct": "Trái – phải"
+},
+"累": {
+"py": "lèi",
+"vi": "mệt",
+"st": 11,
+"parts": [
+"田",
+"糸"
+],
+"struct": "Trên – dưới"
+},
+"离": {
+"py": "lí",
+"vi": "cách; rời, xa rời",
+"st": 10
+},
+"礼": {
+"py": "lǐ",
+"vi": "lễ, lễ nghi (礼物: quà)",
+"st": 5,
+"parts": [
+"礻",
+"乚"
+],
+"struct": "Trái – phải"
+},
+"物": {
+"py": "wù",
+"vi": "vật, đồ vật",
+"st": 8,
+"parts": [
+"牛",
+"勿"
+],
+"struct": "Trái – phải"
+},
+"楼": {
+"py": "lóu",
+"vi": "tòa nhà; tầng",
+"st": 13,
+"parts": [
+"木",
+"娄"
+],
+"struct": "Trái – phải"
+},
+"路": {
+"py": "lù",
+"vi": "đường",
+"st": 13,
+"parts": [
+"足",
+"各"
+],
+"struct": "Trái – phải"
+},
+"旅": {
+"py": "lǚ",
+"vi": "đi xa, du lịch",
+"st": 10
+},
+"游": {
+"py": "yóu",
+"vi": "bơi; đi chơi, du ngoạn",
+"st": 12,
+"parts": [
+"氵",
+"斿"
+],
+"struct": "Trái – phải"
+},
+"绿": {
+"py": "lǜ",
+"vi": "xanh lá",
+"st": 11,
+"parts": [
+"纟",
+"录"
+],
+"struct": "Trái – phải"
+},
+"慢": {
+"py": "màn",
+"vi": "chậm",
+"st": 14,
+"parts": [
+"忄",
+"曼"
+],
+"struct": "Trái – phải"
+},
+"每": {
+"py": "měi",
+"vi": "mỗi, mọi",
+"st": 7
+},
+"拿": {
+"py": "ná",
+"vi": "cầm, lấy",
+"st": 10,
+"parts": [
+"合",
+"手"
+],
+"struct": "Trên – dưới"
+},
+"鸟": {
+"py": "niǎo",
+"vi": "chim",
+"st": 5
+},
+"旁": {
+"py": "páng",
+"vi": "bên cạnh",
+"st": 10
+},
+"跑": {
+"py": "pǎo",
+"vi": "chạy",
+"st": 12,
+"parts": [
+"足",
+"包"
+],
+"struct": "Trái – phải"
+},
+"步": {
+"py": "bù",
+"vi": "bước; đi bộ",
+"st": 7
+},
+"妻": {
+"py": "qī",
+"vi": "vợ",
+"st": 8,
+"parts": [
+"妻字头",
+"女"
+],
+"struct": "Trên – dưới"
+},
+"晴": {
+"py": "qíng",
+"vi": "trời nắng, quang đãng",
+"st": 12,
+"parts": [
+"日",
+"青"
+],
+"struct": "Trái – phải"
+},
+"让": {
+"py": "ràng",
+"vi": "để, bảo, cho phép; nhường",
+"st": 5,
+"parts": [
+"讠",
+"上"
+],
+"struct": "Trái – phải"
+},
+"肉": {
+"py": "ròu",
+"vi": "thịt",
+"st": 6
+},
+"网": {
+"py": "wǎng",
+"vi": "lưới; mạng (internet)",
+"st": 6
+},
+"身": {
+"py": "shēn",
+"vi": "thân, cơ thể",
+"st": 7
+},
+"体": {
+"py": "tǐ",
+"vi": "thể, cơ thể; (身体: sức khỏe)",
+"st": 7,
+"parts": [
+"亻",
+"本"
+],
+"struct": "Trái – phải"
+},
+"表": {
+"py": "biǎo",
+"vi": "bảng; biểu; đồng hồ (手表)",
+"st": 8
+},
+"舒": {
+"py": "shū",
+"vi": "thoải mái, dễ chịu (舒服)",
+"st": 12
+},
+"送": {
+"py": "sòng",
+"vi": "tặng; tiễn, đưa",
+"st": 9,
+"parts": [
+"辶",
+"关"
+],
+"struct": "Bao nửa (từ dưới-trái)"
+},
+"虽": {
+"py": "suī",
+"vi": "tuy, mặc dù",
+"st": 9,
+"parts": [
+"口",
+"虫"
+],
+"struct": "Trên – dưới"
+},
+"然": {
+"py": "rán",
+"vi": "như vậy, thế (虽然: tuy…)",
+"st": 12
+},
+"所": {
+"py": "suǒ",
+"vi": "nơi, chỗ; (所以: cho nên)",
+"st": 8,
+"parts": [
+"户",
+"斤"
+],
+"struct": "Trái – phải"
+},
+"疼": {
+"py": "téng",
+"vi": "đau",
+"st": 10,
+"parts": [
+"疒",
+"冬"
+],
+"struct": "Bao nửa (từ trên-trái)"
+},
+"踢": {
+"py": "tī",
+"vi": "đá",
+"st": 15,
+"parts": [
+"足",
+"易"
+],
+"struct": "Trái – phải"
+},
+"跳": {
+"py": "tiào",
+"vi": "nhảy",
+"st": 13,
+"parts": [
+"足",
+"兆"
+],
+"struct": "Trái – phải"
+},
+"舞": {
+"py": "wǔ",
+"vi": "múa, khiêu vũ",
+"st": 14
+},
+"头": {
+"py": "tóu",
+"vi": "đầu",
+"st": 5
+},
+"完": {
+"py": "wán",
+"vi": "xong, hết",
+"st": 7,
+"parts": [
+"宀",
+"元"
+],
+"struct": "Trên – dưới"
+},
+"万": {
+"py": "wàn",
+"vi": "vạn, mười nghìn",
+"st": 3
+},
+"往": {
+"py": "wǎng",
+"vi": "về phía, hướng về",
+"st": 8,
+"parts": [
+"彳",
+"主"
+],
+"struct": "Trái – phải"
+},
+"忘": {
+"py": "wàng",
+"vi": "quên",
+"st": 7,
+"parts": [
+"亡",
+"心"
+],
+"struct": "Trên – dưới"
+},
+"为": {
+"py": "wèi",
+"vi": "vì, cho; (为什么: tại sao; 因为: bởi vì)",
+"st": 4
+},
+"位": {
+"py": "wèi",
+"vi": "vị, chỗ; (lượng từ) vị",
+"st": 7,
+"parts": [
+"亻",
+"立"
+],
+"struct": "Trái – phải"
+},
+"希": {
+"py": "xī",
+"vi": "hy vọng, mong",
+"st": 7
+},
+"望": {
+"py": "wàng",
+"vi": "mong, trông mong; nhìn xa",
+"st": 11,
+"parts": [
+"亡",
+"月",
+"王"
+],
+"struct": "Trên – dưới"
+},
+"洗": {
+"py": "xǐ",
+"vi": "rửa, giặt",
+"st": 9,
+"parts": [
+"氵",
+"先"
+],
+"struct": "Trái – phải"
+},
+"笑": {
+"py": "xiào",
+"vi": "cười",
+"st": 10
+},
+"姓": {
+"py": "xìng",
+"vi": "họ; mang họ",
+"st": 8,
+"parts": [
+"女",
+"生"
+],
+"struct": "Trái – phải"
+},
+"颜": {
+"py": "yán",
+"vi": "màu (颜色); khuôn mặt",
+"st": 15,
+"parts": [
+"彦",
+"页"
+],
+"struct": "Trái – phải"
+},
+"眼": {
+"py": "yǎn",
+"vi": "mắt",
+"st": 11,
+"parts": [
+"目",
+"艮"
+],
+"struct": "Trái – phải"
+},
+"睛": {
+"py": "jīng",
+"vi": "con ngươi (眼睛: mắt)",
+"st": 13
+},
+"爷": {
+"py": "yé",
+"vi": "ông (爷爷: ông nội)",
+"st": 6,
+"parts": [
+"父",
+"卩"
+],
+"struct": "Trên – dưới"
+},
+"已": {
+"py": "yǐ",
+"vi": "đã, rồi (已经)",
+"st": 3
+},
+"因": {
+"py": "yīn",
+"vi": "nguyên nhân; (因为: bởi vì)",
+"st": 6,
+"parts": [
+"囗",
+"大"
+],
+"struct": "Bao kín"
+},
+"阴": {
+"py": "yīn",
+"vi": "râm, âm u",
+"st": 6,
+"parts": [
+"阝",
+"月"
+],
+"struct": "Trái – phải"
+},
+"泳": {
+"py": "yǒng",
+"vi": "bơi (游泳)",
+"st": 8,
+"parts": [
+"氵",
+"永"
+],
+"struct": "Trái – phải"
+},
+"右": {
+"py": "yòu",
+"vi": "phải (bên phải)",
+"st": 5
+},
+"鱼": {
+"py": "yú",
+"vi": "cá",
+"st": 8
+},
+"远": {
+"py": "yuǎn",
+"vi": "xa",
+"st": 7,
+"parts": [
+"辶",
+"元"
+],
+"struct": "Bao nửa (từ dưới-trái)"
+},
+"运": {
+"py": "yùn",
+"vi": "vận động; vận chuyển",
+"st": 7,
+"parts": [
+"辶",
+"云"
+],
+"struct": "Bao nửa (từ dưới-trái)"
+},
+"丈": {
+"py": "zhàng",
+"vi": "trượng (丈夫: chồng)",
+"st": 3
+},
+"夫": {
+"py": "fū",
+"vi": "chồng; phu",
+"st": 4
+},
+"着": {
+"py": "zhe",
+"vi": "(trợ từ) đang, … (trạng thái kéo dài)",
+"st": 11,
+"parts": [
+"羊",
+"目"
+],
+"struct": "Bao nửa (từ trên-trái)"
+},
+"周": {
+"py": "zhōu",
+"vi": "tuần; vòng quanh",
+"st": 8,
+"parts": [
+"冂",
+"吉"
+],
+"struct": "Bao ba phía (hở dưới)"
+},
+"准": {
+"py": "zhǔn",
+"vi": "chuẩn; chắc chắn",
+"st": 10,
+"parts": [
+"冫",
+"隹"
+],
+"struct": "Trái – phải"
+},
+"备": {
+"py": "bèi",
+"vi": "chuẩn bị, có sẵn",
+"st": 8,
+"parts": [
+"夂",
+"田"
+],
+"struct": "Trên – dưới"
+},
+"自": {
+"py": "zì",
+"vi": "tự, bản thân",
+"st": 6
+},
+"己": {
+"py": "jǐ",
+"vi": "mình, bản thân (自己)",
+"st": 3
+},
+"走": {
+"py": "zǒu",
+"vi": "đi, đi bộ; rời đi",
+"st": 7,
+"parts": [
+"土",
+"止"
+],
+"struct": "Trên – dưới"
+},
+"足": {
+"py": "zú",
+"vi": "chân; đủ (足球: bóng đá)",
+"st": 7
+},
+"最": {
+"py": "zuì",
+"vi": "nhất",
+"st": 12,
+"parts": [
+"日",
+"取"
+],
+"struct": "Trên – dưới"
+},
+"左": {
+"py": "zuǒ",
+"vi": "trái (bên trái)",
+"st": 5
+},
+"烤": {
+"py": "kǎo",
+"vi": "nướng, quay",
+"st": 10
+},
+"鸭": {
+"py": "yā",
+"vi": "vịt",
+"st": 10
+},
+"颐": {
+"py": "yí",
+"vi": "nuôi dưỡng (颐和园: Di Hòa Viên)",
+"st": 13
+},
+"园": {
+"py": "yuán",
+"vi": "vườn, công viên",
+"st": 7
+}
+}

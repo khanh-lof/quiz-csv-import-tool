@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient, HttpStatusCode } from '@angular/common/http';
 import { catchError, exhaustMap, map, Observable, of, Subscription, takeWhile, tap, timer } from 'rxjs';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { AiJob } from '../models/ai-job';
+import { AiJob, failedJobMessage } from '../models/ai-job';
 import { AuthService } from './auth.service';
 import { SubmittedJob } from './ai-csv.service';
 import { escapeHtml } from './escape-html';
@@ -80,6 +80,11 @@ export class AiJobService {
       }));
   }
 
+  // Puts a job the server changed in place of the one the list holds, until the next poll brings it anyway.
+  replace(job: AiJob): void {
+    this.jobs.update(jobs => jobs.map(other => other.id === job.id ? job : other));
+  }
+
   remove(id: string): Observable<void> {
     return this.http.delete<void>(`${this.endpointUrl}/${id}`).pipe(
       tap(() => this.jobs.update(jobs => jobs.filter(job => job.id !== id))),
@@ -116,7 +121,7 @@ export class AiJobService {
       ? 'Quá lâu. Gửi lại hoặc giảm số ảnh.'
       : job.errorStatus === HttpStatusCode.BadGateway
         ? 'Thử lại sau ít phút.'
-        : escapeHtml(job.errorMessage || 'Không rõ lỗi.');
+        : escapeHtml(failedJobMessage(job));
     this.notificationService.error('AI không tạo được quiz',
       `"${title}": ${reason}`, {
         nzPlacement: 'top',

@@ -1,0 +1,405 @@
+{
+ "themes": {
+  "jade": ":root{--paper:#fff;--grid:#a8b3bb;--bad:#d23a26;--bad-d:#9d2615;--bad-l:#fdece8;--ink:#14202b;--ink-2:#33434f;--muted:#5b6a77;--line:#1d2a36;--bg:#edf0ec;--hair:#d5dbd6;--bg-0:rgba(237,240,236,0);--soft:#f1f4f1;--soft-2:#e4e9e5;--soft-3:#f4f6f3;--soft-4:#dde3de;--tray:#162637;--tray-2:#21405c;--tile:#fdf9ec;--tile-2:#f0e6c8;--tile-edge:#c5b484;--tile-ink:#7d6c3f;--jade:#0e7a67;--jade-d:#095647;--jade-l:#def2ec;--jade-b:#3ddcb2;--okc-1:#eafaf3;--okc-2:#c9ecdd;--okc-edge:#86c7b1;--jade-a:rgba(14,122,103,.28);--jade-line:#a7dccd;--seal:#d23a26;--seal-d:#9d2615;--seal-l:#fdece8;--amber:#f2a81d;--amber-l:#fff3d1;--amber-d:#7b5200;}",
+  "blue": ":root{--paper:#fff;--grid:#a8b3bb;--bad:#d23a26;--bad-d:#9d2615;--bad-l:#fdece8;--ink:#14202b;--ink-2:#33434f;--muted:#5b6a77;--line:#1d2a36;--bg:#eef1f6;--hair:#d6d9dd;--bg-0:rgba(238,241,246,0);--soft:#f6f7fa;--soft-2:#e4e7ec;--soft-3:#f8f9fb;--soft-4:#dde0e5;--tray:#14233b;--tray-2:#1e3964;--tile:#fbf8ee;--tile-2:#f6edd0;--tile-edge:#e1cb84;--tile-ink:#7c6a2c;--jade:#1f5fbf;--jade-d:#164286;--jade-l:#e2eaf7;--jade-b:#4784e1;--okc-1:#eff4fb;--okc-2:#d2dff2;--okc-edge:#93b2e0;--jade-a:rgba(31,95,191,0.28);--jade-line:#b7cceb;--seal:#d94f30;--seal-d:#a33b24;--seal-l:#fbedea;--amber:#f5b021;--amber-l:#fdf2d9;--amber-d:#6e4f0f;}",
+  "lilac": ":root{--paper:#fff;--grid:#a8b3bb;--bad:#d23a26;--bad-d:#9d2615;--bad-l:#fdece8;--ink:#1d1a2b;--ink-2:#3f3c4b;--muted:#73717c;--line:#262333;--bg:#f2eff7;--hair:#dad7de;--bg-0:rgba(242,239,247,0);--soft:#f8f6fb;--soft-2:#e8e5ed;--soft-3:#faf9fc;--soft-4:#e1dee6;--tray:#231a3a;--tray-2:#372661;--tile:#fdf8ee;--tile-2:#fbebcd;--tile-edge:#edc67a;--tile-ink:#846424;--jade:#6a3fb5;--jade-d:#4a2c7f;--jade-l:#ece6f5;--jade-b:#8459cf;--okc-1:#f5f2fa;--okc-2:#e1d9f0;--okc-edge:#b7a3db;--jade-a:rgba(106,63,181,0.28);--jade-line:#cfc2e7;--seal:#d6336c;--seal-d:#a02651;--seal-l:#fbebf0;--amber:#f2a81d;--amber-l:#fff3d1;--amber-d:#7b5200;}",
+  "terracotta": ":root{--paper:#fff;--grid:#a8b3bb;--bad:#d23a26;--bad-d:#9d2615;--bad-l:#fdece8;--ink:#2a1d14;--ink-2:#4a3f37;--muted:#7b736d;--line:#33261d;--bg:#f6f0e8;--hair:#ddd8d1;--bg-0:rgba(246,240,232,0);--soft:#faf7f2;--soft-2:#ece6df;--soft-3:#fbf9f6;--soft-4:#e5dfd8;--tray:#2b1f17;--tray-2:#4f3626;--tile:#fffaf0;--tile-2:#ffeecc;--tile-edge:#fbcd6f;--tile-ink:#8f6819;--jade:#b6520b;--jade-d:#7f3908;--jade-l:#f6e9df;--jade-b:#ef8439;--okc-1:#faf3ee;--okc-2:#f0dcce;--okc-edge:#dcac8a;--jade-a:rgba(182,82,11,0.28);--jade-line:#e8c8b1;--seal:#a3262a;--seal-d:#7a1c20;--seal-l:#f6e9ea;--amber:#e8b100;--amber-l:#fbf2d4;--amber-d:#685000;}",
+  "rose": ":root{--paper:#fff;--grid:#a8b3bb;--bad:#d23a26;--bad-d:#9d2615;--bad-l:#fdece8;--ink:#2b1620;--ink-2:#4b3941;--muted:#7c6f75;--line:#331f29;--bg:#fbeff2;--hair:#e2d7da;--bg-0:rgba(251,239,242,0);--soft:#fdf6f8;--soft-2:#f1e5e8;--soft-3:#fdf9fa;--soft-4:#e9dee1;--tray:#3a1a2a;--tray-2:#612644;--tile:#fff7f0;--tile-2:#ffe4cc;--tile-edge:#fbb16f;--tile-ink:#8f5019;--jade:#c2185b;--jade-d:#881140;--jade-l:#f7e1ea;--jade-b:#e74082;--okc-1:#fbeff4;--okc-2:#f3d1de;--okc-edge:#e290b0;--jade-a:rgba(194,24,91,0.28);--jade-line:#ebb5cb;--seal:#7c3aed;--seal-d:#5d2cb2;--seal-l:#f2ebfd;--amber:#f2a81d;--amber-l:#fff3d1;--amber-d:#7b5200;}",
+  "red_black": ":root{--paper:#fff;--grid:#a8b3bb;--bad:#d23a26;--bad-d:#9d2615;--bad-l:#fdece8;--ink:#1c1c1f;--ink-2:#3e3e41;--muted:#727274;--line:#252528;--bg:#f4f1ee;--hair:#dcd9d6;--bg-0:rgba(244,241,238,0);--soft:#f9f7f6;--soft-2:#eae7e4;--soft-3:#fbf9f8;--soft-4:#e3e0dd;--tray:#1f1f23;--tray-2:#343441;--tile:#fdf9ec;--tile-2:#f0e6c8;--tile-edge:#c5b484;--tile-ink:#7d6c3f;--jade:#b3261e;--jade-d:#7d1b15;--jade-l:#f5e3e2;--jade-b:#e05048;--okc-1:#faf0ef;--okc-2:#f0d4d2;--okc-edge:#db9793;--jade-a:rgba(179,38,30,0.28);--jade-line:#e7bab7;--seal:#b3261e;--seal-d:#861c16;--seal-l:#f7e9e8;--amber:#f2a81d;--amber-l:#fff3d1;--amber-d:#7b5200;}"
+ },
+ "pinyin": [
+  {
+   "in": "túshūguǎn",
+   "n": 3,
+   "out": [
+    [
+     "tú",
+     "shū",
+     "guǎn"
+    ]
+   ]
+  },
+  {
+   "in": "túshūguǎn",
+   "n": 1,
+   "out": []
+  },
+  {
+   "in": "xian",
+   "n": 1,
+   "out": [
+    [
+     "xian"
+    ]
+   ]
+  },
+  {
+   "in": "xian",
+   "n": 2,
+   "out": [
+    [
+     "xia",
+     "n"
+    ],
+    [
+     "xi",
+     "an"
+    ]
+   ]
+  },
+  {
+   "in": "xiān",
+   "n": 2,
+   "out": [
+    [
+     "xiā",
+     "n"
+    ],
+    [
+     "xi",
+     "ān"
+    ]
+   ]
+  },
+  {
+   "in": "nǚ'ér",
+   "n": 2,
+   "out": [
+    [
+     "nǚ",
+     "ér"
+    ]
+   ]
+  },
+  {
+   "in": "nǚ'ér",
+   "n": 3,
+   "out": [
+    [
+     "nǚ",
+     "é",
+     "r"
+    ]
+   ]
+  },
+  {
+   "in": "nǚér",
+   "n": 2,
+   "out": [
+    [
+     "nǚé",
+     "r"
+    ],
+    [
+     "nǚ",
+     "ér"
+    ]
+   ]
+  },
+  {
+   "in": "yíhuìr",
+   "n": 3,
+   "out": [
+    [
+     "yí",
+     "huì",
+     "r"
+    ]
+   ]
+  },
+  {
+   "in": "yíhuìr",
+   "n": 4,
+   "out": []
+  },
+  {
+   "in": "zhuōzi",
+   "n": 2,
+   "out": [
+    [
+     "zhuō",
+     "zi"
+    ]
+   ]
+  },
+  {
+   "in": "lǎoshī",
+   "n": 2,
+   "out": [
+    [
+     "lǎo",
+     "shī"
+    ]
+   ]
+  },
+  {
+   "in": "bù xíng",
+   "n": 2,
+   "out": [
+    [
+     "bù",
+     "xíng"
+    ]
+   ]
+  },
+  {
+   "in": "Běijīng",
+   "n": 2,
+   "out": [
+    [
+     "Běi",
+     "jīng"
+    ]
+   ]
+  },
+  {
+   "in": "fāngbiàn",
+   "n": 2,
+   "out": [
+    [
+     "fāng",
+     "biàn"
+    ]
+   ]
+  },
+  {
+   "in": "hěn",
+   "n": 1,
+   "out": [
+    [
+     "hěn"
+    ]
+   ]
+  },
+  {
+   "in": "r",
+   "n": 1,
+   "out": []
+  },
+  {
+   "in": "dàrén",
+   "n": 2,
+   "out": [
+    [
+     "dà",
+     "rén"
+    ]
+   ]
+  },
+  {
+   "in": "shēngrì",
+   "n": 2,
+   "out": [
+    [
+     "shēng",
+     "rì"
+    ]
+   ]
+  },
+  {
+   "in": "guǒzhī",
+   "n": 2,
+   "out": [
+    [
+     "guǒ",
+     "zhī"
+    ]
+   ]
+  },
+  {
+   "in": "qǐngwèn",
+   "n": 2,
+   "out": [
+    [
+     "qǐng",
+     "wèn"
+    ]
+   ]
+  },
+  {
+   "in": "xuéxiào",
+   "n": 2,
+   "out": [
+    [
+     "xué",
+     "xiào"
+    ]
+   ]
+  },
+  {
+   "in": "jiānglái",
+   "n": 2,
+   "out": [
+    [
+     "jiāng",
+     "lái"
+    ]
+   ]
+  },
+  {
+   "in": "chángcháng",
+   "n": 2,
+   "out": [
+    [
+     "cháng",
+     "cháng"
+    ]
+   ]
+  },
+  {
+   "in": "ēn",
+   "n": 1,
+   "out": [
+    [
+     "ēn"
+    ]
+   ]
+  },
+  {
+   "in": "èr",
+   "n": 1,
+   "out": [
+    [
+     "èr"
+    ]
+   ]
+  },
+  {
+   "in": "ǎi",
+   "n": 1,
+   "out": [
+    [
+     "ǎi"
+    ]
+   ]
+  },
+  {
+   "in": "lüè",
+   "n": 1,
+   "out": [
+    [
+     "lüè"
+    ]
+   ]
+  },
+  {
+   "in": "nüè",
+   "n": 1,
+   "out": [
+    [
+     "nüè"
+    ]
+   ]
+  },
+  {
+   "in": "lǜ",
+   "n": 1,
+   "out": [
+    [
+     "lǜ"
+    ]
+   ]
+  },
+  {
+   "in": "měi’ān",
+   "n": 2,
+   "out": [
+    [
+     "měi",
+     "ān"
+    ]
+   ]
+  },
+  {
+   "in": "",
+   "n": 1,
+   "out": []
+  },
+  {
+   "in": "a",
+   "n": 2,
+   "out": []
+  },
+  {
+   "in": "wáng",
+   "n": 1,
+   "out": [
+    [
+     "wáng"
+    ]
+   ]
+  },
+  {
+   "in": "xīwàng",
+   "n": 2,
+   "out": [
+    [
+     "xī",
+     "wàng"
+    ]
+   ]
+  },
+  {
+   "in": "wēnnuǎn",
+   "n": 2,
+   "out": [
+    [
+     "wēn",
+     "nuǎn"
+    ]
+   ]
+  },
+  {
+   "in": "āyí",
+   "n": 2,
+   "out": [
+    [
+     "ā",
+     "yí"
+    ]
+   ]
+  },
+  {
+   "in": "hǎoxiàng",
+   "n": 2,
+   "out": [
+    [
+     "hǎo",
+     "xiàng"
+    ]
+   ]
+  },
+  {
+   "in": "yīnggāi",
+   "n": 2,
+   "out": [
+    [
+     "yīng",
+     "gāi"
+    ]
+   ]
+  },
+  {
+   "in": "chū zū chē",
+   "n": 3,
+   "out": [
+    [
+     "chū",
+     "zū",
+     "chē"
+    ]
+   ]
+  },
+  {
+   "in": "diànyǐngyuàn",
+   "n": 3,
+   "out": [
+    [
+     "diàn",
+     "yǐng",
+     "yuàn"
+    ]
+   ]
+  }
+ ]
+}

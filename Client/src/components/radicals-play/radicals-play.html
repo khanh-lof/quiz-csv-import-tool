@@ -1,0 +1,203 @@
+<section aria-label="Ghép bộ thủ" class="radicals-play">
+  <div class="topbar">
+    <a nz-button nzType="default" routerLink="/ai-history">
+      <nz-icon nzTheme="outline" nzType="arrow-left"/>
+      Về Lịch sử
+    </a>
+    @if (job(); as current) {
+      <h2 class="title">{{ current.title }}</h2>
+    }
+    @if (screen() === 'ready') {
+      <div class="actions">
+        @if (edit()) {
+          <button (click)="save()" [disabled]="editEmpty()" [nzLoading]="saving()" nz-button nzType="primary" type="button">
+            <nz-icon nzTheme="outline" nzType="save"/>
+            Lưu
+          </button>
+          <button (click)="cancelEdit()" [disabled]="saving()" nz-button nzType="default" type="button">Huỷ</button>
+        } @else {
+          <button (click)="startEdit()" [nzLoading]="editLoading()" nz-button nzType="default" type="button">
+            <nz-icon nzTheme="outline" nzType="edit"/>
+            Sửa
+          </button>
+          <button (click)="download()" nz-button nzType="primary" type="button">
+            <nz-icon nzTheme="outline" nzType="download"/>
+            Tải file
+          </button>
+          <button (click)="fullScreen()" nz-button nzType="default" type="button">
+            <nz-icon nzTheme="outline" nzType="fullscreen"/>
+            Toàn màn hình
+          </button>
+        }
+      </div>
+    }
+  </div>
+
+  @switch (screen()) {
+    @case ('loading') {
+      <div class="state">
+        <nz-spin nzSimple nzSize="large"/>
+      </div>
+    }
+    @case ('error') {
+      <div class="state">
+        <p>{{ errorText() }}</p>
+      </div>
+    }
+    @case ('ready') {
+      @if (editError()) {
+        <nz-alert [nzMessage]="editError()" class="edit-error" nzShowIcon nzType="error"/>
+      }
+      @if (edit(); as table) {
+        <div class="edit">
+          @if (editEmpty()) {
+            <p>Không có mục nào để sửa.</p>
+          }
+          @if (table.words.length > 0) {
+            <h3 class="edit-heading">Từ</h3>
+            @if (hasDropped()) {
+              <p class="edit-hint">Từ "Đã bỏ": nhập pinyin để đưa vào bài.</p>
+            }
+            <nz-table #wordsTable [nzData]="table.words" [nzFrontPagination]="false" [nzScroll]="{ x: 'max-content' }"
+                      [nzShowPagination]="false" class="edit-table" nzSize="small">
+              <thead>
+              <tr>
+                <th>Từ</th>
+                <th>Bài</th>
+                <th>Pinyin</th>
+                <th>Nghĩa</th>
+              </tr>
+              </thead>
+              <tbody>
+                @for (row of wordsTable.data; track row.hanzi) {
+                  <tr>
+                    <td>
+                      <span class="hanzi">{{ row.hanzi }}</span>
+                      @if (row.dropped) {
+                        <nz-tag>Đã bỏ</nz-tag>
+                      } @else if (row.uncertain) {
+                        <nz-tag nzColor="warning">AI không chắc</nz-tag>
+                      } @else if (row.ai) {
+                        <nz-tag>AI</nz-tag>
+                      }
+                    </td>
+                    <td>{{ row.lessons.join(', ') }}</td>
+                    <td>
+                      <input (ngModelChange)="setWord(row.hanzi, { pinyin: $event })" [attr.aria-label]="'Pinyin của ' + row.hanzi"
+                             [attr.maxlength]="maxPinyinLength" [ngModel]="row.pinyin" [nzStatus]="row.problem === 'pinyin' ? 'error' : ''"
+                             class="pinyin-input" nz-input/>
+                      @if (row.problem === 'pinyin') {
+                        <div class="problem">Pinyin không khớp số chữ</div>
+                      } @else if (readingHints().get(row.hanzi); as hint) {
+                        <div class="edit-hint">{{ hint }}</div>
+                      }
+                    </td>
+                    <td>
+                      <input (ngModelChange)="setWord(row.hanzi, { meaning: $event })" [attr.aria-label]="'Nghĩa của ' + row.hanzi"
+                             [attr.maxlength]="maxNoteLength" [ngModel]="row.meaning" [nzStatus]="row.problem === 'missing' ? 'error' : ''"
+                             class="note-input" nz-input/>
+                      @if (row.problem === 'missing') {
+                        <div class="problem">Cần nhập</div>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </nz-table>
+          }
+          @if (table.chars.length > 0) {
+            <h3 class="edit-heading">Chữ</h3>
+            <nz-table #charsTable [nzData]="table.chars" [nzFrontPagination]="false" [nzScroll]="{ x: 'max-content' }"
+                      [nzShowPagination]="false" class="edit-table" nzSize="small">
+              <thead>
+              <tr>
+                <th>Chữ</th>
+                <th>Trong từ</th>
+                <th>Nghĩa</th>
+              </tr>
+              </thead>
+              <tbody>
+                @for (row of charsTable.data; track row.char) {
+                  <tr>
+                    <td>
+                      <span class="hanzi">{{ row.char }}</span>
+                      @if (row.ai) {
+                        <nz-tag>AI</nz-tag>
+                      }
+                    </td>
+                    <td>{{ row.inWords.join(', ') }}</td>
+                    <td>
+                      <input (ngModelChange)="setChar(row.char, $event)" [attr.aria-label]="'Nghĩa của chữ ' + row.char"
+                             [attr.maxlength]="maxNoteLength" [ngModel]="row.meaning" [nzStatus]="row.problem ? 'error' : ''"
+                             class="note-input" nz-input/>
+                      @if (row.problem) {
+                        <div class="problem">Cần nhập</div>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </nz-table>
+          }
+          @if (table.components.length > 0) {
+            <h3 class="edit-heading">Bộ</h3>
+            <nz-table #componentsTable [nzData]="table.components" [nzFrontPagination]="false" [nzScroll]="{ x: 'max-content' }"
+                      [nzShowPagination]="false" class="edit-table" nzSize="small">
+              <thead>
+              <tr>
+                <th>Bộ</th>
+                <th>Trong chữ</th>
+                <th>Tên</th>
+                <th>Pinyin</th>
+                <th>Nghĩa</th>
+              </tr>
+              </thead>
+              <tbody>
+                @for (row of componentsTable.data; track row.component) {
+                  <tr>
+                    <td>
+                      <span class="hanzi">{{ row.component }}</span>
+                      @if (row.ai) {
+                        <nz-tag>AI</nz-tag>
+                      }
+                    </td>
+                    <td>{{ row.inChars.join(', ') }}</td>
+                    <td>
+                      <input (ngModelChange)="setComponent(row.component, { name: $event })" [attr.aria-label]="'Tên bộ ' + row.component"
+                             [attr.maxlength]="maxNoteLength" [ngModel]="row.name" class="name-input" nz-input/>
+                    </td>
+                    <td>
+                      <input (ngModelChange)="setComponent(row.component, { pinyin: $event })" [attr.aria-label]="'Pinyin bộ ' + row.component"
+                             [attr.maxlength]="maxPinyinLength" [ngModel]="row.pinyin" class="pinyin-input" nz-input/>
+                    </td>
+                    <td>
+                      <input (ngModelChange)="setComponent(row.component, { meaning: $event })" [attr.aria-label]="'Nghĩa bộ ' + row.component"
+                             [attr.maxlength]="maxNoteLength" [ngModel]="row.meaning" [nzStatus]="row.problem ? 'error' : ''"
+                             class="note-input" nz-input/>
+                      @if (row.problem) {
+                        <div class="problem">Cần nhập</div>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </nz-table>
+          }
+        </div>
+      } @else if (review().length > 0) {
+        <nz-alert [nzDescription]="reviewList" class="review" nzMessage="Cần xem lại" nzShowIcon nzType="warning"/>
+        <ng-template #reviewList>
+          <ul class="review-list">
+            @for (line of review(); track $index) {
+              <li><b>{{ line.label }}:</b> {{ line.text }}</li>
+            }
+          </ul>
+        </ng-template>
+      }
+      <div #frameBox class="frame-box">
+        <!-- allow-scripts without allow-same-origin: the exercise runs, but as another origin than QuizTool. -->
+        <iframe [srcdoc]="frameContent()" class="frame" sandbox="allow-scripts allow-popups" title="Bài tập ghép bộ thủ"></iframe>
+      </div>
+    }
+  }
+</section>

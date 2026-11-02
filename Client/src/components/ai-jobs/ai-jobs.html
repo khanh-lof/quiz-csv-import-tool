@@ -21,6 +21,7 @@
       <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
       <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
       <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Game"></nz-option>
+      <nz-option [nzValue]="ExportType.Radicals" nzLabel="Ghép bộ thủ"></nz-option>
     </nz-select>
     <nz-select (ngModelChange)="setCourseType($event ?? null)" [ngModel]="courseType()" class="filter-select" nzAllowClear
                nzPlaceHolder="Giáo trình">
@@ -95,12 +96,24 @@
               </button>
               <nz-dropdown-menu #jobMenu="nzDropdownMenu">
                 <ul class="action-menu" nz-menu>
-                  <li (click)="view(job)" nz-menu-item>
-                    <nz-icon nzTheme="outline" nzType="eye"/>
-                    Xem kết quả
-                  </li>
+                  <!-- A finished "Ghép bộ thủ" job is a page, not rows: it is seen by opening it. -->
+                  @if (!(job.status === 'done' && job.exportType === ExportType.Radicals)) {
+                    <li (click)="view(job)" nz-menu-item>
+                      <nz-icon nzTheme="outline" nzType="eye"/>
+                      Xem kết quả
+                    </li>
+                  }
                   @if (job.status === 'done') {
-                    @if (job.creative) {
+                    @if (job.creative && job.exportType === ExportType.Radicals) {
+                      <li (click)="openRadicals(job)" nz-menu-item>
+                        <nz-icon nzTheme="outline" nzType="play-circle"/>
+                        Chơi ngay
+                      </li>
+                      <li (click)="downloadRadicals(job)" nz-menu-item>
+                        <nz-icon nzTheme="outline" nzType="download"/>
+                        Tải file
+                      </li>
+                    } @else if (job.creative) {
                       @if (job.exportType === ExportType.GestureQuiz) {
                         <!-- Played on QuizTool itself, so playing comes first and the file only keeps the quiz. -->
                         <li (click)="play(job)" nz-menu-item>
@@ -166,7 +179,7 @@
     <ng-container *nzModalContent>
       @if (viewing(); as job) {
         @if (job.status === 'failed') {
-          <p class="job-error">{{ job.errorMessage || 'Không rõ lỗi.' }}</p>
+          <p class="job-error">{{ failedJobMessage(job) }}</p>
         } @else if (viewTable(); as result) {
           @if (result.rows.length === 0) {
             <p>(AI không trả về gì)</p>
