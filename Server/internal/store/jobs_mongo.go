@@ -37,8 +37,25 @@ func (m *MongoJobs) Create(ctx context.Context, job *Job) error {
 	return err
 }
 
-func (m *MongoJobs) Complete(ctx context.Context, username, id, csv string) error {
-	return m.finish(ctx, username, id, bson.M{"status": JobDone, "csv": csv})
+func (m *MongoJobs) Complete(ctx context.Context, username, id, csv, source string) error {
+	set := bson.M{"status": JobDone, "csv": csv}
+	if source != "" {
+		set["source"] = source
+	}
+	return m.finish(ctx, username, id, set)
+}
+
+func (m *MongoJobs) Revise(ctx context.Context, username, id, csv, source string) error {
+	res, err := m.jobs.UpdateOne(ctx,
+		bson.M{"_id": id, "username": username, "status": JobDone},
+		bson.M{"$set": bson.M{"csv": csv, "source": source}})
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (m *MongoJobs) Fail(ctx context.Context, username, id string, errorStatus int, message string) error {
@@ -68,8 +85,10 @@ func (m *MongoJobs) Get(ctx context.Context, username, id string) (*Job, error) 
 }
 
 func (m *MongoJobs) List(ctx context.Context, username string, limit int) ([]Job, error) {
+	// The source of a Radicals job is only read to rebuild it, never by the history the list feeds.
 	cursor, err := m.jobs.Find(ctx, bson.M{"username": username},
-		options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}).SetLimit(int64(limit)))
+		options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}).SetLimit(int64(limit)).
+			SetProjection(bson.M{"source": 0}))
 	if err != nil {
 		return nil, err
 	}

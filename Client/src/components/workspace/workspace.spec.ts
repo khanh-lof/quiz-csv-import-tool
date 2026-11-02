@@ -22,6 +22,17 @@ describe('breadcrumbFor', () => {
     ]);
   });
 
+  it('links a "Ghép bộ thủ" exercise back to the history', () => {
+    expect(breadcrumbFor('/ai-history/radicals/abc123')).toEqual([
+      { label: 'AI' },
+      {
+        label: 'Lịch sử',
+        link: '/ai-history'
+      },
+      { label: 'Ghép bộ thủ' }
+    ]);
+  });
+
   it('ignores the query string and fragment', () => {
     expect(breadcrumbFor('/quiz?from=ai#top')).toEqual([{ label: 'Quiz thủ công' }]);
   });

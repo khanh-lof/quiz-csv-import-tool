@@ -29,16 +29,21 @@ type fakeGenerator struct {
 	err      error
 	// block makes Generate wait for the context to end, like a stalled LLM call.
 	block bool
+	// result is the CSV Generate answers, empty meaning "a,b", and source the source it answers with it.
+	result, source string
 }
 
-func (g *fakeGenerator) Generate(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (string, error) {
+func (g *fakeGenerator) Generate(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (csvgen.Result, error) {
 	g.calls++
 	g.images, g.creative, g.opts = images, creative, opts
 	if g.block {
 		<-ctx.Done()
-		return "", ctx.Err()
+		return csvgen.Result{}, ctx.Err()
 	}
-	return "a,b", g.err
+	if g.result != "" {
+		return csvgen.Result{CSV: g.result, Source: g.source}, g.err
+	}
+	return csvgen.Result{CSV: "a,b"}, g.err
 }
 
 // testClockStart is where newEnv's clock begins; tests build closing times from it.
@@ -320,6 +325,8 @@ type upload struct {
 	files   int
 	rawBody *string // overrides the multipart body when set
 	ctype   *string
+	// fields are text fields of the multipart body, beside the files.
+	fields map[string]string
 }
 
 func (e *testEnv) upload(t *testing.T, u upload) *httptest.ResponseRecorder {
@@ -327,6 +334,9 @@ func (e *testEnv) upload(t *testing.T, u upload) *httptest.ResponseRecorder {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	_ = mw.WriteField("note", "not a file")
+	for name, value := range u.fields {
+		_ = mw.WriteField(name, value)
+	}
 	for range u.files {
 		fw, _ := mw.CreateFormFile("images", "lesson.png")
 		_, _ = fw.Write([]byte("png-bytes"))

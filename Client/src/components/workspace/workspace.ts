@@ -31,6 +31,8 @@ export interface NavPage {
   label: string;
   icon: string;
   hint: string;
+  // The breadcrumb's last crumb on a page below this one (an assignment's leaderboard, a "Ghép bộ thủ" exercise).
+  childLabel?: string;
 }
 
 // A top-level entry of the menu: a page of its own, or a group of pages shown as an inline submenu.
@@ -63,7 +65,8 @@ export const NAV: NavEntry[] = [
         route: '/ai-history',
         label: 'Lịch sử',
         icon: 'history',
-        hint: 'Kết quả AI: tải file, chơi, giao bài. Cần đăng nhập.'
+        hint: 'Kết quả AI: tải file, chơi, giao bài. Cần đăng nhập.',
+        childLabel: 'Ghép bộ thủ'
       }
     ]
   },
@@ -81,14 +84,15 @@ export const NAV: NavEntry[] = [
         route: '/assignments',
         label: 'Bài đã giao',
         icon: 'trophy',
-        hint: 'Link, mã QR và bảng xếp hạng. Cần đăng nhập.'
+        hint: 'Link, mã QR và bảng xếp hạng. Cần đăng nhập.',
+        childLabel: 'Bảng xếp hạng'
       }
     ]
   }
 ];
 
-// The breadcrumb of a URL inside the frame: the menu group (plain text, it is no page), the page, and for an
-// assignment's leaderboard one more level below its list.
+// The breadcrumb of a URL inside the frame: the menu group (plain text, it is no page), the page, and for a page
+// below it (an assignment's leaderboard, an exercise of the history) one more level.
 export function breadcrumbFor(url: string): Crumb[] {
   const path = url.split(/[?#]/)[0];
   for (const entry of NAV) {
@@ -102,7 +106,7 @@ export function breadcrumbFor(url: string): Crumb[] {
     return [...trail, {
       label: page.label,
       link: page.route
-    }, { label: 'Bảng xếp hạng' }];
+    }, { label: page.childLabel ?? '' }];
   }
   return [];
 }
