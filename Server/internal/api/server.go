@@ -23,6 +23,8 @@ type Server struct {
 	Jobs store.Jobs
 	// Assignments holds the quizzes teachers handed to students, and those students.
 	Assignments store.Assignments
+	// LoginAttempts counts the password checks per username for the login limit.
+	LoginAttempts store.LoginAttempts
 
 	Auth *auth.Service
 	JWT  *auth.JWT
@@ -33,6 +35,9 @@ type Server struct {
 	RefreshTokenTTL time.Duration
 	AICallsPerRound int
 	RoundDuration   time.Duration
+	// LoginMaxAttempts password checks are allowed per username in each LoginWindow.
+	LoginMaxAttempts int
+	LoginWindow      time.Duration
 	// LLMTimeout bounds each Generator call; zero means no limit.
 	LLMTimeout time.Duration
 

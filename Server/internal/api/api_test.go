@@ -66,21 +66,26 @@ func newEnv(t *testing.T) *testEnv {
 	jobs := store.NewMemoryJobs()
 	assignments := store.NewMemoryAssignments()
 	clock := &testClock{now: testClockStart}
+	loginAttempts := store.NewMemoryLoginAttempts()
+	loginAttempts.Now = clock.Now
 	jwt := auth.NewJWT([]byte("0123456789abcdef0123456789abcdef"), "quiztool", "quiztool-api", 15*time.Minute)
 	gen := &fakeGenerator{}
 	srv := &Server{
-		Users:           users,
-		Jobs:            jobs,
-		Assignments:     assignments,
-		Now:             clock.Now,
-		Auth:            auth.NewService(users, jwt, 30*24*time.Hour, 5),
-		JWT:             jwt,
-		Generator:       gen,
-		AdminAPIKey:     "admin-key",
-		RefreshTokenTTL: 30 * 24 * time.Hour,
-		AICallsPerRound: 2,
-		RoundDuration:   time.Minute,
-		Logger:          slog.New(slog.DiscardHandler),
+		Users:            users,
+		Jobs:             jobs,
+		Assignments:      assignments,
+		LoginAttempts:    loginAttempts,
+		Now:              clock.Now,
+		Auth:             auth.NewService(users, jwt, 30*24*time.Hour, 5),
+		JWT:              jwt,
+		Generator:        gen,
+		AdminAPIKey:      "admin-key",
+		RefreshTokenTTL:  30 * 24 * time.Hour,
+		AICallsPerRound:  2,
+		RoundDuration:    time.Minute,
+		LoginMaxAttempts: 3,
+		LoginWindow:      15 * time.Minute,
+		Logger:           slog.New(slog.DiscardHandler),
 	}
 	env := &testEnv{srv: srv, h: srv.Handler(), users: users, jobs: jobs, assignments: assignments, clock: clock, gen: gen}
 	env.createUser(t, "alice", "pw", []string{"User"})
@@ -166,6 +171,54 @@ func TestLoginErrors(t *testing.T) {
 		rec := env.do(httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(tt.body)))
 		if rec.Code != tt.wantStatus || rec.Body.String() != tt.wantBody {
 			t.Errorf("body %q: got %d %q, want %d %q", tt.body, rec.Code, rec.Body, tt.wantStatus, tt.wantBody)
+		}
+	}
+}
+
+func TestLoginLimitsAttemptsPerUsername(t *testing.T) {
+	env := newEnv(t)
+	attempt := func(username, password string) *httptest.ResponseRecorder {
+		return env.do(httptest.NewRequest(http.MethodPost, "/api/auth/login",
+			strings.NewReader(`{"username":"`+username+`","password":"`+password+`"}`)))
+	}
+	for _, username := range []string{"alice", "nobody"} {
+		for i := range 3 {
+			if rec := attempt(username, "wrong"); rec.Code != http.StatusUnauthorized {
+				t.Fatalf("%s attempt %d: %d %s", username, i+1, rec.Code, rec.Body)
+			}
+		}
+		// The right password is refused too once the limit is reached, and unknown usernames are limited
+		// alike, so the limit does not tell which usernames exist.
+		rec := attempt(username, "pw")
+		if rec.Code != http.StatusTooManyRequests || rec.Body.String() != "Too many login attempts" ||
+			rec.Header().Get("Retry-After") != "900" {
+			t.Fatalf("%s over the limit: %d %q Retry-After %q", username, rec.Code, rec.Body, rec.Header().Get("Retry-After"))
+		}
+	}
+
+	env.createUser(t, "bob", "pw", []string{"User"})
+	env.login(t, "bob", "pw")
+
+	env.clock.Advance(10 * time.Minute)
+	if rec := attempt("alice", "pw"); rec.Header().Get("Retry-After") != "300" {
+		t.Fatalf("Retry-After counts down: %d %q", rec.Code, rec.Header().Get("Retry-After"))
+	}
+	env.clock.Advance(5 * time.Minute)
+	env.login(t, "alice", "pw")
+}
+
+func TestSuccessfulLoginResetsAttempts(t *testing.T) {
+	env := newEnv(t)
+	wrong := func() int {
+		return env.do(httptest.NewRequest(http.MethodPost, "/api/auth/login",
+			strings.NewReader(`{"username":"alice","password":"wrong"}`))).Code
+	}
+	wrong()
+	wrong()
+	env.login(t, "alice", "pw")
+	for i := range 3 {
+		if code := wrong(); code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d after a login: %d", i+1, code)
 		}
 	}
 }

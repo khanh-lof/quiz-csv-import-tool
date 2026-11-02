@@ -27,6 +27,8 @@ type Config struct {
 	// MongoPlayersCollection the students who joined them with their results.
 	MongoAssignmentsCollection string
 	MongoPlayersCollection     string
+	// MongoLoginAttemptsCollection holds the login attempts counted per username.
+	MongoLoginAttemptsCollection string
 
 	JWTSecret       []byte
 	JWTIssuer       string // defaults to "quiztool"; always validated
@@ -43,6 +45,10 @@ type Config struct {
 
 	AICallsPerRound int
 	RoundDuration   time.Duration
+
+	// LoginMaxAttempts password checks are allowed per username in each LoginWindow; more answer 429.
+	LoginMaxAttempts int
+	LoginWindow      time.Duration
 
 	// GameStageSeconds is how many seconds a question of each Game stage (1 to 6, in order) lasts in the
 	// standard time mode (GAME_STAGE_SECONDS, comma-separated). A shared quiz is timed by the server alone,
@@ -109,6 +115,8 @@ func FromEnv() (Config, error) {
 		MongoAssignmentsCollection: envOr("MONGODB_ASSIGNMENTS_COLLECTION", "Assignments"),
 		MongoPlayersCollection:     envOr("MONGODB_PLAYERS_COLLECTION", "AssignmentPlayers"),
 
+		MongoLoginAttemptsCollection: envOr("MONGODB_LOGIN_ATTEMPTS_COLLECTION", "LoginAttempts"),
+
 		JWTSecret:               []byte(os.Getenv("JWT_SECRET")),
 		JWTIssuer:               envOr("JWT_ISSUER", "quiztool"),
 		JWTAudience:             envOr("JWT_AUDIENCE", "quiztool-api"),
@@ -128,6 +136,9 @@ func FromEnv() (Config, error) {
 
 		AICallsPerRound: intVar("CALL_COUNT_ACCEPTED_IN_A_ROUND", 2),
 		RoundDuration:   time.Duration(intVar("ROUND_MINUTES", 1)) * time.Minute,
+
+		LoginMaxAttempts: intVar("LOGIN_MAX_ATTEMPTS", 5),
+		LoginWindow:      time.Duration(intVar("LOGIN_WINDOW_MINUTES", 15)) * time.Minute,
 	}
 
 	if cfg.MongoURI == "" {
@@ -150,6 +161,12 @@ func FromEnv() (Config, error) {
 		errs = append(errs, err)
 	}
 	cfg.GameStageSeconds = seconds
+	if cfg.LoginMaxAttempts < 1 {
+		errs = append(errs, errors.New("LOGIN_MAX_ATTEMPTS must be at least 1"))
+	}
+	if cfg.LoginWindow <= 0 {
+		errs = append(errs, errors.New("LOGIN_WINDOW_MINUTES must be positive"))
+	}
 	if cfg.MaxRefreshTokensPerUser < 1 {
 		errs = append(errs, errors.New("MAX_REFRESH_TOKENS_PER_USER must be at least 1"))
 	}

@@ -85,6 +85,9 @@ export class LoginComponent implements OnInit {
         let errorMessage = 'Thử lại.';
         if (error.status === 401) {
           errorMessage = 'Sai tên đăng nhập hoặc mật khẩu.';
+        } else if (error.status === 429) {
+          const minutes = Math.ceil(Number(error.headers?.get('Retry-After') ?? 60) / 60);
+          errorMessage = `Sai quá nhiều lần. Thử lại sau ${minutes} phút.`;
         } else if (error.status === 0) {
           errorMessage = 'Kiểm tra mạng rồi thử lại.';
         }
