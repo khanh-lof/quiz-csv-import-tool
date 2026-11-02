@@ -1,7 +1,6 @@
 import type { HandFrame, Point3 } from '../../../../game/stage-game';
 import { HoldSelector } from '../../../../game/hold-select';
 import {
-  FINGER_HINT,
   FINGER_HOLD_MS,
   FINGER_STABLE_FRAMES,
   fingerBadge,
@@ -243,38 +242,35 @@ describe('badge and status', () => {
 
   it('names what the camera sees', () => {
     expect(fingerBadge(NO_HAND)).toBe('Chưa thấy bàn tay');
-    expect(fingerBadge(0)).toBe('Đang nắm tay');
-    expect(fingerBadge(3)).toBe('Đang giơ: 3 ngón');
+    expect(fingerBadge(0)).toBe('Nắm tay');
+    expect(fingerBadge(3)).toBe('3 ngón');
   });
 
-  it('shows the charging card and the progress in percent', () => {
+  it('shows no text while a card is charging', () => {
     expect(fingerStatus(view({
       armed: true,
       choice: 2,
       progress: 0.4,
       count: 3
-    }))).toBe(
-      'Đang chọn đáp án 3… 40%',
-    );
+    }))).toBe('');
   });
 
   it('asks for a fist while fingers are up and the gate is not armed', () => {
     expect(fingerStatus(view({
       armed: false,
       count: 2
-    }))).toBe('Nắm tay lại rồi chọn câu tiếp');
+    }))).toBe('Nắm tay lại');
   });
 
-  it('shows the standing hint otherwise', () => {
+  it('shows no text otherwise', () => {
     expect(fingerStatus(view({
       armed: true,
       count: 0
-    }))).toBe(FINGER_HINT);
+    }))).toBe('');
     expect(fingerStatus(view({
       armed: false,
       count: NO_HAND
-    }))).toBe(FINGER_HINT);
-    expect(FINGER_HINT).toBe('Giơ số ngón theo đáp án (không tính ngón cái)');
+    }))).toBe('');
   });
 
   it('compares views by what is shown', () => {

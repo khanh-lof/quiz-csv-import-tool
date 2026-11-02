@@ -56,6 +56,7 @@ function assignment(overrides: Partial<Assignment> = {}): Assignment {
     },
     maxAttempts: null,
     showBoard: true,
+    showPinyin: false,
     stageCounts: {
       '1': 5,
       '2': 5,
@@ -351,7 +352,6 @@ describe('AssignDialog', () => {
 
       await pickLock('Mở tất cả');
       expect(text()).toContain('Giới hạn số lần chơi mỗi màn');
-      expect(text()).toContain('Không giới hạn');
       expect(attemptsInput()).toBeNull();
 
       await pickLock('Phải qua màn trước');
@@ -368,7 +368,7 @@ describe('AssignDialog', () => {
       expect(body['maxAttempts']).toBeNull();
     });
 
-    it('shows a number box at 3 with its hint once switched on, and sends the number', async () => {
+    it('shows a number box at 3 once switched on, and sends the number', async () => {
       await show();
       await pickLock('Mở tất cả');
 
@@ -376,28 +376,23 @@ describe('AssignDialog', () => {
       await settle();
 
       expect(attemptsInput()!.value).toBe('3');
-      expect(text()).toContain('Tối đa 3 lần mỗi màn.');
       await typeAttempts('5');
-      expect(text()).toContain('Tối đa 5 lần');
 
       expect((await send())['maxAttempts']).toBe(5);
     });
 
-    it('reads an emptied box as 3 and never sends a number outside 1 to 10', async () => {
-      await show();
-      await pickLock('Mở tất cả');
-      attemptsSwitch().click();
-      await settle();
+    for (const [typed, sent] of [['', 3], ['500', 10], ['0', 1]] as const) {
+      it(`sends ${sent} for a box holding "${typed}", never a number outside 1 to 10`, async () => {
+        await show();
+        await pickLock('Mở tất cả');
+        attemptsSwitch().click();
+        await settle();
 
-      await typeAttempts('');
-      expect(text()).toContain('Tối đa 3 lần');
-      await typeAttempts('500');
-      expect(text()).toContain('Tối đa 10 lần');
-      await typeAttempts('0');
-      expect(text()).toContain('Tối đa 1 lần');
+        await typeAttempts(typed);
 
-      expect((await send())['maxAttempts']).toBe(1);
-    });
+        expect((await send())['maxAttempts']).toBe(sent);
+      });
+    }
 
     it('sends null after the lock goes back to sequential, whatever was set', async () => {
       await show();
@@ -463,24 +458,22 @@ describe('AssignDialog', () => {
       return body;
     }
 
-    it('is on by default, says what the students get and is sent as true', async () => {
+    it('is on by default and is sent as true', async () => {
       await show();
 
       expect(text()).toContain('Học sinh xem bảng xếp hạng');
       expect(boardSwitch().classList).toContain('ant-switch-checked');
-      expect(boardRow().textContent).toContain('Top 5 của lớp và hạng của mình');
 
       expect((await send())['showBoard']).toBeTrue();
     });
 
-    it('sends false once switched off, and says that only the teacher sees the board', async () => {
+    it('sends false once switched off', async () => {
       await show();
 
       boardSwitch().click();
       await settle();
 
       expect(boardSwitch().classList).not.toContain('ant-switch-checked');
-      expect(boardRow().textContent).toContain('Chỉ thầy cô xem bảng xếp hạng');
       expect((await send())['showBoard']).toBeFalse();
     });
 
@@ -498,7 +491,7 @@ describe('AssignDialog', () => {
       expect((await send())['showBoard']).toBeTrue();
     });
 
-    it('tells the teacher when the server refuses the setting', async () => {
+    it('tells the teacher when the server refuses the request', async () => {
       await show();
 
       button('Giao bài').click();
@@ -509,7 +502,47 @@ describe('AssignDialog', () => {
       });
       await settle();
 
-      expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain('Cài đặt bảng xếp hạng');
+      expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain('chưa hợp lệ');
+    });
+  });
+
+  describe('the pinyin', () => {
+    const pinyinSwitch = (): HTMLButtonElement =>
+      dialog()!.querySelector<HTMLElement>('[aria-labelledby="assign-show-pinyin"]')!
+        .querySelector<HTMLButtonElement>('button[nz-switch], .ant-switch')!;
+
+    async function send(): Promise<Record<string, unknown>> {
+      button('Giao bài').click();
+      await settle();
+      const request = http.expectOne(URL);
+      const body = request.request.body;
+      request.flush(assignment(), {
+        status: 201,
+        statusText: 'Created'
+      });
+      await settle();
+      return body;
+    }
+
+    it('is off by default and is sent as false', async () => {
+      await show();
+
+      expect(text()).toContain('Hiện pinyin');
+      expect(pinyinSwitch().classList).not.toContain('ant-switch-checked');
+      expect((await send())['showPinyin']).toBeFalse();
+    });
+
+    it('sends true once switched on, and is off again when the dialog is opened again', async () => {
+      await show();
+      pinyinSwitch().click();
+      await settle();
+      expect((await send())['showPinyin']).toBeTrue();
+
+      fixture.componentInstance.open.set(false);
+      await settle();
+      fixture.componentInstance.open.set(true);
+      await settle();
+      expect(pinyinSwitch().classList).not.toContain('ant-switch-checked');
     });
   });
 
@@ -537,6 +570,7 @@ describe('AssignDialog', () => {
       },
       maxAttempts: null,
       showBoard: true,
+      showPinyin: false,
     });
     expect(button('Giao bài').classList).toContain('ant-btn-loading');
 
@@ -591,7 +625,7 @@ describe('AssignDialog', () => {
   it('cannot give a job that holds no valid question', async () => {
     await show(job({ csv: 'Câu hỏi,Đáp án\nxin chào,你好' }));
 
-    expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain('không có câu hỏi hợp lệ');
+    expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain('Không có câu hỏi hợp lệ');
     expect(button('Giao bài').disabled).toBeTrue();
     expect(button('Xem thử').disabled).toBeTrue();
 

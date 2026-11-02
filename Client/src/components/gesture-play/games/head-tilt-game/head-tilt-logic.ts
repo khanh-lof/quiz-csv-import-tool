@@ -163,18 +163,13 @@ export class HeadTiltReader {
   }
 }
 
-// What the hint under the meter says, in the prototype's words.
+// What the hint under the meter says: only a problem, or the cue to come back to the middle.
 export function tiltHint(step: HeadTiltStep): string {
   if (step.problem) {
     return step.problem;
   }
   if (step.waiting) {
-    return 'Đưa đầu về giữa một chút';
+    return 'Đưa đầu về giữa';
   }
-  if (step.side) {
-    return `Giữ ${step.side === 'left' ? 'TRÁI' : 'PHẢI'} · ${Math.round(step.progress * 100)}%`;
-  }
-  return Math.abs(step.lean) > 0.25
-    ? 'Thêm một chút về phía đáp án'
-    : 'Nghiêng hoặc dịch đầu nhẹ để chọn';
+  return '';
 }

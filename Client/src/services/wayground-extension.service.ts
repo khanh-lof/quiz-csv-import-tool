@@ -126,7 +126,6 @@ export class WaygroundExtensionService {
       // The file was not downloaded when the extension took it, so fetch it now for the manual import.
       this.fileExportService.downloadXlsx(file.fileName, file.xlsx);
       this.notificationService.error('Wayground chưa publish được',
-        `Tiện ích dừng lại (${escapeHtml(result.error ?? 'không rõ lỗi')}). ` +
         `Đã tải ${escapeHtml(file.fileName)}, import bằng tay.`,
         {
           nzPlacement: 'top',

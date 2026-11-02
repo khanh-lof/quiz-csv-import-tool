@@ -131,10 +131,6 @@
   box-shadow: var(--qt-card-shadow);
 }
 
-.muted {
-  color: var(--qt-text-muted);
-}
-
 .big-emoji {
   font-size: 56px;
   line-height: 1.1;
@@ -248,17 +244,6 @@
   background: var(--qt-gradient-soft);
   border: var(--qt-border-width) solid var(--qt-border);
   border-radius: var(--qt-radius-lg);
-}
-
-.preview-text {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
-  text-align: center;
-  color: var(--qt-text-muted);
 }
 
 .camera-side {
@@ -442,6 +427,11 @@
 .answer {
   font-family: var(--qt-font-han), system-ui, sans-serif;
   word-break: break-word;
+}
+
+.answer-pinyin {
+  margin-left: 4px;
+  opacity: 0.8;
 }
 
 .explanation {

@@ -36,11 +36,16 @@ export type VisionFrame =
 // shows them in the order given. For stage 6 (`options` empty) `chunks` are the shuffled pieces of the
 // sentence and `question` is its Vietnamese meaning. For stage 1 the options are always
 // ['Đúng', 'Sai'] in that order, so index 0 is the thumbs-up answer.
+// The pinyin is there only when it is shown: the question's, and one for each option or chunk in the same
+// order ('' for a text without); a game draws a pinyin line wherever one is given.
 export interface QuestionView {
   stage: number;
   question: string;
   options: string[];
   chunks?: string[];
+  questionPinyin?: string;
+  optionPinyins?: string[];
+  chunkPinyins?: string[];
 }
 
 // What a game reports: the index into `QuestionView.options`, or (stage 6) the chunks in the order the

@@ -153,18 +153,17 @@ export function faceProblemMessage(faces: number): string | null {
   if (faces === 1) {
     return null;
   }
-  return faces > 1 ? 'Chỉ một người trước camera' : 'Chưa thấy mặt · đến gần và nhìn camera';
+  return faces > 1 ? 'Chỉ một khuôn mặt' : 'Chưa thấy mặt';
 }
 
-export function calibrationMessage(status: CalibrationStatus, progress: number): string {
+export function calibrationMessage(status: CalibrationStatus): string {
   if (status === 'no-face') {
     return faceProblemMessage(0) ?? '';
   }
   if (status === 'many-faces') {
     return faceProblemMessage(2) ?? '';
   }
-  const seconds = (Math.min(1, Math.max(0, progress)) * CALIBRATION_MS) / 1000;
-  return `Nhìn thẳng vào camera · ${seconds.toFixed(1)} / 1 giây`;
+  return 'Nhìn thẳng vào camera';
 }
 
 // A card's text split into the word and the note in brackets after it, e.g. '水 (shuǐ)' into '水' and

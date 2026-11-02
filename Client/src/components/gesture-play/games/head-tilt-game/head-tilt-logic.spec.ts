@@ -202,10 +202,10 @@ describe('HeadTiltReader', () => {
     }, rest.end, 2000);
     expect(selections(crowd.results)).toEqual([]);
     expect(crowd.results.every(step => step.invalid)).toBeTrue();
-    expect(crowd.results[0].problem).toBe('Chỉ một người trước camera');
+    expect(crowd.results[0].problem).toBe('Chỉ một khuôn mặt');
 
     const none = play(reader, { faces: 0 }, crowd.end, 200);
-    expect(none.results[0].problem).toBe('Chưa thấy mặt · đến gần và nhìn camera');
+    expect(none.results[0].problem).toBe('Chưa thấy mặt');
   });
 
   it('forgets a hold in progress when the face is lost and starts from the middle again', () => {
@@ -245,7 +245,7 @@ describe('tiltHint', () => {
     cue: null,
   };
 
-  it('prefers the face problem, then waiting, then the side being held', () => {
+  it('prefers the face problem, then waiting, and is otherwise silent', () => {
     expect(tiltHint({
       ...idle,
       invalid: true,
@@ -254,28 +254,16 @@ describe('tiltHint', () => {
     expect(tiltHint({
       ...idle,
       waiting: true
-    })).toBe('Đưa đầu về giữa một chút');
+    })).toBe('Đưa đầu về giữa');
     expect(tiltHint({
       ...idle,
       side: 'left',
       progress: 0.45
-    })).toBe('Giữ TRÁI · 45%');
-    expect(tiltHint({
-      ...idle,
-      side: 'right',
-      progress: 0.9
-    })).toBe('Giữ PHẢI · 90%');
-  });
-
-  it('encourages a bigger lean or explains the control', () => {
+    })).toBe('');
     expect(tiltHint({
       ...idle,
       lean: 0.5
-    })).toBe('Thêm một chút về phía đáp án');
-    expect(tiltHint({
-      ...idle,
-      lean: -0.5
-    })).toBe('Thêm một chút về phía đáp án');
-    expect(tiltHint(idle)).toBe('Nghiêng hoặc dịch đầu nhẹ để chọn');
+    })).toBe('');
+    expect(tiltHint(idle)).toBe('');
   });
 });

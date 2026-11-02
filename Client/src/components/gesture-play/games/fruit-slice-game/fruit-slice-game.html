@@ -1,12 +1,20 @@
 <div #top class="top">
   <div #questionBox class="box question-box">
-    <span class="fit">{{ question().question }}</span>
+    <span class="fit">
+      @if (question().questionPinyin) {<span class="play-pinyin">{{ question().questionPinyin }}</span>}
+      {{ question().question }}
+    </span>
   </div>
   @for (option of answers(); track $index) {
     <div #answerBox [attr.data-slot]="$index" [class]="states()[$index]" class="box answer">
       <kbd aria-hidden="true">{{ $index + 1 }}</kbd>
       <span aria-hidden="true" class="fruit-icon">{{ fruitIcons[$index] }}</span>
-      <span class="fit">{{ option }}</span>
+      <span class="fit">
+        @if (question().optionPinyins?.[$index]; as pinyin) {
+          <span class="play-pinyin">{{ pinyin }}</span>
+        }
+        {{ option }}
+      </span>
     </div>
   }
 </div>

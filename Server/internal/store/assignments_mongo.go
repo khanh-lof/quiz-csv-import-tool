@@ -122,6 +122,14 @@ func (m *MongoAssignments) Update(ctx context.Context, username, id string, u As
 	if u.Label != nil {
 		set["label"] = *u.Label
 	}
+	switch {
+	case u.ShowPinyin == nil:
+	case *u.ShowPinyin:
+		set["showPinyin"] = true
+	default:
+		// Off is the field's absence, as on an assignment created with it off.
+		unset["showPinyin"] = ""
+	}
 	for field, change := range map[string]TimeChange{"closesAt": u.ClosesAt, "closedAt": u.ClosedAt} {
 		switch {
 		case !change.Set:

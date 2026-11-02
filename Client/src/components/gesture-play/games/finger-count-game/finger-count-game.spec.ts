@@ -109,6 +109,20 @@ describe('FingerCountGame', () => {
     fixture.detectChanges();
   });
 
+  it('draws no pinyin line unless the view carries one, then one above each text that has it', () => {
+    expect(root().querySelector('.play-pinyin')).toBeNull();
+
+    setInput('question', {
+      ...QUESTION,
+      questionPinyin: 'zàijiàn',
+      optionPinyins: ['', '', 'xièxie', '']
+    });
+
+    expect(root().querySelector('.question .play-pinyin')?.textContent).toBe('zàijiàn');
+    expect(cards().map(card => card.querySelector('.play-pinyin')?.textContent ?? null))
+      .toEqual([null, null, 'xièxie', null]);
+  });
+
   it('shows the question and the four options, numbered 1 to 4', () => {
     expect(root().querySelector('.question')?.textContent).toContain('nghĩa là gì');
     expect(cards().map(card => card.querySelector('.digit')?.textContent)).toEqual([
@@ -117,7 +131,7 @@ describe('FingerCountGame', () => {
       '3',
       '4',
     ]);
-    expect(cards().map(card => card.querySelector('.text')?.textContent)).toEqual(
+    expect(cards().map(card => card.querySelector('.text')?.textContent?.trim())).toEqual(
       QUESTION.options,
     );
   });
@@ -233,17 +247,17 @@ describe('FingerCountGame', () => {
     const badge = () => root().querySelector('.badge')?.textContent?.trim();
     const hint = () => root().querySelector('.hint')?.textContent?.trim();
 
-    it('shows the badge, the hint and a ring on each card', () => {
+    it('shows the badge and a ring on each card, and no hint', () => {
       expect(root().querySelectorAll('.ring').length).toBe(4);
       expect(badge()).toBe('Chưa thấy bàn tay');
-      expect(hint()).toBe('Giơ số ngón theo đáp án (không tính ngón cái)');
+      expect(hint()).toBeUndefined();
     });
 
     it('shows how many fingers the camera counts', () => {
       show(hand(3), 0, 300);
-      expect(badge()).toBe('Đang giơ: 3 ngón');
+      expect(badge()).toBe('3 ngón');
       show(hand(0), 333, 600);
-      expect(badge()).toBe('Đang nắm tay');
+      expect(badge()).toBe('Nắm tay');
       show(NO_HAND, 633, 900);
       expect(badge()).toBe('Chưa thấy bàn tay');
     });
@@ -252,7 +266,6 @@ describe('FingerCountGame', () => {
       show(hand(0), 0, 300);
       show(hand(3), 333, 800);
       expect(chosen).toEqual([]);
-      expect(hint()).toContain('Đang chọn đáp án 3…');
       expect(cards()[2].classList).toContain('charging');
       expect(cards().filter(card => card.classList.contains('charging')).length).toBe(1);
       show(hand(3), 833, 1500);
@@ -323,7 +336,7 @@ describe('FingerCountGame', () => {
       });
       show(hand(2), 1600, 3500);
       expect(chosen).toEqual([1]);
-      expect(hint()).toBe('Nắm tay lại rồi chọn câu tiếp');
+      expect(hint()).toBe('Nắm tay lại');
 
       show(hand(0), 3533, 3800);
       show(hand(4), 3833, 4800);

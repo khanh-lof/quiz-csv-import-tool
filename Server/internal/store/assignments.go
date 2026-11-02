@@ -45,8 +45,11 @@ type Assignment struct {
 	MaxAttempts *int `bson:"maxAttempts,omitempty"`
 	// HideBoard is true when the teacher hid the leaderboard from the students; the zero value, which
 	// every assignment made before the setting has, shows it. Fixed for the assignment's life.
-	HideBoard bool      `bson:"hideBoard,omitempty"`
-	CreatedAt time.Time `bson:"createdAt"`
+	HideBoard bool `bson:"hideBoard,omitempty"`
+	// ShowPinyin is true when the students are shown the pinyin of the questions and answers; the server
+	// sends none otherwise. The teacher can turn it on and off at any time.
+	ShowPinyin bool      `bson:"showPinyin,omitempty"`
+	CreatedAt  time.Time `bson:"createdAt"`
 	// ClosesAt is the teacher's scheduled closing time and ClosedAt the moment they closed it by hand;
 	// the assignment closes at the earlier of the two. Clearing ClosedAt reopens it.
 	ClosesAt *time.Time `bson:"closesAt,omitempty"`
@@ -163,13 +166,14 @@ type TimeChange struct {
 
 // AssignmentUpdate lists what Assignments.Update changes; everything left at its zero value stays.
 type AssignmentUpdate struct {
-	Label    *string
-	ClosesAt TimeChange
-	ClosedAt TimeChange
+	Label      *string
+	ShowPinyin *bool
+	ClosesAt   TimeChange
+	ClosedAt   TimeChange
 }
 
 func (u AssignmentUpdate) isEmpty() bool {
-	return u.Label == nil && !u.ClosesAt.Set && !u.ClosedAt.Set
+	return u.Label == nil && u.ShowPinyin == nil && !u.ClosesAt.Set && !u.ClosedAt.Set
 }
 
 // Assignments is implemented by MongoAssignments (production) and MemoryAssignments (tests). The

@@ -30,7 +30,8 @@ export interface NavPage {
   route: WorkspaceMode | '/play';
   label: string;
   icon: string;
-  hint: string;
+  // Shown as the item's tooltip; none when the label says it all.
+  hint?: string;
   // The breadcrumb's last crumb on a page below this one (an assignment's leaderboard, a "Ghép bộ thủ" exercise).
   childLabel?: string;
 }
@@ -49,7 +50,7 @@ export const NAV: NavEntry[] = [
     route: '/quiz',
     label: 'Quiz thủ công',
     icon: 'table',
-    hint: 'Tự nhập câu hỏi rồi tải file quiz. Không cần đăng nhập.'
+    hint: 'Không cần đăng nhập.'
   },
   {
     label: 'AI',
@@ -59,13 +60,13 @@ export const NAV: NavEntry[] = [
         route: '/ai',
         label: 'Tạo quiz',
         icon: 'thunderbolt',
-        hint: 'AI soạn câu hỏi từ bài học. Cần đăng nhập.'
+        hint: 'Cần đăng nhập.'
       },
       {
         route: '/ai-history',
         label: 'Lịch sử',
         icon: 'history',
-        hint: 'Kết quả AI: tải file, chơi, giao bài. Cần đăng nhập.',
+        hint: 'Cần đăng nhập.',
         childLabel: 'Ghép bộ thủ'
       }
     ]
@@ -77,14 +78,13 @@ export const NAV: NavEntry[] = [
       {
         route: '/play',
         label: 'Chơi game',
-        icon: 'play-circle',
-        hint: 'Chơi quiz bằng cử chỉ trước camera.'
+        icon: 'play-circle'
       },
       {
         route: '/assignments',
         label: 'Bài đã giao',
         icon: 'trophy',
-        hint: 'Link, mã QR và bảng xếp hạng. Cần đăng nhập.',
+        hint: 'Cần đăng nhập.',
         childLabel: 'Bảng xếp hạng'
       }
     ]
@@ -185,11 +185,17 @@ export class Workspace {
   // page on screen, which already explains itself. It is turned off through the trigger, not by clearing the
   // title, so the open one fades out with its text.
   protected tooltipOf(page: NavPage): string {
-    return this.collapsed() ? `${page.label}: ${page.hint}` : page.hint;
+    if (!this.collapsed()) {
+      return page.hint ?? '';
+    }
+    return page.hint ? `${page.label}: ${page.hint}` : page.label;
   }
 
   protected tooltipTrigger(page: NavPage): 'hover' | null {
-    return page.route === this.mode() ? null : 'hover';
+    if (page.route === this.mode() || (!page.hint && !this.collapsed())) {
+      return null;
+    }
+    return 'hover';
   }
 
   protected toggleCollapsed(): void {

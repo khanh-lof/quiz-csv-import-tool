@@ -31,6 +31,8 @@ export interface Assignment {
   maxAttempts: number | null;
   // Whether the students see the board, the top five and their own place. Fixed for the assignment's life.
   showBoard: boolean;
+  // Whether the students see the pinyin of the questions and answers; the teacher can change it at any time.
+  showPinyin: boolean;
   stageCounts: Record<string, number>;
   // The seconds each question of a stage ("1" to "6", one key per stage of `stageCounts`) lasts, with the time
   // mode already applied, or null when the time mode is unlimited. They are the server's, from its configuration,
@@ -95,6 +97,8 @@ export interface SharedQuiz {
   maxAttempts: number | null;
   // Whether the students see the board, the top five and their own place (GET share/{code}/leaderboard).
   showBoard: boolean;
+  // Whether the questions come with their pinyin (see `SharedQuestion`).
+  showPinyin: boolean;
   // How many questions each stage ("1" to "6") has, only the stages the quiz has.
   stageCounts: Record<string, number>;
   // The seconds each question of a stage lasts, time mode applied, null for no limit: the server's, from its
@@ -112,12 +116,16 @@ export interface SharedQuiz {
 // (0 to total - 1), `options` the answers as shown (empty for the sentence stage, whose `chunks` are the
 // shuffled pieces; `chunks` is null for the others). The answer is not in it. `timeLeftMs` is how long the
 // player has from the moment the server dealt it (null: no time limit) and `graceMs` the extra time the
-// server allows for the network on top of that.
+// server allows for the network on top of that. The pinyin is there only when the teacher shows it: the
+// question's, and one for each option or chunk in the same order ('' for a text without).
 export interface SharedQuestion {
   index: number;
   question: string;
   options: string[];
   chunks?: string[] | null;
+  questionPinyin?: string;
+  optionPinyins?: string[];
+  chunkPinyins?: string[];
   timeLeftMs: number | null;
   graceMs: number;
 }
@@ -158,14 +166,18 @@ export interface NewAssignment {
   maxAttempts?: number | null;
   // Whether the students see the board; the dialog always sends it (the server reads a missing one as true).
   showBoard: boolean;
+  // Whether the students see the pinyin; the dialog always sends it (the server reads a missing one as false).
+  showPinyin: boolean;
 }
 
 // The body of PATCH /api/assignments/{id}: a key left out stays unchanged, `closesAt: null` removes
-// the closing time, `closed: true` closes now and `closed: false` reopens.
+// the closing time, `closed: true` closes now and `closed: false` reopens, `showPinyin` shows or hides the
+// pinyin from the next question on.
 export interface AssignmentChange {
   label?: string;
   closesAt?: string | null;
   closed?: boolean;
+  showPinyin?: boolean;
 }
 
 // What the server gave a student who joined, kept on the device so a reload resumes as the same student.
@@ -242,8 +254,11 @@ export function placeholderQuiz(title: string, key: string, stageCounts: Record<
         ({
           stage,
           question: '',
+          questionPinyin: '',
           correct: '',
+          correctPinyin: '',
           wrong: [],
+          wrongPinyin: [],
           explanation: ''
         })));
     }
@@ -311,15 +326,14 @@ function spreadsheetSafe(text: string): string {
 // The server's plain-text answers to a teacher's assignment request, in words a teacher can act on.
 const TEACHER_ERRORS: Record<string, string> = {
   'Assignment not found': 'Không tìm thấy bài này.',
-  'Job not found': 'Không tìm thấy quiz này trong Lịch sử.',
+  'Job not found': 'Không tìm thấy quiz này.',
   'Player not found': 'Học sinh này đã bị xóa.',
   'Too many assignments.': 'Tối đa 100 bài. Xóa bớt ở Bài đã giao.',
   'Job is not a finished gesture quiz.': 'Chỉ giao được Game đã tạo xong và có câu hỏi hợp lệ.',
-  'Invalid closing time.': 'Giờ đóng phải ở tương lai (tối đa 180 ngày).',
+  'Invalid closing time.': 'Giờ đóng phải sau bây giờ, tối đa 180 ngày.',
   'Label is too long.': 'Tên lớp / nhóm tối đa 60 ký tự.',
-  'Invalid pass percents.': 'Điểm qua màn phải từ 10% đến 100%.',
+  'Invalid pass percents.': 'Tỉ lệ đúng để qua màn phải từ 10% đến 100%.',
   'Invalid replay limit.': 'Số lần chơi mỗi màn: 1–10, chỉ khi mở tất cả các màn.',
-  'Invalid board setting.': 'Cài đặt bảng xếp hạng cho học sinh không hợp lệ.',
 };
 
 // What to tell the teacher when an AssignmentService call fails.
@@ -328,13 +342,13 @@ export function assignmentErrorMessage(err: unknown): string {
     return 'Thử lại.';
   }
   if (err.status === 0) {
-    return 'Mất kết nối. Kiểm tra mạng rồi thử lại.';
+    return 'Mất kết nối. Thử lại.';
   }
   if (err.status === 401) {
     return 'Hết phiên đăng nhập. Đăng nhập lại.';
   }
   const body = typeof err.error === 'string' ? err.error.trim() : '';
-  return TEACHER_ERRORS[body] ?? (err.status === 400 ? 'Yêu cầu chưa hợp lệ.' : 'Thử lại.');
+  return TEACHER_ERRORS[body] ?? (err.status === 400 ? 'Thông tin chưa hợp lệ.' : 'Thử lại.');
 }
 
 // The leaderboard as a CSV file, rows in the order given (the server's leaderboard order). It starts with a BOM

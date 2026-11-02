@@ -5,9 +5,9 @@ description: Review every user-facing message in the Client (notifications, hint
 
 # Review user messages
 
-The rule, in `Client/AGENTS.md` ("UI library"): messages shown to the user are short and don't explain much,
-and exist only when the user could not tell how to use the feature without them. A self-evident control or
-result needs no message. All UI text is Vietnamese, written at the call site (no i18n).
+The rule, in `Client/AGENTS.md` ("User messages"): the default is no text. A message exists only when the user
+would otherwise be stuck or misled, never explains, and is as short as possible; when unsure, remove it. All UI
+text is Vietnamese, written at the call site (no i18n). NEVER put technical things into user messages.
 
 Default scope is the whole `Client/src`; if the user names files or a diff (`git diff`), review only those.
 Report first; edit only when the user asked for fixes.

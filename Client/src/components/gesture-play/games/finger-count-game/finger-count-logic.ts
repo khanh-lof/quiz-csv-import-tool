@@ -66,20 +66,15 @@ export function fingerBadge(count: number): string {
   if (count === NO_HAND) {
     return 'Chưa thấy bàn tay';
   }
-  return count === 0 ? 'Đang nắm tay' : `Đang giơ: ${count} ngón`;
+  return count === 0 ? 'Nắm tay' : `${count} ngón`;
 }
 
-export const FINGER_HINT = 'Giơ số ngón theo đáp án (không tính ngón cái)';
-
-// The sentence next to the badge: the standing hint, or what is happening to the hold.
+// The sentence next to the badge: only the cue to put the hand down after an answer.
 export function fingerStatus(view: FingerView): string {
-  if (view.choice !== null) {
-    return `Đang chọn đáp án ${view.choice + 1}… ${Math.round(view.progress * 100)}%`;
+  if (view.choice === null && !view.armed && view.count > 0) {
+    return 'Nắm tay lại';
   }
-  if (!view.armed && view.count > 0) {
-    return 'Nắm tay lại rồi chọn câu tiếp';
-  }
-  return FINGER_HINT;
+  return '';
 }
 
 // The option an answer key picks: 1..4 for the first to fourth, when it exists.

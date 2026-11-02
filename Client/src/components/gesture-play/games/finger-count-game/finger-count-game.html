@@ -1,5 +1,8 @@
 <div [class.locked]="locked()" [class.revealed]="reveal() !== null" class="board">
-  <p class="question">{{ question().question }}</p>
+  <p class="question">
+    @if (question().questionPinyin) {<span class="play-pinyin">{{ question().questionPinyin }}</span>}
+    {{ question().question }}
+  </p>
 
   <div class="cards">
     @for (option of question().options; track $index) {
@@ -50,7 +53,12 @@
             <span class="digit">{{ number }}</span>
           </span>
         </span>
-        <span [class.han]="isHan(option)" class="text">{{ option }}</span>
+        <span [class.han]="isHan(option)" class="text">
+          @if (question().optionPinyins?.[$index]; as pinyin) {
+            <span class="play-pinyin">{{ pinyin }}</span>
+          }
+          {{ option }}
+        </span>
       </button>
     }
   </div>
@@ -58,7 +66,9 @@
   @if (cameraActive()) {
     <div [class.hidden]="locked()" class="status">
       <b [class.seen]="view().count >= 0" class="badge">{{ badge() }}</b>
-      <span class="hint">{{ status() }}</span>
+      @if (status()) {
+        <span class="hint">{{ status() }}</span>
+      }
     </div>
   }
 </div>

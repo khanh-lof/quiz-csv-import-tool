@@ -37,6 +37,7 @@ function assignment(overrides: Partial<Assignment> = {}): Assignment {
     },
     maxAttempts: null,
     showBoard: true,
+    showPinyin: false,
     stageCounts: {
       '1': 5,
       '2': 5

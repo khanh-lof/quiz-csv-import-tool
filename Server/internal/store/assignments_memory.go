@@ -108,6 +108,9 @@ func (m *MemoryAssignments) Update(_ context.Context, username, id string, u Ass
 	if u.Label != nil {
 		a.Label = *u.Label
 	}
+	if u.ShowPinyin != nil {
+		a.ShowPinyin = *u.ShowPinyin
+	}
 	if u.ClosesAt.Set {
 		a.ClosesAt = u.ClosesAt.Value
 	}

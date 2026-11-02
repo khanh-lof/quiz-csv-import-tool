@@ -180,16 +180,6 @@ export class AiGeneration {
       : 'Tạo câu hỏi';
   }
 
-  // Tells the teacher what the choice makes: the games are played easiest first, each as one màn.
-  protected get gestureQuizHint(): string {
-    const stageCount = this.formGroup.controls.gestureStages.value?.length ?? 0;
-    const perStage = this.formGroup.controls.questionsPerStage.value;
-    if (stageCount === 0 || perStage === null) {
-      return '';
-    }
-    return `${stageCount} màn, ${stageCount * perStage} câu.`;
-  }
-
   protected get maxLevel(): number {
     return this.formGroup.controls.courseType.value === CourseType.Hsk
       ? hskMaxLevel(this.formGroup.controls.hskStandard.value)
@@ -318,12 +308,11 @@ export class AiGeneration {
     this.formGroup.markAllAsDirty();
     this.formGroup.updateValueAndValidity();
     if (this.formGroup.invalid) {
-      this.notificationService.error('Thiếu thông tin', '', { nzPlacement: 'top' });
       return;
     }
     // Only the formatted mode needs images: the creative mode can work from the lesson identifiers alone.
     if (this.selectedImages().length === 0 && this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
-      this.notificationService.warning('Thiếu ảnh', 'Cần ít nhất 1 ảnh.', { nzPlacement: 'top' });
+      this.notificationService.warning('Cần ít nhất 1 ảnh', '', { nzPlacement: 'top' });
       return;
     }
 
@@ -499,7 +488,7 @@ export class AiGeneration {
     const status = err instanceof HttpErrorResponse ? err.status : null;
     const serverMessage = err instanceof HttpErrorResponse && typeof err.error === 'string' ? err.error.trim() : '';
     if (status === HttpStatusCode.Unauthorized) {
-      this.notificationService.warning('Hết phiên đăng nhập', 'Đăng nhập lại để tiếp tục.', { nzPlacement: 'top' });
+      this.notificationService.warning('Hết phiên đăng nhập', '', { nzPlacement: 'top' });
       this.setGenerating(false);
       this.router.navigate(['/login'], { queryParams: { returnUrl: '/ai' } });
       return;
@@ -515,7 +504,7 @@ export class AiGeneration {
             nzDuration: 0
           });
       } else {
-        this.notificationService.error('Không có quyền', 'Tài khoản chưa có quyền dùng AI.', { nzPlacement: 'top' });
+        this.notificationService.error('Không có quyền', 'Chưa được dùng AI.', { nzPlacement: 'top' });
       }
       return;
     }
@@ -524,13 +513,13 @@ export class AiGeneration {
         'Kiểm tra mạng rồi thử lại.', { nzPlacement: 'top' });
       return;
     }
-    if (status === HttpStatusCode.BadRequest && serverMessage) {
-      this.notificationService.error('Yêu cầu không hợp lệ', escapeHtml(serverMessage), { nzPlacement: 'top' });
+    if (status === HttpStatusCode.BadRequest) {
+      this.notificationService.error('Yêu cầu không hợp lệ', '', { nzPlacement: 'top' });
       return;
     }
     if (err instanceof UploadTooLargeError || status === HttpStatusCode.PayloadTooLarge) {
       this.notificationService.error('Ảnh quá lớn',
-        'Giảm số ảnh rồi thử lại.',
+        'Giảm số ảnh.',
         {
           nzPlacement: 'top',
           nzDuration: 0

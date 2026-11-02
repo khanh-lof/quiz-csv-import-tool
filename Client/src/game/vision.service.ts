@@ -32,7 +32,7 @@ const CAMERA_MESSAGES = {
   denied: 'Camera bị chặn. Cho phép camera cho trang này rồi bật lại.',
   unavailable: 'Không tìm thấy camera.',
   unsupported: 'Trình duyệt không hỗ trợ camera. Dùng Chrome hoặc Edge qua HTTPS.',
-  inUse: 'Ứng dụng khác đang dùng camera (Zoom, Meet…). Đóng nó rồi bật lại.',
+  inUse: 'Camera đang được ứng dụng khác dùng. Đóng nó rồi bật lại.',
   other: 'Không bật được camera.',
   disconnected: 'Camera bị ngắt. Cắm lại rồi bật lại.',
 } as const;
@@ -234,7 +234,7 @@ export class VisionService {
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.states[kind].set('error');
-        reject(new Error('Tải mô hình nhận diện quá lâu.'));
+        reject(new Error('timeout'));
       }, MODEL_TIMEOUT_MS);
       load.then(
         () => {

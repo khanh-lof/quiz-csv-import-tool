@@ -181,7 +181,8 @@ kbd {
   font-size: clamp(16px, 6cqmin, 48px);
 }
 
-.note {
+.note,
+.pinyin {
   font-size: clamp(12px, 3.4cqmin, 26px);
   color: var(--play-ink-muted);
 }

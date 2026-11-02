@@ -71,17 +71,21 @@ export class WordOrderGame extends StageGameBase {
   protected readonly slots = computed(() => {
     const line = this.line();
     const chunks = this.chunks();
+    const pinyins = this.question().chunkPinyins;
     return chunks.map((_, position) => ({
       filled: position < line.length,
       text: position < line.length ? chunks[line[position]] : '',
+      pinyin: position < line.length ? pinyins?.[line[position]] ?? '' : '',
     }));
   });
   // moves the others under a cursor that is resting still.
   protected readonly pool = computed(() => {
     const line = this.line();
+    const pinyins = this.question().chunkPinyins;
     return this.chunks().map((text, index) => ({
       index,
       text,
+      pinyin: pinyins?.[index] ?? '',
       placed: line.includes(index)
     }));
   });
@@ -92,6 +96,14 @@ export class WordOrderGame extends StageGameBase {
 
   // The tiles the player has placed, as positions in `chunks` (not texts, as two tiles may read the
   protected readonly solution = computed(() => sentenceOf(this.reveal()?.correctOrder ?? []));
+  // The solution's pinyin, piece by piece, when the pinyin is shown.
+  protected readonly solutionPinyin = computed(() => {
+    const pinyins = this.question().chunkPinyins;
+    const chunks = this.chunks();
+    return pinyins
+      ? (this.reveal()?.correctOrder ?? []).map(chunk => pinyins[chunks.indexOf(chunk)] ?? '').filter(p => p).join(' ')
+      : '';
+  });
 
   // Set once the finished sentence has been reported, so nothing can change it before the verdict
   protected readonly hovered = signal<string | null>(null);
@@ -100,12 +112,7 @@ export class WordOrderGame extends StageGameBase {
 
   // The pool keeps every tile in its own place and only hides the placed ones, so picking one never
   protected readonly hint = computed(() => {
-    if (!this.cameraActive()) {
-      return 'Bấm các mảnh theo đúng thứ tự câu';
-    }
-    return this.handVisible()
-      ? 'Chỉ ngón trỏ vào từng mảnh theo thứ tự · giữ yên hoặc chụm ngón để chọn'
-      : 'Đưa tay vào khung hình';
+    return this.cameraActive() && !this.handVisible() ? 'Đưa tay vào khung hình' : '';
   });
   private readonly vision = inject(VisionService);
   private readonly audio = inject(GameAudio);

@@ -3,7 +3,6 @@
     <div class="message" role="alert">
       <div aria-hidden="true" class="big-emoji">😕</div>
       <h2 class="message-title">Không tìm thấy bài này</h2>
-      <p class="message-text">Có thể bài đã bị xóa hoặc link không đúng.</p>
       <a nz-button nzType="primary" routerLink="/assignments">Về Bài đã giao</a>
     </div>
   </nz-card>
@@ -20,7 +19,7 @@
       <span>Thời gian mỗi câu: {{ timeModeLabels[d.timeMode] }}</span>
       <span>Các màn: {{ stageLockLabels[d.stageLock] }}</span>
       @if (passText()) {
-        <span>Điểm qua màn: {{ passText() }}</span>
+        <span>Tỉ lệ đúng để qua màn: {{ passText() }}</span>
       }
       @if (d.maxAttempts !== null) {
         <span>Giới hạn: {{ d.maxAttempts }} lần/màn</span>
@@ -66,12 +65,16 @@
       <button (click)="downloadLeaderboard()" [disabled]="d.players.length === 0" nz-button nzType="default"
               type="button">
         <nz-icon nzTheme="outline" nzType="download"/>
-        Tải bảng điểm
+        Tải bảng xếp hạng
       </button>
       <button (click)="toggleFullscreen()" nz-button nzType="default" type="button">
         <nz-icon nzTheme="outline" nzType="fullscreen"/>
         Toàn màn hình
       </button>
+      <label class="pinyin-switch">
+        <nz-switch (click)="toggleShowPinyin()" [nzLoading]="pinyinSaving()" [ngModel]="d.showPinyin" nzControl/>
+        Hiện pinyin
+      </label>
     </div>
   </nz-card>
 
@@ -80,7 +83,7 @@
   <nz-card #board [class.is-fullscreen]="fullscreen()" [nzExtra]="boardExtra" [nzTitle]="boardTitle" class="board">
     @if (d.players.length === 0) {
       <div class="empty">
-        <p class="empty-text">Chưa có học sinh nào vào bài.</p>
+        <p class="empty-text">Chưa có học sinh.</p>
         @if (open()) {
           <app-share-link [code]="d.code" [qrSize]="200"/>
         }
@@ -202,9 +205,6 @@
     <!-- A template, not nzTitle: the dialog is reused for both uses, and a string title is read once. -->
     <ng-container *nzModalTitle>{{ deadlineMode() === 'reopen' ? 'Mở lại bài' : 'Hẹn giờ đóng' }}</ng-container>
     <ng-container *nzModalContent>
-      @if (deadlineMode() === 'reopen') {
-        <p class="deadline-help">Mở lại bằng cùng link.</p>
-      }
       <app-deadline-picker [(value)]="deadline"/>
     </ng-container>
   </nz-modal>

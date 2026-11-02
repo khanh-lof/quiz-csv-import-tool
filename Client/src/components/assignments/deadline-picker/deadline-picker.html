@@ -14,6 +14,6 @@
 
 @if (closeText(); as text) {
   <p [class.text-error]="inThePast()" class="close-text">
-    {{ text }}{{ inThePast() ? '. Giờ này đã qua.' : '' }}
+    {{ text }}{{ inThePast() ? ' Giờ này đã qua.' : '' }}
   </p>
 }

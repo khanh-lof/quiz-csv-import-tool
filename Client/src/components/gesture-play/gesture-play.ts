@@ -56,6 +56,7 @@ import { MarqueeText } from '../leaderboard/marquee-text/marquee-text';
 import { PlayerAvatar } from '../leaderboard/player-avatar/player-avatar';
 import { UsageGuide } from '../usage-guide/usage-guide';
 import {
+  correctAnswerPinyin,
   correctAnswerText,
   judge,
   PlayQuestion,
@@ -98,14 +99,14 @@ interface SharedInfo {
 }
 
 const SHARED_CLOSED = 'Bài này đã đóng.';
-const SHARED_MISSING = 'Không tìm thấy bài này. Kiểm tra lại link thầy cô gửi.';
-const SHARED_FAILED = 'Không tải được bài. Kiểm tra mạng rồi tải lại trang.';
+const SHARED_MISSING = 'Không tìm thấy bài này. Kiểm tra lại link.';
+const SHARED_FAILED = 'Không tải được bài. Tải lại trang.';
 
 // What the page says when a quiz has nothing to play, by how it was opened (a job reads like a file).
 const NO_QUESTIONS = {
-  local: 'Không có câu hỏi hợp lệ. Dùng file Game tạo ở AI › Tạo quiz.',
-  shared: 'Bài này chưa có câu hỏi nào chơi được. Hãy báo thầy cô.',
-  preview: 'Không tìm thấy câu hỏi hợp lệ trong bài này.',
+  local: 'Không có câu hỏi hợp lệ.',
+  shared: 'Bài này chưa có câu hỏi. Báo thầy cô.',
+  preview: 'Không có câu hỏi hợp lệ.',
 };
 
 // The server's answer when it has no such run any more: the student started the stage again elsewhere.
@@ -117,7 +118,7 @@ type Tracking = 'seen' | 'lost' | 'multi';
 
 interface Chip {
   text: string;
-  tone: 'ok' | 'wait' | 'bad' | 'off';
+  tone: 'ok' | 'wait' | 'bad';
 }
 
 // After a judged answer the page moves on by itself: a wrong one stays longer so the explanation can
@@ -143,8 +144,8 @@ const DEADLINE_MARGIN_MS = 1000;
 const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
 
 const STAND_TIP: Record<VisionKind, string> = {
-  hand: 'Đứng cách camera 0,6–1,2 m, tay trong khung hình, đủ sáng (đừng ngược sáng).',
-  face: 'Cách camera 0,6–1,2 m, nhìn thẳng, mặt đủ sáng, chỉ một người trong khung hình.',
+  hand: 'Đứng cách camera 0,6–1,2 m, đủ sáng.',
+  face: 'Cách camera 0,6–1,2 m, nhìn thẳng, đủ sáng.',
 };
 
 // The question a student plays when the server deals it: what the games show and nothing else. The answer, which
@@ -158,12 +159,25 @@ function sharedPlayQuestion(stage: number, served: SharedQuestion): PlayQuestion
   if (served.chunks) {
     view.chunks = served.chunks;
   }
+  // The server sends the pinyin only when the teacher shows it.
+  if (served.questionPinyin != null) {
+    view.questionPinyin = served.questionPinyin;
+  }
+  if (served.optionPinyins) {
+    view.optionPinyins = served.optionPinyins;
+  }
+  if (served.chunkPinyins) {
+    view.chunkPinyins = served.chunkPinyins;
+  }
   return {
     source: {
       stage,
       question: served.question,
+      questionPinyin: served.questionPinyin ?? '',
       correct: '',
+      correctPinyin: '',
       wrong: [],
+      wrongPinyin: [],
       explanation: ''
     },
     view,
@@ -266,7 +280,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       case 'preview':
         return {
           url: `/assignments/${encodeURIComponent(this.assignmentId() ?? '')}`,
-          text: 'Về bảng xếp hạng'
+          text: 'Về Bảng xếp hạng'
         };
       case 'local':
         return {
@@ -283,6 +297,8 @@ export class GesturePlay implements OnInit, OnDestroy {
   protected readonly assignmentStageLock = signal<StageLock | null>(null);
   // board component then copes with the server's 404 `Board hidden` itself.
   protected readonly assignmentShowBoard = signal<boolean | null>(null);
+  // The teacher's choice to show the pinyin, for a preview (a student's questions come with it or without it).
+  protected readonly assignmentShowPinyin = signal(false);
   // as the server sent them; null outside an assignment, where the stage's own seconds are the default for practice.
   protected readonly assignmentTimeLimits = signal<Record<string, number | null> | null>(null);
   // The teacher's pass percentage of each stage ("1" to "6"); null outside an assignment, where it is the default.
@@ -292,8 +308,6 @@ export class GesturePlay implements OnInit, OnDestroy {
   // Why a quiz could not be opened: shown on the load screen, or in the error card for the other modes.
   protected readonly problem = signal('');
   protected readonly errorLink = signal<PageLink | null>(null);
-  // The check before a shared stage is in flight.
-  protected readonly checking = signal(false);
   protected readonly joinError = signal('');
   protected readonly joining = signal(false);
   // The quiz as it was loaded, and the student playing it. What is played (`quiz`) is the same quiz under
@@ -307,6 +321,9 @@ export class GesturePlay implements OnInit, OnDestroy {
   protected readonly avatarDraft = signal('');
   protected readonly avatarSaving = signal(false);
   protected readonly effectiveTimeMode = computed(() => this.assignmentTimeMode() ?? this.settings().timeMode);
+  // A quiz of the player's own follows their setting, an assignment the teacher's.
+  protected readonly ownQuiz = computed(() => this.mode() === 'local' || this.mode() === 'job');
+  private readonly showPinyin = computed(() => this.ownQuiz() ? this.settings().showPinyin : this.assignmentShowPinyin());
   // teacher chose the open lock.
   protected readonly allStagesOpen = computed(() =>
     this.mode() === 'preview' || this.assignmentStageLock() === 'open');
@@ -372,6 +389,10 @@ export class GesturePlay implements OnInit, OnDestroy {
     const play = this.current();
     return play ? correctAnswerText(play) : '';
   });
+  protected readonly correctPinyin = computed(() => {
+    const play = this.current();
+    return play ? correctAnswerPinyin(play) : '';
+  });
   protected readonly verdict = computed(() => {
     const reveal = this.reveal();
     if (!reveal) {
@@ -399,23 +420,16 @@ export class GesturePlay implements OnInit, OnDestroy {
   // The seconds a question of the stage being played lasts, or null for no limit. An assignment's come from the
   // server, which may configure them differently from `STAGES`, and a page cannot be trusted with the table;
   protected readonly fullscreen = signal(false);
-  protected readonly cameraChip = computed<Chip>(() => {
+  protected readonly cameraChip = computed<Chip | null>(() => {
     switch (this.cameraState()) {
-      case 'on':
-        return {
-          text: 'Camera bật',
-          tone: 'ok'
-        };
       case 'starting':
         return {
           text: 'Đang bật camera…',
           tone: 'wait'
         };
+      case 'on':
       case 'off':
-        return {
-          text: 'Camera tắt',
-          tone: 'off'
-        };
+        return null;
       default:
         return {
           text: 'Không dùng được camera',
@@ -433,16 +447,6 @@ export class GesturePlay implements OnInit, OnDestroy {
         return {
           text: 'Đang tải nhận diện…',
           tone: 'wait'
-        };
-      case 'ready':
-        return {
-          text: 'Nhận diện sẵn sàng',
-          tone: 'ok'
-        };
-      case 'error':
-        return {
-          text: 'Chưa tải được nhận diện',
-          tone: 'bad'
         };
       default:
         return null;
@@ -501,7 +505,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       return message;
     }
     return this.cameraOn() && this.modelState() === 'error'
-      ? 'Không tải được bộ nhận diện cử chỉ.'
+      ? 'Chưa tải được nhận diện.'
       : '';
   });
   private readonly audio = inject(GameAudio);
@@ -613,12 +617,12 @@ export class GesturePlay implements OnInit, OnDestroy {
       this.assignmentTimeMode.set(null);
       this.assignmentStageLock.set(null);
       this.assignmentShowBoard.set(null);
+      this.assignmentShowPinyin.set(false);
       this.assignmentTimeLimits.set(null);
       this.assignmentPassPercents.set(null);
       this.assignmentMaxAttempts.set(null);
       this.attemptsUsed.set({});
       this.errorLink.set(null);
-      this.checking.set(false);
       this.joining.set(false);
       this.joinError.set('');
       this.saveState.set(null);
@@ -752,7 +756,7 @@ export class GesturePlay implements OnInit, OnDestroy {
           this.avatarOpen.set(false);
           this.fail(SHARED_CLOSED);
         } else {
-          this.notificationService.error('Chưa đổi được hình', '', { nzPlacement: 'top' });
+          this.notificationService.error('Chưa đổi được hình đại diện', '', { nzPlacement: 'top' });
         }
       },
     });
@@ -1014,8 +1018,8 @@ export class GesturePlay implements OnInit, OnDestroy {
     // A student cannot do anything about rows the teacher's quiz lost, so only the others are told.
     if (quiz.skipped > 0 && this.mode() !== 'shared') {
       this.notificationService.warning(
-        'Có dòng không dùng được',
-        `Bỏ qua ${quiz.skipped} dòng.`,
+        `Bỏ qua ${quiz.skipped} dòng không dùng được`,
+        '',
         { nzPlacement: 'top' });
     }
     return quiz;
@@ -1075,6 +1079,7 @@ export class GesturePlay implements OnInit, OnDestroy {
         this.assignmentTimeLimits.set(detail.timeLimits ?? null);
         this.assignmentStageLock.set(detail.stageLock);
         this.assignmentShowBoard.set(detail.showBoard);
+        this.assignmentShowPinyin.set(detail.showPinyin);
         this.assignmentPassPercents.set(detail.passPercents);
         this.previewCode.set(detail.code.toUpperCase());
         this.shared.set({
@@ -1083,7 +1088,7 @@ export class GesturePlay implements OnInit, OnDestroy {
         });
         this.openCsv(this.aiCsvService.extractCsvContent(detail.csv), detail.title);
       },
-      error: err => this.fail('Không tải được bài này.', err instanceof HttpErrorResponse && err.status === 404),
+      error: err => this.fail('Không tải được bài.', err instanceof HttpErrorResponse && err.status === 404),
     });
   }
 
@@ -1128,18 +1133,18 @@ export class GesturePlay implements OnInit, OnDestroy {
     const status = err instanceof HttpErrorResponse ? err.status : 0;
     const body = err instanceof HttpErrorResponse && typeof err.error === 'string' ? err.error.trim() : '';
     if (status === 409 && body === 'Name taken') {
-      return 'Tên này đã có bạn dùng, hãy thêm họ hoặc số.';
+      return 'Tên này đã có người dùng. Thêm họ hoặc số.';
     }
     if (status === 409 && body === 'Assignment is full') {
-      return 'Bài đã đủ số học sinh, hãy báo thầy cô.';
+      return 'Bài đã đủ học sinh. Báo thầy cô.';
     }
     if (status === 400) {
       return 'Tên cần từ 1 đến 40 ký tự.';
     }
     if (status === 0) {
-      return 'Mất kết nối, hãy thử lại.';
+      return 'Mất kết nối. Thử lại.';
     }
-    return 'Chưa vào được bài, hãy thử lại.';
+    return 'Chưa vào được bài. Thử lại.';
   }
 
   private showIntro(stage: number): void {
@@ -1165,11 +1170,9 @@ export class GesturePlay implements OnInit, OnDestroy {
       this.backToMap();
       return;
     }
-    this.checking.set(true);
     this.screen.set('loading');
     this.watch(this.sharedPlay.load(this.shareCode()).pipe(timeout(STAGE_CHECK_TIMEOUT_MS)), {
       next: shared => {
-        this.checking.set(false);
         this.shared.set({
           label: shared.label,
           closesAt: shared.closesAt
@@ -1186,7 +1189,6 @@ export class GesturePlay implements OnInit, OnDestroy {
         proceed();
       },
       error: err => {
-        this.checking.set(false);
         const gone = this.sharedGone(err);
         if (gone) {
           this.fail(gone);
@@ -1228,7 +1230,8 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
     const def = this.def();
     // Every run asks the stage's questions in a new order.
-    this.beginRun(shuffled(quiz.stages.get(def.stage) ?? []).map(prepareQuestion));
+    const showPinyin = this.showPinyin();
+    this.beginRun(shuffled(quiz.stages.get(def.stage) ?? []).map(question => prepareQuestion(question, showPinyin)));
     this.limit = this.stageTimeLimit();
     this.startQuestionTimer();
     this.screen.set('playing');
@@ -1351,7 +1354,6 @@ export class GesturePlay implements OnInit, OnDestroy {
     } else {
       passed = this.progress.record(quiz.key, stage, correct, total, percent);
     }
-    const allPassed = passed && !preview && [...quiz.stages.keys()].every(stageNumber => this.progress.isPassed(quiz.key, stageNumber));
     this.result.set({
       stage,
       position: stagePosition(quiz.stages.keys(), stage),
@@ -1363,7 +1365,6 @@ export class GesturePlay implements OnInit, OnDestroy {
       bestStreak: this.bestStreak,
       missed: this.missed,
       hasNext: (this.allStagesOpen() || passed) && this.nextStageWithQuestions(stage) !== null,
-      allPassed,
     });
     this.reveal.set(null);
     this.audio.play(passed ? 'finish' : 'wrong');
@@ -1535,7 +1536,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     this.backToMap();
     this.notificationService.warning(
       'Lượt chơi đã kết thúc',
-      'Có thể bạn đã mở màn này ở tab khác.',
+      'Màn này đang mở ở tab khác.',
       { nzPlacement: 'top' });
   }
 

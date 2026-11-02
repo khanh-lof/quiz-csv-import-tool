@@ -22,7 +22,6 @@ import { HeadTiltReader, meterPercent, sideToIndex, tiltHint } from './head-tilt
 // The circumference of the hold ring (r = 96 in a 200 x 200 viewBox).
 const RING_LENGTH = 603.19;
 
-const IDLE_HINT = 'Nghiêng hoặc dịch đầu nhẹ để chọn';
 
 // Stage 2: two cards, left and right, chosen by leaning the head toward one and holding it. Without
 // the camera the cards are clicked or picked with the keys (1 or ←, 2 or →).
@@ -56,6 +55,7 @@ export class HeadTiltGame extends StageGameBase {
         index,
         main,
         note,
+        pinyin: this.question().optionPinyins?.[index] ?? '',
         size: wordSize(main)
       };
     }),
@@ -68,12 +68,12 @@ export class HeadTiltGame extends StageGameBase {
   // The option the player chose for this question (by click, key or head), so nothing can answer
   protected readonly progress = signal(0);
   protected readonly lean = signal(0);
-  protected readonly hint = signal(IDLE_HINT);
+  protected readonly hint = signal('');
   protected readonly problem = signal(false);
   protected readonly meterLeft = computed(() => meterPercent(this.lean()));
   protected readonly ringOffset = computed(() => RING_LENGTH * (1 - this.progress()));
   protected readonly hintText = computed(() =>
-    this.reveal() !== null ? 'Đưa đầu về giữa để chuẩn bị câu tiếp' : this.hint(),
+    this.reveal() !== null ? '' : this.hint(),
   );
   private readonly vision = inject(VisionService);
   private readonly audio = inject(GameAudio);
@@ -229,7 +229,7 @@ export class HeadTiltGame extends StageGameBase {
     this.activeSide.set(null);
     this.progress.set(0);
     this.lean.set(0);
-    this.hint.set(IDLE_HINT);
+    this.hint.set('');
     this.problem.set(false);
   }
 }

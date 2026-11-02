@@ -86,10 +86,10 @@ export function radicalsEditError(err: unknown, fallback: string): string {
     return 'Không tìm thấy bài này.';
   }
   if (err.status === HttpStatusCode.Conflict && err.error === 'Job cannot be edited.') {
-    return 'Bài này tạo trước khi có chức năng sửa.';
+    return 'Bài cũ, không sửa được.';
   }
   if (err.status === HttpStatusCode.Conflict && err.error === 'No lesson has enough words for a group.') {
-    return 'Không bài nào còn đủ từ để ghép bộ.';
+    return 'Không bài nào đủ từ.';
   }
   return fallback;
 }

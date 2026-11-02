@@ -1,8 +1,10 @@
 <div [class.locked]="locked()" class="board">
   <div class="top">
     <div class="card prompt">
-      <span class="label">Xếp thành câu có nghĩa</span>
-      <span class="meaning">{{ question().question }}</span>
+      <span class="meaning">
+        @if (question().questionPinyin) {<span class="play-pinyin">{{ question().questionPinyin }}</span>}
+        {{ question().question }}
+      </span>
     </div>
     @if (reveal() === null) {
       <button
@@ -28,7 +30,12 @@
           class="tile target placed"
           type="button"
         >
-          {{ slot.text }}
+          <span class="word">
+            @if (slot.pinyin) {
+              <span class="play-pinyin">{{ slot.pinyin }}</span>
+            }
+            {{ slot.text }}
+          </span>
         </button>
       } @else {
         <span class="slot"></span>
@@ -39,7 +46,12 @@
   @if (reveal() !== null) {
     <div class="card solution">
       <span class="label">Đáp án đúng</span>
-      <span class="sentence">{{ solution() }}</span>
+      <span class="sentence">
+        @if (solutionPinyin()) {
+          <span class="play-pinyin">{{ solutionPinyin() }}</span>
+        }
+        {{ solution() }}
+      </span>
     </div>
   } @else {
     <div class="pool">
@@ -55,11 +67,18 @@
           @if (!cameraActive() && tile.index < 9) {
             <kbd>{{ tile.index + 1 }}</kbd>
           }
-          {{ tile.text }}
+          <span class="word">
+            @if (tile.pinyin) {
+              <span class="play-pinyin">{{ tile.pinyin }}</span>
+            }
+            {{ tile.text }}
+          </span>
         </button>
       }
     </div>
-    <p class="hint">{{ hint() }}</p>
+    @if (hint()) {
+      <p class="hint">{{ hint() }}</p>
+    }
   }
 </div>
 

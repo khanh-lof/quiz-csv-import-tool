@@ -107,12 +107,6 @@
   border-radius: 999px;
 }
 
-.perfect,
-.all-done {
-  margin: 16px 0 0;
-  font-weight: 600;
-}
-
 .actions {
   display: flex;
   flex-wrap: wrap;

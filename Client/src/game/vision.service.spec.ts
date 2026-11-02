@@ -203,7 +203,7 @@ describe('VisionService', () => {
       getUserMedia.and.rejectWith(new DOMException('busy', 'NotReadableError'));
       await service.startCamera();
       expectFailure('error');
-      expect(service.cameraMessage()).toContain('Ứng dụng khác');
+      expect(service.cameraMessage()).toContain('ứng dụng khác');
     });
 
     it('maps anything else to a generic error', async () => {

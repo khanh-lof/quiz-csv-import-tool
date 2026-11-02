@@ -196,7 +196,7 @@ func exportTypeMessages(opts Options) []string {
 		// The stage rules carry the whole format, including how many rows to write, so unlike
 		// Wayground there is no message after the template.
 		return []string{
-			"CSV columns: Stage,Question,Correct Answer,Wrong Answer 1,Wrong Answer 2,Wrong Answer 3,Explanation",
+			"CSV columns: Stage,Question,Question Pinyin,Correct Answer,Correct Answer Pinyin,Wrong Answer 1,Wrong Answer 1 Pinyin,Wrong Answer 2,Wrong Answer 2 Pinyin,Wrong Answer 3,Wrong Answer 3 Pinyin,Explanation",
 			buildGestureQuizMessage(opts),
 		}
 	}

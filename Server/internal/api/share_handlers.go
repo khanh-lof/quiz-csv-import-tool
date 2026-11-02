@@ -76,6 +76,7 @@ func (s *Server) getShared(w http.ResponseWriter, r *http.Request) {
 		"passPercents": passPercentsOf(a),
 		"maxAttempts":  a.MaxAttempts,
 		"showBoard":    !a.HideBoard,
+		"showPinyin":   a.ShowPinyin,
 		"attempts":     attempts,
 		"results":      results,
 		"closesAt":     utcPtr(a.ClosesAt),

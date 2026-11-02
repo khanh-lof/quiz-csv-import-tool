@@ -70,11 +70,6 @@ export class StudentLeaderboard {
     const rank = this.board()?.you?.rank;
     return rank !== null && rank !== undefined && rank <= PODIUM_RANKS;
   });
-  // The viewer has joined but has no result yet, so they are not on the board.
-  protected readonly unranked = computed(() => {
-    const own = this.board()?.you;
-    return !!own && own.rank === null;
-  });
   private readonly sharedPlay = inject(SharedPlayService);
   private readonly audio = inject(GameAudio);
   private readonly destroyRef = inject(DestroyRef);

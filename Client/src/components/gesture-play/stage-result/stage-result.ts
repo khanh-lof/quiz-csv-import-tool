@@ -26,8 +26,6 @@ export interface StageRunResult {
   missed: MissedQuestion[];
   // Whether a later stage with questions can be opened now: after a pass, or at once in the teacher's preview.
   hasNext: boolean;
-  // Whether this run passed and every stage of the quiz is passed with it; never in the teacher's preview.
-  allPassed: boolean;
 }
 
 // What a student's result screen says about the run's record. The server records a run itself as it judges the

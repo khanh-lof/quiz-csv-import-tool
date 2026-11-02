@@ -42,7 +42,7 @@ describe('MarqueePauseButton', () => {
     fixture.detectChanges();
 
     expect(settings.paused()).toBeTrue();
-    expect(button().textContent?.trim()).toBe('Cho chữ chạy');
+    expect(button().textContent?.trim()).toBe('Bật chữ chạy');
     expect(button().getAttribute('aria-pressed')).toBe('true');
     expect(iconType()).toBe('play-circle');
 
@@ -59,7 +59,7 @@ describe('MarqueePauseButton', () => {
     fixture.detectChanges();
 
     expect(button().getAttribute('aria-pressed')).toBe('true');
-    expect(button().textContent?.trim()).toBe('Cho chữ chạy');
+    expect(button().textContent?.trim()).toBe('Bật chữ chạy');
   });
 
   it('has no aria-label or title when it shows its text', () => {
@@ -78,8 +78,8 @@ describe('MarqueePauseButton', () => {
     button().click();
     fixture.detectChanges();
 
-    expect(button().getAttribute('aria-label')).toBe('Cho chữ chạy');
-    expect(button().getAttribute('title')).toBe('Cho chữ chạy');
+    expect(button().getAttribute('aria-label')).toBe('Bật chữ chạy');
+    expect(button().getAttribute('title')).toBe('Bật chữ chạy');
     expect(button().getAttribute('aria-pressed')).toBe('true');
   });
 });

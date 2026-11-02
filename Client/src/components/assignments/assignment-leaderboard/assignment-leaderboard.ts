@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
@@ -22,6 +23,7 @@ import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzPopconfirmDirective } from 'ng-zorro-antd/popconfirm';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
+import { NzSwitchComponent } from 'ng-zorro-antd/switch';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
 import {
   catchError,
@@ -118,7 +120,9 @@ interface RankedRow {
     NzModalModule,
     NzPopconfirmDirective,
     NzSpinComponent,
+    NzSwitchComponent,
     NzTagComponent,
+    FormsModule,
     DeadlinePicker,
     LeaderboardPodium,
     MarqueePauseButton,
@@ -143,6 +147,7 @@ export class AssignmentLeaderboard {
   // A refresh the teacher asked for is under way.
   protected readonly refreshing = signal(false);
   // A change to the assignment (close, reopen, closing time) is being saved.
+  protected readonly pinyinSaving = signal(false);
   protected readonly busy = signal(false);
   protected readonly fullscreen = signal(false);
   protected readonly qrOpen = signal(false);
@@ -287,6 +292,18 @@ export class AssignmentLeaderboard {
       this.notificationService.warning('Chưa sao chép được',
         'Lấy link ở Mã QR.', { nzPlacement: 'top' });
     }
+  }
+
+  // Shows or hides the pinyin from the students' next question on.
+  protected toggleShowPinyin(): void {
+    const detail = this.detail();
+    if (!detail || this.pinyinSaving()) {
+      return;
+    }
+    this.pinyinSaving.set(true);
+    this.change({ showPinyin: !detail.showPinyin }).pipe(finalize(() => this.pinyinSaving.set(false))).subscribe({
+      error: err => this.fail('Không đổi được cài đặt pinyin', err),
+    });
   }
 
   protected closeAssignment(): void {

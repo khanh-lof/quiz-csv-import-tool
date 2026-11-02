@@ -189,7 +189,7 @@ describe('StudentLeaderboard', () => {
       leave();
     }));
 
-    it('is a muted line when the student has no result yet', fakeAsync(() => {
+    it('shows no row for the student who has no result yet', fakeAsync(() => {
       shared.leaderboard.and.returnValue(of(board({
         you: entry(null, 'Cúc', {
           stagesPassed: 0,
@@ -198,7 +198,7 @@ describe('StudentLeaderboard', () => {
       })));
       open();
 
-      expect(clean(root())).toContain('Bạn chưa có kết quả.');
+      expect(clean(root())).not.toContain('Bạn chưa có kết quả.');
       expect(root().querySelector('.own')).toBeNull();
       expect(audio.play).not.toHaveBeenCalled();
       leave();

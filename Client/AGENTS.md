@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI when working with code in this repository.
 
 ## What this is
 
@@ -133,7 +133,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
 hand-kept mirror of the server's registry of curated books (`Server/internal/csvgen/textbooks.go`): HSK 3.0 levels 1–3
 and YCT 6 for now. For these the server sends the lesson's real material to the AI, so no photo is needed. In Auto
 mode `AiGeneration` looks the book up from course type, standard and level (the `textbook` getter, like `maxLevel`)
-and shows under the Cấp/Bài row either "Dùng giáo trình …" or a muted "Chưa có giáo trình …" line; the Bài select
+and shows under the Cấp/Bài row either "Có sẵn …, không cần ảnh." or a muted "Nên thêm ảnh." line; the Bài select
 offers lessons 1 to the book's `lessons` (100 without a book), and a lesson left over the cap (HSK 3.0 level 3 lesson 18, then
 level 1) gets a `max` error from the form validator like the level's, so the form cannot be submitted; `lessonOptions`
 keeps an option for such a lesson, since ng-zorro's select hides a value without one and it could not be removed. Adding a book
@@ -176,7 +176,7 @@ The exercise page the AI page can build instead of a quiz; the contract and the 
   `Auto` platform, and `AiCsvService.submitCreative` sends nothing more for it.
 - **History.** A finished job has "Chơi ngay" (`/ai-history/radicals/<id>`) and "Tải file" (`RadicalsPageService`
   fetches `GET csv/jobs/{id}/page` and saves `<title>-GhepBoThu.html`), and no "Xem kết quả": its `csv` is the
-  exercise's JSON. A job that failed with 422 (no lesson had enough words) is worded by `failedJobMessage`.
+  exercise's JSON. A failed job is worded by `failedJobMessage` (422 no lesson had enough words, 502, 504, else "Không rõ lỗi."), never with the server's text.
 - **Page.** `RadicalsPlay` (`components/radicals-play/`, lazy, inside `Workspace`; the breadcrumb is AI › Lịch sử ›
   Ghép bộ thủ through `NavPage.childLabel`) takes the job from `AiJobService` (fetching the list once on a direct
   link), shows the server's page in an `iframe` whose `srcdoc` is that HTML and whose `sandbox` is `allow-scripts
@@ -235,7 +235,9 @@ the answers and records it, and the page only shows what it is dealt (see [Giao 
 
 **The engine** (`src/game/`, shared by the page and the games):
 - `stage-game.ts` is the contract between the page and a game. `StageGameBase` is an abstract directive:
-  inputs `question` (`QuestionView`), `reveal` (`Reveal | null`), `paused`, `cameraActive`; output `choose`
+  inputs `question` (`QuestionView`, which carries `questionPinyin` and `optionPinyins`/`chunkPinyins` only when
+  the pinyin is shown; a game then draws a `.play-pinyin` line, a global style of `styles.css`, above each text
+  that has one), `reveal` (`Reveal | null`), `paused`, `cameraActive`; output `choose`
   (a `Choice`: the index into `options`, or for stage 6 the chunks in the order pointed at); a `ready` signal
   (a face game holds it false until the player's neutral pose is calibrated, and the page's timer waits);
   and the hooks `onFrame(frame, now)` and `tick(dt, now)`. Each game component provides itself as
@@ -316,9 +318,10 @@ exist.
 hash from `parseGestureQuiz`, not the title), the stages passed and the best result of each. A stage is
 unlocked when every earlier stage that has questions is passed (`isUnlocked`); `record` re-reads the storage
 before writing so a second tab's progress is not overwritten, and a pass is never taken back. The player's
-settings (`GestureSettingsService`, `localStorage['gesture-quiz-settings']`: `timeMode`, `sound`, and `useCamera`,
-which makes the next stage or visit start the camera by itself and is cleared when the player turns the camera
-off or it cannot be started) are separate. Both stores are sanitized on load and survive blocked storage.
+settings (`GestureSettingsService`, `localStorage['gesture-quiz-settings']`: `timeMode`, `sound`, `showPinyin`
+(the map's "Hiện pinyin" switch, off by default, shown only for a quiz of the player's own: `prepareQuestion(question,
+showPinyin)` then fills the view's pinyin), and `useCamera`, which makes the next stage or visit start the camera
+by itself and is cleared when the player turns the camera off or it cannot be started) are separate. Both stores are sanitized on load and survive blocked storage.
 A student's progress on an assignment lives in the same store under its own key (`asg:<CODE>:<playerId>`),
 and the player's `timeMode` setting is ignored for an assignment, see [Giao bài](#giao-bài-assignments).
 
@@ -380,7 +383,7 @@ routes added for this (see above for their guards).
 |---|---|---|---|---|
 | Route | `/play` | `/play/:jobId` | `/play/s/:code` | `/play/preview/:assignmentId` |
 | Quiz comes from | a file or the sample | `AiJobService` | the server, one question at a time | `AssignmentService.get`, the snapshot |
-| Topbar link | Về Quiz thủ công, Mở quiz khác | Về Lịch sử | none | Về bảng xếp hạng |
+| Topbar link | Về Quiz thủ công, Mở quiz khác | Về Lịch sử | none | Về Bảng xếp hạng |
 | Progress key | the quiz's hash | the quiz's hash | `asg:<CODE>:<playerId>` | the quiz's hash, never written |
 | Time mode | the player's setting | the player's setting | the teacher's, fixed | the teacher's, fixed |
 | Map | locks, reset | locks, reset | locks (or all open, by the teacher's `stageLock`), no reset | every stage open, no reset |
@@ -389,7 +392,7 @@ routes added for this (see above for their guards).
 | Finished run | recorded locally | recorded locally | recorded by the server, mirrored locally | nothing recorded or sent |
 
 - **Shared mode.** The share answer carries no question: `baseQuiz` is `placeholderQuiz` of its `stageCounts`
-  (no stage at all is the "Bài này chưa có câu hỏi nào chơi được" card). `quiz` is `baseQuiz` under the key
+  (no stage at all is the "Bài này chưa có câu hỏi" card). `quiz` is `baseQuiz` under the key
   `asg:<CODE>:<playerId>` (the code upper-cased), so `GestureProgressService` keeps each student's locks and
   bests apart from other students' and from the same quiz played as a file or a job (a student who joins again
   under a new name starts over). That progress only mirrors the server's: `syncProgress` overwrites it with the
@@ -410,8 +413,8 @@ routes added for this (see above for their guards).
   of the server's `top` are not drawn), and the student's own place: a "Chúc mừng!" line when they are on the podium,
   otherwise their own row under it (rank, avatar, marquee name, "Bạn" tag, "Hạng N · N/M màn · C/P câu"). A student
   who comes onto the podium hears `GameAudio`'s `finish` fanfare once per arrival (not on each poll; leaving the
-  podium and returning plays it again). It also shows "Bạn chưa có kết quả." before
-  their first result, "Chưa ai có kết quả." on an empty board, and a compact `MarqueePauseButton`. It loads on
+  podium and returning plays it again). It also shows
+  "Chưa ai có kết quả." on an empty board, and a compact `MarqueePauseButton`. It loads on
   init and when `code` or `refreshKey` changes, every 30 s (`BOARD_POLL_MS`) while the tab is visible and once
   when it comes back; a failed load quietly keeps the last board and an older answer never replaces a newer
   one; nothing is drawn before the first answer. The page mounts it under the map in shared mode, with
@@ -432,7 +435,7 @@ routes added for this (see above for their guards).
 - **The check before each stage** (`guardSharedStage`, for opening a stage's intro, replaying it and "Màn tiếp
   theo"): the stored identity must still be there (a refused request or another tab may have removed it,
   otherwise the join screen comes back), the stage must be open for this student, and the page asks the server
-  again (`SharedPlayService.load`, with a 4 s timeout, behind a spinner "Đang kiểm tra bài…"). A 404 or 410
+  again (`SharedPlayService.load`, with a 4 s timeout, behind a spinner). A 404 or 410
   shows the error card ("Không tìm thấy bài này", or "Bài này đã đóng"); any other failure (offline, slow, 5xx)
   still opens the intro, where starting the run reports its own failure. An answer refreshes the label, the
   closing time, the runs used and the progress, and the stage is checked again against them (the server may know
@@ -467,13 +470,11 @@ routes added for this (see above for their guards).
   stage has questions (so `GestureStageResult` offers "Màn tiếp theo" on `hasNext` alone, not only after a
   pass). No result is recorded or sent anywhere. A banner says so on every screen but loading and error. It
   reads (never writes) the quiz's own progress key, so the map may show the teacher's earlier results of the
-  same quiz from `/play`, but `StageRunResult.allPassed` ("Bạn đã qua hết các màn…") is never true there. It
+  same quiz from `/play`. It
   works on a closed assignment, and a missing one gets an error card with a link to `/assignments`.
 - **Inputs added to the map and the result.** `GestureStageMap`: `lockedTimeMode` (the teacher's mode, shown as
   text instead of the radios), `allowReset` (false hides "Chơi lại từ đầu": a student's results are the
-  teacher's), `allOpen`, and a content projection above its summary. `GestureStageResult`: `saveState`. The result's
-  `allPassed` (this run passed and every stage of the quiz is passed with it) is set by `finishRun` from
-  `GestureProgressService.isPassed`, after the run is recorded.
+  teacher's), `allOpen`, and a content projection above its summary. `GestureStageResult`: `saveState`.
 
 - **The stage lock.** An assignment's `stageLock` (`sequential` | `open`, `StageLock` in `models/assignment.ts`) reaches
   the page with the time mode (`assignmentStageLock`). `allStagesOpen` is true in a preview or when it is `open`,
@@ -488,9 +489,14 @@ routes added for this (see above for their guards).
   then the `attempts` of each run started, since a run counts from its start. A stage with none left cannot be
   started, the map shows "Hết lượt" / "Còn N lượt" and the result hides replay; a 409 `Replay limit reached` on a
   start marks the stage used up. A preview is never limited.
-- **The board's visibility.** `showBoard` is the last field of `AssignDialog`, the switch "Học sinh xem bảng xếp
+- **The board's visibility.** `showBoard` is a field of `AssignDialog`, the switch "Học sinh xem bảng xếp
   hạng" (on by default, sent on every create). Off, the students get no board (see *The students' board* above)
   and the teacher's leaderboard page says "Học sinh không xem bảng xếp hạng" on its meta line.
+- **The pinyin.** `showPinyin` is the last field of `AssignDialog`, the switch "Hiện pinyin" (off by default, sent
+  on every create), and the leaderboard page has the same switch among its actions (`toggleShowPinyin`, a PATCH;
+  the switch is `nzControl`, so it shows the server's answer and stays as it was when the change is refused). A
+  student's page shows the pinyin the server deals with each question (`sharedPlayQuestion` copies it into the
+  view) and has no switch; a preview follows the assignment's `showPinyin` (`assignmentShowPinyin`).
 
 **Leaderboard building blocks** (`src/components/leaderboard/`, each with its spec), shared by the teacher's
 page and the students' board:
@@ -506,7 +512,7 @@ page and the students' board:
   `prefers-reduced-motion`; the full name is always its `title`. It needs a bounded width (`min-width: 0` in a
   grid or flex cell).
 - `MarqueeSettings` (root) keeps the "stop the moving names" choice in `localStorage['leaderboard-marquee-paused']`,
-  and `MarqueePauseButton` (`app-marquee-pause-button`, `compact`) toggles it: "Dừng chữ chạy" / "Cho chữ chạy".
+  and `MarqueePauseButton` (`app-marquee-pause-button`, `compact`) toggles it: "Dừng chữ chạy" / "Bật chữ chạy".
   That one switch for every moving name is what WCAG 2.2.2 (pause, stop, hide) asks of content that moves on
   its own; keep one on any screen that shows marquee names.
 - `LeaderboardPodium` (`app-leaderboard-podium`: `entries` of `PodiumEntry`, `stageCount`, `possible`, `large`)
@@ -541,7 +547,7 @@ page and the students' board:
   for the pure parts: `shouldPoll`, `medal`, `stageCell`, `stagePip`, `scorePercent`, `rankMoves`, `moveMark`,
   `orderChanged`, `fileNameFor`, and `flip.ts` for the row slide). The header has the status and time mode and
   the actions: copy link, QR (a big code for a projector), "Xem thử" (`/play/preview/<id>`), "Đóng bài" and
-  "Hẹn giờ đóng" while it is open, "Mở lại" when closed, "Tải bảng điểm" and "Toàn màn hình" (full-screens the
+  "Hẹn giờ đóng" while it is open, "Mở lại" when closed, "Tải bảng xếp hạng" and "Toàn màn hình" (full-screens the
   board card, not the page). The board card ("Bảng xếp hạng", with a `MarqueePauseButton` beside "Làm mới")
   shows the server's order, never re-sorted: the `LeaderboardPodium` of the ranked players, then
   `ol.entries`, one `li.entry[data-player-id]` per ranked player (a subgrid of the list, so the columns line
@@ -561,7 +567,7 @@ page and the students' board:
   which mirrors the server's `ResultGrace`) and the tab is visible; otherwise there is only the "Làm mới"
   button, and a tab that comes back to the front catches up at once. Requests are numbered and an answer older
   than the one on screen is dropped, so a poll sent before a close or a removal cannot undo it; a change's
-  answer is merged into the page keeping the students; a failed poll quietly keeps the last data; a 404 shows a not-found state. "Tải bảng điểm" is `leaderboardCsv` (stage columns headed `Màn 1 (Chém hoa quả)`, a BOM so Excel reads UTF-8, CRLF
+  answer is merged into the page keeping the students; a failed poll quietly keeps the last data; a 404 shows a not-found state. "Tải bảng xếp hạng" is `leaderboardCsv` (stage columns headed `Màn 1 (Chém hoa quả)`, a BOM so Excel reads UTF-8, CRLF
   line ends, a leading apostrophe on a name that starts with `=`, `+`, `-`, `@`, tab or CR so a spreadsheet does
   not run it as a formula), named `<title>[-<label>]-bang-xep-hang.csv` by `fileNameFor`.
 
@@ -605,6 +611,15 @@ notification strings in the codebase being written in Vietnamese directly at the
 i18n).
 
 ### User messages
-- Messages shown to the user (notifications, hints, helper text, empty states): keep them short and don't
-  explain much. Add one only when the user could not tell how to use the feature without it; a self-evident
-  control or result needs no message. NEVER put technical things into user messages.
+UI text (notifications, hints, helper text, empty states, modal text, tooltips) is kept to the minimum: the
+goal is a clean, simple UI. The default is no text; each message must earn its place.
+- **Add one only when the user would otherwise be stuck or misled**: a result they cannot see (where it went),
+  a refusal and what to do about it, a non-obvious next step, or a rule with a number. When unsure, leave it out.
+- **No message for the self-evident**: a control whose label says what it does, a result visible on screen (a
+  download, rows appearing, a dialog closing, a navigation). Never repeat the title or the button just pressed.
+- **Don't explain**: no why, no how it works, no background, no reassurance. NEVER put technical things into user
+  messages (status codes, server, model, storage, ids).
+- **As short as possible**: the title carries the point; a body, when needed, is one short clause. No "Vui lòng",
+  "bạn" or particles ("nhé"), no examples or lists in hints. Prefer making the control clear (label,
+  placeholder, icon) over adding helper text.
+- When changing a feature, remove the text it no longer needs.

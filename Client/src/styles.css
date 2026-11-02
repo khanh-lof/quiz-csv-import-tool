@@ -67,6 +67,19 @@ body {
   color: var(--qt-text);
 }
 
+/* ===== Gesture quiz ===== */
+
+/* The pinyin line a game draws above a question or an answer when the pinyin is shown: on its own line, a
+   little more than half the size of the text it reads, and a shade lighter, so the hanzi stay the text. */
+.play-pinyin {
+  display: block;
+  font-size: 0.58em;
+  font-weight: 500;
+  line-height: 1.25;
+  opacity: 0.8;
+  letter-spacing: 0;
+}
+
 /* ===== Layout helpers ===== */
 
 /* A full-height page with its content (usually one card) centered, as on the login and offline screens. */

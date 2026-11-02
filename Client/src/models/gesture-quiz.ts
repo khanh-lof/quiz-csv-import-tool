@@ -2,25 +2,44 @@ import { stageDef, STAGES } from '../game/stages';
 
 // The columns of a gesture quiz's CSV, which the AI returns without a header row (the order the server's
 // prompt asks for). The downloaded file gets this header, and the quiz parses the same with or without it.
+// Every text the player reads before answering has its pinyin in the next column; the explanation, shown
+// after the answer, mixes them freely.
 export const GESTURE_QUIZ_COLUMNS = [
   'Stage',
   'Question',
+  'Question Pinyin',
   'Correct Answer',
+  'Correct Answer Pinyin',
   'Wrong Answer 1',
+  'Wrong Answer 1 Pinyin',
   'Wrong Answer 2',
+  'Wrong Answer 2 Pinyin',
   'Wrong Answer 3',
+  'Wrong Answer 3 Pinyin',
   'Explanation',
 ];
 
+const QUESTION = 1;
+const QUESTION_PINYIN = 2;
+const CORRECT = 3;
+const CORRECT_PINYIN = 4;
+const WRONG_COLUMNS = [5, 7, 9];
+const EXPLANATION = 11;
+
 // One playable question, already checked against its stage's rules. For stage 1 `correct` is exactly
 // 'Đúng' or 'Sai' and `wrong` is empty. For stage 6 `chunks` are the sentence's pieces in the right
-// order, `correct` is the same pieces joined by ' / ' and `wrong` is empty.
+// order, `correct` is the same pieces joined by ' / ' and `wrong` is empty. Each text has its pinyin
+// beside it, '' when it has none: `wrongPinyin` is as long as `wrong` and `chunkPinyin` as `chunks`.
 export interface GestureQuestion {
   stage: number;
   question: string;
+  questionPinyin: string;
   correct: string;
+  correctPinyin: string;
   wrong: string[];
+  wrongPinyin: string[];
   chunks?: string[];
+  chunkPinyin?: string[];
   explanation: string;
 }
 
@@ -56,8 +75,16 @@ function foldAnswer(text: string): string {
     .trim();
 }
 
-// Turns one CSV row into a question, or null when it breaks its stage's rules.
+function splitChunks(text: string): string[] {
+  return text.split('/').map(chunk => chunk.trim()).filter(chunk => chunk !== '');
+}
+
+// Turns one CSV row into a question, or null when it breaks its stage's rules. A row of another length
+// than the columns is dropped too, which is how a quiz written in an older layout shows up: as no question.
 function parseRow(row: string[]): GestureQuestion | null {
+  if (row.length !== GESTURE_QUIZ_COLUMNS.length) {
+    return null;
+  }
   const cell = (index: number): string => (row[index] ?? '').trim();
 
   const stageText = /\d+/.exec(cell(0));
@@ -66,52 +93,79 @@ function parseRow(row: string[]): GestureQuestion | null {
     return null;
   }
 
-  const question = cell(1);
-  const correct = cell(2);
-  const explanation = cell(6);
+  const question = cell(QUESTION);
+  const correct = cell(CORRECT);
   if (!question || !correct) {
     return null;
   }
+  const base = {
+    stage,
+    question,
+    questionPinyin: cell(QUESTION_PINYIN),
+    wrong: [],
+    wrongPinyin: [],
+    explanation: cell(EXPLANATION),
+  };
 
   if (stage === 1) {
     const folded = foldAnswer(correct);
     const answer = TRUE_WORDS.has(folded) ? TRUE_ANSWER : FALSE_WORDS.has(folded) ? FALSE_ANSWER : null;
-    return answer ? {
-      stage,
-      question,
-      correct: answer,
-      wrong: [],
-      explanation
-    } : null;
+    return answer ? { ...base, correct: answer, correctPinyin: '' } : null;
   }
 
   if (stage === WORD_ORDER_STAGE) {
-    const chunks = correct.split('/').map(chunk => chunk.trim()).filter(chunk => chunk !== '');
+    const chunks = splitChunks(correct);
     if (chunks.length < MIN_CHUNKS || chunks.length > MAX_CHUNKS) {
       return null;
     }
+    // The pinyin is a help, not the answer: pieces that do not line up with the sentence's are dropped
+    // rather than the question.
+    const written = splitChunks(cell(CORRECT_PINYIN));
+    const aligned = written.length === chunks.length;
     return {
-      stage,
-      question,
+      ...base,
       correct: chunks.join(' / '),
-      wrong: [],
+      correctPinyin: aligned ? written.join(' / ') : '',
       chunks,
-      explanation
+      chunkPinyin: aligned ? written : chunks.map(() => '')
     };
   }
 
   const wrongNeeded = stageDef(stage).optionCount - 1;
-  const wrong = [...new Set([cell(3), cell(4), cell(5)].filter(answer => answer !== '' && answer !== correct))];
+  const wrong: string[] = [];
+  const wrongPinyin: string[] = [];
+  for (const column of WRONG_COLUMNS) {
+    const answer = cell(column);
+    if (answer !== '' && answer !== correct && !wrong.includes(answer)) {
+      wrong.push(answer);
+      wrongPinyin.push(cell(column + 1));
+    }
+  }
   if (wrong.length < wrongNeeded) {
     return null;
   }
   return {
-    stage,
-    question,
+    ...base,
     correct,
+    correctPinyin: cell(CORRECT_PINYIN),
     wrong: wrong.slice(0, wrongNeeded),
-    explanation
+    wrongPinyin: wrongPinyin.slice(0, wrongNeeded)
   };
+}
+
+// The pinyin of one of the question's options (the right answer or a wrong one), '' when it has none.
+export function pinyinOf(question: GestureQuestion, option: string): string {
+  if (option === question.correct) {
+    return question.correctPinyin;
+  }
+  const at = question.wrong.indexOf(option);
+  return at >= 0 ? question.wrongPinyin[at] : '';
+}
+
+// The pinyin of a piece of the sentence, found by its text: the first piece written so.
+export function chunkPinyinOf(question: GestureQuestion, chunk: string): string {
+  const at = question.chunks?.indexOf(chunk) ?? -1;
+  return at >= 0 ? question.chunkPinyin?.[at] ?? '' : '';
 }
 
 // FNV-1a over the UTF-16 code units: short, dependency-free and stable across runs, which is all a
@@ -158,8 +212,8 @@ export function parseGestureQuiz(rows: string[][], title: string): GestureQuiz {
     }
   }
 
-  // The key covers what is played, not the title or the explanations: the quiz opened from its AI job
-  // and from the CSV downloaded from it (which has a header row) must share one key.
+  // The key covers what is played, not the title, the pinyin or the explanations: the quiz opened from its
+  // AI job and from the CSV downloaded from it (which has a header row) must share one key.
   const played = [...stages.values()].flat().map(q => ({
     stage: q.stage,
     question: q.question,

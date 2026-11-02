@@ -284,7 +284,7 @@ describe('HeadTiltGame', () => {
 
       expect(chosen).toEqual([]);
       expect(fixture.nativeElement.querySelector('.hint.warn')!.textContent).toContain(
-        'Chỉ một người',
+        'Chỉ một khuôn mặt',
       );
     });
   });

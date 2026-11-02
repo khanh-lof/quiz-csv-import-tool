@@ -36,8 +36,7 @@ const ARROW_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowDown'];
 // upper half of the bar.
 const MOUTH_FULL = 0.7;
 
-const IDLE_HINT = 'Dịch đầu sang làn đáp án';
-const MISSED_HINT = 'Giữ yên ở một làn thêm chút rồi mới đớp';
+const MISSED_HINT = 'Giữ yên ở một làn rồi đớp';
 const MISSED_HINT_MS = 1400;
 
 // Stage 3: three lanes, each with one answer; the frog follows the player's head from lane to lane
@@ -75,6 +74,7 @@ export class FrogBiteGame extends StageGameBase {
         filled: text !== undefined,
         main,
         note,
+        pinyin: this.question().optionPinyins?.[index] ?? '',
         size: wordSize(main)
       };
     }),
@@ -86,7 +86,7 @@ export class FrogBiteGame extends StageGameBase {
   protected readonly stable = signal(false);
   protected readonly jawOpen = signal(0);
   protected readonly mouthOpen = signal(false);
-  protected readonly hint = signal(IDLE_HINT);
+  protected readonly hint = signal('');
   protected readonly problem = signal(false);
   // After a bite the frog stays at the lane it bit.
   protected readonly frogLane = computed<number>(() => this.picked() ?? this.lane());
@@ -103,7 +103,7 @@ export class FrogBiteGame extends StageGameBase {
   protected readonly mouthPercent = computed(() => clamp(this.jawOpen() / MOUTH_FULL, 0, 1) * 100);
   protected readonly biteMarkPercent = (BITE_OPEN / MOUTH_FULL) * 100;
   protected readonly hintText = computed(() =>
-    this.reveal() !== null ? 'Xem đáp án!' : this.picked() !== null ? 'Đớp!' : this.hint(),
+    this.reveal() !== null || this.picked() !== null ? '' : this.hint(),
   );
   private readonly vision = inject(VisionService);
   private readonly audio = inject(GameAudio);
@@ -260,14 +260,14 @@ export class FrogBiteGame extends StageGameBase {
     this.currentQuestion = question;
     this.reader.newQuestion();
     this.missedUntil = 0;
-    this.hint.set(IDLE_HINT);
+    this.hint.set('');
   }
 
   private clearCamera(): void {
     this.stable.set(false);
     this.jawOpen.set(0);
     this.mouthOpen.set(false);
-    this.hint.set(IDLE_HINT);
+    this.hint.set('');
     this.problem.set(false);
     this.missedUntil = 0;
   }

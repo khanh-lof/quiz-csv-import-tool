@@ -1,5 +1,6 @@
 import { GestureQuestion } from '../../models/gesture-quiz';
 import {
+  correctAnswerPinyin,
   correctAnswerText,
   isCorrectChoice,
   judge,
@@ -14,8 +15,11 @@ function question(stage: number, overrides: Partial<GestureQuestion> = {}): Gest
   return {
     stage,
     question: 'Q',
+    questionPinyin: '',
     correct: 'Đúng',
+    correctPinyin: '',
     wrong: [],
+    wrongPinyin: [],
     explanation: 'Vì sao', ...overrides
   };
 }
@@ -74,6 +78,58 @@ describe('prepareQuestion', () => {
     prepareQuestion(source);
 
     expect(source.chunks).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('pinyin', () => {
+  it('leaves it out of the view unless it is shown', () => {
+    const play = prepareQuestion(question(3, {
+      questionPinyin: 'nǐ hǎo',
+      correct: '你',
+      correctPinyin: 'nǐ',
+      wrong: ['我', '他'],
+      wrongPinyin: ['wǒ', 'tā']
+    }));
+
+    expect(play.view.questionPinyin).toBeUndefined();
+    expect(play.view.optionPinyins).toBeUndefined();
+    expect(correctAnswerPinyin(play)).toBe('');
+  });
+
+  it('puts each option\'s pinyin beside it, wherever the shuffle put the option', () => {
+    for (let run = 0; run < 20; run += 1) {
+      const play = prepareQuestion(question(3, {
+        questionPinyin: 'nǐ hǎo',
+        correct: '你',
+        correctPinyin: 'nǐ',
+        wrong: ['我', '他'],
+        wrongPinyin: ['wǒ', 'tā']
+      }), true);
+      const byOption: Record<string, string> = { '你': 'nǐ', '我': 'wǒ', '他': 'tā' };
+
+      expect(play.view.questionPinyin).toBe('nǐ hǎo');
+      expect(play.view.optionPinyins).toEqual(play.view.options.map(option => byOption[option]));
+      expect(correctAnswerPinyin(play)).toBe('nǐ');
+    }
+  });
+
+  it('gives stage 1 empty option pinyin', () => {
+    const play = prepareQuestion(question(1, { questionPinyin: 'nǐ hǎo' }), true);
+
+    expect(play.view.optionPinyins).toEqual(['', '']);
+    expect(correctAnswerPinyin(play)).toBe('');
+  });
+
+  it('keeps each piece\'s pinyin with it and reads the sentence\'s in order', () => {
+    const play = prepareQuestion(question(6, {
+      correct: '我 / 喝 / 茶',
+      chunks: ['我', '喝', '茶'],
+      chunkPinyin: ['wǒ', 'hē', 'chá']
+    }), true);
+    const byChunk: Record<string, string> = { '我': 'wǒ', '喝': 'hē', '茶': 'chá' };
+
+    expect(play.view.chunkPinyins).toEqual(play.view.chunks!.map(chunk => byChunk[chunk]));
+    expect(correctAnswerPinyin(play)).toBe('wǒ hē chá');
   });
 });
 

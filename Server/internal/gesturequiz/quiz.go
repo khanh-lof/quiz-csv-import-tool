@@ -22,16 +22,63 @@ const (
 	maxChunks = 8
 )
 
+// The columns of a row, in the order the prompt asks for them. Every text a learner reads before answering
+// has its pinyin in the next column, empty when it has no Chinese or when the pinyin would give the answer
+// away; the explanation is shown after the answer and mixes them freely.
+const (
+	colStage = iota
+	colQuestion
+	colQuestionPinyin
+	colCorrect
+	colCorrectPinyin
+	colWrong1
+	colWrong1Pinyin
+	colWrong2
+	colWrong2Pinyin
+	colWrong3
+	colWrong3Pinyin
+	colExplanation
+	// ColumnCount is how many fields every row has. A row of any other length is dropped, which is also how
+	// a quiz written in an older layout shows up: as no question at all.
+	ColumnCount
+)
+
 // Question is one playable question, already checked against its stage's rules. For stage 1 Correct is
 // exactly TrueAnswer or FalseAnswer and Wrong is empty. For stage 6 Chunks are the sentence's pieces in
-// the right order, Correct is the same pieces joined by " / " and Wrong is empty.
+// the right order, Correct is the same pieces joined by " / " and Wrong is empty. The pinyin of the
+// question, of each answer and of each chunk sits beside it: WrongPinyin is as long as Wrong and
+// ChunkPinyin as long as Chunks, with "" for a text that has none.
 type Question struct {
-	Stage       int
-	Question    string
-	Correct     string
-	Wrong       []string
-	Chunks      []string
-	Explanation string
+	Stage          int
+	Question       string
+	QuestionPinyin string
+	Correct        string
+	CorrectPinyin  string
+	Wrong          []string
+	WrongPinyin    []string
+	Chunks         []string
+	ChunkPinyin    []string
+	Explanation    string
+}
+
+// PinyinOf is the pinyin of one of the question's options (the correct answer or a wrong one), "" when it
+// has none or is not one of them.
+func (q Question) PinyinOf(option string) string {
+	if option == q.Correct {
+		return q.CorrectPinyin
+	}
+	if i := slices.Index(q.Wrong, option); i >= 0 {
+		return q.WrongPinyin[i]
+	}
+	return ""
+}
+
+// ChunkPinyinOf is the pinyin of a piece of the sentence, found by its text: the first piece written so.
+func (q Question) ChunkPinyinOf(chunk string) string {
+	if i := slices.Index(q.Chunks, chunk); i >= 0 {
+		return q.ChunkPinyin[i]
+	}
+	return ""
 }
 
 // Quiz holds the stages that have questions, each list in CSV order. Skipped counts the rows that broke a
@@ -99,14 +146,12 @@ func FromRows(rows [][]string) *Quiz {
 
 // parseRow turns one row into a question, or reports false when it breaks its stage's rules.
 func parseRow(row []string) (Question, bool) {
-	cell := func(index int) string {
-		if index >= len(row) {
-			return ""
-		}
-		return jsTrim(row[index])
+	if len(row) != ColumnCount {
+		return Question{}, false
 	}
+	cell := func(index int) string { return jsTrim(row[index]) }
 
-	digits := stageDigits.FindString(cell(0))
+	digits := stageDigits.FindString(cell(colStage))
 	if digits == "" {
 		return Question{}, false
 	}
@@ -120,50 +165,70 @@ func parseRow(row []string) (Question, bool) {
 		return Question{}, false
 	}
 
-	question, correct, explanation := cell(1), cell(2), cell(6)
+	question, correct := cell(colQuestion), cell(colCorrect)
 	if question == "" || correct == "" {
 		return Question{}, false
+	}
+	parsed := Question{
+		Stage: stage, Question: question, QuestionPinyin: cell(colQuestionPinyin), Explanation: cell(colExplanation),
 	}
 
 	if stage == TrueFalseStage {
 		folded := foldAnswer(correct)
 		switch {
 		case trueWords[folded]:
-			return Question{Stage: stage, Question: question, Correct: TrueAnswer, Explanation: explanation}, true
+			parsed.Correct = TrueAnswer
+			return parsed, true
 		case falseWords[folded]:
-			return Question{Stage: stage, Question: question, Correct: FalseAnswer, Explanation: explanation}, true
+			parsed.Correct = FalseAnswer
+			return parsed, true
 		}
 		return Question{}, false
 	}
 
 	if stage == WordOrderStage {
-		var chunks []string
-		for _, piece := range strings.Split(correct, "/") {
-			if chunk := jsTrim(piece); chunk != "" {
-				chunks = append(chunks, chunk)
-			}
-		}
+		chunks := splitChunks(correct)
 		if len(chunks) < minChunks || len(chunks) > maxChunks {
 			return Question{}, false
 		}
-		return Question{
-			Stage: stage, Question: question, Correct: strings.Join(chunks, " / "), Chunks: chunks, Explanation: explanation,
-		}, true
+		// The pinyin is a help, not the answer: pieces that do not line up with the sentence's are dropped
+		// rather than the question.
+		pinyin := splitChunks(cell(colCorrectPinyin))
+		if len(pinyin) == len(chunks) {
+			parsed.CorrectPinyin = strings.Join(pinyin, " / ")
+		} else {
+			pinyin = make([]string, len(chunks))
+		}
+		parsed.Correct = strings.Join(chunks, " / ")
+		parsed.Chunks, parsed.ChunkPinyin = chunks, pinyin
+		return parsed, true
 	}
 
 	wrongNeeded := def.OptionCount - 1
-	var wrong []string
-	for index := 3; index <= 5; index++ {
-		if answer := cell(index); answer != "" && answer != correct && !slices.Contains(wrong, answer) {
+	var wrong, wrongPinyin []string
+	for _, column := range []int{colWrong1, colWrong2, colWrong3} {
+		if answer := cell(column); answer != "" && answer != correct && !slices.Contains(wrong, answer) {
 			wrong = append(wrong, answer)
+			wrongPinyin = append(wrongPinyin, cell(column+1))
 		}
 	}
 	if len(wrong) < wrongNeeded {
 		return Question{}, false
 	}
-	return Question{
-		Stage: stage, Question: question, Correct: correct, Wrong: wrong[:wrongNeeded], Explanation: explanation,
-	}, true
+	parsed.Correct, parsed.CorrectPinyin = correct, cell(colCorrectPinyin)
+	parsed.Wrong, parsed.WrongPinyin = wrong[:wrongNeeded], wrongPinyin[:wrongNeeded]
+	return parsed, true
+}
+
+// splitChunks cuts a sentence written as "我 / 是 / 学生" into its trimmed, non-empty pieces.
+func splitChunks(text string) []string {
+	var chunks []string
+	for _, piece := range strings.Split(text, "/") {
+		if chunk := jsTrim(piece); chunk != "" {
+			chunks = append(chunks, chunk)
+		}
+	}
+	return chunks
 }
 
 // What a true/false answer may be written as, after foldAnswer: the AI does not always keep to

@@ -193,7 +193,8 @@ kbd {
   font-size: clamp(14px, 5cqmin, 38px);
 }
 
-.note {
+.note,
+.pinyin {
   font-size: clamp(11px, 3cqmin, 22px);
   color: #3f6212;
 }

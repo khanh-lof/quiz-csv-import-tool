@@ -9,8 +9,69 @@ import (
 	"time"
 )
 
-// parseCSV is the client spec's own helper: the rows of the CSV, then the quiz of them.
-func parseCSV(csv string) *Quiz { return FromRows(SplitRows(csv)) }
+// parseCSV is the client spec's own helper: the rows of the CSV, then the quiz of them. The rows are
+// written short, as seven fields with no pinyin column (stage, question, correct, wrong 1–3,
+// explanation), and widened to the twelve of the real layout with every pinyin empty; a row of any other
+// length is left as it is.
+func parseCSV(csv string) *Quiz { return FromRows(SplitRows(widen(csv))) }
+
+func widen(csv string) string {
+	lines := strings.Split(csv, "\n")
+	for i, line := range lines {
+		if f := strings.Split(line, ","); len(f) == 7 {
+			lines[i] = strings.Join([]string{f[0], f[1], "", f[2], "", f[3], "", f[4], "", f[5], "", f[6]}, ",")
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func TestReadsThePinyinBesideEachText(t *testing.T) {
+	quiz := FromRows(SplitRows(strings.Join([]string{
+		"1,我是学生,wǒ shì xuéshēng,Đúng,x,,,,,,,e1",
+		"3,____ 是学生,____ shì xuéshēng,我,wǒ,你,nǐ,他,tā,,,e3",
+		"5,Q,,A,a,,,B,b,B,b2,e5",
+		"6,Tôi là học sinh,,我 / 是 / 学生,wǒ / shì / xuéshēng,,,,,,,e6",
+		"6,Q,,我 / 是,wǒ shì,,,,,,,e",
+	}, "\n")))
+	want := []Question{
+		{Stage: 1, Question: "我是学生", QuestionPinyin: "wǒ shì xuéshēng", Correct: TrueAnswer, Explanation: "e1"},
+		{Stage: 3, Question: "____ 是学生", QuestionPinyin: "____ shì xuéshēng", Correct: "我", CorrectPinyin: "wǒ",
+			Wrong: []string{"你", "他"}, WrongPinyin: []string{"nǐ", "tā"}, Explanation: "e3"},
+	}
+	if got := []Question{quiz.Stages[1][0], quiz.Stages[3][0]}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+	// Stage 5 needs three different wrong answers; a copy does not count, whatever its pinyin.
+	if got := quiz.Stages[5]; len(got) != 0 || quiz.Skipped != 1 {
+		t.Errorf("stage 5 with a duplicate kept: %+v", got)
+	}
+	sentence := quiz.Stages[6][0]
+	if !slices.Equal(sentence.ChunkPinyin, []string{"wǒ", "shì", "xuéshēng"}) || sentence.CorrectPinyin != "wǒ / shì / xuéshēng" {
+		t.Errorf("chunk pinyin %q, correct %q", sentence.ChunkPinyin, sentence.CorrectPinyin)
+	}
+	// Pinyin that does not line up with the pieces is dropped, the question is kept.
+	if unaligned := quiz.Stages[6][1]; !slices.Equal(unaligned.ChunkPinyin, []string{"", ""}) || unaligned.CorrectPinyin != "" {
+		t.Errorf("unaligned chunk pinyin %q, correct %q", unaligned.ChunkPinyin, unaligned.CorrectPinyin)
+	}
+	if got := sentence.ChunkPinyinOf("学生"); got != "xuéshēng" {
+		t.Errorf("ChunkPinyinOf %q", got)
+	}
+	if got := quiz.Stages[3][0].PinyinOf("他"); got != "tā" {
+		t.Errorf("PinyinOf %q", got)
+	}
+}
+
+func TestSkipsARowOfAnotherLength(t *testing.T) {
+	quiz := FromRows(SplitRows(strings.Join([]string{
+		"2,Q,A,B,,,e",       // the older seven-field layout
+		"2,Q,,A,,B,,,,,,e,", // thirteen
+		"2,Q,,A,,B,,,,,",    // eleven
+		"2,Q,,A,a,B,b,,,,,e",
+	}, "\n")))
+	if quiz.Total() != 1 || quiz.Skipped != 3 {
+		t.Fatalf("total %d, skipped %d", quiz.Total(), quiz.Skipped)
+	}
+}
 
 func stagesOf(q *Quiz) []int {
 	var out []int
@@ -58,7 +119,7 @@ func TestGroupsQuestionsByStageAndKeepsCSVOrder(t *testing.T) {
 
 func TestKeepsTheExplanation(t *testing.T) {
 	quiz := parseCSV("2,Q,A,B,,,Vì sao")
-	want := Question{Stage: 2, Question: "Q", Correct: "A", Wrong: []string{"B"}, Explanation: "Vì sao"}
+	want := Question{Stage: 2, Question: "Q", Correct: "A", Wrong: []string{"B"}, WrongPinyin: []string{""}, Explanation: "Vì sao"}
 	if got := quiz.Stages[2][0]; !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %+v, want %+v", got, want)
 	}
@@ -243,17 +304,18 @@ func TestAnEmptyQuizHasNoStages(t *testing.T) {
 func TestParseReadsWhatTheAIWrote(t *testing.T) {
 	want := map[string]int{"1": 1, "2": 1}
 	bom := string(rune(0xFEFF))
+	const rows = "1,Q1,,Đúng,,,,,,,,e\n2,Q2,,A,,B,,,,,,e"
 	for name, raw := range map[string]string{
-		"plain":               "1,Q1,Đúng,,,,e\n2,Q2,A,B,,,e",
-		"with a header":       "Stage,Question,Correct Answer,Wrong Answer 1,Wrong Answer 2,Wrong Answer 3,Explanation\n1,Q1,Đúng,,,,e\n2,Q2,A,B,,,e",
-		"in a csv fence":      "Here is your quiz:\n```csv\n1,Q1,Đúng,,,,e\n2,Q2,A,B,,,e\n```\nEnjoy!",
-		"in a bare fence":     "```\n1,Q1,Đúng,,,,e\n2,Q2,A,B,,,e\n```",
-		"in an upper fence":   "```CSV\n1,Q1,Đúng,,,,e\n2,Q2,A,B,,,e\n```",
-		"with a byte mark":    bom + "1,Q1,Đúng,,,,e\n2,Q2,A,B,,,e",
-		"fenced, byte mark":   "```\n" + bom + "1,Q1,Đúng,,,,e\n2,Q2,A,B,,,e\n```",
-		"with CRLF line ends": "1,Q1,Đúng,,,,e\r\n2,Q2,A,B,,,e\r\n",
-		"with CR line ends":   "1,Q1,Đúng,,,,e\r2,Q2,A,B,,,e\r",
-		"surrounded":          "\n\n  1,Q1,Đúng,,,,e\n2,Q2,A,B,,,e  \n\n",
+		"plain":               rows,
+		"with a header":       "Stage,Question,Question Pinyin,Correct Answer,Correct Answer Pinyin,Wrong Answer 1,Wrong Answer 1 Pinyin,Wrong Answer 2,Wrong Answer 2 Pinyin,Wrong Answer 3,Wrong Answer 3 Pinyin,Explanation\n" + rows,
+		"in a csv fence":      "Here is your quiz:\n```csv\n" + rows + "\n```\nEnjoy!",
+		"in a bare fence":     "```\n" + rows + "\n```",
+		"in an upper fence":   "```CSV\n" + rows + "\n```",
+		"with a byte mark":    bom + rows,
+		"fenced, byte mark":   "```\n" + bom + rows + "\n```",
+		"with CRLF line ends": strings.ReplaceAll(rows, "\n", "\r\n") + "\r\n",
+		"with CR line ends":   strings.ReplaceAll(rows, "\n", "\r") + "\r",
+		"surrounded":          "\n\n  " + rows + "  \n\n",
 	} {
 		if got := Parse(raw).StageCounts(); !reflect.DeepEqual(got, want) {
 			t.Errorf("%s: %v, want %v", name, got, want)

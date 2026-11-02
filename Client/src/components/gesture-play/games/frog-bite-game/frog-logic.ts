@@ -201,16 +201,13 @@ export function frogHint(step: FrogStep): string {
     return step.problem;
   }
   if (step.mouthOpen) {
-    return 'Khép miệng lại để đớp!';
+    return 'Khép miệng để đớp';
   }
   if (step.waitingForClosedMouth) {
-    return 'Ngậm miệng lại một chút';
+    return 'Khép miệng lại';
   }
   if (!step.stable) {
-    return 'Dịch đầu sang làn đáp án';
+    return '';
   }
-  // In the middle lane the player has most likely not chosen yet, so both steps are spelled out.
-  return step.lane === 1
-    ? 'Dịch đầu sang làn đáp án · há rồi khép miệng để đớp'
-    : 'Há rồi khép miệng để đớp';
+  return 'Há rồi khép miệng để đớp';
 }

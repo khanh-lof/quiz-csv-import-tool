@@ -108,11 +108,11 @@ describe('ShareJoin', () => {
   it('shows the error under the field as an alert', () => {
     expect(root().querySelector('[role="alert"]')).toBeNull();
 
-    fixture.componentRef.setInput('error', 'Tên này đã có bạn dùng, hãy thêm họ hoặc số');
+    fixture.componentRef.setInput('error', 'Tên này đã có người dùng. Thêm họ hoặc số.');
     fixture.detectChanges();
 
     const alert = root().querySelector('[role="alert"]')!;
-    expect(alert.textContent).toContain('Tên này đã có bạn dùng');
+    expect(alert.textContent).toContain('Tên này đã có người dùng');
     expect(input().getAttribute('aria-describedby')).toBe(alert.id);
   });
 

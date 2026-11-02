@@ -181,18 +181,15 @@ describe('TrueFalseGame', () => {
   describe('with the camera', () => {
     beforeEach(() => setInput('cameraActive', true));
 
-    it('shows the instruction and a ring on each target', () => {
+    it('shows a ring on each target and no instruction', () => {
       expect(root().querySelectorAll('.ring').length).toBe(2);
-      expect(root().querySelector('.status')?.textContent?.trim()).toBe(
-        'Giơ ngón cái lên hoặc chúc xuống',
-      );
+      expect(root().querySelector('.status')).toBeNull();
     });
 
     it('answers Đúng after a thumb up has been held, with the charging sounds', () => {
       show(NO_HAND, 0, 300);
       show(THUMB_UP, 333, 700);
       expect(chosen).toEqual([]);
-      expect(root().querySelector('.status')?.textContent).toContain('Đang chọn Đúng…');
       expect(targets()[0].classList).toContain('charging');
       expect(targets()[1].classList).not.toContain('charging');
       show(THUMB_UP, 733, 1500);
@@ -215,7 +212,7 @@ describe('TrueFalseGame', () => {
       show(THUMB_UP, 333, 600);
       show(NO_HAND, 633, 1500);
       expect(chosen).toEqual([]);
-      expect(root().querySelector('.status')?.textContent).toContain('Giơ ngón cái');
+      expect(root().querySelector('.status')).toBeNull();
     });
 
     it('answers once, even if the thumb stays up and the verdict is slow', () => {
@@ -308,7 +305,6 @@ describe('TrueFalseGame', () => {
         const area = stage.getBoundingClientRect();
         const statement = rect('.statement');
         const [left, right] = targets().map(target => target.getBoundingClientRect());
-        const status = rect('.status');
 
         expect(statement.bottom).toBeLessThanOrEqual(left.top + 0.5);
         expect(left.right).toBeLessThanOrEqual(right.left);
@@ -316,8 +312,7 @@ describe('TrueFalseGame', () => {
         expect(left.left - area.left).toBeLessThan(area.width * 0.1);
         expect(area.right - right.right).toBeLessThan(area.width * 0.1);
         expect(right.left - left.right).toBeGreaterThan(area.width * 0.15);
-        expect(left.bottom).toBeLessThanOrEqual(status.top + 0.5);
-        for (const box of [statement, left, right, status]) {
+        for (const box of [statement, left, right]) {
           expect(box.top).toBeGreaterThanOrEqual(area.top - 0.5);
           expect(box.bottom).toBeLessThanOrEqual(area.bottom + 0.5);
           expect(box.left).toBeGreaterThanOrEqual(area.left - 0.5);

@@ -121,7 +121,7 @@ describe('FruitSliceGame', () => {
     expect(element.querySelector('.question-box')?.textContent).toContain('提高');
     const answers = Array.from(element.querySelectorAll('.answer'));
     expect(answers.map(a => a.getAttribute('data-slot'))).toEqual(['0', '1', '2']);
-    expect(answers.map(a => a.querySelector('.fit')?.textContent)).toEqual(['水平', '任务', '观众']);
+    expect(answers.map(a => a.querySelector('.fit')?.textContent?.trim())).toEqual(['水平', '任务', '观众']);
   });
 
   it('fits the text of the boxes', () => {
@@ -440,12 +440,12 @@ describe('FruitSliceGame', () => {
       expect(hint()).toBe('');
     });
 
-    it('asks for a finger while the camera sees no hand, then for a swipe', () => {
+    it('asks for a finger while the camera sees no hand, then says nothing', () => {
       set('cameraActive', true);
       expect(hint()).toBe('Đưa ngón trỏ vào khung hình');
       game.onFrame(handAt(0.5, 0.5), 0);
       fixture.detectChanges();
-      expect(hint()).toContain('Vung ngón trỏ');
+      expect(hint()).toBe('');
     });
   });
 });

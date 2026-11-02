@@ -14,7 +14,7 @@
 </header>
 
 @if (mode() === 'preview' && screen() !== 'loading' && screen() !== 'error') {
-  <p class="preview-banner" role="status">👁 Xem thử: mọi màn đều mở, không lưu kết quả.</p>
+  <p class="preview-banner" role="status">👁 Xem thử: không lưu kết quả.</p>
 }
 
 <main [class.is-playing]="screen() === 'playing'" class="content">
@@ -22,7 +22,6 @@
     @case ('loading') {
       <section class="card message">
         <nz-spin nzSimple nzSize="large"/>
-        <p>{{ checking() ? 'Đang kiểm tra bài…' : starting() ? 'Đang bắt đầu màn…' : 'Đang tải quiz…' }}</p>
       </section>
     }
     @case ('error') {
@@ -49,10 +48,10 @@
             <li>Tạo Game ở <b>AI › Tạo quiz</b> rồi bấm <b>Chơi ngay</b> ở <b>AI › Lịch sử</b>, hoặc <b>Mở file quiz</b>
               đã tải.
             </li>
-            <li>Mỗi màn một trò chơi, từ dễ đến khó. Đúng từ <b>70%</b> số câu là qua màn.</li>
+            <li>Đúng từ <b>70%</b> số câu là qua màn.</li>
             <li>Không có camera vẫn chơi được bằng chuột, cảm ứng hoặc bàn phím.</li>
           </ol>
-          <p><b>Camera:</b> xử lý ngay trên máy, không ghi hình hay gửi đi. Đứng cách 0,6–1,2 m, đủ sáng.</p>
+          <p><b>Camera:</b> không ghi hình hay gửi đi.</p>
         </app-usage-guide>
 
         <div class="load-body">
@@ -80,7 +79,7 @@
     @case ('map') {
       @if (quiz(); as openQuiz) {
         <app-gesture-stage-map (start)="openIntro($event)" [allOpen]="allStagesOpen()"
-                               [allowReset]="mode() === 'local' || mode() === 'job'"
+                               [allowPinyinChoice]="ownQuiz()" [allowReset]="ownQuiz()"
                                [attemptsLeft]="attemptsLeftByStage()" [lockedTimeMode]="assignmentTimeMode()"
                                [passPercents]="assignmentPassPercents()" [quiz]="openQuiz">
           @if (mode() === 'shared') {
@@ -124,31 +123,29 @@
 
         <div class="camera-box">
           <div #preview class="preview">
-            @if (!cameraOn()) {
-              <span
-                class="preview-text">{{ cameraState() === 'starting' ? 'Đang bật camera…' : 'Camera đang tắt' }}</span>
-            }
           </div>
           <div class="camera-side">
             <button (click)="toggleCamera()" [nzType]="cameraOn() ? 'default' : 'primary'" nz-button type="button">
               <nz-icon nzTheme="outline" nzType="video-camera"/>
               {{ cameraOn() || cameraState() === 'starting' ? 'Tắt camera' : 'Bật camera' }}
             </button>
-            <div class="chips">
-              <span [attr.data-tone]="cameraChip().tone" class="chip">{{ cameraChip().text }}</span>
-              @if (modelChip(); as chip) {
-                <span [attr.data-tone]="chip.tone" class="chip">{{ chip.text }}</span>
-              }
-            </div>
+            @if (cameraChip() || modelChip()) {
+              <div class="chips">
+                @if (cameraChip(); as chip) {
+                  <span [attr.data-tone]="chip.tone" class="chip">{{ chip.text }}</span>
+                }
+                @if (modelChip(); as chip) {
+                  <span [attr.data-tone]="chip.tone" class="chip">{{ chip.text }}</span>
+                }
+              </div>
+            }
             @if (cameraNotice(); as notice) {
               <p class="notice" role="alert">{{ notice }}</p>
               @if (modelState() === 'error' && cameraOn()) {
                 <button (click)="retryModel()" nz-button nzSize="small" type="button">Thử tải lại</button>
               }
             }
-            <p class="privacy"><span aria-hidden="true">🔒</span> Camera chỉ xử lý trên máy này, không ghi hình hay gửi
-              đi.</p>
-            <p class="muted">Không bật camera: chơi bằng chuột hoặc bàn phím.</p>
+            <p class="privacy"><span aria-hidden="true">🔒</span> Camera không ghi hình.</p>
           </div>
         </div>
 
@@ -167,24 +164,28 @@
         <span class="pill">Câu {{ index() + 1 }}/{{ totalQuestions() }}</span>
         <span class="pill">⭐ {{ score() }}</span>
         @if (secondsLeft() !== null) {
-          <span [class.warn]="secondsLeft()! <= 5" class="pill time" title="Thời gian còn lại">⏱ {{ secondsLeft() }}s</span>
+          <span [class.warn]="secondsLeft()! <= 5" class="pill time">⏱ {{ secondsLeft() }}s</span>
         } @else {
           <span class="pill time" title="Không giới hạn thời gian">⏱ ∞</span>
         }
         @if (streak() >= 2) {
           <span class="pill streak">🔥 Chuỗi đúng {{ streak() }}</span>
         }
-        <span class="chips">
-          <span [attr.data-tone]="cameraChip().tone" class="chip">{{ cameraChip().text }}</span>
-          @if (modelChip(); as chip) {
-            <span [attr.data-tone]="chip.tone" class="chip">{{ chip.text }}</span>
-          }
-          @if (trackingChip(); as chip) {
-            <span [attr.data-tone]="chip.tone" class="chip">{{ chip.text }}</span>
-          }
-        </span>
+        @if (cameraChip() || modelChip() || trackingChip()) {
+          <span class="chips">
+            @if (cameraChip(); as chip) {
+              <span [attr.data-tone]="chip.tone" class="chip">{{ chip.text }}</span>
+            }
+            @if (modelChip(); as chip) {
+              <span [attr.data-tone]="chip.tone" class="chip">{{ chip.text }}</span>
+            }
+            @if (trackingChip(); as chip) {
+              <span [attr.data-tone]="chip.tone" class="chip">{{ chip.text }}</span>
+            }
+          </span>
+        }
         <span class="hud-buttons">
-          <button (click)="togglePause()" [attr.aria-label]="paused() ? 'Chơi tiếp' : 'Tạm dừng (P)'" [disabled]="pauseLocked()" [title]="pauseLocked() ? 'Không tạm dừng được khi thời gian đang chạy' : paused() ? 'Chơi tiếp (P)' : 'Tạm dừng (P)'"
+          <button (click)="togglePause()" [attr.aria-label]="paused() ? 'Chơi tiếp' : 'Tạm dừng (P)'" [disabled]="pauseLocked()" [title]="pauseLocked() ? 'Đang tính giờ, không tạm dừng được' : paused() ? 'Chơi tiếp (P)' : 'Tạm dừng (P)'"
                   nz-button
                   nzShape="circle" type="button">
             <nz-icon [nzType]="paused() ? 'caret-right' : 'pause'" nzTheme="outline"/>
@@ -272,7 +273,11 @@
         @if (verdict(); as judged) {
           <div class="feedback-text">
             <div class="verdict">{{ judged.text }}</div>
-            <div class="answer">Đáp án: <b>{{ correctText() }}</b></div>
+            <div class="answer">Đáp án: <b>{{ correctText() }}</b>
+              @if (correctPinyin()) {
+                <span class="answer-pinyin">({{ correctPinyin() }})</span>
+              }
+            </div>
             @if (current()?.source?.explanation; as explanation) {
               <div class="explanation">{{ explanation }}</div>
             }
@@ -283,7 +288,7 @@
           @if (connectionLost()) {
             <button (click)="retryConnection()" nz-button nzType="primary" type="button">Thử lại</button>
           } @else {
-            <button (click)="next()" [nzLoading]="advancing()" nz-button nzType="primary" title="Phím Enter"
+            <button (click)="next()" [nzLoading]="advancing()" nz-button nzType="primary"
                     type="button">Tiếp →
             </button>
           }

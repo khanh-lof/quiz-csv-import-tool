@@ -111,6 +111,7 @@ function detail(overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
     },
     maxAttempts: null,
     showBoard: true,
+    showPinyin: false,
     stageCounts: {
       '1': 5,
       '2': 5
@@ -132,6 +133,8 @@ function detail(overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
 // The members of the component these specs call directly instead of through a popconfirm or a dialog.
 interface Api {
   closeAssignment(): void;
+
+  toggleShowPinyin(): void;
 
   openDeadline(mode: 'reopen' | 'schedule'): void;
 
@@ -686,7 +689,7 @@ describe('AssignmentLeaderboard', () => {
   it('says in the header the percentage that passes a stage, once when every stage shares it', fakeAsync(() => {
     open();
 
-    expect(text()).toContain('Điểm qua màn: 70%');
+    expect(text()).toContain('Tỉ lệ đúng để qua màn: 70%');
     leave();
   }));
 
@@ -721,7 +724,7 @@ describe('AssignmentLeaderboard', () => {
       })],
     }));
 
-    expect(text()).toContain('Điểm qua màn: Màn 1 70% · Màn 2 50%');
+    expect(text()).toContain('Tỉ lệ đúng để qua màn: Màn 1 70% · Màn 2 50%');
     leave();
   }));
 
@@ -759,7 +762,7 @@ describe('AssignmentLeaderboard', () => {
   it('invites the teacher to share the link when nobody has joined, and shows it while the assignment is open', fakeAsync(() => {
     open(detail({ players: [] }));
 
-    expect(text()).toContain('Chưa có học sinh nào vào bài.');
+    expect(text()).toContain('Chưa có học sinh.');
     expect(root().querySelector('app-share-link')).not.toBeNull();
     expect(root().querySelector('app-leaderboard-podium')).toBeNull();
     leave();
@@ -771,7 +774,7 @@ describe('AssignmentLeaderboard', () => {
       closedAt: iso(-60 * MINUTE)
     }));
 
-    expect(text()).toContain('Chưa có học sinh nào vào bài.');
+    expect(text()).toContain('Chưa có học sinh.');
     expect(root().querySelector('app-share-link')).toBeNull();
     leave();
   }));
@@ -924,6 +927,40 @@ describe('AssignmentLeaderboard', () => {
       expect(text()).toContain('Mở lại');
       expect(text()).not.toContain('Hẹn giờ đóng');
       expect(notifications.success).not.toHaveBeenCalled();
+      leave();
+    }));
+
+    it('shows and hides the pinyin with its switch, and keeps it as it was when the server refuses', fakeAsync(() => {
+      open();
+      const pinyinSwitch = (): HTMLElement => fixture.nativeElement.querySelector('.pinyin-switch .ant-switch');
+      expect(text()).toContain('Hiện pinyin');
+      expect(pinyinSwitch().classList).not.toContain('ant-switch-checked');
+
+      pinyinSwitch().click();
+      fixture.detectChanges();
+      const request = http.expectOne(ENDPOINT);
+      expect(request.request.method).toBe('PATCH');
+      expect(request.request.body).toEqual({ showPinyin: true });
+      request.flush({
+        ...detail(),
+        showPinyin: true
+      });
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+      expect(pinyinSwitch().classList).toContain('ant-switch-checked');
+      expect(rows().length).toBe(3);
+
+      api().toggleShowPinyin();
+      http.expectOne(ENDPOINT).flush('boom', {
+        status: 500,
+        statusText: 'Server Error'
+      });
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+      expect(pinyinSwitch().classList).toContain('ant-switch-checked');
+      expect(notifications.error).toHaveBeenCalledWith('Không đổi được cài đặt pinyin', jasmine.any(String), jasmine.anything());
       leave();
     }));
 

@@ -11,12 +11,16 @@ export interface GestureSettings {
   sound: boolean;
   // Whether the camera was on last time, so the next stage or visit starts it again by itself.
   useCamera: boolean;
+  // Whether the questions and answers show their pinyin, when the player plays a quiz of their own (an
+  // assignment follows the teacher's setting).
+  showPinyin: boolean;
 }
 
 const DEFAULTS: GestureSettings = {
   timeMode: 'standard',
   sound: true,
-  useCamera: false
+  useCamera: false,
+  showPinyin: false
 };
 
 const TIME_MODES: TimeMode[] = ['standard', 'extra', 'unlimited'];
@@ -30,6 +34,7 @@ export function parseSettings(raw: string | null): GestureSettings {
       timeMode: TIME_MODES.find(mode => mode === value?.timeMode) ?? DEFAULTS.timeMode,
       sound: typeof value?.sound === 'boolean' ? value.sound : DEFAULTS.sound,
       useCamera: typeof value?.useCamera === 'boolean' ? value.useCamera : DEFAULTS.useCamera,
+      showPinyin: typeof value?.showPinyin === 'boolean' ? value.showPinyin : DEFAULTS.showPinyin,
     };
   } catch {
     return { ...DEFAULTS };

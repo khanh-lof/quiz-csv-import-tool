@@ -1,5 +1,8 @@
 <div [class.locked]="locked()" [class.revealed]="reveal() !== null" class="board">
-  <p class="statement">{{ question().question }}</p>
+  <p class="statement">
+    @if (question().questionPinyin) {<span class="play-pinyin">{{ question().questionPinyin }}</span>}
+    {{ question().question }}
+  </p>
 
   <div class="targets">
     @for (target of targets; track target.index) {
@@ -39,7 +42,7 @@
     }
   </div>
 
-  @if (cameraActive()) {
+  @if (cameraActive() && status()) {
     <p [class.active]="view().choice !== null" [class.hidden]="locked()" class="status">
       {{ status() }}
     </p>

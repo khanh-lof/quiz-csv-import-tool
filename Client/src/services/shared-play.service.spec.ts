@@ -71,6 +71,7 @@ describe('SharedPlayService', () => {
         passPercents: { '1': 70 },
         maxAttempts: null,
         showBoard: true,
+        showPinyin: false,
         stageCounts: { '1': 5 },
         attempts: {},
         results: {},

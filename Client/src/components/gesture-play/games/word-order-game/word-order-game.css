@@ -226,6 +226,13 @@
   visibility: hidden;
 }
 
+/* The chunk, with its pinyin above it when the pinyin is shown. */
+.tile .word {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .tile kbd {
   font-family: inherit;
   font-size: max(11px, calc(var(--u) * 1.8));
