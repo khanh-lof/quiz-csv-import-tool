@@ -20,6 +20,7 @@ function assignment(id: string, overrides: Partial<Assignment> = {}): Assignment
     passPercents: { '1': 70 },
     maxAttempts: null,
     showBoard: true,
+    showPinyin: false,
     stageCounts: { '1': 5 },
     timeLimits: { '1': 12 },
     createdAt: '2026-10-14T01:30:00Z',

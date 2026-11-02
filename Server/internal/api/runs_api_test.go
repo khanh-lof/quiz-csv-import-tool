@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -18,30 +19,59 @@ import (
 // ---- fixtures ----
 
 // quizRows is n rows of a stage as the AI would write them. Every question and answer carries its stage and
-// its number, so a test can tell them apart, and every explanation starts with EXPL, so a test can tell that
-// none has leaked into a reply that must not hold it.
+// its number, so a test can tell them apart, and its pinyin is the same text with "py:" in front; every
+// explanation starts with EXPL, so a test can tell that none has leaked into a reply that must not hold it.
 func quizRows(stage, n int) string {
+	py := func(texts ...string) []string {
+		var out []string
+		for _, text := range texts {
+			out = append(out, text, "py:"+text)
+		}
+		return out
+	}
 	var rows []string
 	for k := 1; k <= n; k++ {
 		q, why := fmt.Sprintf("Q%d-%d", stage, k), fmt.Sprintf("EXPL-%d-%d", stage, k)
+		var answers []string
 		switch stage {
 		case 1:
 			answer := "Đúng"
 			if k%2 == 0 {
 				answer = "Sai"
 			}
-			rows = append(rows, fmt.Sprintf("1,%s,%s,,,,%s", q, answer, why))
+			answers = []string{answer, ""}
 		case 2:
-			rows = append(rows, fmt.Sprintf("2,%s,R2-%d,W2-%d,,,%s", q, k, k, why))
+			answers = py(fmt.Sprintf("R2-%d", k), fmt.Sprintf("W2-%d", k))
 		case 3, 4:
-			rows = append(rows, fmt.Sprintf("%d,%s,R%d-%d,W%d-%da,W%d-%db,,%s", stage, q, stage, k, stage, k, stage, k, why))
+			answers = py(fmt.Sprintf("R%d-%d", stage, k), fmt.Sprintf("W%d-%da", stage, k), fmt.Sprintf("W%d-%db", stage, k))
 		case 5:
-			rows = append(rows, fmt.Sprintf("5,%s,R5-%d,W5-%da,W5-%db,W5-%dc,%s", q, k, k, k, k, why))
+			answers = py(fmt.Sprintf("R5-%d", k), fmt.Sprintf("W5-%da", k), fmt.Sprintf("W5-%db", k), fmt.Sprintf("W5-%dc", k))
 		case 6:
-			rows = append(rows, fmt.Sprintf("6,%s,A6-%d / B6-%d / C6-%d,,,,%s", q, k, k, k, why))
+			answers = []string{
+				fmt.Sprintf("A6-%d / B6-%d / C6-%d", k, k, k),
+				fmt.Sprintf("py:A6-%d / py:B6-%d / py:C6-%d", k, k, k),
+			}
 		}
+		for len(answers) < 8 {
+			answers = append(answers, "")
+		}
+		fields := append(append([]string{strconv.Itoa(stage)}, py(q)...), answers...)
+		rows = append(rows, strings.Join(append(fields, why), ","))
 	}
 	return strings.Join(rows, "\n") + "\n"
+}
+
+// wide turns rows written short, as seven fields with no pinyin column (stage, question, correct, wrong
+// 1–3, explanation), into the twelve of the real layout with every pinyin empty. A line of any other length
+// is left as it is.
+func wide(csv string) string {
+	lines := strings.Split(csv, "\n")
+	for i, line := range lines {
+		if f := strings.Split(line, ","); len(f) == 7 {
+			lines[i] = strings.Join([]string{f[0], f[1], "", f[2], "", f[3], "", f[4], "", f[5], "", f[6]}, ",")
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // quizCSV is the rows of every stage that has questions, easiest first.
@@ -65,12 +95,15 @@ var fullCSV = quizCSV(map[int]int{1: 5, 2: 10, 3: 3, 4: 3, 5: 3, 6: 3})
 // ---- what a student's page sees ----
 
 type dealtQuestion struct {
-	Index      int      `json:"index"`
-	Question   string   `json:"question"`
-	Options    []string `json:"options"`
-	Chunks     []string `json:"chunks"`
-	TimeLeftMs *int64   `json:"timeLeftMs"`
-	GraceMs    int64    `json:"graceMs"`
+	Index          int      `json:"index"`
+	Question       string   `json:"question"`
+	QuestionPinyin *string  `json:"questionPinyin"`
+	Options        []string `json:"options"`
+	OptionPinyins  []string `json:"optionPinyins"`
+	Chunks         []string `json:"chunks"`
+	ChunkPinyins   []string `json:"chunkPinyins"`
+	TimeLeftMs     *int64   `json:"timeLeftMs"`
+	GraceMs        int64    `json:"graceMs"`
 }
 
 type startedRun struct {
@@ -898,7 +931,7 @@ func TestAnswerValidation(t *testing.T) {
 }
 
 func TestSentenceAnswers(t *testing.T) {
-	csv := "6,Q1,go / to / go / home,,,,why 1\n6,Q2,我 / 是 / 学生,,,,why 2\n6,Q3,A / B,,,,why 3\n6,Q4,C / D,,,,why 4\n"
+	csv := wide("6,Q1,go / to / go / home,,,,why 1\n6,Q2,我 / 是 / 学生,,,,why 2\n6,Q3,A / B,,,,why 3\n6,Q4,C / D,,,,why 4\n")
 	c := newClassroomCSV(t, csv, nil)
 	_, token := c.join(t, "Lan")
 	run := c.start(t, token, 6)
@@ -1505,5 +1538,66 @@ func TestARunIsTimedByTheConfiguredSeconds(t *testing.T) {
 				t.Fatalf("stage 2 two seconds in: %v, want %d", q.TimeLeftMs, tt.stage2-2000)
 			}
 		})
+	}
+}
+
+// ---- pinyin ----
+
+// Without the teacher's setting a dealt question has no pinyin key at all; with it, every text has its own,
+// lined up with the options and the pieces as this run shuffled them.
+func TestPinyinIsDealtOnlyWhenTheTeacherShowsIt(t *testing.T) {
+	c := newClassroomCSV(t, fullCSV, map[string]any{"stageLock": "open"})
+	_, token := c.join(t, "Lan")
+	for stage := 1; stage <= 6; stage++ {
+		rec := c.startRun(token, stage)
+		wantStatus(t, rec, http.StatusCreated)
+		body := rec.Body.String()
+		for _, key := range []string{"questionPinyin", "optionPinyins", "chunkPinyins", "py:"} {
+			if strings.Contains(body, key) {
+				t.Fatalf("stage %d: pinyin hidden, but the reply holds %q: %s", stage, key, body)
+			}
+		}
+	}
+
+	wantStatus(t, c.patch(`{"showPinyin":true}`), http.StatusOK)
+	for stage := 1; stage <= 6; stage++ {
+		run := c.start(t, token, stage)
+		q := run.Question
+		wantNoAnswers(t, c.nextQuestion(token, run.RunID))
+		if q.QuestionPinyin == nil || *q.QuestionPinyin != "py:"+q.Question {
+			t.Errorf("stage %d: question pinyin %v", stage, q.QuestionPinyin)
+		}
+		switch stage {
+		case 1:
+			if !slices.Equal(q.OptionPinyins, []string{"", ""}) || q.ChunkPinyins != nil {
+				t.Errorf("stage 1: %+v", q)
+			}
+		case 6:
+			if len(q.ChunkPinyins) != len(q.Chunks) || q.OptionPinyins != nil {
+				t.Fatalf("stage 6: %+v", q)
+			}
+			for i, chunk := range q.Chunks {
+				if q.ChunkPinyins[i] != "py:"+chunk {
+					t.Errorf("stage 6: chunk %q has pinyin %q", chunk, q.ChunkPinyins[i])
+				}
+			}
+		default:
+			if len(q.OptionPinyins) != len(q.Options) || q.ChunkPinyins != nil {
+				t.Fatalf("stage %d: %+v", stage, q)
+			}
+			for i, option := range q.Options {
+				if q.OptionPinyins[i] != "py:"+option {
+					t.Errorf("stage %d: option %q has pinyin %q", stage, option, q.OptionPinyins[i])
+				}
+			}
+		}
+	}
+
+	// Turned off in the middle of a run, the next question comes without it.
+	run := c.start(t, token, 2)
+	c.answerOK(t, token, run.RunID, 0, c.choice(t, 2, run.Question, true))
+	wantStatus(t, c.patch(`{"showPinyin":false}`), http.StatusOK)
+	if q := c.next(t, token, run.RunID); q.QuestionPinyin != nil || q.OptionPinyins != nil {
+		t.Errorf("pinyin dealt after it was hidden: %+v", q)
 	}
 }

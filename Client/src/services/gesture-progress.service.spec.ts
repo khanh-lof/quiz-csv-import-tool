@@ -13,8 +13,11 @@ function quizWith(stages: number[], key = 'quiz-a'): GestureQuiz {
       stages.map(stage => [stage, [{
         stage,
         question: 'Q',
+        questionPinyin: '',
         correct: 'A',
+        correctPinyin: '',
         wrong: [],
+        wrongPinyin: [],
         explanation: ''
       }]]),
     ),

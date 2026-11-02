@@ -53,7 +53,7 @@ const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
 const MAX_LABEL_LENGTH = 60;
 const PERCENT_SUFFIX = / ?%$/;
 
-// One stage of the quiz in the "Điểm qua màn" field: its number (the identity), the position shown, its game,
+// One stage of the quiz in the "Tỉ lệ đúng để qua màn" field: its number (the identity), the position shown, its game,
 // its questions, the percentage the teacher typed (null while the box is empty) and what that comes to.
 interface PassRow {
   stage: number;
@@ -131,6 +131,7 @@ export class AssignDialog {
   protected readonly stageLock = signal<StageLock>('sequential');
   // Whether the students see the board (the top five and their own place); on by default.
   protected readonly showBoard = signal(true);
+  protected readonly showPinyin = signal(false);
   // empty). It only exists with the `open` stage lock, see `maxAttemptsSent`.
   protected readonly limitAttempts = signal(false);
   protected readonly attemptsInput = signal<number | null>(DEFAULT_ATTEMPTS_LIMIT);
@@ -235,6 +236,7 @@ export class AssignDialog {
       passPercents: this.passPercents(),
       maxAttempts: this.maxAttemptsSent(),
       showBoard: this.showBoard(),
+      showPinyin: this.showPinyin(),
     }).pipe(
       finalize(() => this.sending.set(false)),
       takeUntilDestroyed(this.destroyRef),
@@ -294,6 +296,7 @@ export class AssignDialog {
     this.limitAttempts.set(false);
     this.attemptsInput.set(DEFAULT_ATTEMPTS_LIMIT);
     this.showBoard.set(true);
+    this.showPinyin.set(false);
     this.error.set('');
     this.assignment.set(null);
   }

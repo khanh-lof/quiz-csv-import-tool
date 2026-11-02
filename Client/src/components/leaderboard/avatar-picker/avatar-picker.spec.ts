@@ -38,10 +38,9 @@ describe('AvatarPicker', () => {
       expect(radios().map(radio => radio.getAttribute('aria-label'))).toEqual(AVATARS.map(avatar => avatar.name));
     });
 
-    it('names each radio in Vietnamese in its label and its tooltip, and draws its emoji', () => {
+    it('draws the emoji of each radio', () => {
       radios().forEach((radio, i) => {
         expect(radio.type).toBe('button');
-        expect(radio.getAttribute('title')).toBe(AVATARS[i].name);
         expect(radio.querySelector('app-player-avatar')?.textContent?.trim()).toBe(AVATARS[i].emoji);
       });
     });

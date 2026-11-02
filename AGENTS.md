@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI when working with code in this repository.
 
 ## What this is
 
@@ -255,12 +255,19 @@ webcam. For the pipeline it is an `Auto`-mode platform like the others (same `PO
 job and polling); only the prompt and what the client does with the finished job differ. Camera frames
 are processed locally in the browser (MediaPipe), nothing is recorded or sent anywhere.
 
-**The CSV contract.** The model returns headerless rows of exactly 7 fields, `Stage,Question,Correct
-Answer,Wrong Answer 1,Wrong Answer 2,Wrong Answer 3,Explanation` (an unused column is an empty field),
-grouped by stage. The stage, 1 to 6, fixes the row shape and, because the
+**The CSV contract.** The model returns headerless rows of exactly 12 fields, `Stage,Question,Question
+Pinyin,Correct Answer,Correct Answer Pinyin,Wrong Answer 1,Wrong Answer 1 Pinyin,Wrong Answer 2,Wrong Answer 2
+Pinyin,Wrong Answer 3,Wrong Answer 3 Pinyin,Explanation` (an unused column is an empty field), grouped by
+stage. The stage, 1 to 6, fixes the row shape and, because the
 prompt tells the model to classify each question by its real difficulty (the creative prompt's stage
-rules replace its usual difficulty mixture), the difficulty too. The Explanation is one Vietnamese
-sentence shown after the answer. The stages are played easiest to hardest, one game each, and a stage is
+rules replace its usual difficulty mixture), the difficulty too. The Question and the answers hold the hanzi
+and the Vietnamese with no pinyin in them; each is followed by its own pinyin (tone marks, the blank `____` and
+the punctuation kept in place, empty for a text without hanzi and for every text of a question about pinyin
+itself, where the pinyin is the answer). Stage 6's Correct Answer Pinyin is cut by ` / ` like its chunks, one
+per chunk. The pinyin is shown only when it is turned on (the player's switch for a quiz of their own, the
+teacher's `showPinyin` for an assignment, see [Giao bài](#giao-bài-assignments)). The Explanation is one
+Vietnamese sentence shown after the answer, the one text that mixes hanzi, pinyin and Vietnamese freely.
+A row of any other length is dropped, so a quiz written in an older layout reads as one with no question. The stages are played easiest to hardest, one game each, and a stage is
 passed with at least 70% right by default (`DEFAULT_PASS_PERCENT` / `passMark`: 4 of 5, 7 of 10; a teacher can
 set another percentage per stage in an assignment, see [Giao bài](#giao-bài-assignments)), which opens the next stage the
 quiz has (a quiz may have only some of the six, see *Choosing the games* below):
@@ -383,7 +390,10 @@ the right screen without a round trip.
     the chunks of stage 6 (to an order that is not the answer, like the page's `shuffleChunks`); stage 1 is always
     `Đúng`, `Sai`. It answers 201 `{runId, stage, total, attempts, question}` with the first question already
     dealt. A question is `{index, question, options, chunks, timeLeftMs, graceMs}`: what the game shows and the
-    time left on the server's clock (null without a time limit), never the answer.
+    time left on the server's clock (null without a time limit), never the answer. When the assignment shows the
+    pinyin it also has `questionPinyin` and, beside `options` or `chunks` in the same shuffled order,
+    `optionPinyins` or `chunkPinyins` (`""` for a text without); otherwise none of these keys is sent at all, so
+    the network tab holds no pinyin either.
   - `POST share/{code}/runs/{runId}/next` deals the next question; asked again before it is answered, it sends the
     same one with its clock still running. 404 `Run not found` when the run is not the player's latest, 409 `Run is
     over` after its last question.
@@ -444,8 +454,8 @@ the right screen without a round trip.
   progress gets a 5 minute grace** (`store.ResultGrace`, counted from the earlier of the two times, for `next`
   and `answers`; the leaderboard page repeats it as `RESULT_GRACE_MS` to know how long to keep polling) so a
   student in the middle of a stage at the deadline does not lose it; after that they are a 410 too. `PATCH assignments/{id}` takes any of
-  `label`, `closesAt` (null removes it) and `closed` (`true` closes now, keeping the first moment if it was
-  already closed; `false` reopens), and a key left out stays as it is. A reopen is refused (400 `Invalid
+  `label`, `closesAt` (null removes it), `closed` (`true` closes now, keeping the first moment if it was
+  already closed; `false` reopens) and `showPinyin` (a JSON boolean), and a key left out stays as it is. A reopen is refused (400 `Invalid
   closing time.`) when the closing time that would remain is already past, because it would close again
   at once, so the client's reopen dialogs always send a new `closesAt` (or null). A page checks the link
   again before each stage and shows the closed card if it closed meanwhile.
@@ -497,6 +507,13 @@ the right screen without a round trip.
   would tell the class that nobody has a result yet, and because the one page that cannot know the setting (a
   student who opens a link that is already closed gets a 410 from `GET share/{code}`, then shows the closed
   card's board) needs a final answer to stop asking. It is never a 401 or 403, like every student route.
+  The teacher also decides whether the students see the pinyin, **`showPinyin`** (false by default, and what an
+  assignment from before the setting reads as). It is sent on `POST assignments` (absent or null means false;
+  anything but a JSON boolean is 400 `Invalid pinyin setting.`, checked after the board setting), returned by
+  `assignmentView` and `GET share/{code}`, and, unlike the other settings, can be changed at any time with
+  `PATCH assignments/{id}` (the "Hiện pinyin" switch of the leaderboard page). The server reads it on every
+  question it deals, so a change applies from the student's next question; the student has no switch of their
+  own, and the teacher's preview follows it.
   Adding or renaming a field, status or message means changing both sides and their specs together.
 
 The Client's half is in [Client/AGENTS.md](Client/AGENTS.md#giao-bài-assignments), the Server's (the store, its

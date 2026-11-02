@@ -35,12 +35,18 @@ export interface AiJob {
 }
 
 // What a failed job says to the user. A "Ghép bộ thủ" job whose lessons were too short fails with 422, whose
-// server message is English; any other message is shown as the server wrote it.
+// server message is English, as are the other server messages, so none of them is shown as written.
 export function failedJobMessage(job: AiJob): string {
-  if (job.errorStatus === 422) {
-    return 'Không bài nào đủ từ để ghép bộ. Chọn bài khác rồi gửi lại.';
+  switch (job.errorStatus) {
+    case 422:
+      return 'Không bài nào đủ từ. Chọn bài khác.';
+    case 504:
+      return 'Quá lâu. Gửi lại hoặc giảm số ảnh.';
+    case 502:
+      return 'Thử lại sau ít phút.';
+    default:
+      return 'Không rõ lỗi.';
   }
-  return job.errorMessage || 'Không rõ lỗi.';
 }
 
 export interface AiJobFilter {

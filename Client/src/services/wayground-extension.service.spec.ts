@@ -94,7 +94,7 @@ describe('WaygroundExtensionService', () => {
 
     expect(downloadXlsx).toHaveBeenCalledWith('f.xlsx', xlsx);
     expect(notifications.error).toHaveBeenCalledWith('Wayground chưa publish được',
-      jasmine.stringContaining('không bấm Publish được'), jasmine.anything());
+      jasmine.stringContaining('f.xlsx'), jasmine.anything());
   });
 
   it('does not download the file after a successful publish', async () => {

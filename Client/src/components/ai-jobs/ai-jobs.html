@@ -3,7 +3,7 @@
 
   <div class="jobs-filters">
     <input (ngModelChange)="search.set($event ?? '')" [ngModel]="search()" aria-label="Tìm kiếm" class="search-input"
-           nz-input placeholder="Tìm trong tiêu đề, câu hỏi, đáp án…" type="search"/>
+           nz-input placeholder="Tìm kiếm" type="search"/>
     <nz-select (ngModelChange)="status.set($event ?? null)" [ngModel]="status()" class="filter-select" nzAllowClear
                nzPlaceHolder="Trạng thái">
       <nz-option nzLabel="Đang chạy" nzValue="running"></nz-option>
@@ -49,7 +49,7 @@
     }
   </div>
 
-  <nz-table #jobsTable [nzData]="filtered()" [nzLoading]="!loaded()" [nzNoResult]="isFiltering() ? 'Không có kết quả nào khớp.' : 'Chưa có lần tạo nào. Tạo ở AI › Tạo quiz.'" [nzPageSize]="pageSize"
+  <nz-table #jobsTable [nzData]="filtered()" [nzLoading]="!loaded()" [nzNoResult]="isFiltering() ? 'Không có kết quả.' : 'Chưa có lần tạo nào.'" [nzPageSize]="pageSize"
             [nzShowPagination]="filtered().length > pageSize" class="jobs-table"
             nzSize="small">
     <thead>
@@ -182,7 +182,7 @@
           <p class="job-error">{{ failedJobMessage(job) }}</p>
         } @else if (viewTable(); as result) {
           @if (result.rows.length === 0) {
-            <p>(AI không trả về gì)</p>
+            <p>Không có dữ liệu.</p>
           } @else {
             <nz-table #resultTable [nzData]="result.rows" [nzFrontPagination]="false" [nzScroll]="{ x: 'max-content', y: '60vh' }"
                       [nzShowPagination]="false"

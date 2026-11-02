@@ -182,7 +182,7 @@ export class AiJobs implements OnInit {
   protected openInTable(job: AiJob): void {
     const rows = this.csvImportService.parseCsv(this.resultText(job));
     if (rows.length === 0) {
-      this.notificationService.warning('Không có dữ liệu', 'AI không trả về dòng nào.', { nzPlacement: 'top' });
+      this.notificationService.warning('Không có dữ liệu', '', { nzPlacement: 'top' });
       return;
     }
     this.pendingImportService.set(rows);
@@ -218,7 +218,7 @@ export class AiJobs implements OnInit {
     const exported = this.fileExportService.exportFileFromCsvContent(
       FileExportService.buildFileName(job.title, exportType), this.resultText(job), exportType, !publish);
     if (!exported) {
-      this.notificationService.warning('Không có dữ liệu', 'AI không trả về câu hỏi nào.', { nzPlacement: 'top' });
+      this.notificationService.warning('Không có dữ liệu', '', { nzPlacement: 'top' });
       return;
     }
     if (publish && exported.xlsx) {
@@ -241,7 +241,7 @@ export class AiJobs implements OnInit {
     }
     return job.imageCount > 0
       ? 'Ảnh đã hết hạn lưu. Gửi lại ở AI › Tạo quiz.'
-      : 'Mục này quá cũ để tạo lại. Gửi lại ở AI › Tạo quiz.';
+      : 'Quá cũ để tạo lại. Gửi lại ở AI › Tạo quiz.';
   }
 
   // Sends the failed job's request again; the new job takes the failed one's place in the table.
@@ -262,7 +262,7 @@ export class AiJobs implements OnInit {
   // A menu item cannot hold a popconfirm (the menu closes under it), so deleting asks in a modal.
   protected confirmRemove(job: AiJob): void {
     this.modalService.confirm({
-      nzTitle: 'Xóa mục này?',
+      nzTitle: 'Xóa lần tạo này?',
       nzContent: job.title,
       nzOkText: 'Xóa',
       nzOkDanger: true,
@@ -310,7 +310,7 @@ export class AiJobs implements OnInit {
     if (status === HttpStatusCode.Forbidden && serverMessage) {
       this.notificationService.warning('Hết lượt dùng AI', 'Thử lại sau ít phút.', { nzPlacement: 'top', nzDuration: 0 });
     } else if (status === HttpStatusCode.Forbidden) {
-      this.notificationService.error('Không có quyền', 'Tài khoản chưa có quyền dùng AI.', { nzPlacement: 'top' });
+      this.notificationService.error('Không có quyền', 'Chưa được dùng AI.', { nzPlacement: 'top' });
     } else if (status === 0) {
       this.notificationService.error('Mất kết nối', 'Kiểm tra mạng rồi thử lại.', { nzPlacement: 'top' });
     } else if (status === HttpStatusCode.Gone || status === HttpStatusCode.NotFound || status === HttpStatusCode.Conflict) {

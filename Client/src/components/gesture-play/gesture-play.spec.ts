@@ -123,6 +123,7 @@ function sharedQuiz(overrides: Partial<SharedQuiz> = {}): SharedQuiz {
     },
     maxAttempts: null,
     showBoard: true,
+    showPinyin: false,
     stageCounts: {
       '1': 5,
       '2': 5,
@@ -157,6 +158,7 @@ function assignmentDetail(overrides: Partial<AssignmentDetail> = {}): Assignment
     },
     maxAttempts: null,
     showBoard: true,
+    showPinyin: false,
     stageCounts: {
       1: 5,
       2: 5,
@@ -516,12 +518,11 @@ describe('GesturePlay', () => {
       expect(cards.length).toBe(6);
       expect(cards.map(card => card.disabled)).toEqual([false, true, true, true, true, true]);
       expect(text()).toContain('Quiz mẫu HSK 1');
-      expect(text()).toContain('Đang mở');
       expect(text()).toContain('Khóa');
       expect(cards.map(card => card.querySelector('.stage-no')?.textContent))
         .toEqual(['Màn 1', 'Màn 2', 'Màn 3', 'Màn 4', 'Màn 5', 'Màn 6']);
       expect(normalized('.summary')).toBe(
-        '6 màn, 30 câu, từ dễ đến khó. Đúng từ 70% số câu để mở màn sau.');
+        '6 màn, 30 câu. Đúng từ 70% số câu để mở màn sau.');
     });
 
     it('plays an AI job from its id', () => {
@@ -572,7 +573,7 @@ describe('GesturePlay', () => {
       open();
 
       expect(notifications.warning).toHaveBeenCalledTimes(1);
-      expect(notifications.warning.calls.mostRecent().args[1]).toContain('1 dòng');
+      expect(notifications.warning.calls.mostRecent().args[0]).toContain('1 dòng');
       expect(notifications.warning.calls.mostRecent().args[2]).toEqual({ nzPlacement: 'top' });
     });
   });
@@ -584,7 +585,7 @@ describe('GesturePlay', () => {
 
       expect(text()).toContain('Màn 1');
       expect(text()).toContain('Đúng hay sai');
-      expect(text()).toContain('Camera chỉ xử lý trên máy này');
+      expect(text()).toContain('Camera không ghi hình.');
       expect(text()).toContain('Đúng ít nhất 4/5');
 
       click('button', 'Bắt đầu');
@@ -772,7 +773,7 @@ describe('GesturePlay', () => {
       openStages(4, 6);
 
       expect(normalized('.summary')).toBe(
-        '2 màn, 10 câu, từ dễ đến khó. Đúng từ 70% số câu để mở màn sau.');
+        '2 màn, 10 câu. Đúng từ 70% số câu để mở màn sau.');
     });
 
     it('opens the first stage it has and keeps the second locked until the first is passed', () => {
@@ -840,7 +841,6 @@ describe('GesturePlay', () => {
 
       expect(normalized('.verdict')).toBe('Qua màn 2!');
       expect(text()).toContain('Xếp câu');
-      expect(text()).toContain('Bạn đã qua hết các màn của quiz này.');
       expect(text()).not.toContain('Màn tiếp theo');
       expect(JSON.parse(localStorage.getItem(PROGRESS_KEY)!)[only46.key].passed).toEqual([4, 6]);
     });
@@ -900,7 +900,6 @@ describe('GesturePlay', () => {
       expect(normalized('.stage-name')).toBe('Giơ ngón tay');
       expect(cardList()[0].disabled).toBeFalse();
       expect(normalized('.summary')).toBe('1 màn, 5 câu. Đúng từ 70% số câu là qua màn.');
-      expect(text()).not.toContain('chơi từ dễ đến khó');
       expect(text()).not.toContain('Khóa');
     });
 
@@ -911,7 +910,6 @@ describe('GesturePlay', () => {
 
       expect(normalized('.verdict')).toBe('Qua màn 1!');
       expect(text()).not.toContain('Màn tiếp theo');
-      expect(text()).toContain('Bạn đã qua hết các màn của quiz này.');
     });
 
     it('lets the teacher preview every stage of an assignment that has only some', () => {
@@ -969,7 +967,6 @@ describe('GesturePlay', () => {
 
       expect(element().querySelector('.stage > video')).toBe(vision.video);
       expect(game().cameraActive()).toBeTrue();
-      expect(text()).toContain('Nhận diện sẵn sàng');
       expect(text()).toContain('Đưa tay vào khung hình');
     });
 
@@ -1075,6 +1072,33 @@ describe('GesturePlay', () => {
 
       click('button', 'Bắt đầu');
       expect(text()).toContain('⏱ ∞');
+    });
+
+    it('hides the pinyin until the player turns on "Hiện pinyin"', () => {
+      playDemo();
+      expect(text()).toContain('Hiện pinyin');
+      click('.stage-card', 'Màn 1');
+      click('button', 'Bắt đầu');
+
+      expect(game().question().questionPinyin).toBeUndefined();
+      expect(element().querySelector('.play-pinyin')).toBeNull();
+    });
+
+    it('deals the pinyin of every text when the player shows it', () => {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        timeMode: 'standard',
+        sound: true,
+        useCamera: false,
+        showPinyin: true
+      }));
+      playDemo();
+      click('.stage-card', 'Màn 1');
+      click('button', 'Bắt đầu');
+
+      const view = game().question();
+      expect(view.questionPinyin).toBe(demoQuiz.stages.get(1)!.find(q => q.question === view.question)!.questionPinyin);
+      expect(view.optionPinyins).toEqual(['', '']);
+      expect(element().querySelector('.statement .play-pinyin')?.textContent).toBe(view.questionPinyin!);
     });
 
     it('mutes the shared audio when the sound was turned off last time', () => {
@@ -1190,7 +1214,7 @@ describe('GesturePlay', () => {
           serve({ stageCounts });
           openShared(lan);
 
-          expect(text()).withContext(JSON.stringify(stageCounts)).toContain('Bài này chưa có câu hỏi nào chơi được. Hãy báo thầy cô.');
+          expect(text()).withContext(JSON.stringify(stageCounts)).toContain('Bài này chưa có câu hỏi. Báo thầy cô.');
           expect(stageCards().length).toBe(0);
           expect(element().querySelector('main a')).toBeNull();
           fixture.destroy();
@@ -1266,16 +1290,16 @@ describe('GesturePlay', () => {
 
         joinAs('Lan');
 
-        expect(text()).toContain('Tên này đã có bạn dùng, hãy thêm họ hoặc số.');
+        expect(text()).toContain('Tên này đã có người dùng. Thêm họ hoặc số.');
         expect(element().querySelector('app-share-join [role="alert"]')).not.toBeNull();
         expect(stageCards().length).toBe(0);
       });
 
       it('explains the other reasons a join can fail', () => {
         const cases: [number, string, string][] = [
-          [409, 'Assignment is full', 'Bài đã đủ số học sinh, hãy báo thầy cô.'],
+          [409, 'Assignment is full', 'Bài đã đủ học sinh. Báo thầy cô.'],
           [400, 'Invalid name.', 'Tên cần từ 1 đến 40 ký tự.'],
-          [0, '', 'Mất kết nối, hãy thử lại.'],
+          [0, '', 'Mất kết nối. Thử lại.'],
         ];
         openShared();
         for (const [status, body, message] of cases) {
@@ -1323,7 +1347,7 @@ describe('GesturePlay', () => {
         shared.load.and.returnValue(httpError(404, 'Assignment not found'));
         openShared();
 
-        expect(text()).toContain('Không tìm thấy bài này. Kiểm tra lại link thầy cô gửi.');
+        expect(text()).toContain('Không tìm thấy bài này. Kiểm tra lại link.');
         expect(element().querySelector('main a')).toBeNull();
       });
 
@@ -1331,7 +1355,7 @@ describe('GesturePlay', () => {
         shared.load.and.returnValue(httpError(0));
         openShared();
 
-        expect(text()).toContain('Không tải được bài. Kiểm tra mạng rồi tải lại trang.');
+        expect(text()).toContain('Không tải được bài. Tải lại trang.');
         expect(element().querySelector('main a')).toBeNull();
       });
     });
@@ -1791,7 +1815,7 @@ describe('GesturePlay', () => {
 
           await save();
 
-          expect(notifications.error).toHaveBeenCalledOnceWith('Chưa đổi được hình', '', jasmine.anything());
+          expect(notifications.error).toHaveBeenCalledOnceWith('Chưa đổi được hình đại diện', '', jasmine.anything());
           expect(dialogOpen()).toBeTrue();
           expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐱');
           expect(stageCards().length).toBe(6);
@@ -1936,7 +1960,7 @@ describe('GesturePlay', () => {
         playStageOneRight(3);
 
         expect(text()).toContain('Qua màn 1!');
-        expect(text()).toContain('Đúng ít nhất 3/5');
+        expect(text()).not.toContain('Đúng ít nhất');
         expect(normalized('.score')).toContain('Đúng 3/5 câu');
         expect(JSON.parse(localStorage.getItem(PROGRESS_KEY)!)[SAVED_KEY].passed).toEqual([1]);
         expect(text()).toContain('Màn tiếp theo');
@@ -1986,7 +2010,7 @@ describe('GesturePlay', () => {
         const cards = stageCards();
         expect(cards[0].textContent).toContain('qua màn từ 50%');
         expect(cards[1].textContent).not.toContain('qua màn từ');
-        expect(normalized('.summary')).toBe('6 màn, 30 câu, từ dễ đến khó.');
+        expect(normalized('.summary')).toBe('6 màn, 30 câu.');
       });
 
       it('names the one percentage in the summary of the map when every stage shares it', () => {
@@ -2009,7 +2033,7 @@ describe('GesturePlay', () => {
         shared.load.and.returnValue(of(sharedQuiz({ stageLock: 'open' })));
         openShared(lan);
 
-        expect(normalized('.summary')).toBe('6 màn, 30 câu, từ dễ đến khó. Đúng từ 70% số câu là qua màn.');
+        expect(normalized('.summary')).toBe('6 màn, 30 câu. Đúng từ 70% số câu là qua màn.');
       });
     });
 
@@ -2042,7 +2066,6 @@ describe('GesturePlay', () => {
 
         expect(normalized('.verdict')).toBe('Qua màn 6!');
         expect(text()).not.toContain('Màn tiếp theo');
-        expect(text()).not.toContain('Bạn đã qua hết các màn của quiz này.');
       });
     });
 
@@ -2271,7 +2294,6 @@ describe('GesturePlay', () => {
         shared.load.and.returnValue(answer);
 
         click('.stage-card', 'Màn 1');
-        expect(text()).toContain('Đang kiểm tra bài…');
         expect(element().querySelector('nz-spin')).not.toBeNull();
 
         answer.next(sharedQuiz());
@@ -2391,6 +2413,38 @@ describe('GesturePlay', () => {
           expect(audio.play).toHaveBeenCalledWith('start');
         });
 
+        it('shows the pinyin only as the server sends it, and offers the student no pinyin switch', () => {
+          serve({ showPinyin: true });
+          shared.startRun.and.returnValue(of({
+            runId: 'r',
+            stage: 1,
+            total: 5,
+            attempts: 1,
+            question: {
+              index: 0,
+              question: '你好 nghĩa là xin chào.',
+              questionPinyin: 'nǐ hǎo',
+              options: ['Đúng', 'Sai'],
+              optionPinyins: ['', ''],
+              chunks: null,
+              timeLeftMs: 12000,
+              graceMs: 5000
+            }
+          }));
+          openShared(lan);
+          expect(text()).not.toContain('Hiện pinyin');
+
+          startStage();
+          expect(game().question()).toEqual({
+            stage: 1,
+            question: '你好 nghĩa là xin chào.',
+            questionPinyin: 'nǐ hǎo',
+            options: ['Đúng', 'Sai'],
+            optionPinyins: ['', '']
+          });
+          expect(element().querySelector('.statement .play-pinyin')?.textContent).toBe('nǐ hǎo');
+        });
+
         it('plays the run as the server dealt it: its total, its options and, for a sentence, its pieces', () => {
           serve({
             stageLock: 'open',
@@ -2477,7 +2531,6 @@ describe('GesturePlay', () => {
           click('button', 'Chơi lại màn');
 
           expect(shared.startRun).toHaveBeenCalledTimes(2);
-          expect(text()).toContain('Đang bắt đầu màn…');
           expect(element().querySelector('nz-spin')).not.toBeNull();
         });
 
@@ -2846,7 +2899,7 @@ describe('GesturePlay', () => {
           startStage();
 
           expect(pauseButton().disabled).toBeTrue();
-          expect(pauseButton().getAttribute('title')).toBe('Không tạm dừng được khi thời gian đang chạy');
+          expect(pauseButton().getAttribute('title')).toBe('Đang tính giờ, không tạm dừng được');
           document.dispatchEvent(new KeyboardEvent('keydown', { key: 'p' }));
           fixture.detectChanges();
           expect(game().paused()).toBeFalse();
@@ -3145,7 +3198,7 @@ describe('GesturePlay', () => {
           expect(stageCards().length).toBe(6);
           expect(notifications.warning).toHaveBeenCalledOnceWith(
             'Lượt chơi đã kết thúc',
-            'Có thể bạn đã mở màn này ở tab khác.',
+            'Màn này đang mở ở tab khác.',
             jasmine.anything());
           expect(vision.stopCamera).toHaveBeenCalled();
         });
@@ -3411,7 +3464,7 @@ describe('GesturePlay', () => {
       expect(shared.load).not.toHaveBeenCalled();
       expect(stageCards().length).toBe(6);
       expect(stageCards().map(card => card.disabled)).toEqual([false, false, false, false, false, false]);
-      expect(text()).toContain('👁 Xem thử: mọi màn đều mở, không lưu kết quả.');
+      expect(text()).toContain('👁 Xem thử: không lưu kết quả.');
       expect(element().querySelector('.title')?.textContent).toContain('HSK1 bài 1 · Lớp 6A');
     });
 
@@ -3445,6 +3498,17 @@ describe('GesturePlay', () => {
       expect(shared.leaderboard).not.toHaveBeenCalled();
     });
 
+    it('follows the teacher\'s pinyin setting and offers no switch of its own', () => {
+      assignments.get.and.returnValue(of(assignmentDetail({ showPinyin: true })));
+      openPreview();
+      expect(text()).not.toContain('Hiện pinyin');
+
+      click('.stage-card', 'Màn 1');
+      click('button', 'Bắt đầu');
+      const view = game().question();
+      expect(view.questionPinyin).toBe(demoQuiz.stages.get(1)!.find(q => q.question === view.question)!.questionPinyin);
+    });
+
     it('has no avatar button or "Không phải bạn?", since the teacher is nobody\'s student', () => {
       openPreview();
 
@@ -3465,7 +3529,7 @@ describe('GesturePlay', () => {
 
       const back = element().querySelector<HTMLAnchorElement>('.back-link')!;
       expect(back.getAttribute('href')).toBe('/assignments/a1');
-      expect(back.textContent).toContain('Về bảng xếp hạng');
+      expect(back.textContent).toContain('Về Bảng xếp hạng');
     });
 
     it('opens a later stage straight away, without passing the earlier ones', () => {
@@ -3575,7 +3639,7 @@ describe('GesturePlay', () => {
       }
 
       expect(text()).toContain('Qua màn 1!');
-      expect(text()).toContain('Đúng ít nhất 3/5');
+      expect(text()).not.toContain('Đúng ít nhất');
       expect(localStorage.getItem(PROGRESS_KEY)).toBeNull();
     });
 
@@ -3585,7 +3649,7 @@ describe('GesturePlay', () => {
       playStageOne(wrongChoice);
 
       expect(text()).toContain('Chưa qua màn 1');
-      expect(text()).toContain('👁 Xem thử: mọi màn đều mở, không lưu kết quả.');
+      expect(text()).toContain('👁 Xem thử: không lưu kết quả.');
       expect(text()).toContain('Màn tiếp theo');
       expect(shared.startRun).not.toHaveBeenCalled();
       expect(shared.nextQuestion).not.toHaveBeenCalled();
@@ -3600,7 +3664,6 @@ describe('GesturePlay', () => {
 
       expect(normalized('.verdict')).toBe('Qua màn 6!');
       expect(text()).not.toContain('Màn tiếp theo');
-      expect(text()).not.toContain('Bạn đã qua hết các màn của quiz này.');
     });
 
     it('never says every stage is passed, even when the same quiz was passed in full from a file', () => {
@@ -3615,13 +3678,12 @@ describe('GesturePlay', () => {
       playStage('Màn 6', rightChoice);
 
       expect(normalized('.verdict')).toBe('Qua màn 6!');
-      expect(text()).not.toContain('Bạn đã qua hết các màn của quiz này.');
     });
 
     it('says on the map that the percentage passes a stage, since every stage is open', () => {
       openPreview();
 
-      expect(normalized('.summary')).toBe('6 màn, 30 câu, từ dễ đến khó. Đúng từ 70% số câu là qua màn.');
+      expect(normalized('.summary')).toBe('6 màn, 30 câu. Đúng từ 70% số câu là qua màn.');
     });
 
     it('never limits the runs, whatever the assignment says', () => {
@@ -3659,28 +3721,28 @@ describe('GesturePlay', () => {
     it('shows the banner on the intro and on the stage too', () => {
       openPreview();
       click('.stage-card', 'Màn 1');
-      expect(text()).toContain('Xem thử: mọi màn đều mở');
+      expect(text()).toContain('Xem thử: không lưu kết quả');
 
       click('button', 'Bắt đầu');
-      expect(text()).toContain('Xem thử: mọi màn đều mở');
+      expect(text()).toContain('Xem thử: không lưu kết quả');
     });
 
     it('offers the leaderboard when the assignment cannot be loaded', () => {
       assignments.get.and.returnValue(httpError(500));
       openPreview();
 
-      expect(text()).toContain('Không tải được bài này.');
+      expect(text()).toContain('Không tải được bài.');
       const link = element().querySelector<HTMLAnchorElement>('main a.ant-btn-primary')!;
       expect(link.getAttribute('href')).toBe('/assignments/a1');
-      expect(link.textContent).toContain('Về bảng xếp hạng');
-      expect(text()).not.toContain('Xem thử: mọi màn đều mở');
+      expect(link.textContent).toContain('Về Bảng xếp hạng');
+      expect(text()).not.toContain('Xem thử: không lưu kết quả');
     });
 
     it('offers the list when the assignment does not exist any more', () => {
       assignments.get.and.returnValue(httpError(404, 'Assignment not found'));
       openPreview();
 
-      expect(text()).toContain('Không tải được bài này.');
+      expect(text()).toContain('Không tải được bài.');
       expect(element().querySelector('main a.ant-btn-primary')?.getAttribute('href')).toBe('/assignments');
     });
   });

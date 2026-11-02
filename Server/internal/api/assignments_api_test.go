@@ -216,7 +216,7 @@ func TestAssignmentFlow(t *testing.T) {
 	}
 	created := decode[map[string]any](t, rec)
 	wantKeys := []string{"closedAt", "closesAt", "code", "createdAt", "id", "jobId", "label", "maxAttempts", "open", "passPercents", "playerCount",
-		"showBoard", "stageCounts", "stageLock", "timeLimits", "timeMode", "title"}
+		"showBoard", "showPinyin", "stageCounts", "stageLock", "timeLimits", "timeMode", "title"}
 	if got := keysOf(created); !slices.Equal(got, wantKeys) {
 		t.Fatalf("keys %v, want %v", got, wantKeys)
 	}
@@ -224,7 +224,7 @@ func TestAssignmentFlow(t *testing.T) {
 	if created["jobId"] != "job1" || created["title"] != "HSK3-Bai5" || created["label"] != "Lớp 6A" ||
 		created["timeMode"] != "extra" || created["stageLock"] != "open" || created["createdAt"] != inTime(start) || created["closesAt"] != inTime(closes) ||
 		created["closedAt"] != nil || created["open"] != true || created["playerCount"] != float64(0) || created["showBoard"] != true ||
-		len(counts) != 2 || counts["1"] != float64(5) || counts["2"] != float64(10) {
+		created["showPinyin"] != false || len(counts) != 2 || counts["1"] != float64(5) || counts["2"] != float64(10) {
 		t.Fatalf("created %v", created)
 	}
 	// Extra time, told as seconds per stage: 12 s become 18.
@@ -269,7 +269,7 @@ func TestAssignmentFlow(t *testing.T) {
 		t.Errorf("the share answer holds the quiz: %s", rec.Body)
 	}
 	shared := decode[map[string]any](t, rec)
-	if got, want := keysOf(shared), []string{"attempts", "closesAt", "label", "maxAttempts", "passPercents", "results", "showBoard", "stageCounts", "stageLock", "timeLimits", "timeMode", "title"}; !slices.Equal(got, want) {
+	if got, want := keysOf(shared), []string{"attempts", "closesAt", "label", "maxAttempts", "passPercents", "results", "showBoard", "showPinyin", "stageCounts", "stageLock", "timeLimits", "timeMode", "title"}; !slices.Equal(got, want) {
 		t.Fatalf("share keys %v, want %v", got, want)
 	}
 	sharedCounts, _ := shared["stageCounts"].(map[string]any)
@@ -634,6 +634,10 @@ func TestCreateAssignmentErrors(t *testing.T) {
 		{"board setting an object", createBody(map[string]any{"showBoard": map[string]bool{"show": false}}), 400, "Invalid board setting."},
 		{"board setting an array", createBody(map[string]any{"showBoard": []bool{false}}), 400, "Invalid board setting."},
 		{"replay limit before board setting", createBody(map[string]any{"maxAttempts": 0, "showBoard": "false"}), 400, "Invalid replay limit."},
+		{"pinyin setting as the string true", createBody(map[string]any{"showPinyin": "true"}), 400, "Invalid pinyin setting."},
+		{"pinyin setting 1", createBody(map[string]any{"showPinyin": 1}), 400, "Invalid pinyin setting."},
+		{"pinyin setting an object", createBody(map[string]any{"showPinyin": map[string]bool{"show": true}}), 400, "Invalid pinyin setting."},
+		{"board setting before pinyin setting", createBody(map[string]any{"showBoard": 0, "showPinyin": 1}), 400, "Invalid board setting."},
 		{"time mode case", createBody(map[string]any{"timeMode": "Standard"}), 400, "Invalid time mode."},
 		{"closes in the past", createBody(map[string]any{"closesAt": inTime(now.Add(-time.Minute))}), 400, "Invalid closing time."},
 		{"closes now", createBody(map[string]any{"closesAt": inTime(now)}), 400, "Invalid closing time."},
@@ -686,12 +690,12 @@ func TestCreateAssignmentCountsTheQuizItself(t *testing.T) {
 	}{
 		"plain": {gestureCSV, map[string]int{"1": 5, "2": 10}},
 		"fenced, with a header and rows that are dropped": {
-			"Here is the quiz:\n```csv\nStage,Question,Correct Answer,Wrong Answer 1,Wrong Answer 2,Wrong Answer 3,Explanation\n" +
-				"1,Q,Đúng,,,,e\n1,Q,True,,,,e\n1,Q,Có,,,,e\n2,Q,A,B,,,e\n4,Q,A,B,C,,e\n4,Q,A,,,,e\n6,Q,我 / 是,,,,\n9,Q,A,B,,,\n```\nEnjoy!",
+			wide("Here is the quiz:\n```csv\nStage,Question,Correct Answer,Wrong Answer 1,Wrong Answer 2,Wrong Answer 3,Explanation\n" +
+				"1,Q,Đúng,,,,e\n1,Q,True,,,,e\n1,Q,Có,,,,e\n2,Q,A,B,,,e\n4,Q,A,B,C,,e\n4,Q,A,,,,e\n6,Q,我 / 是,,,,\n9,Q,A,B,,,\n```\nEnjoy!"),
 			map[string]int{"1": 2, "2": 1, "4": 1, "6": 1},
 		},
-		"with a byte order mark and CRLF": {bom + "3,Q,A,B,C,,e\r\n5,Q,A,B,C,D,e\r\n", map[string]int{"3": 1, "5": 1}},
-		"stages out of order":             {"6,Q,a / b,,,,\n2,Q,A,B,,,\n6,Q,c / d,,,,\n", map[string]int{"2": 1, "6": 2}},
+		"with a byte order mark and CRLF": {bom + wide("3,Q,A,B,C,,e\r\n5,Q,A,B,C,D,e\r\n"), map[string]int{"3": 1, "5": 1}},
+		"stages out of order":             {wide("6,Q,a / b,,,,\n2,Q,A,B,,,\n6,Q,c / d,,,,\n"), map[string]int{"2": 1, "6": 2}},
 	}
 	for name, tt := range jobs {
 		id := strings.ReplaceAll(name, " ", "-")
@@ -755,7 +759,8 @@ func TestCreateAssignmentNeedsAFinishedGestureQuiz(t *testing.T) {
 		"empty csv":         func(j *store.Job) { j.CSV = "" },
 		"prose":             func(j *store.Job) { j.CSV = "Sorry, I could not read the photos." },
 		"only a header":     func(j *store.Job) { j.CSV = "Stage,Question,Correct Answer\n" },
-		"only broken rows":  func(j *store.Job) { j.CSV = "1,Q,Có,,,,\n2,Q,A,,,,\n9,Q,A,B,,," },
+		"only broken rows":  func(j *store.Job) { j.CSV = wide("1,Q,Có,,,,\n2,Q,A,,,,\n9,Q,A,B,,,") },
+		"the older layout":  func(j *store.Job) { j.CSV = "1,Q,Đúng,,,,e\n2,Q,A,B,,,e\n" },
 		"formatted columns": func(j *store.Job) { j.CSV = "Câu hỏi,Đáp án\nxin chào,你好\n" },
 	}
 	for id, edit := range jobs {
@@ -1550,6 +1555,54 @@ func TestCreateWithShowBoard(t *testing.T) {
 		if err != nil || stored.HideBoard {
 			t.Errorf("%s: stored %+v, %v", name, stored, err)
 		}
+	}
+}
+
+// ---- pinyin setting ----
+
+func TestShowPinyinIsOffByDefaultAndTheTeacherTogglesIt(t *testing.T) {
+	for name, overrides := range map[string]map[string]any{
+		"absent": {"showPinyin": omit{}},
+		"null":   {"showPinyin": nil},
+		"false":  {"showPinyin": false},
+	} {
+		c := newClassroom(t, overrides)
+		if c.a.ShowPinyin || c.detail(t).ShowPinyin {
+			t.Errorf("%s: created %+v", name, c.a)
+		}
+		if shared := decode[map[string]any](t, c.shareGet()); shared["showPinyin"] != false {
+			t.Errorf("%s: share %v", name, shared["showPinyin"])
+		}
+	}
+
+	c := newClassroom(t, map[string]any{"showPinyin": true})
+	if !c.a.ShowPinyin || !c.detail(t).ShowPinyin {
+		t.Fatalf("created %+v", c.a)
+	}
+	if shared := decode[map[string]any](t, c.shareGet()); shared["showPinyin"] != true {
+		t.Errorf("share %v", shared["showPinyin"])
+	}
+
+	rec := c.patch(`{"showPinyin":false}`)
+	wantStatus(t, rec, http.StatusOK)
+	if decode[assignmentView](t, rec).ShowPinyin || c.detail(t).ShowPinyin {
+		t.Fatal("a patch did not hide the pinyin")
+	}
+	stored, err := c.assignments.Get(context.Background(), "alice", c.a.ID)
+	if err != nil || stored.ShowPinyin {
+		t.Fatalf("stored %+v, %v", stored, err)
+	}
+	wantStatus(t, c.patch(`{"showPinyin":true}`), http.StatusOK)
+	if !c.detail(t).ShowPinyin {
+		t.Fatal("a patch did not show the pinyin")
+	}
+	// A label change leaves it as it is.
+	wantStatus(t, c.patch(`{"label":"x"}`), http.StatusOK)
+	if !c.detail(t).ShowPinyin {
+		t.Fatal("a label patch hid the pinyin")
+	}
+	for _, body := range []string{`{"showPinyin":null}`, `{"showPinyin":"false"}`, `{"showPinyin":0}`} {
+		wantError(t, c.patch(body), http.StatusBadRequest, "Invalid payload")
 	}
 }
 

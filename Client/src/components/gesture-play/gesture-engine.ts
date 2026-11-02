@@ -1,5 +1,5 @@
 import { Choice, QuestionView, Reveal } from '../../game/stage-game';
-import { GestureQuestion, sentenceOf } from '../../models/gesture-quiz';
+import { chunkPinyinOf, GestureQuestion, pinyinOf, sentenceOf } from '../../models/gesture-quiz';
 import { Utils } from '../../utils';
 import { TimeMode } from './gesture-settings.service';
 
@@ -36,44 +36,42 @@ export function shuffleChunks(chunks: readonly string[]): string[] {
 
 // Builds what the page plays for one question. Stage 1 is always 'Đúng'/'Sai' in that order (index 0 is
 // the thumbs-up answer); stages 2-5 mix the right answer in with the wrong ones; stage 6 has no
-// options, only the shuffled pieces of the sentence.
-export function prepareQuestion(question: GestureQuestion): PlayQuestion {
+// options, only the shuffled pieces of the sentence. With `showPinyin` the view carries each text's
+// pinyin beside it.
+export function prepareQuestion(question: GestureQuestion, showPinyin = false): PlayQuestion {
   const { stage } = question;
   if (stage === WORD_ORDER_STAGE) {
     const order = question.chunks ?? [];
+    const chunks = shuffleChunks(order);
     return {
       source: question,
       view: {
         stage,
         question: question.question,
         options: [],
-        chunks: shuffleChunks(order)
+        chunks,
+        ...(showPinyin && {
+          questionPinyin: question.questionPinyin,
+          chunkPinyins: chunks.map(chunk => chunkPinyinOf(question, chunk))
+        })
       },
       correctIndex: null,
       correctOrder: order,
     };
   }
-  if (stage === TRUE_FALSE_STAGE) {
-    return {
-      source: question,
-      view: {
-        stage,
-        question: question.question,
-        options: ['Đúng', 'Sai']
-      },
-      correctIndex: question.correct === 'Đúng' ? 0 : 1,
-      correctOrder: null,
-    };
-  }
-  const options = shuffled([question.correct, ...question.wrong]);
+  const options = stage === TRUE_FALSE_STAGE ? ['Đúng', 'Sai'] : shuffled([question.correct, ...question.wrong]);
   return {
     source: question,
     view: {
       stage,
       question: question.question,
-      options
+      options,
+      ...(showPinyin && {
+        questionPinyin: question.questionPinyin,
+        optionPinyins: options.map(option => pinyinOf(question, option))
+      })
     },
-    correctIndex: options.indexOf(question.correct),
+    correctIndex: stage === TRUE_FALSE_STAGE ? (question.correct === 'Đúng' ? 0 : 1) : options.indexOf(question.correct),
     correctOrder: null,
   };
 }
@@ -116,6 +114,17 @@ function answerOf(play: PlayQuestion): Pick<Reveal, 'correctIndex' | 'correctOrd
 // The right answer as text for the feedback bar: the option itself, or the finished sentence.
 export function correctAnswerText(play: PlayQuestion): string {
   return play.correctOrder ? sentenceOf(play.correctOrder) : play.source.correct;
+}
+
+// The right answer's pinyin for the feedback bar, from what the view shows: '' when it carries none.
+export function correctAnswerPinyin(play: PlayQuestion): string {
+  const { view } = play;
+  if (play.correctOrder) {
+    const pinyins = view.chunkPinyins;
+    const chunks = view.chunks ?? [];
+    return pinyins ? play.correctOrder.map(chunk => pinyins[chunks.indexOf(chunk)] ?? '').filter(p => p).join(' ') : '';
+  }
+  return play.correctIndex === null ? '' : view.optionPinyins?.[play.correctIndex] ?? '';
 }
 
 // Seconds a question lasts in this mode, or null when there is no limit.

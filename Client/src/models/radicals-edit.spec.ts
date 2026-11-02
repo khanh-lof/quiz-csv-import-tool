@@ -48,8 +48,8 @@ describe('radicals edit', () => {
 
   it('words the server\'s refusals', () => {
     expect(radicalsEditError(failure(404, 'Job not found'), 'x')).toBe('Không tìm thấy bài này.');
-    expect(radicalsEditError(failure(409, 'Job cannot be edited.'), 'x')).toBe('Bài này tạo trước khi có chức năng sửa.');
-    expect(radicalsEditError(failure(409, 'No lesson has enough words for a group.'), 'x')).toBe('Không bài nào còn đủ từ để ghép bộ.');
+    expect(radicalsEditError(failure(409, 'Job cannot be edited.'), 'x')).toBe('Bài cũ, không sửa được.');
+    expect(radicalsEditError(failure(409, 'No lesson has enough words for a group.'), 'x')).toBe('Không bài nào đủ từ.');
     expect(radicalsEditError(failure(400, 'Invalid corrections.'), 'Không lưu được.')).toBe('Không lưu được.');
     expect(radicalsEditError(new Error('offline'), 'Không tải được.')).toBe('Không tải được.');
   });

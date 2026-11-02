@@ -117,13 +117,8 @@ export class AiJobService {
         `"${title}" — xem ở AI › Lịch sử.`, { nzPlacement: 'top' });
       return;
     }
-    const reason = job.errorStatus === HttpStatusCode.GatewayTimeout
-      ? 'Quá lâu. Gửi lại hoặc giảm số ảnh.'
-      : job.errorStatus === HttpStatusCode.BadGateway
-        ? 'Thử lại sau ít phút.'
-        : escapeHtml(failedJobMessage(job));
-    this.notificationService.error('AI không tạo được quiz',
-      `"${title}": ${reason}`, {
+    this.notificationService.error('AI không tạo được',
+      `"${title}": ${escapeHtml(failedJobMessage(job))}`, {
         nzPlacement: 'top',
         nzDuration: 0
       });

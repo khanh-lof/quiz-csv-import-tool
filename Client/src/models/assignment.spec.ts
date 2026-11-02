@@ -40,6 +40,7 @@ function assignment(overrides: Partial<Assignment> = {}): Assignment {
     },
     maxAttempts: null,
     showBoard: true,
+    showPinyin: false,
     stageCounts: {
       '1': 5,
       '2': 5
@@ -118,8 +119,11 @@ describe('placeholderQuiz', () => {
     expect(quiz.stages.get(4)![0]).toEqual({
       stage: 4,
       question: '',
+      questionPinyin: '',
       correct: '',
+      correctPinyin: '',
       wrong: [],
+      wrongPinyin: [],
       explanation: ''
     });
     expect(quiz.title).toBe('HSK1 bài 1');
@@ -406,16 +410,15 @@ describe('assignmentErrorMessage', () => {
   it('turns the plain-text answers of the server into advice', () => {
     expect(assignmentErrorMessage(failure(409, 'Too many assignments.'))).toContain('Tối đa 100 bài');
     expect(assignmentErrorMessage(failure(404, 'Job not found'))).toContain('Không tìm thấy quiz');
-    expect(assignmentErrorMessage(failure(400, 'Invalid closing time.\n'))).toContain('tương lai');
+    expect(assignmentErrorMessage(failure(400, 'Invalid closing time.\n'))).toContain('sau bây giờ');
     expect(assignmentErrorMessage(failure(400, 'Invalid pass percents.'))).toContain('10% đến 100%');
     expect(assignmentErrorMessage(failure(400, 'Invalid replay limit.'))).toContain('1–10');
-    expect(assignmentErrorMessage(failure(400, 'Invalid board setting.'))).toContain('Cài đặt bảng xếp hạng');
   });
 
   it('explains a lost connection, an expired login and anything unknown', () => {
     expect(assignmentErrorMessage(failure(0))).toContain('Mất kết nối');
     expect(assignmentErrorMessage(failure(401))).toContain('đăng nhập');
-    expect(assignmentErrorMessage(failure(400, 'Something else'))).toBe('Yêu cầu chưa hợp lệ.');
+    expect(assignmentErrorMessage(failure(400, 'Something else'))).toBe('Thông tin chưa hợp lệ.');
     expect(assignmentErrorMessage(failure(500))).toBe('Thử lại.');
     expect(assignmentErrorMessage(new Error('x'))).toBe('Thử lại.');
   });

@@ -29,7 +29,7 @@ export class DeadlinePicker {
 
   protected readonly closeText = computed(() => {
     const value = this.value();
-    return value ? `Đóng lúc ${formatClose(value)}` : '';
+    return value ? `Đóng lúc ${formatClose(value)}.` : '';
   });
   // A closing time in the past would close the link at once, and the server refuses it.
   protected readonly inThePast = computed(() => {

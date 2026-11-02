@@ -56,7 +56,9 @@ type assignmentView struct {
 	// MaxAttempts is the cap on finished runs per stage, null when unlimited.
 	MaxAttempts *int `json:"maxAttempts"`
 	// ShowBoard is false when the teacher hid the leaderboard from the students.
-	ShowBoard   bool       `json:"showBoard"`
+	ShowBoard bool `json:"showBoard"`
+	// ShowPinyin is true when the students are shown the pinyin of the questions and answers.
+	ShowPinyin  bool       `json:"showPinyin"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	ClosesAt    *time.Time `json:"closesAt"`
 	ClosedAt    *time.Time `json:"closedAt"`
@@ -75,6 +77,7 @@ func (s *Server) newAssignmentView(a *store.Assignment, now time.Time, playerCou
 		PassPercents: passPercentsOf(a),
 		MaxAttempts:  a.MaxAttempts,
 		ShowBoard:    !a.HideBoard,
+		ShowPinyin:   a.ShowPinyin,
 		StageCounts:  counts, TimeLimits: s.timeLimits(a), CreatedAt: a.CreatedAt.UTC(), ClosesAt: utcPtr(a.ClosesAt), ClosedAt: utcPtr(a.ClosedAt),
 		Open: a.OpenAt(now), PlayerCount: playerCount,
 	}
@@ -117,6 +120,8 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		MaxAttempts json.RawMessage `json:"maxAttempts"`
 		// ShowBoard is read raw for the same reason.
 		ShowBoard json.RawMessage `json:"showBoard"`
+		// ShowPinyin is read raw for the same reason.
+		ShowPinyin json.RawMessage `json:"showPinyin"`
 	}
 	if !s.readJSON(w, r, &req) {
 		return
@@ -158,9 +163,14 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "Invalid replay limit.")
 		return
 	}
-	showBoard, ok := parseShowBoard(req.ShowBoard)
+	showBoard, ok := parseOptionalBool(req.ShowBoard, true)
 	if !ok {
 		writeText(w, http.StatusBadRequest, "Invalid board setting.")
+		return
+	}
+	showPinyin, ok := parseOptionalBool(req.ShowPinyin, false)
+	if !ok {
+		writeText(w, http.StatusBadRequest, "Invalid pinyin setting.")
 		return
 	}
 
@@ -211,6 +221,7 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		PassPercents: passPercents,
 		MaxAttempts:  maxAttempts,
 		HideBoard:    !showBoard,
+		ShowPinyin:   showPinyin,
 		CreatedAt:    now.UTC().Truncate(time.Millisecond),
 		ClosesAt:     closesAt,
 	}
@@ -315,6 +326,15 @@ func (s *Server) patchAssignment(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		update.Label = &label
+	}
+
+	if raw, ok := body["showPinyin"]; ok {
+		var show bool
+		if string(raw) == "null" || json.Unmarshal(raw, &show) != nil {
+			writeText(w, http.StatusBadRequest, "Invalid payload")
+			return
+		}
+		update.ShowPinyin = &show
 	}
 
 	closesAt := a.ClosesAt // the closing time that will apply once the update is done
@@ -494,13 +514,13 @@ func parseMaxAttempts(raw json.RawMessage, stageLock string) (*int, bool) {
 	return &n, true
 }
 
-// parseShowBoard reads the optional showBoard of a create request: absent or null shows the leaderboard
-// to the students (true); otherwise it must be a JSON boolean. A string such as "false" is refused rather
-// than guessed at, so a client that sends the wrong type never hides or shows the board by accident. Null
-// is handled before unmarshalling, because decoding null into a bool succeeds and leaves false.
-func parseShowBoard(raw json.RawMessage) (bool, bool) {
+// parseOptionalBool reads an optional switch of a create request (showBoard, showPinyin): absent or null is
+// the default; otherwise it must be a JSON boolean. A string such as "false" is refused rather than guessed
+// at, so a client that sends the wrong type never hides or shows anything by accident. Null is handled
+// before unmarshalling, because decoding null into a bool succeeds and leaves false.
+func parseOptionalBool(raw json.RawMessage, absent bool) (bool, bool) {
 	if len(raw) == 0 || string(raw) == "null" {
-		return true, true
+		return absent, true
 	}
 	var show bool
 	if err := json.Unmarshal(raw, &show); err != nil {

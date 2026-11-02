@@ -77,14 +77,10 @@ export function sameThumbView(a: ThumbView, b: ThumbView): boolean {
 
 // The line under the targets that tells the player what the camera is doing.
 export function thumbStatus(view: ThumbView): string {
-  if (view.choice !== null) {
-    const target = THUMB_TARGETS.find(candidate => candidate.index === view.choice);
-    return `Đang chọn ${target?.label ?? ''}… ${Math.round(view.progress * 100)}%`;
+  if (view.choice === null && !view.armed && view.shown !== null) {
+    return 'Hạ tay xuống';
   }
-  if (!view.armed && view.shown !== null) {
-    return 'Hạ tay xuống rồi chọn câu tiếp';
-  }
-  return 'Giơ ngón cái lên hoặc chúc xuống';
+  return '';
 }
 
 // The option an answer key picks: 1 or ← for Đúng, 2 or → for Sai.

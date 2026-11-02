@@ -42,6 +42,13 @@ nz-card {
   gap: 8px;
 }
 
+.pinyin-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
 .board-extra {
   display: flex;
   flex-wrap: wrap;
@@ -296,10 +303,6 @@ nz-card {
 .qr-modal app-share-link {
   margin-top: 16px;
   text-align: left;
-}
-
-.deadline-help {
-  margin: 0 0 12px;
 }
 
 /* The projector view: the card fills the screen on white, with larger type so a class can read it from

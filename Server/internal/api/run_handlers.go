@@ -33,14 +33,19 @@ var (
 // sharedQuestion is a question as a student is dealt it: the text and how to answer, never the answer or
 // its explanation, which come back only with the verdict. Index is the question's place in this run.
 // Options is empty for the sentence stage, and Chunks is null for every other stage. TimeLeftMs is null
-// when the time mode has no limit; GraceMs is how long after the limit an answer still counts.
+// when the time mode has no limit; GraceMs is how long after the limit an answer still counts. The pinyin
+// is sent only when the teacher shows it: then OptionPinyins and ChunkPinyins go beside Options and Chunks,
+// one for each ("" for a text without), and otherwise none of the three keys is in the answer at all.
 type sharedQuestion struct {
-	Index      int      `json:"index"`
-	Question   string   `json:"question"`
-	Options    []string `json:"options"`
-	Chunks     []string `json:"chunks"`
-	TimeLeftMs *int64   `json:"timeLeftMs"`
-	GraceMs    int64    `json:"graceMs"`
+	Index          int      `json:"index"`
+	Question       string   `json:"question"`
+	QuestionPinyin *string  `json:"questionPinyin,omitempty"`
+	Options        []string `json:"options"`
+	OptionPinyins  []string `json:"optionPinyins,omitempty"`
+	Chunks         []string `json:"chunks"`
+	ChunkPinyins   []string `json:"chunkPinyins,omitempty"`
+	TimeLeftMs     *int64   `json:"timeLeftMs"`
+	GraceMs        int64    `json:"graceMs"`
 }
 
 // runResult is what a finished run scored, and whether that passes the stage.
@@ -539,6 +544,19 @@ func (s *Server) questionOf(a *store.Assignment, run *store.Run, quiz *gesturequ
 	}
 	if view.Options == nil {
 		view.Options = []string{}
+	}
+	if a.ShowPinyin {
+		view.QuestionPinyin = &source.QuestionPinyin
+		view.OptionPinyins = make([]string, len(view.Options))
+		for i, option := range view.Options {
+			view.OptionPinyins[i] = source.PinyinOf(option)
+		}
+		if view.Chunks != nil {
+			view.ChunkPinyins = make([]string, len(view.Chunks))
+			for i, chunk := range view.Chunks {
+				view.ChunkPinyins[i] = source.ChunkPinyinOf(chunk)
+			}
+		}
 	}
 	if limit, limited := s.timeLimit(stage, a.TimeMode); limited && dealt.ServedAt != nil {
 		left := min(max(limit-now.Sub(*dealt.ServedAt), 0), limit).Milliseconds()

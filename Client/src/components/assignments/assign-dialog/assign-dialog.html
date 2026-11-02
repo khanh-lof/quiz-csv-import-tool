@@ -6,7 +6,7 @@
     @if (assignment(); as made) {
       <p class="done-text">
         <nz-icon class="done-icon" nzTheme="fill" nzType="check-circle"/>
-        Đã giao bài. Gửi link hoặc mã QR cho học sinh.
+        Đã giao bài.
       </p>
       <app-share-link [code]="made.code" [qrSize]="200"/>
       <div class="actions">
@@ -31,7 +31,7 @@
         }
       </div>
       @if (questions() === 0) {
-        <p class="error" role="alert">Quiz này không có câu hỏi hợp lệ để giao.</p>
+        <p class="error" role="alert">Không có câu hỏi hợp lệ để giao.</p>
       }
 
       <div class="field">
@@ -39,7 +39,7 @@
           Lớp / nhóm <span class="muted">(không bắt buộc)</span>
         </label>
         <input (keydown.enter)="submit()" (ngModelChange)="label.set($event ?? '')" [attr.maxlength]="maxLabelLength" [ngModel]="label()"
-               id="assign-label" nz-input placeholder="VD: Lớp 3A"/>
+               id="assign-label" nz-input/>
       </div>
 
       <div class="field">
@@ -78,19 +78,14 @@
                                [nzMax]="maxAttemptsLimit" [nzMin]="minAttemptsLimit"
                                [nzPrecision]="0" [nzStep]="1" nzId="assign-attempts-count"></nz-input-number>
               <span class="muted">lần mỗi màn</span>
-            } @else {
-              <span class="muted">Không giới hạn</span>
             }
           </div>
-          @if (limitAttempts()) {
-            <p class="muted hint">Tối đa {{ maxAttemptsSent() }} lần mỗi màn.</p>
-          }
         </div>
       }
 
       @if (passRows().length > 0) {
         <div class="field">
-          <span class="field-label" id="assign-pass">Điểm qua màn</span>
+          <span class="field-label" id="assign-pass">Tỉ lệ đúng để qua màn</span>
           <div aria-labelledby="assign-pass" class="pass-rows" role="group">
             @for (row of passRows(); track row.stage) {
               <div class="pass-row">
@@ -106,7 +101,6 @@
               </div>
             }
           </div>
-          <p class="muted hint">Tỉ lệ đúng để qua màn ({{ minPercent }}–{{ maxPercent }}%, trống = {{ defaultPercent }}%).</p>
         </div>
       }
 
@@ -115,8 +109,14 @@
         <div aria-labelledby="assign-show-board" class="attempts-row" role="group">
           <nz-switch (ngModelChange)="showBoard.set($event)" [ngModel]="showBoard()"
                      nzCheckedChildren="Bật" nzUnCheckedChildren="Tắt"/>
-          <span
-            class="muted">{{ showBoard() ? 'Top 5 của lớp và hạng của mình' : 'Chỉ thầy cô xem bảng xếp hạng' }}</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label" id="assign-show-pinyin">Hiện pinyin</span>
+        <div aria-labelledby="assign-show-pinyin" class="attempts-row" role="group">
+          <nz-switch (ngModelChange)="showPinyin.set($event)" [ngModel]="showPinyin()"
+                     nzCheckedChildren="Bật" nzUnCheckedChildren="Tắt"/>
         </div>
       </div>
 

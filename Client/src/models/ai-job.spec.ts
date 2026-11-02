@@ -273,8 +273,9 @@ describe('failedJobMessage', () => {
     expect(failedJobMessage(failed)).toContain('đủ từ');
   });
 
-  it('shows any other message as the server wrote it', () => {
-    expect(failedJobMessage(job({ status: 'failed', errorStatus: 502, errorMessage: 'AI generation failed.' }))).toBe('AI generation failed.');
-    expect(failedJobMessage(job({ status: 'failed', errorStatus: 0, errorMessage: '' }))).toBe('Không rõ lỗi.');
+  it('words a timeout and a bad gateway, and never shows the server text', () => {
+    expect(failedJobMessage(job({ status: 'failed', errorStatus: 504, errorMessage: 'AI generation timed out.' }))).toContain('Quá lâu');
+    expect(failedJobMessage(job({ status: 'failed', errorStatus: 502, errorMessage: 'AI generation failed.' }))).toBe('Thử lại sau ít phút.');
+    expect(failedJobMessage(job({ status: 'failed', errorStatus: 0, errorMessage: 'Something else.' }))).toBe('Không rõ lỗi.');
   });
 });

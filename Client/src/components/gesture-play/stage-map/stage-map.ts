@@ -59,6 +59,8 @@ export class GestureStageMap {
   readonly lockedTimeMode = input<TimeMode | null>(null);
   // Whether the player may wipe the quiz's progress: not for a student, whose results are the teacher's.
   readonly allowReset = input(true);
+  // Whether the player chooses to see the pinyin: not in an assignment, where the teacher decides.
+  readonly allowPinyinChoice = input(true);
   // Every stage with questions can be opened, passed or not (the teacher's preview).
   readonly allOpen = input(false);
   // The teacher's pass percentage of each stage, when there is one (an assignment).
@@ -115,6 +117,10 @@ export class GestureStageMap {
 
   protected setSound(sound: boolean): void {
     this.settingsService.update({ sound });
+  }
+
+  protected setShowPinyin(showPinyin: boolean): void {
+    this.settingsService.update({ showPinyin });
   }
 
   protected resetProgress(): void {

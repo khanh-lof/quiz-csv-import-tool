@@ -177,15 +177,14 @@ describe('FaceCalibrator', () => {
 describe('messages', () => {
   it('says what is wrong with the number of faces', () => {
     expect(faceProblemMessage(1)).toBeNull();
-    expect(faceProblemMessage(0)).toBe('Chưa thấy mặt · đến gần và nhìn camera');
-    expect(faceProblemMessage(3)).toBe('Chỉ một người trước camera');
+    expect(faceProblemMessage(0)).toBe('Chưa thấy mặt');
+    expect(faceProblemMessage(3)).toBe('Chỉ một khuôn mặt');
   });
 
-  it('shows the seconds collected so far', () => {
-    expect(calibrationMessage('collecting', 0.6)).toBe('Nhìn thẳng vào camera · 0.6 / 1 giây');
-    expect(calibrationMessage('collecting', 0)).toBe('Nhìn thẳng vào camera · 0.0 / 1 giây');
-    expect(calibrationMessage('no-face', 0)).toBe('Chưa thấy mặt · đến gần và nhìn camera');
-    expect(calibrationMessage('many-faces', 0)).toBe('Chỉ một người trước camera');
+  it('asks to look straight while collecting', () => {
+    expect(calibrationMessage('collecting')).toBe('Nhìn thẳng vào camera');
+    expect(calibrationMessage('no-face')).toBe('Chưa thấy mặt');
+    expect(calibrationMessage('many-faces')).toBe('Chỉ một khuôn mặt');
   });
 });
 

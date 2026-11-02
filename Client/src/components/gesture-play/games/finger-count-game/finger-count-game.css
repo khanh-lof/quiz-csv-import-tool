@@ -258,9 +258,11 @@
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
+  /* The option under its pinyin, when the pinyin is shown. */
+  flex-direction: column;
   /* `safe`: text too long for a small card runs off the bottom, not up over the header band. */
-  align-items: safe center;
-  justify-content: center;
+  justify-content: safe center;
+  align-items: center;
   padding: clamp(4px, 1cqmin, 10px) clamp(6px, 1.5cqmin, 14px) clamp(6px, 1.5cqmin, 14px);
   overflow-wrap: anywhere;
   font-size: clamp(1rem, 0.7rem + 2.4cqmin, 2rem);

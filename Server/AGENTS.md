@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI when working with code in this repository.
 
 ## What this is
 
@@ -38,7 +38,8 @@ Module `quiz-csv-import-tool/server`, laid out as:
   [../AGENTS.md](../AGENTS.md#ghép-bộ-thủ-the-radicals-exercise).
 - `internal/gesturequiz` — the Game quiz as the server reads it: `ExtractCSV` and `SplitRows` (ports of the
   client's `extractCsvContent` and `parseCsvRows`), `Parse` (a port of `parseGestureQuiz`, the same rules and
-  the same `skipped` count), the stage table (option counts, seconds per question, `TimeLimit` per time mode)
+  the same `skipped` count: a row must have exactly `ColumnCount` (12) fields, and each `Question` keeps the
+  pinyin of its question, answers and chunks, which `PinyinOf` and `ChunkPinyinOf` find by text), the stage table (option counts, seconds per question, `TimeLimit` per time mode)
   and `ShuffleChunks`. The client's versions are the reference; `quiz_test.go` ports the client's parser cases,
   and a rule changed on one side must be changed on the other.
 
@@ -152,10 +153,11 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   caller's username, so someone else's assignment is a 404 `Assignment not found`, never a 403. The order of
   `createAssignment`'s checks is part of the contract: the payload first (`readJSON`'s 400s, then label ≤ 60
   runes, time mode, stage lock, closing time in the future and ≤ 180 days ahead, pass percents (keys `"1"`–`"6"`,
-  plain integers 10–100), replay limit, board setting: 400 `Label is too long.`, `Invalid time mode.`, `Invalid
-  stage lock.`, `Invalid closing time.`, `Invalid pass percents.`, `Invalid replay limit.`, `Invalid board
-  setting.`), before anything is read from the database. `showBoard` is read raw (`parseShowBoard`): absent or
-  `null` is `true`, a JSON boolean is kept, anything else (`"false"`, `0`, an object) is the 400. Then the
+  plain integers 10–100), replay limit, board setting, pinyin setting: 400 `Label is too long.`, `Invalid time
+  mode.`, `Invalid stage lock.`, `Invalid closing time.`, `Invalid pass percents.`, `Invalid replay limit.`,
+  `Invalid board setting.`, `Invalid pinyin setting.`), before anything is read from the database. `showBoard` and
+  `showPinyin` are read raw (`parseOptionalBool`): absent or `null` is the default (`true` for the board, `false`
+  for the pinyin), a JSON boolean is kept, anything else (`"false"`, `0`, an object) is the 400. Then the
   100-per-user cap (409 `Too many assignments.`); then the job through `Jobs.Get` (404
   `Job not found`, or 409 `Job is not a finished gesture quiz.` unless it is `done`, `creative` and
   `exportType` GestureQuiz, and the same 409 when `gesturequiz.Parse` finds no playable question in its CSV). So
@@ -167,8 +169,9 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   `getAssignment` adds the CSV and `buildLeaderboard`'s output (`leaderboard.go`, one `leaderboardEntry` per
   player, with the player's `avatar`) to the same view, and both answer
   `Cache-Control: no-store`, as the client polls the detail. `patchAssignment` reads the body as a map of raw
-  values, so an absent key (leave it) differs from `null` (clear `closesAt`; a `null` label or `closed` is
-  a 400 `Invalid payload`); `closed: true` closes now unless it was already closed by hand (the first moment is
+  values, so an absent key (leave it) differs from `null` (clear `closesAt`; a `null` label, `closed` or
+  `showPinyin` is a 400 `Invalid payload`, as is a `showPinyin` that is not a JSON boolean); `showPinyin` is
+  stored as `showPinyin: true` or removed (`$unset`), the store's `AssignmentUpdate.ShowPinyin`; `closed: true` closes now unless it was already closed by hand (the first moment is
   kept, so the result grace does not slide), and `closed: false` is refused (400 `Invalid closing time.`) if the
   closing time that would remain, the old one or the one in the same request, is not in the future.
   `deleteAssignmentPlayer` loads the assignment first only to check the caller owns it, since the store's
@@ -251,7 +254,9 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
     best. The answer is `{correct, timedOut, correctIndex | correctOrder, answer, explanation, result}`, `result`
     only on the last question of a finished run.
   - A question as dealt (`sharedQuestion`) is `{index, question, options, chunks, timeLeftMs, graceMs}`: never
-    the answer or the explanation. A run whose `Item`s no longer match the parse (only a parser change between
+    the answer or the explanation. With the assignment's `ShowPinyin` (read on each request, so the teacher's
+    switch applies from the next question) `questionOf` adds `questionPinyin` and `optionPinyins`/`chunkPinyins`,
+    found by each shown text in the parsed question; without it the three keys are left out (`omitempty`). A run whose `Item`s no longer match the parse (only a parser change between
     deployments could do it) is logged and answered 404 `Run not found`, which makes the page start over.
 
 `Server.Now` is the clock the assignment and share handlers read (nil means `time.Now`; they call `s.now()`),
@@ -308,7 +313,9 @@ cookie.
   `exportTypeMessages` case sends its column line and, as a message of its own, `wayground_template.txt` for
   Wayground or what `buildGestureQuizMessage` builds for GestureQuiz. The Game message holds the whole format: the stages the teacher chose, which row shape each
   one takes, how to classify a question by its real difficulty into a stage, exactly `QuestionsPerStage` rows
-  per stage grouped by stage, and a Vietnamese Explanation on every row. It is built from two files:
+  per stage grouped by stage, the pinyin of the question and of every answer in a column of its own (never in
+  the text, and empty where it would give the answer away), and a Vietnamese Explanation on every row. It is
+  built from two files:
   `gesture_quiz_template.txt`, a `text/template` (`missingkey=error`) with the framing and its variants (one
   stage or several, some stages left out, any stage with options), and `gesture_quiz_stages.txt`, the six
   tuned stage rules, one paragraph each starting `Stage N – `, of which only the chosen ones are sent word for

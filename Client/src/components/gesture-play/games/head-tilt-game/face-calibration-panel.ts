@@ -69,7 +69,7 @@ export class FaceCalibrationPanel {
 
   readonly recalibrate = output<void>();
 
-  protected readonly message = computed(() => calibrationMessage(this.status(), this.progress()));
+  protected readonly message = computed(() => calibrationMessage(this.status()));
   protected readonly warn = computed(
     () => this.status() === 'no-face' || this.status() === 'many-faces',
   );

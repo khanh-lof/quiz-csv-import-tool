@@ -214,7 +214,7 @@ describe('RadicalsPlay', () => {
     http.expectOne({ method: 'PUT', url: EDIT }).flush(flagged, { status: 422, statusText: 'Unprocessable Entity' });
     fixture.detectChanges();
 
-    expect(text()).toContain('Sửa các ô đỏ rồi lưu lại.');
+    expect(text()).toContain('Sửa các ô đỏ.');
     expect(text()).toContain('Pinyin không khớp số chữ');
     expect(text()).toContain('Chưa nhập');
     expect(frame()).toBe('<html>v1</html>');
@@ -229,13 +229,13 @@ describe('RadicalsPlay', () => {
     click('Sửa');
     http.expectOne(EDIT).flush('Job cannot be edited.', { status: 409, statusText: 'Conflict' });
     fixture.detectChanges();
-    expect(text()).toContain('Bài này tạo trước khi có chức năng sửa.');
+    expect(text()).toContain('Bài cũ, không sửa được.');
 
     startEdit();
     click('Lưu');
     http.expectOne({ method: 'PUT', url: EDIT }).flush('No lesson has enough words for a group.', { status: 409, statusText: 'Conflict' });
     fixture.detectChanges();
-    expect(text()).toContain('Không bài nào còn đủ từ để ghép bộ.');
+    expect(text()).toContain('Không bài nào đủ từ.');
     expect(input('Nghĩa của 图书馆')).not.toBeNull();
   });
 });

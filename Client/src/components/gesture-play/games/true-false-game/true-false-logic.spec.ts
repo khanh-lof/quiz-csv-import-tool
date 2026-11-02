@@ -153,28 +153,24 @@ describe('true/false decision per frame', () => {
 describe('thumbStatus', () => {
   const view = (partial: Partial<ThumbView>): ThumbView => ({ ...IDLE_THUMB_VIEW, ...partial });
 
-  it('shows the charging side and the progress in percent', () => {
-    const charging = (choice: number, progress: number) =>
-      thumbStatus(view({
-        armed: true,
-        choice,
-        progress
-      }));
-    expect(charging(0, 0.6)).toBe('Đang chọn Đúng… 60%');
-    expect(charging(1, 0.333)).toBe('Đang chọn Sai… 33%');
+  it('shows no text while a side is charging', () => {
+    expect(thumbStatus(view({
+      armed: true,
+      choice: 0,
+      progress: 0.6
+    }))).toBe('');
   });
 
   it('asks the player to lower the hand while a thumb is up and the gate is not armed', () => {
     expect(thumbStatus(view({
       armed: false,
       shown: 0
-    }))).toBe('Hạ tay xuống rồi chọn câu tiếp');
+    }))).toBe('Hạ tay xuống');
   });
 
-  it('shows the instruction when there is nothing to choose', () => {
-    expect(thumbStatus(view({ armed: true }))).toBe('Giơ ngón cái lên hoặc chúc xuống');
-    // Waiting to be armed with the hand down is not worth a message.
-    expect(thumbStatus(view({ armed: false }))).toBe('Giơ ngón cái lên hoặc chúc xuống');
+  it('shows no text when there is nothing to choose', () => {
+    expect(thumbStatus(view({ armed: true }))).toBe('');
+    expect(thumbStatus(view({ armed: false }))).toBe('');
   });
 });
 

@@ -1,6 +1,9 @@
 <div [class.cam]="cameraActive()" [class.locked]="locked()" class="frame">
   <div class="question">
-    <p>{{ question().question }}</p>
+    <p>
+      @if (question().questionPinyin) {<span class="play-pinyin">{{ question().questionPinyin }}</span>}
+      {{ question().question }}
+    </p>
   </div>
 
   <div class="lanes">
@@ -20,6 +23,9 @@
             <span class="chip"><kbd>{{ slot.index + 1 }}</kbd></span>
             @if (reveal() === null) {
               <span aria-hidden="true" class="fly">🪰</span>
+            }
+            @if (slot.pinyin) {
+              <span class="pinyin">{{ slot.pinyin }}</span>
             }
             <span [class]="slot.size" class="word">{{ slot.main }}</span>
             @if (slot.note) {
@@ -75,8 +81,8 @@
     </div>
   </div>
 
-  <div class="footer">
-    @if (cameraActive()) {
+  @if (cameraActive()) {
+    <div class="footer">
       @if (ready()) {
         <div class="status" role="status">
           <div aria-hidden="true" class="mouth-meter">
@@ -86,7 +92,9 @@
               <b [style.left.%]="biteMarkPercent" class="limit"></b>
             </div>
           </div>
-          <p [class.warn]="problem()" class="hint">{{ hintText() }}</p>
+          @if (hintText()) {
+            <p [class.warn]="problem()" class="hint">{{ hintText() }}</p>
+          }
         </div>
       }
       <app-face-calibration
@@ -94,8 +102,6 @@
         [calibrating]="!ready()"
         [progress]="calibrationProgress()"
         [status]="calibrationStatus()"/>
-    } @else {
-      <p class="status hint">Bấm vào đáp án hoặc nhấn 1 / 2 / 3 (← ↓ → dời ếch, Space để đớp)</p>
-    }
-  </div>
+    </div>
+  }
 </div>

@@ -231,7 +231,7 @@ export class RadicalsPlay implements OnInit, LeaveCheck {
         const flagged = flaggedEdit(err);
         if (flagged) {
           this.edit.set(flagged);
-          this.editError.set('Sửa các ô đỏ rồi lưu lại.');
+          this.editError.set('Sửa các ô đỏ.');
           return;
         }
         this.editError.set(radicalsEditError(err, 'Không lưu được. Thử lại.'));

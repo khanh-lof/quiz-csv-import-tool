@@ -11,7 +11,6 @@
                   formControlName="username"
                   id="username"
                   nz-input
-                  placeholder="Nhập tên đăng nhập"
                 />
               </nz-form-control>
             </nz-form-item>
@@ -23,8 +22,7 @@
                 <label [for]="'password'">Mật khẩu</label>
                 <nz-input-password>
                   <input formControlName="password" id="password"
-                         nz-input
-                         placeholder="Nhập mật khẩu"/>
+                         nz-input/>
                 </nz-input-password>
               </nz-form-control>
             </nz-form-item>
@@ -52,7 +50,7 @@
 
           <!-- Everything but AI generation works without an account, so let the user go back. -->
           <div [nzLg]="24" [nzMd]="24" [nzSm]="24" [nzXs]="24" class="back-link" nz-col>
-            <a routerLink="/quiz">← Quay lại, dùng không cần đăng nhập</a>
+            <a routerLink="/quiz">← Dùng không cần đăng nhập</a>
           </div>
         </div>
       </form>

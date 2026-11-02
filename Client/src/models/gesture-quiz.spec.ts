@@ -1,10 +1,24 @@
 import { DEMO_QUIZ_CSV, DEMO_QUIZ_TITLE } from '../game/demo-quiz';
 import { passMark, stageDef, STAGES } from '../game/stages';
 import { CsvImportService } from '../services/csv-import.service';
-import { GestureQuiz, parseGestureQuiz, questionCount, sentenceOf } from './gesture-quiz';
+import { chunkPinyinOf, GESTURE_QUIZ_COLUMNS, GestureQuiz, parseGestureQuiz, pinyinOf, questionCount, sentenceOf } from './gesture-quiz';
+
+function parseWide(csv: string, title = 'Quiz'): GestureQuiz {
+  return parseGestureQuiz(new CsvImportService().parseCsvRows(csv), title);
+}
+
+// Rows written short, as seven fields with no pinyin column (stage, question, correct, wrong 1-3,
+// explanation), widened to the twelve of the real layout with every pinyin empty; a row of any other
+// length is left as it is.
+function widen(csv: string): string {
+  return csv.split('\n').map(line => {
+    const f = line.split(',');
+    return f.length === 7 ? [f[0], f[1], '', f[2], '', f[3], '', f[4], '', f[5], '', f[6]].join(',') : line;
+  }).join('\n');
+}
 
 function parse(csv: string, title = 'Quiz'): GestureQuiz {
-  return parseGestureQuiz(new CsvImportService().parseCsvRows(csv), title);
+  return parseWide(widen(csv), title);
 }
 
 describe('parseGestureQuiz', () => {
@@ -31,10 +45,56 @@ describe('parseGestureQuiz', () => {
     expect(quiz.stages.get(2)![0]).toEqual({
       stage: 2,
       question: 'Q',
+      questionPinyin: '',
       correct: 'A',
+      correctPinyin: '',
       wrong: ['B'],
+      wrongPinyin: [''],
       explanation: 'Vì sao',
     });
+  });
+
+  it('reads the pinyin beside each text', () => {
+    const quiz = parseWide([
+      '1,我是学生,wǒ shì xuéshēng,Đúng,x,,,,,,,e1',
+      '3,____ 是学生,____ shì xuéshēng,我,wǒ,你,nǐ,他,tā,,,e3',
+      '6,Tôi là học sinh,,我 / 是 / 学生,wǒ / shì / xuéshēng,,,,,,,e6',
+      '6,Q,,我 / 是,wǒ shì,,,,,,,e',
+    ].join('\n'));
+
+    expect(quiz.stages.get(1)![0]).toEqual(jasmine.objectContaining({
+      questionPinyin: 'wǒ shì xuéshēng',
+      correct: 'Đúng',
+      correctPinyin: '',
+    }));
+    const option = quiz.stages.get(3)![0];
+    expect(option).toEqual(jasmine.objectContaining({
+      questionPinyin: '____ shì xuéshēng',
+      correctPinyin: 'wǒ',
+      wrong: ['你', '他'],
+      wrongPinyin: ['nǐ', 'tā'],
+    }));
+    expect(pinyinOf(option, '他')).toBe('tā');
+    expect(pinyinOf(option, '我')).toBe('wǒ');
+    const [sentence, unaligned] = quiz.stages.get(6)!;
+    expect(sentence.chunkPinyin).toEqual(['wǒ', 'shì', 'xuéshēng']);
+    expect(sentence.correctPinyin).toBe('wǒ / shì / xuéshēng');
+    expect(chunkPinyinOf(sentence, '学生')).toBe('xuéshēng');
+    // Pinyin that does not line up with the pieces is dropped, the question is kept.
+    expect(unaligned.chunkPinyin).toEqual(['', '']);
+    expect(unaligned.correctPinyin).toBe('');
+  });
+
+  it('skips a row of another length than the twelve columns', () => {
+    const quiz = parseWide([
+      '2,Q,A,B,,,e',
+      '2,Q,,A,,B,,,,,,e,',
+      '2,Q,,A,,B,,,,,',
+      '2,Q,,A,a,B,b,,,,,e',
+    ].join('\n'));
+
+    expect(questionCount(quiz)).toBe(1);
+    expect(quiz.skipped).toBe(3);
   });
 
   it('reads the stage as the first integer in the first cell', () => {
@@ -193,7 +253,7 @@ describe('parseGestureQuiz', () => {
     const rows = ['1,Q1,Đúng,,,,why', '2,Q2,A,B,,,', '6,Q6,我 / 喝 / 茶,,,,'];
 
     it('is the same with and without the header row', () => {
-      const header = 'Stage,Question,Correct Answer,Wrong Answer 1,Wrong Answer 2,Wrong Answer 3,Explanation';
+      const header = GESTURE_QUIZ_COLUMNS.join(',');
 
       expect(parse([header, ...rows].join('\n')).key).toBe(parse(rows.join('\n')).key);
     });
@@ -266,7 +326,7 @@ describe('stages', () => {
 });
 
 describe('demo quiz', () => {
-  const quiz = parse(DEMO_QUIZ_CSV, DEMO_QUIZ_TITLE);
+  const quiz = parseWide(DEMO_QUIZ_CSV, DEMO_QUIZ_TITLE);
 
   it('parses without skipping a row', () => {
     expect(quiz.skipped).toBe(0);
@@ -289,6 +349,21 @@ describe('demo quiz', () => {
     for (const questions of quiz.stages.values()) {
       for (const question of questions) {
         expect(question.explanation).withContext(question.question).not.toBe('');
+      }
+    }
+  });
+
+  it('gives the Chinese of every question and option its pinyin, and writes none inside the text', () => {
+    const han = /\p{Script=Han}/u;
+    for (const questions of quiz.stages.values()) {
+      for (const q of questions) {
+        const texts: [string, string][] = [[q.question, q.questionPinyin], [q.correct, q.correctPinyin]];
+        q.wrong.forEach((text, i) => texts.push([text, q.wrongPinyin[i]]));
+        q.chunks?.forEach((text, i) => texts.push([text, q.chunkPinyin![i]]));
+        for (const [text, pinyin] of texts) {
+          expect(pinyin !== '').withContext(text).toBe(han.test(text));
+          expect(text).withContext(text).not.toMatch(/\(\p{Script=Latin}/u);
+        }
       }
     }
   });

@@ -146,12 +146,12 @@ export class FruitSliceGame extends StageGameBase {
       return '';
     }
     if (!this.cameraActive()) {
-      return this.played() ? '' : 'Kéo chuột hoặc vuốt tay qua quả để chém (hoặc phím 1, 2, 3)';
+      return this.played() ? '' : 'Kéo chuột qua quả để chém';
     }
     if (!this.handSeen()) {
       return 'Đưa ngón trỏ vào khung hình';
     }
-    return this.played() ? '' : 'Vung ngón trỏ qua quả để chém';
+    return '';
   });
   // The stage size, as a signal only so that the text boxes are re-fitted when it changes.
   private readonly size = signal({

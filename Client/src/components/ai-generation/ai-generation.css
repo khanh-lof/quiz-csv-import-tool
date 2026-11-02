@@ -27,13 +27,6 @@
   backdrop-filter: blur(3px);
 }
 
-.generating-title {
-  margin: 12px 0 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--qt-text);
-}
-
 
 /* Never squeezed by the page fitting the screen (see :host); its min-height would let it shrink. */
 .ai-form {

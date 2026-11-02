@@ -1,8 +1,4 @@
 <nz-card [nzExtra]="refreshTemplate" nzTitle="Bài đã giao">
-  @if (assignments().length > 0) {
-    <p class="help">{{ helpText }}</p>
-  }
-
   <nz-table #listTable [nzData]="assignments()" [nzLoading]="loading()" [nzNoResult]="emptyTemplate" [nzPageSize]="pageSize"
             [nzScroll]="{ x: '720px' }" [nzShowPagination]="assignments().length > pageSize"
             class="list-table" nzSize="small">
@@ -112,7 +108,6 @@
           nzOkText="Mở lại" nzWidth="min(560px, 95vw)">
   <ng-container *nzModalTitle>Mở lại: {{ reopening()?.title }}</ng-container>
   <ng-container *nzModalContent>
-    <p class="reopen-help">Mở lại bằng cùng link.</p>
     <app-deadline-picker [(value)]="reopenDeadline"/>
   </ng-container>
 </nz-modal>

@@ -73,6 +73,28 @@ describe('WordOrderGame', () => {
     fixture.detectChanges();
   }
 
+  it('shows each tile\'s pinyin above it, keeps it on the line and reads the solution\'s', async () => {
+    await setup({
+      question: {
+        ...QUESTION,
+        chunks: ['茶', '我', '喝'],
+        chunkPinyins: ['chá', 'wǒ', 'hē']
+      }
+    });
+
+    expect(pool().map(tile => tile.querySelector('.play-pinyin')?.textContent)).toEqual(['chá', 'wǒ', 'hē']);
+    click(pool()[1]);
+    expect(line()[0].querySelector('.play-pinyin')?.textContent).toBe('wǒ');
+
+    fixture.componentRef.setInput('reveal', {
+      chosen: null,
+      correct: false,
+      correctOrder: ['我', '喝', '茶']
+    });
+    fixture.detectChanges();
+    expect(host.querySelector('.solution .play-pinyin')?.textContent).toBe('wǒ hē chá');
+  });
+
   function pool(): HTMLElement[] {
     return Array.from(host.querySelectorAll<HTMLElement>('.pool .tile'));
   }
@@ -277,7 +299,7 @@ describe('WordOrderGame', () => {
 
     it('hides the cursor and the gesture hint without a camera', () => {
       expect(host.querySelector('.cursor')).toBeNull();
-      expect(host.querySelector('.hint')!.textContent).not.toContain('ngón');
+      expect(host.querySelector('.hint')).toBeNull();
     });
   });
 
@@ -289,7 +311,7 @@ describe('WordOrderGame', () => {
     it('asks for a hand until one is seen', () => {
       expect(host.querySelector('.hint')!.textContent).toContain('Đưa tay vào khung hình');
       holdAt(500, 300, 0, 100);
-      expect(host.querySelector('.hint')!.textContent).toContain('Chỉ ngón trỏ');
+      expect(host.querySelector('.hint')).toBeNull();
       expect(host.querySelector('.cursor')!.classList).toContain('visible');
     });
 

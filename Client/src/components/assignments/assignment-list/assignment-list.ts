@@ -174,7 +174,7 @@ export class AssignmentList implements OnInit {
   protected confirmRemove(assignment: Assignment): void {
     this.modalService.confirm({
       nzTitle: 'Xóa bài này?',
-      nzContent: 'Bài và toàn bộ kết quả của học sinh sẽ bị xóa.',
+      nzContent: 'Bài và kết quả của học sinh sẽ bị xóa.',
       nzOkText: 'Xóa',
       nzOkDanger: true,
       nzClassName: 'qt-confirm-danger',
