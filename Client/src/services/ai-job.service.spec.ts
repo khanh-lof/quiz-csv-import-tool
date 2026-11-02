@@ -171,6 +171,15 @@ describe('AiJobService', () => {
     expect(failed).toBeFalse();
   });
 
+  it('puts a job the server changed in place of the one it holds', () => {
+    service.refresh().subscribe();
+    answer(job('a', 'done'), job('b', 'done'));
+
+    service.replace(job('b', 'done', { csv: 'new' }));
+
+    expect(service.jobs().map(j => [j.id, j.csv])).toEqual([['a', ''], ['b', 'new']]);
+  });
+
   it('keeps the job when the delete fails', () => {
     service.refresh().subscribe();
     answer(job('a', 'done'));

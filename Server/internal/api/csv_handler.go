@@ -277,11 +277,13 @@ func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, 
 		ctx, cancel = context.WithTimeout(ctx, s.LLMTimeout)
 		defer cancel()
 	}
-	csv, err := s.Generator.Generate(ctx, images, job.Creative, opts)
+	result, err := s.Generator.Generate(ctx, images, job.Creative, opts)
 
 	switch {
 	case err == nil:
-		s.recordJob(r, func(ctx context.Context) error { return s.Jobs.Complete(ctx, job.Username, job.ID, csv) }, job)
+		s.recordJob(r, func(ctx context.Context) error {
+			return s.Jobs.Complete(ctx, job.Username, job.ID, result.CSV, result.Source)
+		}, job)
 		return
 	case errors.Is(err, radicals.ErrNothingToPlay):
 		// Not the model's fault, nor the network's: the lessons had too few words that can lose a component.
@@ -373,19 +375,23 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	views := make([]jobView, len(jobs))
-	for i, j := range jobs {
-		retryable, retryUntil := s.retryState(&j)
-		views[i] = jobView{
-			ID: j.ID, Status: string(j.Status), Title: j.Title, Creative: j.Creative, ExportType: j.ExportType,
-			Intelligence: j.Intelligence, ImageCount: j.ImageCount, CourseType: j.CourseType, CourseName: j.CourseName,
-			HskStandard: j.HskStandard, Level: j.Level, LessonNumbers: j.LessonNumbers, CSV: j.CSV,
-			ErrorStatus: j.ErrorStatus, ErrorMessage: j.ErrorMessage, CreatedAt: j.CreatedAt, FinishedAt: j.FinishedAt,
-			Retryable: retryable, RetryUntil: retryUntil,
-		}
+	for i := range jobs {
+		views[i] = s.newJobView(&jobs[i])
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	_ = json.NewEncoder(w).Encode(map[string]any{"jobs": views})
+}
+
+func (s *Server) newJobView(j *store.Job) jobView {
+	retryable, retryUntil := s.retryState(j)
+	return jobView{
+		ID: j.ID, Status: string(j.Status), Title: j.Title, Creative: j.Creative, ExportType: j.ExportType,
+		Intelligence: j.Intelligence, ImageCount: j.ImageCount, CourseType: j.CourseType, CourseName: j.CourseName,
+		HskStandard: j.HskStandard, Level: j.Level, LessonNumbers: j.LessonNumbers, CSV: j.CSV,
+		ErrorStatus: j.ErrorStatus, ErrorMessage: j.ErrorMessage, CreatedAt: j.CreatedAt, FinishedAt: j.FinishedAt,
+		Retryable: retryable, RetryUntil: retryUntil,
+	}
 }
 
 // deleteJob handles DELETE /api/csv/jobs/{id}.
@@ -411,22 +417,8 @@ func (s *Server) deleteJob(w http.ResponseWriter, r *http.Request) {
 // jobPage handles GET /api/csv/jobs/{id}/page: the "Ghép bộ thủ" page of a finished Radicals job, drawn from
 // the exercise the job keeps. The client plays it in a frame and offers it as a download.
 func (s *Server) jobPage(w http.ResponseWriter, r *http.Request) {
-	claims, _ := auth.FromContext(r.Context())
-	if s.Jobs == nil {
-		s.internalError(w, r, "jobs are not configured", errors.New("no job store"))
-		return
-	}
-	job, err := s.Jobs.Get(r.Context(), claims.Username(), r.PathValue("id"))
-	if errors.Is(err, store.ErrNotFound) {
-		writeText(w, http.StatusNotFound, "Job not found")
-		return
-	}
-	if err != nil {
-		s.internalError(w, r, "loading job failed", err)
-		return
-	}
-	if job.Status != store.JobDone || !job.Creative || job.ExportType == nil || csvgen.ExportType(*job.ExportType) != csvgen.Radicals {
-		writeText(w, http.StatusConflict, "Job is not a finished radicals exercise.")
+	job, ok := s.radicalsJob(w, r)
+	if !ok {
 		return
 	}
 	var exercise radicals.Exercise

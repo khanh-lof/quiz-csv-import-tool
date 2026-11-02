@@ -188,8 +188,19 @@ The exercise page the AI page can build instead of a quiz; the contract and the 
   link), shows the server's page in an `iframe` whose `srcdoc` is that HTML and whose `sandbox` is `allow-scripts
   allow-popups` without `allow-same-origin`, so the page's scripts run as another origin and cannot reach the session.
   Above it, "Cần xem lại" lists what the AI wrote or doubted (`reviewLines` over the job's `review`), and the topbar
-  has "Tải file" and "Toàn màn hình" (full-screens the frame).
-- **Specs:** `models/radicals-options.spec.ts`, `components/radicals-play/radicals-play.spec.ts` (`reviewLines`), and
+  has "Sửa", "Tải file" and "Toàn màn hình" (full-screens the frame).
+- **Sửa.** "Sửa" loads the table of what can be corrected (`RadicalsPageService.edit`, `GET csv/jobs/{id}/radicals`;
+  `models/radicals-edit.ts` mirrors `csvgen.RadicalsEdit`) and shows it in place of "Cần xem lại", above the frame:
+  three `nz-table`s, Từ (pinyin and meaning inputs, tags AI / AI không chắc / Đã bỏ, and under a pinyin the
+  dictionary's readings when the review warns about it), Chữ (meaning) and Bộ (name, pinyin, meaning). Every change
+  goes through `withWord` / `withChar` / `withComponent`, which also clear the row's `problem`. While editing, the
+  topbar has "Lưu" and "Huỷ". "Lưu" sends the whole table (`revise`, `PUT`), and on 200 puts the returned job in
+  `AiJobService` (`replace`), so the review follows, and loads the page again into the frame. A 422 brings the table
+  back with rows flagged (`flaggedEdit`), shown as red inputs with "Pinyin không khớp số chữ" or "Cần nhập"; other
+  refusals are worded by `radicalsEditError`. The inputs' `maxlength` are the server's limits
+  (`MAX_EDIT_PINYIN_LENGTH`, `MAX_EDIT_NOTE_LENGTH`).
+- **Specs:** `models/radicals-options.spec.ts`, `models/radicals-edit.spec.ts`, `components/radicals-play/radicals-play.spec.ts`
+  (`reviewLines`, and the page's edit flow over `HttpTestingController`), `services/radicals-page.service.spec.ts`, and
   the platform's cases in `services/ai-csv.service.spec.ts`, `models/ai-job.spec.ts` and `workspace.spec.ts`.
 
 ### Gesture quiz (`/play`)

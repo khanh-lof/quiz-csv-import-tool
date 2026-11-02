@@ -53,12 +53,19 @@ func (c *Client) modelFor(opts Options) string {
 	return c.intelligenceModels[level-1]
 }
 
+// Result is what Generate produced: the CSV, which for a Radicals job is the exercise's JSON, and for a Radicals
+// job only, the Source it was built from (see ReviseRadicals).
+type Result struct {
+	CSV    string
+	Source string
+}
+
 // Generate returns the CSV the model produced. creative selects the platform-specific prompt
 // (rows only, no header) over the simple two-column vocabulary prompt (header included).
 // The creative mode goes through /responses, whose web search tool finds the Wayground images; the
 // simple mode stays on /chat/completions. A Radicals exercise is not a CSV: Generate returns its JSON
 // (see generateRadicals).
-func (c *Client) Generate(ctx context.Context, images []Image, creative bool, opts Options) (string, error) {
+func (c *Client) Generate(ctx context.Context, images []Image, creative bool, opts Options) (Result, error) {
 	if creative && opts.ExportType == Radicals {
 		return c.generateRadicals(ctx, images, opts)
 	}
@@ -72,9 +79,9 @@ func (c *Client) Generate(ctx context.Context, images []Image, creative bool, op
 		content, err = c.complete(ctx, buildSimpleRequest(c.model, images))
 	}
 	if err != nil {
-		return "", err
+		return Result{}, err
 	}
-	return ExtractCSVContent(content), nil
+	return Result{CSV: ExtractCSVContent(content)}, nil
 }
 
 // post sends req as JSON to path and returns the model's text, read by parse from the body of a 2xx

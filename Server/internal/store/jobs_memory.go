@@ -28,10 +28,22 @@ func (m *MemoryJobs) Create(_ context.Context, job *Job) error {
 	return nil
 }
 
-func (m *MemoryJobs) Complete(_ context.Context, username, id, csv string) error {
+func (m *MemoryJobs) Complete(_ context.Context, username, id, csv, source string) error {
 	return m.finish(username, id, func(j *Job) {
-		j.Status, j.CSV = JobDone, csv
+		j.Status, j.CSV, j.Source = JobDone, csv, source
 	})
+}
+
+func (m *MemoryJobs) Revise(_ context.Context, username, id, csv, source string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	j, ok := m.jobs[id]
+	if !ok || j.Username != username || j.Status != JobDone {
+		return ErrNotFound
+	}
+	j.CSV, j.Source = csv, source
+	m.jobs[id] = j
+	return nil
 }
 
 func (m *MemoryJobs) Fail(_ context.Context, username, id string, errorStatus int, message string) error {
@@ -68,7 +80,11 @@ func (m *MemoryJobs) List(_ context.Context, username string, limit int) ([]Job,
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	jobs := m.newestFirst(username)
-	return jobs[:min(limit, len(jobs))], nil
+	jobs = jobs[:min(limit, len(jobs))]
+	for i := range jobs {
+		jobs[i].Source = ""
+	}
+	return jobs, nil
 }
 
 func (m *MemoryJobs) newestFirst(username string) []Job {
