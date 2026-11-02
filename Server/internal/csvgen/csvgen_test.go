@@ -497,12 +497,12 @@ func TestGenerateCallsChatCompletions(t *testing.T) {
 	defer llm.Close()
 
 	c := NewClient(llm.URL+"/v1/", "key", "gpt-x", nil, slog.New(slog.DiscardHandler))
-	csv, err := c.Generate(context.Background(), []Image{{ContentType: "image/jpeg", Data: []byte("img")}}, false, Options{})
+	result, err := c.Generate(context.Background(), []Image{{ContentType: "image/jpeg", Data: []byte("img")}}, false, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if csv != "Câu hỏi,Đáp án\na,b" {
-		t.Fatalf("unexpected csv %q", csv)
+	if result.CSV != "Câu hỏi,Đáp án\na,b" || result.Source != "" {
+		t.Fatalf("unexpected result %+v", result)
 	}
 	if got["model"] != "gpt-x" || got["max_completion_tokens"] != float64(32000) || got["reasoning_effort"] != "low" {
 		t.Fatalf("unexpected payload %v", got)
@@ -525,12 +525,12 @@ func TestGenerateCreativeCallsResponses(t *testing.T) {
 
 	level, lesson := 1, 1
 	c := NewClient(llm.URL+"/v1", "key", "gpt-x", nil, slog.New(slog.DiscardHandler))
-	csv, err := c.Generate(context.Background(), nil, true, Options{ExportType: Wayground, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson}})
+	result, err := c.Generate(context.Background(), nil, true, Options{ExportType: Wayground, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if csv != "a,b" {
-		t.Fatalf("unexpected csv %q", csv)
+	if result.CSV != "a,b" || result.Source != "" {
+		t.Fatalf("unexpected result %+v", result)
 	}
 	if got["model"] != "gpt-x" || got["max_output_tokens"] != float64(64000) || got["instructions"] == "" {
 		t.Fatalf("unexpected payload %v", got)

@@ -14,7 +14,7 @@ import (
 
 // Generator produces quiz CSV from lesson images; implemented by *csvgen.Client.
 type Generator interface {
-	Generate(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (string, error)
+	Generate(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (csvgen.Result, error)
 }
 
 type Server struct {
@@ -79,6 +79,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("DELETE /api/csv/jobs/{id}", csvRoute(s.deleteJob))
 	mux.Handle("POST /api/csv/jobs/{id}/retry", csvRoute(s.retryJob))
 	mux.Handle("GET /api/csv/jobs/{id}/page", csvRoute(s.jobPage))
+	mux.Handle("GET /api/csv/jobs/{id}/radicals", csvRoute(s.radicalsEdit))
+	mux.Handle("PUT /api/csv/jobs/{id}/radicals", csvRoute(s.reviseRadicals))
 	// The teacher's side of "Giao bài" needs a login like the jobs it hands out.
 	mux.Handle("POST /api/assignments", csvRoute(s.createAssignment))
 	mux.Handle("GET /api/assignments", csvRoute(s.listAssignments))

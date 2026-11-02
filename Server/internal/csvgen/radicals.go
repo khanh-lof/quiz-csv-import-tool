@@ -33,11 +33,27 @@ const (
 	wordsFromModel
 )
 
-// radicalsLesson is a lesson of the exercise while its words are gathered.
+// radicalsLesson is a lesson of the exercise and its words, in the lesson's order.
 type radicalsLesson struct {
-	radicals.Lesson
+	Number  int            `json:"number"`
+	TitleZh string         `json:"titleZh"`
+	TitleVi string         `json:"titleVi"`
+	Words   []radicalsWord `json:"words"`
+	// source is where the words come from, which decides what the vocabulary request asks for.
 	source wordSource
 }
+
+// radicalsWord is a word of the exercise with where its notes come from, which is what the review lists and what
+// the teacher may correct. A word without a reading is kept, but left out of the exercise.
+type radicalsWord struct {
+	radicals.Word
+	AIPinyin  bool `json:"aiPinyin,omitempty"`  // the model wrote the pinyin
+	AIMeaning bool `json:"aiMeaning,omitempty"` // the model wrote the meaning
+	Uncertain bool `json:"uncertain,omitempty"` // the model was not sure of it
+	Edited    bool `json:"edited,omitempty"`    // the teacher changed the pinyin or the meaning
+}
+
+func (w radicalsWord) fromModel() bool { return w.AIPinyin || w.AIMeaning }
 
 // hasReading says whether the pinyin of a word is known, cut into one syllable per character. A word without a
 // meaning can still be planned: the second request asks for it with the characters.
@@ -55,85 +71,52 @@ func withSyllables(word radicals.Word) radicals.Word {
 }
 
 // generateRadicals builds a "Ghép bộ thủ" exercise and returns it as JSON (radicals.Exercise), which is what a
-// Radicals job stores in place of a CSV. It asks the model at most twice: once for the words that neither the
-// teacher nor the textbook gave in full, once for the meanings of characters and the names of components that
-// the curated pools lack. The rest is package radicals' work.
-func (c *Client) generateRadicals(ctx context.Context, images []Image, opts Options) (string, error) {
+// Radicals job stores in place of a CSV, with the source it was built from (radicalsSource), from which
+// ReviseRadicals builds it again with the teacher's corrections. It asks the model at most twice: once for the
+// words that neither the teacher nor the textbook gave in full, once for the meanings of characters and the names
+// of components that the curated pools lack. The rest is package radicals' work.
+func (c *Client) generateRadicals(ctx context.Context, images []Image, opts Options) (Result, error) {
 	model := c.modelFor(opts)
 	lessons := gatherRadicalsLessons(opts)
-	var review aiReview
 	if slices.ContainsFunc(lessons, needsModel) {
 		text, err := c.respond(ctx, buildRadicalsVocabularyRequest(model, images, opts, lessons))
 		if err != nil {
-			return "", err
+			return Result{}, err
 		}
 		var answer vocabularyAnswer
 		if err := decodeJSONAnswer(text, &answer); err != nil {
-			return "", err
+			return Result{}, err
 		}
-		lessons, review = mergeVocabulary(lessons, answer)
+		lessons = mergeVocabulary(lessons, answer)
 	}
 
-	// A lesson left without any word (the model listed none, or none had a reading) has nothing to group.
-	lessons = slices.DeleteFunc(lessons, func(l radicalsLesson) bool { return len(l.Words) == 0 })
-	if len(lessons) == 0 {
-		return "", radicals.ErrNothingToPlay
+	src := &radicalsSource{
+		Version: radicalsSourceVersion, Lessons: lessons,
+		Chars: map[string]string{}, Components: map[string]radicals.ComponentInfo{}, AIChars: []string{}, AIComponents: []string{},
+		ReviewPrevious: opts.ReviewPrevious, Preset: opts.ColorPreset, Level: radicalsLevel(opts), CourseName: radicalsCourseName(opts),
 	}
-	draft, err := radicals.Plan(plainLessons(lessons), radicals.Options{
-		ReviewPrevious: opts.ReviewPrevious,
-		Preset:         opts.ColorPreset,
-		Level:          radicalsLevel(opts),
-		CourseName:     radicalsCourseName(opts),
-	})
+	draft, err := src.plan()
 	if err != nil {
-		return "", err
+		return Result{}, err
 	}
-	info := radicals.Info{}
 	if needs := draft.Needs(); len(needs.Words)+len(needs.Chars)+len(needs.Components) > 0 {
 		text, err := c.respond(ctx, buildRadicalsDetailsRequest(model, needs))
 		if err != nil {
-			return "", err
+			return Result{}, err
 		}
 		var answer detailsAnswer
 		if err := decodeJSONAnswer(text, &answer); err != nil {
-			return "", err
+			return Result{}, err
 		}
-		info = radicals.Info{WordMeanings: answer.Words, CharMeanings: answer.Chars, Components: answer.Components}
-		review.chars, review.components = sortedKeys(answer.Chars), sortedKeys(answer.Components)
-		for _, hanzi := range sortedKeys(answer.Words) {
-			review.words = appendNew(review.words, hanzi)
-		}
+		src.addDetails(answer, needs)
 	}
-	exercise, err := draft.Build(info)
-	if err != nil {
-		return "", err
-	}
-	// The dictionary misses readings of many polyphonic characters, so its warnings are kept for the pinyin the
-	// model wrote: the textbook's is curated, and the teacher typed none.
-	exercise.Review.PinyinWarnings = slices.DeleteFunc(exercise.Review.PinyinWarnings, func(w radicals.PinyinWarning) bool {
-		return !slices.Contains(review.words, w.Word)
-	})
-	exercise.Review.AIWords = review.words
-	exercise.Review.UncertainWords = review.uncertain
-	exercise.Review.DroppedWords = review.dropped
-	exercise.Review.AIChars = review.chars
-	exercise.Review.AIComponents = review.components
-	out, err := json.Marshal(exercise)
-	if err != nil {
-		return "", err
-	}
-	return string(out), nil
-}
-
-// aiReview is what the teacher should check because the model wrote it.
-type aiReview struct {
-	words, uncertain, dropped, chars, components []string
+	return src.build(draft)
 }
 
 // needsModel says whether the first request must cover the lesson: its words are the model's to list, or one
 // of them has no reading yet.
 func needsModel(lesson radicalsLesson) bool {
-	return lesson.source == wordsFromModel || slices.ContainsFunc(lesson.Words, func(w radicals.Word) bool { return !hasReading(w) })
+	return lesson.source == wordsFromModel || slices.ContainsFunc(lesson.Words, func(w radicalsWord) bool { return !hasReading(w.Word) })
 }
 
 // gatherRadicalsLessons sets out the lessons of the request with what is known of their words before asking
@@ -142,21 +125,23 @@ func gatherRadicalsLessons(opts Options) []radicalsLesson {
 	book := textbookFor(opts)
 	lessons := make([]radicalsLesson, 0, len(opts.LessonNumbers))
 	for _, number := range opts.LessonNumbers {
-		lesson := radicalsLesson{Lesson: radicals.Lesson{Number: number}, source: wordsFromModel}
+		lesson := radicalsLesson{Number: number, source: wordsFromModel}
 		var bookWords []radicals.Word
 		if book != nil && number <= book.lessons {
 			lesson.TitleZh, lesson.TitleVi = lessonTitles(book.docs[number-1])
 			bookWords = lessonVocabulary(book.docs[number-1])
 			lesson.source = wordsFromBook
-			lesson.Words = bookWords
+			for _, word := range bookWords {
+				lesson.Words = append(lesson.Words, radicalsWord{Word: word})
+			}
 		}
 		if typed := opts.Vocabulary[number]; len(typed) > 0 {
 			lesson.source = wordsGiven
-			lesson.Words = make([]radicals.Word, len(typed))
+			lesson.Words = make([]radicalsWord, len(typed))
 			for i, hanzi := range typed {
-				lesson.Words[i] = radicals.Word{Hanzi: hanzi}
+				lesson.Words[i] = radicalsWord{Word: radicals.Word{Hanzi: hanzi}}
 				if j := slices.IndexFunc(bookWords, func(w radicals.Word) bool { return w.Hanzi == hanzi }); j >= 0 {
-					lesson.Words[i] = bookWords[j]
+					lesson.Words[i].Word = bookWords[j]
 				}
 			}
 		}
@@ -265,14 +250,6 @@ func splitPattern(cell string) []string {
 	return parts
 }
 
-func plainLessons(lessons []radicalsLesson) []radicals.Lesson {
-	out := make([]radicals.Lesson, len(lessons))
-	for i, lesson := range lessons {
-		out[i] = lesson.Lesson
-	}
-	return out
-}
-
 // radicalsLevel is the level as the page names it in its ★ note, e.g. "HSK 2".
 func radicalsLevel(opts Options) string {
 	if opts.Level == nil {
@@ -331,16 +308,16 @@ func (w vocabularyWord) word() radicals.Word {
 
 // detailsAnswer is the model's answer to the details request (prompts/radicals_details.txt).
 type detailsAnswer struct {
-	Words      map[string]string                  `json:"words"`
-	Chars      map[string]string                  `json:"chars"`
+	Words      map[string]string                 `json:"words"`
+	Chars      map[string]string                 `json:"chars"`
 	Components map[string]radicals.ComponentInfo `json:"components"`
 }
 
 // mergeVocabulary completes the lessons with the model's answer. What the teacher or the textbook gave is kept,
 // and a lesson whose words are the model's takes them as they come, minus anything that is not a word. A word
-// still without a reading, one pinyin syllable per character, is dropped and named for the teacher.
-func mergeVocabulary(lessons []radicalsLesson, answer vocabularyAnswer) ([]radicalsLesson, aiReview) {
-	var review aiReview
+// still without a reading, one pinyin syllable per character, stays in its lesson, to be left out of the exercise
+// and named for the teacher.
+func mergeVocabulary(lessons []radicalsLesson, answer vocabularyAnswer) []radicalsLesson {
 	for i := range lessons {
 		lesson := &lessons[i]
 		if !needsModel(*lesson) {
@@ -356,50 +333,37 @@ func mergeVocabulary(lessons []radicalsLesson, answer vocabularyAnswer) ([]radic
 		if lesson.TitleVi == "" {
 			lesson.TitleVi = strings.TrimSpace(answered.TitleVi)
 		}
-		uncertain := map[string]bool{}
-		var candidates []radicals.Word
-		var fromModel []bool
+		var candidates []radicalsWord
 		if lesson.source == wordsFromModel {
 			for _, w := range answered.Words {
 				word := w.word()
 				if radicals.IsHanzi(word.Hanzi) {
-					candidates, fromModel = append(candidates, word), append(fromModel, true)
-					uncertain[word.Hanzi] = uncertain[word.Hanzi] || w.Uncertain
+					candidates = append(candidates, radicalsWord{Word: word, AIPinyin: true, AIMeaning: word.Meaning != "", Uncertain: w.Uncertain})
 				}
 			}
 		} else {
 			for _, known := range lesson.Words {
 				filled := known
-				if !hasReading(known) || known.Meaning == "" {
+				if !hasReading(known.Word) || known.Meaning == "" {
 					if m := slices.IndexFunc(answered.Words, func(w vocabularyWord) bool { return strings.TrimSpace(w.Hanzi) == known.Hanzi }); m >= 0 {
-						filled = fillWord(known, answered.Words[m].word())
-						uncertain[known.Hanzi] = answered.Words[m].Uncertain
+						filled.Word = fillWord(known.Word, answered.Words[m].word())
+						filled.AIPinyin, filled.AIMeaning = filled.Pinyin != known.Pinyin, filled.Meaning != known.Meaning
+						filled.Uncertain = filled.fromModel() && answered.Words[m].Uncertain
 					}
 				}
-				candidates, fromModel = append(candidates, filled), append(fromModel, filled.Pinyin != known.Pinyin || filled.Meaning != known.Meaning)
+				candidates = append(candidates, filled)
 			}
 		}
-		var kept []radicals.Word
-		for j, word := range candidates {
-			word = usableSyllables(word)
-			if slices.ContainsFunc(kept, func(w radicals.Word) bool { return w.Hanzi == word.Hanzi }) {
-				continue
+		var kept []radicalsWord
+		for _, word := range candidates {
+			word.Word = usableSyllables(word.Word)
+			if !slices.ContainsFunc(kept, func(w radicalsWord) bool { return w.Hanzi == word.Hanzi }) {
+				kept = append(kept, word)
 			}
-			if !hasReading(word) {
-				review.dropped = appendNew(review.dropped, word.Hanzi)
-				continue
-			}
-			if fromModel[j] {
-				review.words = appendNew(review.words, word.Hanzi)
-				if uncertain[word.Hanzi] {
-					review.uncertain = appendNew(review.uncertain, word.Hanzi)
-				}
-			}
-			kept = append(kept, word)
 		}
 		lesson.Words = kept
 	}
-	return lessons, review
+	return lessons
 }
 
 // fillWord completes what is known of a word with the model's answer, keeping the known parts. The model's
@@ -447,15 +411,6 @@ func appendNew(list []string, item string) []string {
 	return append(list, item)
 }
 
-func sortedKeys[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	return keys
-}
-
 // buildRadicalsVocabularyRequest asks the model for the words of the lessons that need it: the teacher's
 // incomplete words to fill in, or a whole list from the photos or the lesson as the model knows it.
 func buildRadicalsVocabularyRequest(model string, images []Image, opts Options, lessons []radicalsLesson) responsesRequest {
@@ -470,7 +425,7 @@ func buildRadicalsVocabularyRequest(model string, images []Image, opts Options, 
 		case lesson.source != wordsFromModel:
 			msg.WriteString("WORDS GIVEN (one per line; fill in what is missing):")
 			for _, word := range lesson.Words {
-				if hasReading(word) && word.Meaning != "" {
+				if hasReading(word.Word) && word.Meaning != "" {
 					continue
 				}
 				msg.WriteString("\n- " + word.Hanzi)

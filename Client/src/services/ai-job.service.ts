@@ -80,6 +80,11 @@ export class AiJobService {
       }));
   }
 
+  // Puts a job the server changed in place of the one the list holds, until the next poll brings it anyway.
+  replace(job: AiJob): void {
+    this.jobs.update(jobs => jobs.map(other => other.id === job.id ? job : other));
+  }
+
   remove(id: string): Observable<void> {
     return this.http.delete<void>(`${this.endpointUrl}/${id}`).pipe(
       tap(() => this.jobs.update(jobs => jobs.filter(job => job.id !== id))),
