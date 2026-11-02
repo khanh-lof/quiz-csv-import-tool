@@ -1,9 +1,21 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  ElementRef,
+  HostListener,
+  inject,
+  OnInit,
+  signal,
+  viewChild
+} from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
+import { Observable } from 'rxjs';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
@@ -11,6 +23,7 @@ import { NzAlertComponent } from 'ng-zorro-antd/alert';
 import { NzInputDirective } from 'ng-zorro-antd/input';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
+import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { AiJob } from '../../models/ai-job';
 import { ExportType } from '../../models/export-type';
 import { hasReviewItems, RadicalsReview, radicalsReviewOf } from '../../models/radicals-review';
@@ -27,6 +40,7 @@ import {
 } from '../../models/radicals-edit';
 import { AiJobService } from '../../services/ai-job.service';
 import { RadicalsPageService } from '../../services/radicals-page.service';
+import { LeaveCheck } from '../../services/unsaved-changes.guard';
 
 type Screen = 'loading' | 'ready' | 'error';
 
@@ -43,16 +57,17 @@ interface ReviewLine {
 @Component({
   selector: 'app-radicals-play',
   imports: [RouterLink, FormsModule, NzButtonComponent, NzIconDirective, NzSpinComponent, NzAlertComponent, NzInputDirective,
-    NzTableModule, NzTagComponent],
+    NzTableModule, NzTagComponent, NzModalModule],
   templateUrl: './radicals-play.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './radicals-play.css',
 })
-export class RadicalsPlay implements OnInit {
+export class RadicalsPlay implements OnInit, LeaveCheck {
   private readonly route = inject(ActivatedRoute);
   private readonly jobService = inject(AiJobService);
   private readonly pageService = inject(RadicalsPageService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly modalService = inject(NzModalService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly frameBox = viewChild<ElementRef<HTMLElement>>('frameBox');
@@ -89,6 +104,9 @@ export class RadicalsPlay implements OnInit {
   protected readonly editLoading = signal(false);
   protected readonly saving = signal(false);
   protected readonly editError = signal('');
+  protected readonly saveNotice = signal('');
+  // True once the teacher typed into the table, until it is saved or closed.
+  private readonly dirty = signal(false);
   protected readonly hasDropped = computed(() => this.edit()?.words.some(row => row.dropped) ?? false);
   protected readonly editEmpty = computed(() => {
     const edit = this.edit();
@@ -110,6 +128,25 @@ export class RadicalsPlay implements OnInit {
     void this.frameBox()?.nativeElement.requestFullscreen?.().catch(() => undefined);
   }
 
+  canLeave(): boolean | Observable<boolean> {
+    if (!this.dirty()) {
+      return true;
+    }
+    return new Observable<boolean>(subscriber => {
+      this.confirmDiscard(leave => {
+        subscriber.next(leave);
+        subscriber.complete();
+      });
+    });
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  protected warnBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.dirty()) {
+      event.preventDefault();
+    }
+  }
+
   protected startEdit(): void {
     const job = this.job();
     if (!job || this.editLoading()) {
@@ -117,6 +154,7 @@ export class RadicalsPlay implements OnInit {
     }
     this.editLoading.set(true);
     this.editError.set('');
+    this.saveNotice.set('');
     this.pageService.edit(job.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: edit => {
         this.editLoading.set(false);
@@ -130,20 +168,48 @@ export class RadicalsPlay implements OnInit {
   }
 
   protected cancelEdit(): void {
+    if (!this.dirty()) {
+      this.closeEdit();
+      return;
+    }
+    this.confirmDiscard(discard => {
+      if (discard) {
+        this.closeEdit();
+      }
+    });
+  }
+
+  private closeEdit(): void {
     this.edit.set(null);
     this.editError.set('');
+    this.dirty.set(false);
+  }
+
+  private confirmDiscard(answer: (discard: boolean) => void): void {
+    this.modalService.confirm({
+      nzTitle: 'Bỏ các thay đổi chưa lưu?',
+      nzOkText: 'Bỏ',
+      nzOkDanger: true,
+      nzCancelText: 'Sửa tiếp',
+      nzCentered: true,
+      nzOnOk: () => answer(true),
+      nzOnCancel: () => answer(false),
+    });
   }
 
   protected setWord(hanzi: string, change: { pinyin?: string; meaning?: string }): void {
     this.edit.update(edit => edit && withWord(edit, hanzi, change));
+    this.dirty.set(true);
   }
 
   protected setChar(char: string, meaning: string): void {
     this.edit.update(edit => edit && withChar(edit, char, meaning));
+    this.dirty.set(true);
   }
 
   protected setComponent(component: string, change: { name?: string; pinyin?: string; meaning?: string }): void {
     this.edit.update(edit => edit && withComponent(edit, component, change));
+    this.dirty.set(true);
   }
 
   protected save(): void {
@@ -165,7 +231,7 @@ export class RadicalsPlay implements OnInit {
         const flagged = flaggedEdit(err);
         if (flagged) {
           this.edit.set(flagged);
-          this.editError.set('Sửa các ô báo đỏ rồi lưu lại.');
+          this.editError.set('Sửa các ô đỏ rồi lưu lại.');
           return;
         }
         this.editError.set(radicalsEditError(err, 'Không lưu được. Thử lại.'));
@@ -179,19 +245,20 @@ export class RadicalsPlay implements OnInit {
       next: html => {
         this.saving.set(false);
         this.html.set(html);
-        this.cancelEdit();
+        this.closeEdit();
       },
       error: () => {
         this.saving.set(false);
-        this.cancelEdit();
-        this.editError.set('Đã lưu. Tải lại trang để xem bài mới.');
+        this.closeEdit();
+        this.saveNotice.set('Đã lưu. Tải lại trang để xem bài mới.');
       },
     });
   }
 
   private open(jobId: string): void {
     this.screen.set('loading');
-    this.cancelEdit();
+    this.closeEdit();
+    this.saveNotice.set('');
     const known = this.jobService.jobs().find(job => job.id === jobId);
     if (known || this.jobService.loaded()) {
       this.load(known ?? null);
@@ -200,7 +267,7 @@ export class RadicalsPlay implements OnInit {
     // Opened straight from a link or a reload: the history has not been fetched yet.
     this.jobService.refresh().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: jobs => this.load(jobs.find(job => job.id === jobId) ?? null),
-      error: () => this.fail('Không tải được. Thử lại.'),
+      error: () => this.fail('Không tải được. Tải lại trang.'),
     });
   }
 
@@ -210,7 +277,7 @@ export class RadicalsPlay implements OnInit {
       return;
     }
     if (job.status !== 'done') {
-      this.fail(job.status === 'running' ? 'AI đang tạo bài, chờ một chút.' : 'Bài này tạo lỗi.');
+      this.fail(job.status === 'running' ? 'AI chưa tạo xong bài này.' : 'Lần tạo này bị lỗi.');
       return;
     }
     this.job.set(job);
@@ -221,7 +288,7 @@ export class RadicalsPlay implements OnInit {
       },
       error: (err: unknown) => this.fail(err instanceof HttpErrorResponse && err.status === HttpStatusCode.NotFound
         ? 'Không tìm thấy bài này.'
-        : 'Không tải được. Thử lại.'),
+        : 'Không tải được. Tải lại trang.'),
     });
   }
 
@@ -244,15 +311,15 @@ export function reviewLines(review: RadicalsReview): ReviewLine[] {
   for (const warning of review.pinyinWarnings ?? []) {
     lines.push({
       label: `Pinyin cần xem (bài ${warning.lesson})`,
-      text: `${warning.word}: chữ ${warning.char} ghi "${warning.syllable}", chữ này đọc ${warning.readings.join(' / ')}`
+      text: `${warning.word}: ${warning.char} ghi "${warning.syllable}", đọc ${warning.readings.join(' / ')}`
     });
   }
   add('Bỏ vì thiếu pinyin', review.droppedWords);
   for (const lesson of review.skippedLessons ?? []) {
     lines.push({ label: `Bài ${lesson.lesson} bị bỏ`, text: `chỉ ${lesson.usableWordCount} từ ghép bộ được` });
   }
-  add('Nghĩa chữ do AI viết', review.aiChars);
-  add('Bộ do AI mô tả', review.aiComponents);
+  add('Nghĩa chữ do AI điền', review.aiChars);
+  add('Bộ do AI điền', review.aiComponents);
   add('Không vẽ được', review.missingGlyphs);
   return lines;
 }

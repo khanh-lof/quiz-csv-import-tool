@@ -3,7 +3,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { of } from 'rxjs';
+import { ModalOptions, NzModalService } from 'ng-zorro-antd/modal';
+import { Observable, of } from 'rxjs';
 import { AiJob } from '../../models/ai-job';
 import { ExportType } from '../../models/export-type';
 import { RadicalsEdit } from '../../models/radicals-edit';
@@ -23,10 +24,10 @@ describe('reviewLines', () => {
       missingGlyphs: [],
     });
     expect(lines.map(line => line.label)).toEqual([
-      'Pinyin, nghĩa do AI điền', 'Pinyin cần xem (bài 1)', 'Bài 2 bị bỏ', 'Nghĩa chữ do AI viết'
+      'Pinyin, nghĩa do AI điền', 'Pinyin cần xem (bài 1)', 'Bài 2 bị bỏ', 'Nghĩa chữ do AI điền'
     ]);
     expect(lines[0].text).toBe('借, 还');
-    expect(lines[1].text).toContain('hái / huán');
+    expect(lines[1].text).toBe('还: 还 ghi "hǎi", đọc hái / huán');
   });
 });
 
@@ -37,6 +38,7 @@ describe('RadicalsPlay', () => {
 
   let fixture: ComponentFixture<RadicalsPlay>;
   let http: HttpTestingController;
+  let modal: jasmine.SpyObj<NzModalService>;
 
   function radicalsJob(review: object): AiJob {
     return {
@@ -74,6 +76,8 @@ describe('RadicalsPlay', () => {
         { provide: NzNotificationService, useValue: jasmine.createSpyObj('NzNotificationService', ['success', 'error']) },
       ],
     });
+    modal = jasmine.createSpyObj<NzModalService>('NzModalService', ['confirm']);
+    TestBed.overrideProvider(NzModalService, { useValue: modal });
     http = TestBed.inject(HttpTestingController);
   });
 
@@ -131,10 +135,48 @@ describe('RadicalsPlay', () => {
     expect(text()).toContain('AI không chắc');
     expect(text()).toContain('nhập pinyin để đưa vào bài');
 
-    click('Huỷ');
+    click('Hủy');
     expect(input('Nghĩa của 图书馆')).toBeNull();
     expect(text()).toContain('Cần xem lại');
   }));
+
+  it('asks before throwing typed corrections away', () => {
+    open();
+    startEdit();
+    const component = fixture.componentInstance;
+    expect(component.canLeave()).toBeTrue();
+
+    type('Nghĩa của 图书馆', 'nhà sách');
+    click('Hủy');
+    const options = () => modal.confirm.calls.mostRecent().args[0] as ModalOptions;
+    (options().nzOnCancel as () => void)();
+    fixture.detectChanges();
+    expect(input('Nghĩa của 图书馆')).not.toBeNull();
+
+    let left: boolean | undefined;
+    (component.canLeave() as Observable<boolean>).subscribe(leave => left = leave);
+    (options().nzOnOk as () => void)();
+    expect(left).toBeTrue();
+
+    click('Hủy');
+    (options().nzOnOk as () => void)();
+    fixture.detectChanges();
+    expect(input('Nghĩa của 图书馆')).toBeNull();
+    expect(component.canLeave()).toBeTrue();
+  });
+
+  it('says the corrections are saved when the rebuilt page does not load', () => {
+    open();
+    startEdit();
+    click('Lưu');
+    http.expectOne({ method: 'PUT', url: EDIT }).flush(radicalsJob({}));
+    http.expectOne(PAGE).flush('', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(text()).toContain('Đã lưu. Tải lại trang để xem bài mới.');
+    expect(root().querySelector('.ant-alert-warning')).not.toBeNull();
+    expect(frame()).toBe('<html>v1</html>');
+  });
 
   it('saves the corrections, then shows the rebuilt exercise and its review', () => {
     open();
@@ -172,9 +214,9 @@ describe('RadicalsPlay', () => {
     http.expectOne({ method: 'PUT', url: EDIT }).flush(flagged, { status: 422, statusText: 'Unprocessable Entity' });
     fixture.detectChanges();
 
-    expect(text()).toContain('Sửa các ô báo đỏ rồi lưu lại.');
+    expect(text()).toContain('Sửa các ô đỏ rồi lưu lại.');
     expect(text()).toContain('Pinyin không khớp số chữ');
-    expect(text()).toContain('Cần nhập');
+    expect(text()).toContain('Chưa nhập');
     expect(frame()).toBe('<html>v1</html>');
 
     // Typing in a flagged box takes its mark away until the next save.

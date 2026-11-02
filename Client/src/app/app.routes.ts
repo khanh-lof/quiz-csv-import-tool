@@ -6,6 +6,7 @@ import { Workspace } from '../components/workspace/workspace';
 import { AiGeneration } from '../components/ai-generation/ai-generation';
 import { AiJobs } from '../components/ai-jobs/ai-jobs';
 import { authGuard } from '../services/auth.guard';
+import { unsavedChangesGuard } from '../services/unsaved-changes.guard';
 import { AuthService } from '../services/auth.service';
 import { inject } from '@angular/core';
 
@@ -80,7 +81,8 @@ export const routes: Routes = [
       {
         path: 'ai-history/radicals/:jobId',
         loadComponent: () => import('../components/radicals-play/radicals-play').then(m => m.RadicalsPlay),
-        canActivate: [authGuard]
+        canActivate: [authGuard],
+        canDeactivate: [unsavedChangesGuard]
       },
       // The teacher's assignments and their leaderboards: lazy, like the game, since only a teacher opens them.
       {

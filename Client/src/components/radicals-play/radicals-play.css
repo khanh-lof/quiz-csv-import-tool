@@ -1,7 +1,16 @@
-.radicals-play {
+:host {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.radicals-play {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   gap: 12px;
+  min-height: 0;
 }
 
 .topbar {
@@ -73,9 +82,10 @@
   width: 260px;
 }
 
-/* The exercise lays itself out for phones and desktops, so the frame only has to be tall enough. */
+/* The exercise lays itself out for phones and desktops, so the frame only has to fill the rest of the page. */
 .frame-box {
-  height: max(600px, calc(100vh - 220px));
+  flex: 1;
+  min-height: 600px;
 }
 
 .frame {
