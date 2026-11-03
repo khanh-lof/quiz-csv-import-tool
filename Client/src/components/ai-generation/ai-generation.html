@@ -41,23 +41,50 @@
                 </div>
               </div>
             }
+            @if (!isGenerating()) {
+              <button (click)="imageInput.click()" aria-label="Thêm ảnh" class="add-image-tile" type="button">
+                <nz-icon nzTheme="outline" nzType="plus"/>
+              </button>
+            }
           </div>
         } @else {
           <div class="drop-zone-content">
             <nz-icon class="drop-zone-icon" nzTheme="outline" nzType="picture"/>
-            <p class="drop-zone-text">Kéo thả hoặc dán ảnh (Ctrl+V)</p>
-            <p class="drop-zone-subtext">hoặc <a (click)="imageInput.click()" class="file-link"
-                                                 href="javascript:void(0)">chọn file</a></p>
+            <div>
+              <p class="drop-zone-text">Kéo thả hoặc dán ảnh (Ctrl+V)</p>
+              <p class="drop-zone-subtext">hoặc <a (click)="imageInput.click()" class="file-link"
+                                                   href="javascript:void(0)">chọn file</a></p>
+            </div>
           </div>
         }
       </div>
 
+      <!-- The mode on the left, the submit and clear buttons on its right. -->
       <div class="ai-selection">
         <label>Chọn chế độ: </label>
         <nz-radio-group [formControl]="formGroup.controls.AIMode" nzButtonStyle="solid">
           <label [nzValue]="AIGenerationMode.Auto" nz-radio-button>AI tự nghĩ câu hỏi</label>
           <label [nzValue]="AIGenerationMode.Formatted" nz-radio-button>Hỏi chữ Hán</label>
         </nz-radio-group>
+        <div class="form-actions">
+          <button [disabled]="isGenerating()" nz-button nzType="primary"
+                  type="submit">
+            @if (isGenerating()) {
+              <nz-spin nzSimple/>
+            } @else {
+              <nz-icon nzTheme="outline" nzType="robot"/>
+            }
+            {{ submitButtonLabel }}
+          </button>
+          @if (selectedImages().length > 0) {
+            <button (click)="clearAllImages()" [disabled]="isGenerating()" nz-button
+                    nzType="default"
+                    type="button">
+              <nz-icon nzTheme="outline" nzType="close"/>
+              Xóa tất cả
+            </button>
+          }
+        </div>
       </div>
 
       @if (formGroup.controls.AIMode.value === AIGenerationMode.Auto) {
@@ -186,33 +213,6 @@
           </div>
         }
       }
-
-      <div class="images-actions">
-        <button [disabled]="isGenerating()" nz-button nzSize="large" nzType="primary"
-                type="submit">
-          @if (isGenerating()) {
-            <nz-spin nzSimple/>
-          } @else {
-            <nz-icon nzTheme="outline" nzType="robot"/>
-          }
-          {{ submitButtonLabel }}
-        </button>
-        @if (selectedImages().length > 0) {
-          <button (click)="clearAllImages()" [disabled]="isGenerating()" nz-button nzSize="large"
-                  nzType="default"
-                  type="button">
-            <nz-icon nzTheme="outline" nzType="close"/>
-            Xóa tất cả
-          </button>
-        }
-        @if (!isGenerating()) {
-          <button (click)="imageInput.click()" nz-button nzSize="large" nzType="dashed"
-                  type="button">
-            <nz-icon nzTheme="outline" nzType="plus"/>
-            Thêm ảnh
-          </button>
-        }
-      </div>
 
       <ng-template #errorMessage let-errorKey="errorKey" let-formControl let-message="message">
         @if (formControl.hasError(errorKey) && formControl.dirty) {

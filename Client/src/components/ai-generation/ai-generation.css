@@ -38,14 +38,14 @@
 }
 
 .drop-zone {
-  padding: 16px;
+  padding: 12px;
   border: 3px dashed var(--qt-border);
   border-radius: 12px;
   background: linear-gradient(135deg, rgba(255, 240, 245, 0.8), rgba(240, 245, 255, 0.8));
   transition: all 0.3s ease;
   cursor: pointer;
   outline: none;
-  min-height: 180px;
+  min-height: 88px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -65,17 +65,17 @@
   transform: scale(1.01);
 }
 
+/* The icon beside the two lines of text, to keep the zone low. */
 .drop-zone-content {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 16px;
   width: 100%;
 }
 
 .drop-zone-icon {
-  font-size: 48px;
+  font-size: 36px;
   color: var(--qt-border);
   opacity: 0.8;
   transition: all 0.3s ease;
@@ -92,17 +92,15 @@
 
 .drop-zone-text {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--qt-text);
-  text-align: center;
 }
 
 .drop-zone-subtext {
   margin: 0;
   font-size: 14px;
   color: var(--qt-text-muted);
-  text-align: center;
 }
 
 .file-link {
@@ -127,19 +125,19 @@
 
 .images-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 12px;
   width: 100%;
-  max-height: 400px;
+  max-height: 200px;
   overflow-y: auto;
   padding: 12px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.5);
 }
 
+/* Thumbnail beside the name and size, so a row of images keeps the zone low. */
 .image-item {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 8px;
   padding: 8px;
@@ -156,8 +154,9 @@
 }
 
 .image-preview {
-  width: 80px;
-  height: 80px;
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
   border-radius: 6px;
   box-shadow: 0 2px 8px rgba(255, 150, 170, 0.2);
   display: flex;
@@ -174,9 +173,8 @@
 }
 
 .image-info {
-  text-align: center;
-  width: 100%;
   flex: 1;
+  min-width: 0;
 }
 
 .image-name {
@@ -196,6 +194,28 @@
   color: #999;
 }
 
+/* The last cell of the list: opens the file picker, the only way to it once there are images. */
+.add-image-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 74px;
+  border: 2px dashed var(--qt-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--qt-border);
+  font-size: 28px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.add-image-tile:hover,
+.add-image-tile:focus-visible {
+  border-color: var(--qt-focus);
+  color: var(--qt-focus);
+  outline: none;
+}
+
 /* Close "x" centred on the card's top-right corner (the list's padding leaves room so it is not clipped). */
 .remove-btn {
   position: absolute;
@@ -208,12 +228,12 @@
   font-size: 10px;
 }
 
-.images-actions {
+/* Pushed to the right end of the mode row; wraps under the mode when the row is too narrow. */
+.form-actions {
   display: flex;
   gap: 12px;
-  justify-content: start;
   flex-wrap: wrap;
-  width: 100%;
+  margin-left: auto;
 }
 
 .creative-selection {
@@ -363,10 +383,8 @@
   gap: 12px;
 }
 
-.images-actions button {
+.form-actions button {
   min-width: 150px;
-  height: 44px;
-  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;

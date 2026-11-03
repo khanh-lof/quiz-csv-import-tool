@@ -302,7 +302,7 @@ cards that carry answers. Game stylesheets do not use the app's `--qt-*` colours
 transition tokens are fine). The fruit game's answer boxes show their fruit's icon besides its colour, so a
 red-green colour-blind player can match them by shape.
 
-**MediaPipe loading.** `@mediapipe/tasks-vision` is pinned to `1.1.0` (exact, no range) and imported with a
+**MediaPipe loading.** `@mediapipe/tasks-vision` is pinned to `1.2.0` (exact, no range) and imported with a
 dynamic `import()` inside `VisionService.loadRuntime` (the rest of the file only imports its *types*), so it
 becomes a lazy chunk fetched when a player turns the camera on. The WASM runtime is not bundled: an `assets`
 glob in `angular.json` copies only the two builds it needs, `vision_wasm_internal` and
