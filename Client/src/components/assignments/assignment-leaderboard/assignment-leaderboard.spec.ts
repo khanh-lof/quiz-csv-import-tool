@@ -492,20 +492,18 @@ describe('AssignmentLeaderboard', () => {
   });
 
   describe('the board header', () => {
-    it('is titled "Bảng xếp hạng" and has the pause button for the scrolling names and "Làm mới"', fakeAsync(() => {
+    it('is titled "Bảng xếp hạng" and has "Làm mới"', fakeAsync(() => {
       open();
 
       const header = root().querySelector('.board .ant-card-head')!;
       expect(clean(header.querySelector('.ant-card-head-title'))).toBe('Bảng xếp hạng');
-      expect(header.querySelectorAll('app-marquee-pause-button').length).toBe(1);
-      expect(header.querySelector('app-marquee-pause-button button')).not.toBeNull();
       expect(clean(header)).toContain('Làm mới');
       leave();
     }));
   });
 
   describe('full screen', () => {
-    it('shows the quiz title, a way out and the pause button, with no remove button, attempts or time', fakeAsync(() => {
+    it('shows the quiz title and a way out, with no remove button, attempts or time', fakeAsync(() => {
       open();
 
       setFullscreen(true);
@@ -515,7 +513,6 @@ describe('AssignmentLeaderboard', () => {
       expect(clean(board.querySelector('.big-title'))).toBe('HSK1 bài 1');
       expect(clean(board)).toContain('Thoát toàn màn hình');
       expect(clean(board)).not.toContain('Làm mới');
-      expect(board.querySelector('app-marquee-pause-button')).not.toBeNull();
       expect(board.querySelectorAll('button.remove').length).toBe(0);
       const row = rowOf('p1');
       expect(getComputedStyle(row.querySelector('.attempts')!).display).toBe('none');
