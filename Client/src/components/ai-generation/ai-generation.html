@@ -1,13 +1,13 @@
 <!-- The guide is a popup opened from a button, so the form keeps the full width.
      inert while generating: nothing behind the overlay can be clicked, focused or typed into. -->
 <nz-layout [attr.inert]="isGenerating() ? '' : null" class="ai-layout">
-  <app-usage-guide>
+  <kt-quiz-usage-guide>
     <p><b>Tiếng Việt + pinyin + chữ Hán</b>: cần ít nhất 1 ảnh.</p>
     <p><b>Giao bài</b>: gửi link cho học sinh, xem bảng xếp hạng ở <b>Bài đã giao</b>.</p>
     <p>Tiện ích Wayground: <a (click)="downloadExtension($event)" href="/api/extension">tải về</a>,
       <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
          target="_blank">cách cài</a>.</p>
-  </app-usage-guide>
+  </kt-quiz-usage-guide>
   <nz-content>
     <form (ngSubmit)="generate()" [formGroup]="formGroup" class="ai-form">
       <input #imageInput (change)="importFromImage($event)" accept="image/*" multiple style="display: none"

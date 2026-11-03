@@ -55,7 +55,7 @@ interface ReviewLine {
 // teacher should check above it and the download of the same file. "Sửa" turns the review into a table of inputs;
 // saving it has the server rebuild the exercise, and the frame shows the new one.
 @Component({
-  selector: 'app-radicals-play',
+  selector: 'kt-quiz-radicals-play',
   imports: [RouterLink, FormsModule, NzButtonComponent, NzIconDirective, NzSpinComponent, NzAlertComponent, NzInputDirective,
     NzTableModule, NzTagComponent, NzModalModule],
   templateUrl: './radicals-play.html',

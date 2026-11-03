@@ -33,17 +33,17 @@
         }
       </section>
       @if (closedBoard() && assignmentShowBoard() !== false) {
-        <app-student-leaderboard [code]="boardCode()" class="closed-board"/>
+        <kt-quiz-student-leaderboard [code]="boardCode()" class="closed-board"/>
       }
     }
     @case ('join') {
-      <app-share-join (join)="joinQuiz($event)" [busy]="joining()"
+      <kt-quiz-share-join (join)="joinQuiz($event)" [busy]="joining()"
                       [closesAt]="shared()?.closesAt ?? null" [error]="joinError()" [label]="shared()?.label ?? ''"
                       [title]="quiz()?.title ?? ''"/>
     }
     @case ('load') {
       <section class="card load">
-        <app-usage-guide>
+        <kt-quiz-usage-guide>
           <ol>
             <li>Tạo Game ở <b>AI › Tạo quiz</b> rồi bấm <b>Chơi ngay</b> ở <b>AI › Lịch sử</b>, hoặc <b>Mở file quiz</b>
               đã tải.
@@ -52,7 +52,7 @@
             <li>Không có camera vẫn chơi được bằng chuột, cảm ứng hoặc bàn phím.</li>
           </ol>
           <p><b>Camera:</b> không ghi hình hay gửi đi.</p>
-        </app-usage-guide>
+        </kt-quiz-usage-guide>
 
         <div class="load-body">
           <div aria-hidden="true" class="big-emoji">🙌</div>
@@ -78,7 +78,7 @@
     }
     @case ('map') {
       @if (quiz(); as openQuiz) {
-        <app-gesture-stage-map (start)="openIntro($event)" [allOpen]="allStagesOpen()"
+        <kt-quiz-gesture-stage-map (start)="openIntro($event)" [allOpen]="allStagesOpen()"
                                [allowPinyinChoice]="ownQuiz()" [allowReset]="ownQuiz()"
                                [attemptsLeft]="attemptsLeftByStage()" [lockedTimeMode]="assignmentTimeMode()"
                                [passPercents]="assignmentPassPercents()" [quiz]="openQuiz">
@@ -86,10 +86,10 @@
             <p class="share-line">
               <button (click)="openAvatarPicker()" aria-label="Đổi hình đại diện" class="avatar-button" title="Đổi hình đại diện"
                       type="button">
-                <app-player-avatar [avatar]="playerAvatar()" [name]="playerName()" size="md"/>
+                <kt-quiz-player-avatar [avatar]="playerAvatar()" [name]="playerName()" size="md"/>
                 <span aria-hidden="true" class="avatar-edit">✎</span>
               </button>
-              <app-marquee-text [text]="playerName()" class="share-name"/>
+              <kt-quiz-marquee-text [text]="playerName()" class="share-name"/>
               <span aria-hidden="true">·</span>
               <a (click)="switchPlayer($event)" href="#">Không phải bạn?</a>
               @if (closeText()) {
@@ -97,9 +97,9 @@
               }
             </p>
           }
-        </app-gesture-stage-map>
+        </kt-quiz-gesture-stage-map>
         @if ((mode() === 'shared' || (mode() === 'preview' && boardCode())) && assignmentShowBoard() !== false) {
-          <app-student-leaderboard [code]="boardCode()" [refreshKey]="boardKey()"/>
+          <kt-quiz-student-leaderboard [code]="boardCode()" [refreshKey]="boardKey()"/>
         }
       }
     }
@@ -230,27 +230,27 @@
         @if (view(); as question) {
           @switch (def().game) {
             @case ('true-false') {
-              <app-true-false-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
+              <kt-quiz-true-false-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
                                    [question]="question" [reveal]="reveal()"/>
             }
             @case ('head-tilt') {
-              <app-head-tilt-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
+              <kt-quiz-head-tilt-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
                                   [question]="question" [reveal]="reveal()"/>
             }
             @case ('frog-bite') {
-              <app-frog-bite-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
+              <kt-quiz-frog-bite-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
                                   [question]="question" [reveal]="reveal()"/>
             }
             @case ('fruit-slice') {
-              <app-fruit-slice-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
+              <kt-quiz-fruit-slice-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
                                     [question]="question" [reveal]="reveal()"/>
             }
             @case ('finger-count') {
-              <app-finger-count-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
+              <kt-quiz-finger-count-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
                                      [question]="question" [reveal]="reveal()"/>
             }
             @case ('word-order') {
-              <app-word-order-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
+              <kt-quiz-word-order-game (choose)="onChoose($event)" [cameraActive]="cameraActive()" [paused]="paused()"
                                    [question]="question" [reveal]="reveal()"/>
             }
           }
@@ -306,7 +306,7 @@
     }
     @case ('result') {
       @if (result(); as run) {
-        <app-gesture-stage-result (nextStage)="openNextStage()" (retry)="retryStage()" (toMap)="backToMap()"
+        <kt-quiz-gesture-stage-result (nextStage)="openNextStage()" (retry)="retryStage()" (toMap)="backToMap()"
                                   [attemptsLeft]="resultAttemptsLeft()" [result]="run" [saveState]="saveState()"/>
       }
     }
@@ -320,7 +320,7 @@
             [nzOkLoading]="avatarSaving()" [nzVisible]="avatarOpen()" nzCancelText="Hủy"
             nzOkText="Lưu" nzTitle="Đổi hình đại diện" nzWidth="min(420px, 95vw)">
     <ng-container *nzModalContent>
-      <app-avatar-picker [(value)]="avatarDraft"/>
+      <kt-quiz-avatar-picker [(value)]="avatarDraft"/>
     </ng-container>
   </nz-modal>
 }

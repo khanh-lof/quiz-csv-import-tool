@@ -30,7 +30,7 @@ const CLOCK_TICK_MS = 30_000;
 // "Bài đã giao" (/assignments): the teacher's assignments, with their status and student count, and the
 // actions on each.
 @Component({
-  selector: 'app-assignment-list',
+  selector: 'kt-quiz-assignment-list',
   imports: [
     CommonModule,
     RouterLink,

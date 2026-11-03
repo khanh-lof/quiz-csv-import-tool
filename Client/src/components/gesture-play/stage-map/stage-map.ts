@@ -39,7 +39,7 @@ interface StageCard {
 // a teacher's preview opens every stage (`allOpen`); the page sets those, the map only shows them.
 // Whatever the page puts inside the tag is shown above the summary.
 @Component({
-  selector: 'app-gesture-stage-map',
+  selector: 'kt-quiz-gesture-stage-map',
   imports: [
     FormsModule,
     GestureStageCard,

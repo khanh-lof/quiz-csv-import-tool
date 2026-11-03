@@ -85,12 +85,12 @@
       <div class="empty">
         <p class="empty-text">Chưa có học sinh.</p>
         @if (open()) {
-          <app-share-link [code]="d.code" [qrSize]="200"/>
+          <kt-quiz-share-link [code]="d.code" [qrSize]="200"/>
         }
       </div>
     } @else {
       @if (podium().length > 0) {
-        <app-leaderboard-podium [entries]="podium()" [large]="fullscreen()" [possible]="possible()"
+        <kt-quiz-leaderboard-podium [entries]="podium()" [large]="fullscreen()" [possible]="possible()"
                                 [stageCount]="stages().length" class="podium"/>
       }
       @if (ranked().length > 0) {
@@ -98,10 +98,10 @@
           @for (row of ranked(); track row.player.id) {
             <li [attr.data-player-id]="row.player.id" [attr.data-rank]="row.player.rank" class="entry">
               <span [class.is-number]="(row.player.rank ?? 0) > 3" class="rank">{{ medal(row.player.rank) }}</span>
-              <app-player-avatar [avatar]="row.player.avatar" [name]="row.player.name"
+              <kt-quiz-player-avatar [avatar]="row.player.avatar" [name]="row.player.name"
                                  [size]="fullscreen() ? 'lg' : 'md'"/>
               <span class="who">
-                <app-marquee-text [text]="row.player.name" class="name"/>
+                <kt-quiz-marquee-text [text]="row.player.name" class="name"/>
                 @if (row.move; as move) {
                   <span [attr.aria-label]="move.label" [class.down]="!move.up" [class.up]="move.up" class="move"
                         role="img">{{ move.text }}</span>
@@ -133,8 +133,8 @@
         <ul aria-labelledby="waiting-title" class="entries waiting" role="list">
           @for (player of waiting(); track player.id) {
             <li [attr.data-player-id]="player.id" class="entry">
-              <app-player-avatar [avatar]="player.avatar" [name]="player.name" [size]="fullscreen() ? 'lg' : 'md'"/>
-              <span class="who"><app-marquee-text [text]="player.name" class="name"/></span>
+              <kt-quiz-player-avatar [avatar]="player.avatar" [name]="player.name" [size]="fullscreen() ? 'lg' : 'md'"/>
+              <span class="who"><kt-quiz-marquee-text [text]="player.name" class="name"/></span>
               <span class="joined">Vào lúc {{ player.joinedAt | date:'HH:mm' }}</span>
               @if (!fullscreen()) {
                 <ng-container *ngTemplateOutlet="removeButton; context: {$implicit: player}"/>
@@ -192,7 +192,7 @@
         @if (d.label) {
           <p class="qr-label">{{ d.label }}</p>
         }
-        <app-share-link [code]="d.code" [qrSize]="320"/>
+        <kt-quiz-share-link [code]="d.code" [qrSize]="320"/>
       </div>
     </ng-container>
   </nz-modal>
@@ -204,7 +204,7 @@
     <!-- A template, not nzTitle: the dialog is reused for both uses, and a string title is read once. -->
     <ng-container *nzModalTitle>{{ deadlineMode() === 'reopen' ? 'Mở lại bài' : 'Hẹn giờ đóng' }}</ng-container>
     <ng-container *nzModalContent>
-      <app-deadline-picker [(value)]="deadline"/>
+      <kt-quiz-deadline-picker [(value)]="deadline"/>
     </ng-container>
   </nz-modal>
 } @else if (loadError(); as message) {

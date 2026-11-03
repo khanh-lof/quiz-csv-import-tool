@@ -10,7 +10,7 @@ export type AvatarRing = 'gold' | 'silver' | 'bronze';
 // page that needs another one sets `--avatar-size` on the element or on an ancestor (the podium does), and
 // `ring` draws a medal-coloured border for the podium.
 @Component({
-  selector: 'app-player-avatar',
+  selector: 'kt-quiz-player-avatar',
   templateUrl: './player-avatar.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './player-avatar.css',

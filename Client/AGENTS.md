@@ -502,24 +502,24 @@ routes added for this (see above for their guards).
 
 **Leaderboard building blocks** (`src/components/leaderboard/`, each with its spec), shared by the teacher's
 page and the students' board:
-- `PlayerAvatar` (`app-player-avatar`: `avatar`, `name`, `size` `sm|md|lg|xl`, `ring` `gold|silver|bronze|null`)
+- `PlayerAvatar` (`kt-quiz-player-avatar`: `avatar`, `name`, `size` `sm|md|lg|xl`, `ring` `gold|silver|bronze|null`)
   draws the avatar's emoji on its disc, or the name's first letter on a neutral disc for an empty or unknown id.
   It is `aria-hidden`: the name is always shown beside it. `--avatar-size` on it or an ancestor overrides the size.
-- `AvatarPicker` (`app-avatar-picker`, `[(value)]`) is the 6-column radio grid of the 24 avatars (roving
+- `AvatarPicker` (`kt-quiz-avatar-picker`, `[(value)]`) is the 6-column radio grid of the 24 avatars (roving
   tabindex, arrows, Home/End) with a "🎲 Ngẫu nhiên" button.
-- `MarqueeText` (`app-marquee-text`, `text`) is a one-line name that scrolls only when it does not fit: right to
+- `MarqueeText` (`kt-quiz-marquee-text`, `text`) is a one-line name that scrolls only when it does not fit: right to
   left in a seamless loop (the text twice, 40 px apart, 40 px/s, holding still for the first 12% of each loop),
   like an LED ad sign. It measures on render, on a resize (`ResizeObserver`) and once the fonts have loaded,
   pauses under the pointer, and stays still with an ellipsis under `prefers-reduced-motion`; the full name is always its `title`. It needs a bounded width (`min-width: 0` in a
   grid or flex cell).
-- `LeaderboardPodium` (`app-leaderboard-podium`: `entries` of `PodiumEntry`, `stageCount`, `possible`, `large`)
+- `LeaderboardPodium` (`kt-quiz-leaderboard-podium`: `entries` of `PodiumEntry`, `stageCount`, `possible`, `large`)
   is the top three: first in the middle and taller, second on its left, third on its right, by explicit grid
   column so the list reads 1, 2, 3. `podiumSteps` (`podium.ts`) groups the entries by rank 1 to 3: players tied
   on a rank share a step (three avatars, then "+N", and the names in one marquee), and a rank nobody holds
   (after a tie) has no step.
 
 **Teacher components** (`src/components/assignments/`, all with their own spec):
-- `AssignDialog` (`assign-dialog/`, `app-assign-dialog`: input `job`, `[(open)]`, output `created`) is mounted by
+- `AssignDialog` (`assign-dialog/`, `kt-quiz-assign-dialog`: input `job`, `[(open)]`, output `created`) is mounted by
   `AiJobs` and opened by "Giao bài" on a done GestureQuiz job. It parses the job's CSV the way the game does
   (`extractCsvContent`, `parseCsvRows`, `parseGestureQuiz`) to show the question count and build `stageCounts`,
   and refuses a quiz with no questions. The form is the label (optional, 60 characters), the closing time

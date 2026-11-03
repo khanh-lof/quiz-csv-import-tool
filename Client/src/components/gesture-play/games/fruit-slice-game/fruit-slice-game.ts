@@ -85,7 +85,7 @@ function isTyping(target: EventTarget | null): boolean {
 // the keys 1/2/3. The first fruit cut is the answer; after that the game ignores everything until
 // the next question.
 @Component({
-  selector: 'app-fruit-slice-game',
+  selector: 'kt-quiz-fruit-slice-game',
   standalone: true,
   providers: [{
     provide: StageGameBase,

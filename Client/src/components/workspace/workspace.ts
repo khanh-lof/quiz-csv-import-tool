@@ -110,7 +110,7 @@ const NARROW_QUERY = '(max-width: 767px)';
 // router navigation, so the auth guard sends an anonymous user to log in, and a refused navigation simply
 // leaves the current item highlighted.
 @Component({
-  selector: 'app-workspace',
+  selector: 'kt-quiz-workspace',
   imports: [
     RouterOutlet,
     RouterLink,

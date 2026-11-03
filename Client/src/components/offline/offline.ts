@@ -9,7 +9,7 @@ import { OnlineStatusService } from '../../services/online-status.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
-  selector: 'app-offline',
+  selector: 'kt-quiz-offline',
   standalone: true,
   imports: [
     NzButtonModule,

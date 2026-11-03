@@ -3,7 +3,7 @@ import { RouterOutlet } from '@angular/router';
 import { OnlineStatusService } from '../services/online-status.service';
 
 @Component({
-  selector: 'app-root',
+  selector: 'kt-quiz-root',
   imports: [RouterOutlet],
   templateUrl: './app.html',
   changeDetection: ChangeDetectionStrategy.Eager

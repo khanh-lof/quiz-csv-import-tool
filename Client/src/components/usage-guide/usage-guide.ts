@@ -6,7 +6,7 @@ import { NzModalModule } from 'ng-zorro-antd/modal';
 // A "how to use this page" button that opens the guide in a popup, so the page itself keeps its full
 // width and height. The projected content is the guide's text.
 @Component({
-  selector: 'app-usage-guide',
+  selector: 'kt-quiz-usage-guide',
   imports: [NzButtonComponent, NzIconDirective, NzModalModule],
   templateUrl: './usage-guide.html',
   changeDetection: ChangeDetectionStrategy.Eager,

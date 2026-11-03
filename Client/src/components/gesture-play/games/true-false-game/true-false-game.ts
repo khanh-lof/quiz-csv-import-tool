@@ -27,7 +27,7 @@ import {
 // Stage 1: a statement to judge, answered with a thumb held up (Đúng) or down (Sai) in front of the
 // camera, or with a click or the 1/2 and arrow keys when there is no camera.
 @Component({
-  selector: 'app-true-false-game',
+  selector: 'kt-quiz-true-false-game',
   standalone: true,
   providers: [{
     provide: StageGameBase,

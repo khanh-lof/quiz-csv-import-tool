@@ -92,7 +92,7 @@ describe('HeadTiltGame', () => {
       expect(cards().length).toBe(2);
       expect(cards()[0].querySelector('.word')!.textContent).toBe('水');
       expect(cards()[0].querySelector('.note')!.textContent).toBe('shuǐ');
-      expect(fixture.nativeElement.querySelector('app-face-calibration')).toBeNull();
+      expect(fixture.nativeElement.querySelector('kt-quiz-face-calibration')).toBeNull();
     });
 
     it('answers a click once and ignores more clicks for that question', () => {
@@ -165,7 +165,7 @@ describe('HeadTiltGame', () => {
     it('is not ready until the player has looked at the camera for a second', () => {
       set('cameraActive', true);
       expect(game.ready()).toBeFalse();
-      expect(fixture.nativeElement.querySelector('app-face-calibration .card')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('kt-quiz-face-calibration .card')).not.toBeNull();
 
       const midway = frames({}, 0, 500);
       fixture.detectChanges();
@@ -174,8 +174,8 @@ describe('HeadTiltGame', () => {
       frames({}, midway, 700);
       fixture.detectChanges();
       expect(game.ready()).toBeTrue();
-      expect(fixture.nativeElement.querySelector('app-face-calibration .card')).toBeNull();
-      expect(fixture.nativeElement.querySelector('app-face-calibration button')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('kt-quiz-face-calibration .card')).toBeNull();
+      expect(fixture.nativeElement.querySelector('kt-quiz-face-calibration button')).not.toBeNull();
     });
 
     it('does not calibrate with nobody or two people in front of the camera', () => {
@@ -201,7 +201,7 @@ describe('HeadTiltGame', () => {
     it('calibrates again on request', () => {
       calibrated();
       const button: HTMLButtonElement = fixture.nativeElement.querySelector(
-        'app-face-calibration button',
+        'kt-quiz-face-calibration button',
       );
       button.click();
       fixture.detectChanges();

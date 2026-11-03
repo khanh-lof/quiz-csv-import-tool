@@ -11,7 +11,7 @@ const COLUMNS = 6;
 // It is one radio group with a roving tabindex: Tab enters it once, on the picked avatar (or the first when
 // none is), and the arrow keys, Home and End move the focus and the choice together, as native radios do.
 @Component({
-  selector: 'app-avatar-picker',
+  selector: 'kt-quiz-avatar-picker',
   imports: [NzButtonComponent, PlayerAvatar],
   templateUrl: './avatar-picker.html',
   changeDetection: ChangeDetectionStrategy.Eager,

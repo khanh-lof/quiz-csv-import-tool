@@ -55,7 +55,7 @@ interface TableDraft {
 }
 
 @Component({
-  selector: 'app-vocabulary-table',
+  selector: 'kt-quiz-vocabulary-table',
   imports: [
     CommonModule,
     UsageGuide,

@@ -32,7 +32,7 @@ interface StepView {
 // full-screen size, one and a half times everything. The list sits in the page as it is given: the caller
 // decides when there is a podium to show (at least one ranked player).
 @Component({
-  selector: 'app-leaderboard-podium',
+  selector: 'kt-quiz-leaderboard-podium',
   imports: [MarqueeText, PlayerAvatar],
   templateUrl: './leaderboard-podium.html',
   changeDetection: ChangeDetectionStrategy.Eager,

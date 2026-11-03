@@ -1,6 +1,6 @@
 <section class="join-card">
   <div class="hero">
-    <app-player-avatar [avatar]="avatar()" [name]="trimmed()" size="xl"/>
+    <kt-quiz-player-avatar [avatar]="avatar()" [name]="trimmed()" size="xl"/>
   </div>
   <h2 class="title">{{ title() }}</h2>
   @if (label()) {
@@ -23,7 +23,7 @@
 
   <div class="field">
     <span class="field-label">Chọn hình đại diện</span>
-    <app-avatar-picker [(value)]="avatar"/>
+    <kt-quiz-avatar-picker [(value)]="avatar"/>
   </div>
 
   <button (click)="submit()" [disabled]="trimmed() === '' || busy()" [nzLoading]="busy()" class="join-button" nz-button

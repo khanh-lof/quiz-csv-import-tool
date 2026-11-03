@@ -86,7 +86,7 @@ function effectiveAttempts(value: number | null): number {
 // the link, QR code and code of the new assignment. The AI jobs table opens it with `job`; `created` says
 // that an assignment now exists.
 @Component({
-  selector: 'app-assign-dialog',
+  selector: 'kt-quiz-assign-dialog',
   imports: [
     FormsModule,
     NzModalModule,

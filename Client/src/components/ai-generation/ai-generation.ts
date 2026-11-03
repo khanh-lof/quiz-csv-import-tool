@@ -82,7 +82,7 @@ interface AiGenerationForm {
 }
 
 @Component({
-  selector: 'app-ai-generation',
+  selector: 'kt-quiz-ai-generation',
   imports: [
     CommonModule,
     UsageGuide,

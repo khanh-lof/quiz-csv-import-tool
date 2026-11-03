@@ -499,14 +499,14 @@ describe('GesturePlay', () => {
 
       expect(text()).toContain('Mở file quiz');
       expect(text()).toContain('Chơi thử quiz mẫu');
-      expect(element().querySelector('app-usage-guide')).not.toBeNull();
+      expect(element().querySelector('kt-quiz-usage-guide')).not.toBeNull();
       expect(element().querySelector('input[type="file"]')?.getAttribute('accept')).toContain('.csv');
     });
 
     it('has no leaderboard and no avatar, which belong to an assignment', () => {
       playDemo();
 
-      expect(element().querySelector('app-student-leaderboard')).toBeNull();
+      expect(element().querySelector('kt-quiz-student-leaderboard')).toBeNull();
       expect(element().querySelector('.avatar-button')).toBeNull();
       expect(shared.leaderboard).not.toHaveBeenCalled();
     });
@@ -591,7 +591,7 @@ describe('GesturePlay', () => {
       click('button', 'Bắt đầu');
 
       expect(audio.play).toHaveBeenCalledWith('start');
-      expect(element().querySelector('app-true-false-game')).not.toBeNull();
+      expect(element().querySelector('kt-quiz-true-false-game')).not.toBeNull();
       expect(game().question().stage).toBe(1);
       expect(game().question().options).toEqual(['Đúng', 'Sai']);
       expect(text()).toContain('Câu 1/5');
@@ -726,7 +726,7 @@ describe('GesturePlay', () => {
       expect(text()).toContain('Nghiêng đầu');
       click('button', 'Bắt đầu');
 
-      expect(element().querySelector('app-head-tilt-game')).not.toBeNull();
+      expect(element().querySelector('kt-quiz-head-tilt-game')).not.toBeNull();
       expect(game().question().stage).toBe(2);
       expect(game().question().options.length).toBe(2);
     });
@@ -823,7 +823,7 @@ describe('GesturePlay', () => {
       click('button', 'Bắt đầu');
 
       expect(normalized('.stage-pill')).toBe('🧩 Màn 2');
-      expect(element().querySelector('app-word-order-game')).not.toBeNull();
+      expect(element().querySelector('kt-quiz-word-order-game')).not.toBeNull();
       expect(game().question().stage).toBe(6);
     });
 
@@ -1151,7 +1151,7 @@ describe('GesturePlay', () => {
         openShared();
 
         expect(shared.load).toHaveBeenCalledWith(CODE);
-        expect(element().querySelector('app-share-join')).not.toBeNull();
+        expect(element().querySelector('kt-quiz-share-join')).not.toBeNull();
         expect(text()).toContain('HSK1 bài 1');
         expect(text()).toContain('Lớp 6A');
         expect(stageCards().length).toBe(0);
@@ -1163,7 +1163,7 @@ describe('GesturePlay', () => {
         joinAs('Lan');
 
         expect(shared.join).toHaveBeenCalledWith(CODE, 'Lan', 'cat');
-        expect(element().querySelector('app-share-join')).toBeNull();
+        expect(element().querySelector('kt-quiz-share-join')).toBeNull();
         expect(stageCards().length).toBe(6);
         expect(shareLine()).toContain('Lan · Không phải bạn?');
       });
@@ -1171,7 +1171,7 @@ describe('GesturePlay', () => {
       it('skips the join screen on a device that has joined', () => {
         openShared(lan);
 
-        expect(element().querySelector('app-share-join')).toBeNull();
+        expect(element().querySelector('kt-quiz-share-join')).toBeNull();
         expect(stageCards().length).toBe(6);
         expect(shareLine()).toContain('Lan');
       });
@@ -1197,7 +1197,7 @@ describe('GesturePlay', () => {
         serve({ stageCounts: { '3': 4 } });
         openShared();
 
-        expect(element().querySelector('app-share-join')).not.toBeNull();
+        expect(element().querySelector('kt-quiz-share-join')).not.toBeNull();
         expect(text()).toContain('HSK1 bài 1');
       });
 
@@ -1291,7 +1291,7 @@ describe('GesturePlay', () => {
         joinAs('Lan');
 
         expect(text()).toContain('Tên này đã có người dùng. Thêm họ hoặc số.');
-        expect(element().querySelector('app-share-join [role="alert"]')).not.toBeNull();
+        expect(element().querySelector('kt-quiz-share-join [role="alert"]')).not.toBeNull();
         expect(stageCards().length).toBe(0);
       });
 
@@ -1307,7 +1307,7 @@ describe('GesturePlay', () => {
           joinAs('Lan');
 
           expect(text()).withContext(message).toContain(message);
-          expect(element().querySelector('app-share-join')).withContext(message).not.toBeNull();
+          expect(element().querySelector('kt-quiz-share-join')).withContext(message).not.toBeNull();
         }
       });
 
@@ -1318,7 +1318,7 @@ describe('GesturePlay', () => {
         joinAs('Lan');
 
         expect(text()).toContain('Bài này đã đóng.');
-        expect(element().querySelector('app-share-join')).toBeNull();
+        expect(element().querySelector('kt-quiz-share-join')).toBeNull();
       });
 
       it('goes back to the join screen from "Không phải bạn?" and forgets the student', () => {
@@ -1327,7 +1327,7 @@ describe('GesturePlay', () => {
         click('a', 'Không phải bạn?');
 
         expect(shared.forget).toHaveBeenCalledWith(CODE);
-        expect(element().querySelector('app-share-join')).not.toBeNull();
+        expect(element().querySelector('kt-quiz-share-join')).not.toBeNull();
         expect(stageCards().length).toBe(0);
       });
     });
@@ -1546,8 +1546,8 @@ describe('GesturePlay', () => {
       const dialogOpen = (): boolean =>
         fixture.debugElement.query(By.directive(NzModalComponent)).componentInstance.nzVisible;
       const boardRows = (): string[] =>
-        Array.from(element().querySelectorAll('app-student-leaderboard li.step'))
-          .map(row => (row.querySelector('app-marquee-text')?.textContent ?? '').trim());
+        Array.from(element().querySelectorAll('kt-quiz-student-leaderboard li.step'))
+          .map(row => (row.querySelector('kt-quiz-marquee-text')?.textContent ?? '').trim());
 
       async function pause(): Promise<void> {
         fixture.detectChanges();
@@ -1582,8 +1582,8 @@ describe('GesturePlay', () => {
         it('has the picker and the big avatar for the student to choose with', () => {
           openShared();
 
-          expect(element().querySelector('app-share-join app-avatar-picker')).not.toBeNull();
-          expect(element().querySelector('app-share-join .hero app-player-avatar')).not.toBeNull();
+          expect(element().querySelector('kt-quiz-share-join kt-quiz-avatar-picker')).not.toBeNull();
+          expect(element().querySelector('kt-quiz-share-join .hero kt-quiz-player-avatar')).not.toBeNull();
         });
       });
 
@@ -1596,9 +1596,9 @@ describe('GesturePlay', () => {
           expect(button.type).toBe('button');
           expect(button.getAttribute('aria-label')).toBe('Đổi hình đại diện');
           expect(button.getAttribute('title')).toBe('Đổi hình đại diện');
-          expect(button.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐱');
+          expect(button.querySelector('kt-quiz-player-avatar')?.textContent?.trim()).toBe('🐱');
           expect(button.textContent).toContain('✎');
-          expect(element().querySelector('.share-line app-marquee-text')?.textContent?.trim()).toBe('Lan');
+          expect(element().querySelector('.share-line kt-quiz-marquee-text')?.textContent?.trim()).toBe('Lan');
           expect(shareLine()).toContain('Lan · Không phải bạn? · Bài đóng lúc 21:30 14/10');
         });
 
@@ -1608,7 +1608,7 @@ describe('GesturePlay', () => {
             avatar: ''
           });
 
-          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('L');
+          expect(avatarButton()!.querySelector('kt-quiz-player-avatar')?.textContent?.trim()).toBe('L');
         });
 
         it('carries a long name in full in its tooltip, to scroll', () => {
@@ -1618,7 +1618,7 @@ describe('GesturePlay', () => {
             name: long
           });
 
-          expect(element().querySelector('.share-line app-marquee-text')?.getAttribute('title')).toBe(long);
+          expect(element().querySelector('.share-line kt-quiz-marquee-text')?.getAttribute('title')).toBe(long);
         });
       });
 
@@ -1627,8 +1627,8 @@ describe('GesturePlay', () => {
           openShared(lan);
 
           expect(shared.leaderboard).toHaveBeenCalledWith(CODE);
-          const board = element().querySelector('app-student-leaderboard')!;
-          const map = element().querySelector('app-gesture-stage-map')!;
+          const board = element().querySelector('kt-quiz-student-leaderboard')!;
+          const map = element().querySelector('kt-quiz-gesture-stage-map')!;
           expect(board.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
           expect(boardRows()).toEqual(['Minh', 'Lan']);
           expect(board.querySelector('.cheer')?.textContent).toContain('Chúc mừng');
@@ -1637,7 +1637,7 @@ describe('GesturePlay', () => {
         it('is not on the join screen', () => {
           openShared();
 
-          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+          expect(element().querySelector('kt-quiz-student-leaderboard')).toBeNull();
           expect(shared.leaderboard).not.toHaveBeenCalled();
         });
 
@@ -1661,7 +1661,7 @@ describe('GesturePlay', () => {
           openShared(lan);
 
           expect(stageCards().length).toBe(6);
-          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+          expect(element().querySelector('kt-quiz-student-leaderboard')).toBeNull();
           expect(shared.leaderboard).not.toHaveBeenCalled();
         });
 
@@ -1672,7 +1672,7 @@ describe('GesturePlay', () => {
           click('button', 'Về bản đồ');
 
           expect(shared.answer).toHaveBeenCalled();
-          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+          expect(element().querySelector('kt-quiz-student-leaderboard')).toBeNull();
           expect(shared.leaderboard).not.toHaveBeenCalled();
         });
       });
@@ -1700,7 +1700,7 @@ describe('GesturePlay', () => {
           await save();
 
           expect(shared.setAvatar).toHaveBeenCalledOnceWith(CODE, 'dragon');
-          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐲');
+          expect(avatarButton()!.querySelector('kt-quiz-player-avatar')?.textContent?.trim()).toBe('🐲');
           expect(dialogOpen()).toBeFalse();
           expect(shared.leaderboard).toHaveBeenCalledOnceWith(CODE);
           expect(notifications.error).not.toHaveBeenCalled();
@@ -1729,7 +1729,7 @@ describe('GesturePlay', () => {
 
           expect(shared.setAvatar).not.toHaveBeenCalled();
           expect(dialogOpen()).toBeFalse();
-          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐱');
+          expect(avatarButton()!.querySelector('kt-quiz-player-avatar')?.textContent?.trim()).toBe('🐱');
           await openDialog();
           expect(radio('Mèo').getAttribute('aria-checked')).toBe('true');
         });
@@ -1746,7 +1746,7 @@ describe('GesturePlay', () => {
           await save();
 
           expect(shared.setAvatar).toHaveBeenCalledOnceWith(CODE, 'rat');
-          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐭');
+          expect(avatarButton()!.querySelector('kt-quiz-player-avatar')?.textContent?.trim()).toBe('🐭');
         });
 
         it('shows it is saving and cannot be saved twice while the answer is awaited', async () => {
@@ -1769,7 +1769,7 @@ describe('GesturePlay', () => {
           });
           await pause();
           expect(dialogOpen()).toBeFalse();
-          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐲');
+          expect(avatarButton()!.querySelector('kt-quiz-player-avatar')?.textContent?.trim()).toBe('🐲');
         });
 
         it('sends a student the teacher removed to the join screen on a 403', async () => {
@@ -1785,7 +1785,7 @@ describe('GesturePlay', () => {
           await save();
 
           expect(dialogOpen()).toBeFalse();
-          expect(element().querySelector('app-share-join')).not.toBeNull();
+          expect(element().querySelector('kt-quiz-share-join')).not.toBeNull();
           expect(stageCards().length).toBe(0);
           expect(notifications.error).not.toHaveBeenCalled();
         });
@@ -1817,7 +1817,7 @@ describe('GesturePlay', () => {
 
           expect(notifications.error).toHaveBeenCalledOnceWith('Chưa đổi được hình đại diện', '', jasmine.anything());
           expect(dialogOpen()).toBeTrue();
-          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐱');
+          expect(avatarButton()!.querySelector('kt-quiz-player-avatar')?.textContent?.trim()).toBe('🐱');
           expect(stageCards().length).toBe(6);
           expect(document.body.querySelector('.ant-modal-footer .ant-btn-primary')?.classList).not.toContain('ant-btn-loading');
         });
@@ -1838,7 +1838,7 @@ describe('GesturePlay', () => {
 
           expect(shared.setAvatar).toHaveBeenCalledTimes(2);
           expect(dialogOpen()).toBeFalse();
-          expect(avatarButton()!.querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐲');
+          expect(avatarButton()!.querySelector('kt-quiz-player-avatar')?.textContent?.trim()).toBe('🐲');
         });
       });
 
@@ -1874,7 +1874,7 @@ describe('GesturePlay', () => {
           click('.stage-card', 'Màn 1');
 
           expect(text()).toContain('Bài này đã đóng.');
-          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+          expect(element().querySelector('kt-quiz-student-leaderboard')).toBeNull();
           expect(shared.leaderboard).not.toHaveBeenCalled();
         });
 
@@ -1886,7 +1886,7 @@ describe('GesturePlay', () => {
           expect(text()).toContain('Bài này đã đóng.');
           expect(shared.leaderboard).toHaveBeenCalledOnceWith(CODE);
           expect(boardRows()).toEqual([]);
-          expect(element().querySelector('app-student-leaderboard section')).toBeNull();
+          expect(element().querySelector('kt-quiz-student-leaderboard section')).toBeNull();
         });
 
         it('has no board for a device that never joined', () => {
@@ -1894,7 +1894,7 @@ describe('GesturePlay', () => {
           openShared();
 
           expect(text()).toContain('Bài này đã đóng.');
-          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+          expect(element().querySelector('kt-quiz-student-leaderboard')).toBeNull();
           expect(shared.leaderboard).not.toHaveBeenCalled();
         });
 
@@ -1905,7 +1905,7 @@ describe('GesturePlay', () => {
           joinAs('Lan');
 
           expect(text()).toContain('Bài này đã đóng.');
-          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+          expect(element().querySelector('kt-quiz-student-leaderboard')).toBeNull();
         });
 
         it('has no board on the other error cards', () => {
@@ -1913,7 +1913,7 @@ describe('GesturePlay', () => {
           openShared(lan);
 
           expect(text()).toContain('Không tìm thấy bài này.');
-          expect(element().querySelector('app-student-leaderboard')).toBeNull();
+          expect(element().querySelector('kt-quiz-student-leaderboard')).toBeNull();
           expect(shared.leaderboard).not.toHaveBeenCalled();
         });
       });
@@ -2133,7 +2133,7 @@ describe('GesturePlay', () => {
         openShared(lan);
 
         playStageOne(wrongChoice);
-        expect(element().querySelector('app-gesture-stage-result')?.textContent).toContain('Chơi lại màn');
+        expect(element().querySelector('kt-quiz-gesture-stage-result')?.textContent).toContain('Chơi lại màn');
         expect(text()).not.toContain('Hết lượt chơi màn này');
 
         replay(wrongChoice);
@@ -2351,7 +2351,7 @@ describe('GesturePlay', () => {
 
         click('.stage-card', 'Màn 1');
 
-        expect(element().querySelector('app-share-join')).not.toBeNull();
+        expect(element().querySelector('kt-quiz-share-join')).not.toBeNull();
         expect(element().querySelector('.intro')).toBeNull();
       });
     });
@@ -2402,7 +2402,7 @@ describe('GesturePlay', () => {
           startStage();
 
           expect(shared.startRun).toHaveBeenCalledOnceWith(CODE, 1);
-          expect(element().querySelector('app-true-false-game')).not.toBeNull();
+          expect(element().querySelector('kt-quiz-true-false-game')).not.toBeNull();
           expect(game().question()).toEqual({
             stage: 1,
             question: demoQuiz.stages.get(1)![0].question,
@@ -2491,7 +2491,7 @@ describe('GesturePlay', () => {
           click('button[aria-label="Về bản đồ"]');
 
           startStage('Màn 2');
-          expect(element().querySelector('app-word-order-game')).not.toBeNull();
+          expect(element().querySelector('kt-quiz-word-order-game')).not.toBeNull();
           expect(game().question()).toEqual({
             stage: 6,
             question: 'Tôi uống trà.',
@@ -2519,7 +2519,7 @@ describe('GesturePlay', () => {
 
           start.next(runStart(1));
           fixture.detectChanges();
-          expect(element().querySelector('app-true-false-game')).not.toBeNull();
+          expect(element().querySelector('kt-quiz-true-false-game')).not.toBeNull();
         });
 
         it('starts a replay from the result screen after the check, with a spinner for the start', () => {
@@ -2722,7 +2722,7 @@ describe('GesturePlay', () => {
         it('keeps the view and the verdict on screen until the question arrives, then swaps them in one step', () => {
           openShared(lan);
           startStage();
-          const before = element().querySelector('app-true-false-game');
+          const before = element().querySelector('kt-quiz-true-false-game');
           game().choose.emit(rightChoice());
           fixture.detectChanges();
           const dealtNext = new Subject<SharedQuestion>();
@@ -2743,7 +2743,7 @@ describe('GesturePlay', () => {
           expect(hud()).toContain('Câu 2/5');
           expect(game().reveal()).toBeNull();
           expect(game().question().question).toBe(demoQuiz.stages.get(1)![1].question);
-          expect(element().querySelector('app-true-false-game')).toBe(before);
+          expect(element().querySelector('kt-quiz-true-false-game')).toBe(before);
           expect(text()).not.toContain('Chính xác!');
           expect(text()).not.toContain('Đáp án:');
         });
@@ -3089,7 +3089,7 @@ describe('GesturePlay', () => {
 
           click('button', 'Bắt đầu');
 
-          expect(element().querySelector('app-share-join')).not.toBeNull();
+          expect(element().querySelector('kt-quiz-share-join')).not.toBeNull();
           expect(element().querySelector('.intro')).toBeNull();
           expect(vision.stopCamera).toHaveBeenCalled();
         });
@@ -3125,7 +3125,7 @@ describe('GesturePlay', () => {
 
           shared.startRun.and.callFake(startOnServer);
           click('button', 'Bắt đầu');
-          expect(element().querySelector('app-true-false-game')).not.toBeNull();
+          expect(element().querySelector('kt-quiz-true-false-game')).not.toBeNull();
         });
 
         it('stays on the intro on any other failure', () => {
@@ -3176,7 +3176,7 @@ describe('GesturePlay', () => {
           game().choose.emit(rightChoice());
           fixture.detectChanges();
 
-          expect(element().querySelector('app-share-join')).not.toBeNull();
+          expect(element().querySelector('kt-quiz-share-join')).not.toBeNull();
           expect(element().querySelector('.stage[data-game]')).toBeNull();
         });
 
@@ -3481,11 +3481,11 @@ describe('GesturePlay', () => {
       openPreview();
 
       expect(shared.leaderboard).toHaveBeenCalledOnceWith(CODE);
-      const board = element().querySelector('app-student-leaderboard')!;
+      const board = element().querySelector('kt-quiz-student-leaderboard')!;
       expect(board).not.toBeNull();
       expect(board.textContent).toContain('Bảng xếp hạng');
       expect(board.querySelector('li.step')?.textContent).toContain('Minh');
-      expect(element().querySelector('app-gesture-stage-map')!.compareDocumentPosition(board)
+      expect(element().querySelector('kt-quiz-gesture-stage-map')!.compareDocumentPosition(board)
         & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
@@ -3494,7 +3494,7 @@ describe('GesturePlay', () => {
       openPreview();
 
       expect(stageCards().length).toBe(6);
-      expect(element().querySelector('app-student-leaderboard')).toBeNull();
+      expect(element().querySelector('kt-quiz-student-leaderboard')).toBeNull();
       expect(shared.leaderboard).not.toHaveBeenCalled();
     });
 
@@ -3520,7 +3520,7 @@ describe('GesturePlay', () => {
       assignments.get.and.returnValue(httpError(500));
       openPreview();
 
-      expect(element().querySelector('app-student-leaderboard')).toBeNull();
+      expect(element().querySelector('kt-quiz-student-leaderboard')).toBeNull();
       expect(shared.leaderboard).not.toHaveBeenCalled();
     });
 

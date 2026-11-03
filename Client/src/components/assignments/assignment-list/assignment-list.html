@@ -98,7 +98,7 @@
   <ng-container *nzModalTitle>{{ qrFor()?.title }}</ng-container>
   <ng-container *nzModalContent>
     @if (qrFor(); as assignment) {
-      <app-share-link [code]="assignment.code" [qrSize]="280"/>
+      <kt-quiz-share-link [code]="assignment.code" [qrSize]="280"/>
     }
   </ng-container>
 </nz-modal>
@@ -108,6 +108,6 @@
           nzOkText="Mở lại" nzWidth="min(560px, 95vw)">
   <ng-container *nzModalTitle>Mở lại: {{ reopening()?.title }}</ng-container>
   <ng-container *nzModalContent>
-    <app-deadline-picker [(value)]="reopenDeadline"/>
+    <kt-quiz-deadline-picker [(value)]="reopenDeadline"/>
   </ng-container>
 </nz-modal>
