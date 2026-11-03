@@ -25,11 +25,11 @@ describe('AiCsvService', () => {
 
   it('returns the id the server answered for a formatted job', () => {
     let result: string | undefined;
-    service.submitFormatted([], 'Từ ảnh').subscribe(job => result = job.id);
+    service.submitFormatted([], 'Hỏi chữ Hán').subscribe(job => result = job.id);
 
     const req = http.expectOne(r => r.url === URL);
     expect(req.request.method).toBe('POST');
-    expect(req.request.params.get('title')).toBe('Từ ảnh');
+    expect(req.request.params.get('title')).toBe('Hỏi chữ Hán');
     expect(req.request.params.has('isCreative')).toBeFalse();
     req.flush({ id: 'abc' });
 
@@ -150,7 +150,7 @@ describe('AiCsvService', () => {
     }
 
     it('sends neither with a formatted job', () => {
-      service.submitFormatted([], 'Từ ảnh').subscribe();
+      service.submitFormatted([], 'Hỏi chữ Hán').subscribe();
 
       const params = http.expectOne(r => r.url === URL).request.params;
       expect(params.has('gestureStages')).toBeFalse();

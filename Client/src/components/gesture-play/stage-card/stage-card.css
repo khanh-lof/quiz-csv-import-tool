@@ -1,0 +1,124 @@
+/* A button, so it works with keyboard and touch as it is; its children are spans (a button may only hold
+   inline content) laid out as blocks. It wears its game's world: the frame's colour around it and the scene
+   across its top, so the stage looks the same on the map, in the AI form and once it is opened. */
+:host {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  font: inherit;
+  color: var(--qt-text);
+  text-align: left;
+  cursor: pointer;
+  background: #fff;
+  border: 3px solid var(--g-frame);
+  border-radius: var(--qt-radius-lg);
+  box-shadow: var(--qt-card-shadow);
+  transition: all var(--qt-transition);
+}
+
+:host(:not(:disabled):hover),
+:host(:not(:disabled):focus-visible) {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--g-frame) 35%, transparent),
+  0 12px 28px rgba(0, 0, 0, 0.2);
+  transform: translateY(-3px);
+  outline: none;
+}
+
+:host(:disabled) {
+  cursor: not-allowed;
+  opacity: 0.75;
+  box-shadow: none;
+}
+
+/* A stage that cannot be played yet (or any more), or a game left out of the quiz, shows its world faded,
+   still recognisable as the game; the tag says why. */
+:host(:disabled) .card-scene,
+:host([aria-pressed='false']) .card-scene {
+  filter: saturate(0.4) brightness(0.95);
+}
+
+:host([aria-pressed='false']) {
+  opacity: 0.75;
+  box-shadow: none;
+}
+
+.card-scene {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 84px;
+  padding: 12px 14px;
+  background: var(--g-scene);
+}
+
+/* On a white disc, so every game's icon stands out from its scene (the green puzzle piece on the green
+   chalkboard too). */
+.stage-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  font-size: 32px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* The tag has its own right margin; it would push it off the scene's right edge. Its own light background
+   reads on every scene; the shadow lifts it off the busier ones. */
+:host ::ng-deep [cardTag] {
+  align-self: flex-start;
+  margin-right: 0;
+  white-space: normal;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px 14px;
+}
+
+.stage-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.stage-no {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--qt-text-muted);
+}
+
+.stage-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+:host(.compact) .card-scene {
+  min-height: 56px;
+  padding: 8px 10px;
+}
+
+:host(.compact) .stage-icon {
+  width: 40px;
+  height: 40px;
+  font-size: 22px;
+}
+
+:host(.compact) .card-body {
+  gap: 4px;
+  padding: 8px 12px 10px;
+}
+
+:host(.compact) .stage-name {
+  font-size: 15px;
+}

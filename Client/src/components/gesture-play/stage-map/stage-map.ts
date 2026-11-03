@@ -11,6 +11,7 @@ import { passPercentOf, TIME_MODE_LABELS } from '../../../models/assignment';
 import { GestureQuiz, questionCount } from '../../../models/gesture-quiz';
 import { GestureProgressService, POINTS_PER_CORRECT, StageBest, } from '../../../services/gesture-progress.service';
 import { GestureSettingsService, TimeMode } from '../gesture-settings.service';
+import { GestureStageCard } from '../stage-card/stage-card';
 
 // 'used' is an open stage whose runs are all spent (the teacher's replay limit).
 type StageStatus = 'passed' | 'open' | 'locked' | 'used';
@@ -41,6 +42,7 @@ interface StageCard {
   selector: 'app-gesture-stage-map',
   imports: [
     FormsModule,
+    GestureStageCard,
     NzButtonComponent,
     NzIconDirective,
     NzPopconfirmDirective,

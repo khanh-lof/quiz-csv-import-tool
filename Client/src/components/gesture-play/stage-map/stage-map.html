@@ -22,48 +22,36 @@
 
   <div class="stages">
     @for (card of cards(); track card.def.stage) {
-      <button (click)="start.emit(card.def.stage)" [attr.data-game]="card.def.game" [class]="'stage-card status-' + card.status"
-              [disabled]="!card.playable"
-              class="stage-card"
-              type="button">
-        <!-- The game's own scene (game-themes.css), as on its stage: the icon and the status sit on it, the
-             texts below it on white, so they read the same whatever the scene's colours. -->
-        <span class="card-scene">
-          <span aria-hidden="true" class="stage-icon">{{ card.def.icon }}</span>
-          @switch (card.status) {
-            @case ('passed') {
-              <nz-tag nzColor="success">Đã qua ✓</nz-tag>
-            }
-            @case ('used') {
-              <nz-tag>Hết lượt</nz-tag>
-            }
-            @case ('locked') {
-              <nz-tag>Khóa 🔒</nz-tag>
-            }
+      <button (click)="start.emit(card.def.stage)" [class]="'status-' + card.status" [def]="card.def"
+              [disabled]="!card.playable" [label]="'Màn ' + card.position"
+              appGestureStageCard>
+        @switch (card.status) {
+          @case ('passed') {
+            <nz-tag cardTag nzColor="success">Đã qua ✓</nz-tag>
           }
-        </span>
-        <span class="card-body">
-          <span class="stage-title">
-            <span class="stage-no">Màn {{ card.position }}</span>
-            <span class="stage-name">{{ card.def.name }}</span>
+          @case ('used') {
+            <nz-tag cardTag>Hết lượt</nz-tag>
+          }
+          @case ('locked') {
+            <nz-tag cardTag>Khóa 🔒</nz-tag>
+          }
+        }
+        <span class="card-foot">
+          <span>
+            {{ card.count }} câu
+            @if (card.percent !== defaultPercent) {
+              · qua màn từ {{ card.percent }}%
+            }
+            @if (card.attemptsText) {
+              · {{ card.attemptsText }}
+            }
           </span>
-          <span class="card-foot">
-            <span>
-              {{ card.count }} câu
-              @if (card.percent !== defaultPercent) {
-                · qua màn từ {{ card.percent }}%
-              }
-              @if (card.attemptsText) {
-                · {{ card.attemptsText }}
-              }
-            </span>
-            <span class="best">
-              @if (card.best; as best) {
-                Tốt nhất: <b>{{ best.correct }}/{{ best.total }}</b> · {{ best.correct * pointsPerCorrect }} điểm
-              } @else {
-                Chưa chơi
-              }
-            </span>
+          <span class="best">
+            @if (card.best; as best) {
+              Tốt nhất: <b>{{ best.correct }}/{{ best.total }}</b> · {{ best.correct * pointsPerCorrect }} điểm
+            } @else {
+              Chưa chơi
+            }
           </span>
         </span>
       </button>
