@@ -120,7 +120,7 @@ describe('FrogBiteGame', () => {
       expect(cards().length).toBe(3);
       expect(cards()[1].querySelector('.word')!.textContent).toBe('水');
       expect(cards()[1].querySelector('.note')!.textContent).toBe('shuǐ');
-      expect(fixture.nativeElement.querySelector('app-face-calibration')).toBeNull();
+      expect(fixture.nativeElement.querySelector('kt-quiz-face-calibration')).toBeNull();
       expect(fixture.nativeElement.querySelector('.frog')).not.toBeNull();
     });
 
@@ -216,14 +216,14 @@ describe('FrogBiteGame', () => {
     it('is not ready until the player has looked at the camera for a second', () => {
       set('cameraActive', true);
       expect(game.ready()).toBeFalse();
-      expect(fixture.nativeElement.querySelector('app-face-calibration .card')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('kt-quiz-face-calibration .card')).not.toBeNull();
 
       const midway = frames({}, 0, 500);
       expect(game.ready()).toBeFalse();
       frames({}, midway, 700);
       fixture.detectChanges();
       expect(game.ready()).toBeTrue();
-      expect(fixture.nativeElement.querySelector('app-face-calibration button')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('kt-quiz-face-calibration button')).not.toBeNull();
     });
 
     it('does not calibrate with nobody or two people in front of the camera', () => {

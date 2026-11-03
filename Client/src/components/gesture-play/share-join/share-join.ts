@@ -28,7 +28,7 @@ export interface JoinRequest {
 // random one. It only collects the two: joining, and what to say when the name is taken, are the page's,
 // which passes the reason back in `error`.
 @Component({
-  selector: 'app-share-join',
+  selector: 'kt-quiz-share-join',
   imports: [FormsModule, NzButtonComponent, NzInputDirective, AvatarPicker, PlayerAvatar],
   templateUrl: './share-join.html',
   changeDetection: ChangeDetectionStrategy.Eager,

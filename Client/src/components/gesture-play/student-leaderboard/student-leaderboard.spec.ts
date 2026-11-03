@@ -64,7 +64,7 @@ describe('StudentLeaderboard', () => {
   const root = () => fixture.nativeElement as HTMLElement;
   const steps = () => Array.from(root().querySelectorAll<HTMLElement>('li.step'));
   const clean = (element: Element | null | undefined) => (element?.textContent ?? '').replace(/\s+/g, ' ').trim();
-  const names = () => steps().map(step => clean(step.querySelector('app-marquee-text')));
+  const names = () => steps().map(step => clean(step.querySelector('kt-quiz-marquee-text')));
 
   function open(): void {
     fixture = TestBed.createComponent(StudentLeaderboard);
@@ -122,7 +122,7 @@ describe('StudentLeaderboard', () => {
     })));
     open();
 
-    expect(steps()[0].querySelector('app-player-avatar')?.textContent?.trim()).toBe('🐲');
+    expect(steps()[0].querySelector('kt-quiz-player-avatar')?.textContent?.trim()).toBe('🐲');
     expect(clean(steps()[0].querySelector('.meta'))).toBe('4/5 màn · 21/25 câu');
     leave();
   }));
@@ -175,7 +175,7 @@ describe('StudentLeaderboard', () => {
       open();
 
       const own = root().querySelector('.own')!;
-      expect(clean(own.querySelector('app-marquee-text'))).toBe('Cúc');
+      expect(clean(own.querySelector('kt-quiz-marquee-text'))).toBe('Cúc');
       expect(clean(own.querySelector('.you-tag'))).toBe('Bạn');
       expect(clean(own.querySelector('.score'))).toBe('Hạng 9 · 1/6 màn · 4/30 câu');
       expect(steps().length).toBe(3);

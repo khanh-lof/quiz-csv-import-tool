@@ -48,7 +48,7 @@ const UNIT_ASPECT = 16 / 9;
 // index fingertip is a cursor; a tile is picked by resting on it (dwell) or by pinching thumb and index
 // while on it. The mouse, touch and keyboard work too. The rules live in `word-order-logic.ts`.
 @Component({
-  selector: 'app-word-order-game',
+  selector: 'kt-quiz-word-order-game',
   standalone: true,
   providers: [{
     provide: StageGameBase,

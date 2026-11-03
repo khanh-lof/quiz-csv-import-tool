@@ -13,7 +13,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 
 @Component({
-  selector: 'app-login',
+  selector: 'kt-quiz-login',
   standalone: true,
   imports: [
     FormsModule,

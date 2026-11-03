@@ -24,7 +24,7 @@ export const MARQUEE_MOVING_SHARE = 0.88;
 // in `title`. The box is whatever the parent gives the element, which is measured on init, when the text
 // changes, when the box is resized and once the fonts have loaded (the width of the text changes with them).
 @Component({
-  selector: 'app-marquee-text',
+  selector: 'kt-quiz-marquee-text',
   templateUrl: './marquee-text.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './marquee-text.css',

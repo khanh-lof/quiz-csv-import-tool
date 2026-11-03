@@ -43,7 +43,7 @@ const MISSED_HINT_MS = 1400;
 // and the player bites by opening the mouth wide and closing it. Without the camera the cards are
 // clicked or picked with 1 / 2 / 3, or the frog is moved with ← ↓ → and bites on Space.
 @Component({
-  selector: 'app-frog-bite-game',
+  selector: 'kt-quiz-frog-bite-game',
   imports: [FaceCalibrationPanel],
   providers: [{
     provide: StageGameBase,

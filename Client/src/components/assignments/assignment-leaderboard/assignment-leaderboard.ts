@@ -108,7 +108,7 @@ interface RankedRow {
 // this page shows the leaderboard as it is, marks the students whose place changed, slides the rows to their
 // new places and keeps it fresh while results can still arrive.
 @Component({
-  selector: 'app-assignment-leaderboard',
+  selector: 'kt-quiz-assignment-leaderboard',
   imports: [
     DatePipe,
     NgTemplateOutlet,

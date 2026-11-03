@@ -8,7 +8,7 @@ import { calibrationMessage } from './face-common';
 // measured it shows what the camera needs (look straight, one face, come closer) with a bar for the
 // second of steady looking; once calibrated it shrinks to a small "calibrate again" button.
 @Component({
-  selector: 'app-face-calibration',
+  selector: 'kt-quiz-face-calibration',
   imports: [NzButtonComponent],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `

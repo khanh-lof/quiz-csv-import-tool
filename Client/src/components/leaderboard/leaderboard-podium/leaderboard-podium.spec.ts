@@ -33,7 +33,7 @@ describe('LeaderboardPodium', () => {
   const podium = () => root().querySelector<HTMLElement>('ol.podium');
   const steps = () => Array.from(root().querySelectorAll<HTMLElement>('ol.podium > li'));
   const stepOf = (rank: number) => steps().find(step => step.dataset['rank'] === String(rank))!;
-  const avatars = (step: HTMLElement) => Array.from(step.querySelectorAll<HTMLElement>('app-player-avatar'));
+  const avatars = (step: HTMLElement) => Array.from(step.querySelectorAll<HTMLElement>('kt-quiz-player-avatar'));
   const text = (element: Element | null | undefined) => element?.textContent?.replace(/\s+/g, ' ').trim();
 
   // Under 768px the avatars are one size smaller (the phone's podium), and the window these specs run in may be
@@ -105,7 +105,7 @@ describe('LeaderboardPodium', () => {
   it('shows the name in a marquee, and the stages and answers that won the rank', () => {
     show(THREE);
 
-    expect(text(stepOf(1).querySelector('app-marquee-text'))).toBe('Lan');
+    expect(text(stepOf(1).querySelector('kt-quiz-marquee-text'))).toBe('Lan');
     expect(text(stepOf(1).querySelector('.meta'))).toBe('2/3 màn · 14/15 câu');
     expect(text(stepOf(2).querySelector('.meta'))).toBe('1/3 màn · 11/15 câu');
     expect(text(stepOf(3).querySelector('.meta'))).toBe('1/3 màn · 7/15 câu');
@@ -158,7 +158,7 @@ describe('LeaderboardPodium', () => {
       expect(getComputedStyle(stepOf(1)).gridColumnStart).toBe('2');
       expect(getComputedStyle(stepOf(3)).gridColumnStart).toBe('3');
       expect(avatars(stepOf(1)).length).toBe(2);
-      const names = stepOf(1).querySelector('app-marquee-text')!;
+      const names = stepOf(1).querySelector('kt-quiz-marquee-text')!;
       expect(text(names)).toBe('Lan · Minh');
       expect(names.getAttribute('title')).toBe('Lan · Minh');
       expect(stepOf(1).querySelector('.more')).toBeNull();
@@ -168,7 +168,7 @@ describe('LeaderboardPodium', () => {
       show([entry(1, 'Lan'), entry(2, 'Minh'), entry(2, 'Hoa')]);
 
       expect(steps().map(step => step.dataset['rank'])).toEqual(['1', '2']);
-      expect(text(stepOf(2).querySelector('app-marquee-text'))).toBe('Minh · Hoa');
+      expect(text(stepOf(2).querySelector('kt-quiz-marquee-text'))).toBe('Minh · Hoa');
     });
 
     it('draws three avatars and a "+N" chip for more players, and still lists every name', () => {
@@ -176,7 +176,7 @@ describe('LeaderboardPodium', () => {
 
       expect(avatars(stepOf(1)).length).toBe(3);
       expect(text(stepOf(1).querySelector('.more'))).toBe('+2');
-      expect(text(stepOf(1).querySelector('app-marquee-text'))).toBe('Lan · Minh · Hoa · Bảo · An');
+      expect(text(stepOf(1).querySelector('kt-quiz-marquee-text'))).toBe('Lan · Minh · Hoa · Bảo · An');
       expect(steps().length).toBe(1);
     });
 

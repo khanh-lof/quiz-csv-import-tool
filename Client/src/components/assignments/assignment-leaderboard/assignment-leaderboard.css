@@ -300,7 +300,7 @@ nz-card {
   color: var(--qt-text-muted);
 }
 
-.qr-modal app-share-link {
+.qr-modal kt-quiz-share-link {
   margin-top: 16px;
   text-align: left;
 }
@@ -389,7 +389,7 @@ nz-card {
     grid-area: rank;
   }
 
-  app-player-avatar {
+  kt-quiz-player-avatar {
     grid-area: avatar;
   }
 

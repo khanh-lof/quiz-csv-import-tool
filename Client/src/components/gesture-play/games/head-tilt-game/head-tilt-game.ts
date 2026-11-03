@@ -26,7 +26,7 @@ const RING_LENGTH = 603.19;
 // Stage 2: two cards, left and right, chosen by leaning the head toward one and holding it. Without
 // the camera the cards are clicked or picked with the keys (1 or ←, 2 or →).
 @Component({
-  selector: 'app-head-tilt-game',
+  selector: 'kt-quiz-head-tilt-game',
   imports: [FaceCalibrationPanel],
   providers: [{
     provide: StageGameBase,

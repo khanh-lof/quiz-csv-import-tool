@@ -39,7 +39,7 @@ const PODIUM_RANKS = 3;
 // changes (the page does not mount it at all when it already knows, so this only covers a link that was
 // closed when opened).
 @Component({
-  selector: 'app-student-leaderboard',
+  selector: 'kt-quiz-student-leaderboard',
   imports: [LeaderboardPodium, MarqueeText, PlayerAvatar],
   templateUrl: './student-leaderboard.html',
   changeDetection: ChangeDetectionStrategy.Eager,

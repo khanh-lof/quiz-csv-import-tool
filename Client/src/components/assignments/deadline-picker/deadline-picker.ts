@@ -10,7 +10,7 @@ import { deadlineFromPreset, DeadlinePreset } from './deadline-picker-logic';
 // (null for none) and is written every time the choice changes; a value set from outside (a dialog that
 // starts over, or one that edits an existing closing time) is shown as the custom time.
 @Component({
-  selector: 'app-deadline-picker',
+  selector: 'kt-quiz-deadline-picker',
   imports: [FormsModule, NzDatePickerComponent, NzRadioComponent, NzRadioGroupComponent],
   providers: [{
     provide: NZ_I18N,

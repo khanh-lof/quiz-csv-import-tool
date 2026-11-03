@@ -305,9 +305,9 @@ describe('AssignmentLeaderboard', () => {
 
       expect(rows().length).toBe(3);
       for (const row of rows()) {
-        expect(row.querySelector('app-player-avatar')).not.toBeNull();
+        expect(row.querySelector('kt-quiz-player-avatar')).not.toBeNull();
       }
-      const lan = rowOf('p1').querySelector('app-player-avatar')!;
+      const lan = rowOf('p1').querySelector('kt-quiz-player-avatar')!;
       expect(lan.getAttribute('data-size')).toBe('md');
       expect(lan.textContent).toContain('🐱');
       leave();
@@ -316,7 +316,7 @@ describe('AssignmentLeaderboard', () => {
     it('puts the name in a scrolling-when-too-long line, with the whole name as its title', fakeAsync(() => {
       open(detail({ players: [player({ name: 'Nguyễn Hoàng Bảo Ngọc Lan Phương Thảo Vy' })] }));
 
-      const name = rowOf('p1').querySelector('app-marquee-text');
+      const name = rowOf('p1').querySelector('kt-quiz-marquee-text');
       expect(name?.getAttribute('title')).toBe('Nguyễn Hoàng Bảo Ngọc Lan Phương Thảo Vy');
       leave();
     }));
@@ -422,7 +422,7 @@ describe('AssignmentLeaderboard', () => {
     it('shows the students who have a place on the podium, with their stages and answers', fakeAsync(() => {
       open();
 
-      const steps = Array.from(root().querySelectorAll<HTMLElement>('app-leaderboard-podium .step'));
+      const steps = Array.from(root().querySelectorAll<HTMLElement>('kt-quiz-leaderboard-podium .step'));
       expect(steps.map(step => step.dataset['rank'])).toEqual(['1', '2']);
       expect(clean(steps[0])).toContain('Lan');
       expect(clean(steps[0])).toContain('2/2 màn · 10/10 câu');
@@ -433,18 +433,18 @@ describe('AssignmentLeaderboard', () => {
 
     it('is the normal size, and the large one in full screen', fakeAsync(() => {
       open();
-      expect(root().querySelector('app-leaderboard-podium')?.classList).not.toContain('is-large');
+      expect(root().querySelector('kt-quiz-leaderboard-podium')?.classList).not.toContain('is-large');
 
       setFullscreen(true);
 
-      expect(root().querySelector('app-leaderboard-podium')?.classList).toContain('is-large');
+      expect(root().querySelector('kt-quiz-leaderboard-podium')?.classList).toContain('is-large');
       leave();
     }));
 
     it('is not shown when nobody has a place yet', fakeAsync(() => {
       open(detail({ players: [HOA] }));
 
-      expect(root().querySelector('app-leaderboard-podium')).toBeNull();
+      expect(root().querySelector('kt-quiz-leaderboard-podium')).toBeNull();
       expect(root().querySelector('ol.entries')).toBeNull();
       expect(text()).toContain('Chưa có kết quả (1)');
       leave();
@@ -466,7 +466,7 @@ describe('AssignmentLeaderboard', () => {
       open();
 
       const hoa = rowOf('p3');
-      expect(hoa.querySelector('app-player-avatar')).not.toBeNull();
+      expect(hoa.querySelector('kt-quiz-player-avatar')).not.toBeNull();
       expect(clean(hoa)).toContain('Hoa');
       expect(clean(hoa)).toMatch(/Vào lúc 07:30/);
       expect(hoa.querySelector('button.remove')?.getAttribute('aria-label')).toBe('Xóa Hoa');
@@ -527,8 +527,8 @@ describe('AssignmentLeaderboard', () => {
 
       setFullscreen(true);
 
-      expect(rowOf('p1').querySelector('app-player-avatar')?.getAttribute('data-size')).toBe('lg');
-      expect(rowOf('p3').querySelector('app-player-avatar')?.getAttribute('data-size')).toBe('lg');
+      expect(rowOf('p1').querySelector('kt-quiz-player-avatar')?.getAttribute('data-size')).toBe('lg');
+      expect(rowOf('p3').querySelector('kt-quiz-player-avatar')?.getAttribute('data-size')).toBe('lg');
       leave();
     }));
 
@@ -760,8 +760,8 @@ describe('AssignmentLeaderboard', () => {
     open(detail({ players: [] }));
 
     expect(text()).toContain('Chưa có học sinh.');
-    expect(root().querySelector('app-share-link')).not.toBeNull();
-    expect(root().querySelector('app-leaderboard-podium')).toBeNull();
+    expect(root().querySelector('kt-quiz-share-link')).not.toBeNull();
+    expect(root().querySelector('kt-quiz-leaderboard-podium')).toBeNull();
     leave();
   }));
 
@@ -772,7 +772,7 @@ describe('AssignmentLeaderboard', () => {
     }));
 
     expect(text()).toContain('Chưa có học sinh.');
-    expect(root().querySelector('app-share-link')).toBeNull();
+    expect(root().querySelector('kt-quiz-share-link')).toBeNull();
     leave();
   }));
 

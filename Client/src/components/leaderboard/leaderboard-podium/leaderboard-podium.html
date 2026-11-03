@@ -8,13 +8,13 @@
         }
         <div class="avatars">
           @for (entry of step.shown; track entry.key) {
-            <app-player-avatar [avatar]="entry.avatar" [name]="entry.name" [ring]="step.ring" [size]="step.avatarSize"/>
+            <kt-quiz-player-avatar [avatar]="entry.avatar" [name]="entry.name" [ring]="step.ring" [size]="step.avatarSize"/>
           }
           @if (step.extra > 0) {
             <span aria-hidden="true" class="more">+{{ step.extra }}</span>
           }
         </div>
-        <app-marquee-text [text]="step.names" class="names"/>
+        <kt-quiz-marquee-text [text]="step.names" class="names"/>
         <p class="meta">{{ step.meta }}</p>
         <div aria-hidden="true" class="plinth">
           <span class="place">{{ medal(step.rank) }}</span>

@@ -30,7 +30,7 @@ import {
 // Stage 5: four answers numbered 1 to 4, picked by showing that many fingers (thumb not counted) to
 // the camera and holding them, or by a click or the 1-4 keys when there is no camera.
 @Component({
-  selector: 'app-finger-count-game',
+  selector: 'kt-quiz-finger-count-game',
   standalone: true,
   providers: [{
     provide: StageGameBase,

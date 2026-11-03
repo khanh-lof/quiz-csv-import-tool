@@ -224,7 +224,7 @@ function failureOf(err: unknown): { status: number; body: string } {
 // it is dealt (see `startSharedRun`). MediaPipe is loaded through VisionService only when the camera is
 // turned on, so this whole page is a lazy chunk.
 @Component({
-  selector: 'app-gesture-play',
+  selector: 'kt-quiz-gesture-play',
   imports: [
     RouterLink,
     NzButtonComponent,

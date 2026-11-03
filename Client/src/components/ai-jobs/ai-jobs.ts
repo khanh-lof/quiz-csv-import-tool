@@ -51,7 +51,7 @@ interface ResultTable {
 // (the page polls while one runs), lets the user search and filter what the AI produced, and hands a
 // finished job to the table page or exports it, the way the result used to be handled on completion.
 @Component({
-  selector: 'app-ai-jobs',
+  selector: 'kt-quiz-ai-jobs',
   imports: [
     CommonModule,
     FormsModule,

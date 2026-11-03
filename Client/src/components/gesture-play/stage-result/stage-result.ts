@@ -40,7 +40,7 @@ const SAVE_TEXT: Record<SaveState, string> = {
 // to go next. For a student's assignment it also says the run was kept (`saveState`). A stage with no runs
 // left (`attemptsLeft` 0) cannot be replayed.
 @Component({
-  selector: 'app-gesture-stage-result',
+  selector: 'kt-quiz-gesture-stage-result',
   imports: [NzButtonComponent, NzIconDirective],
   templateUrl: './stage-result.html',
   changeDetection: ChangeDetectionStrategy.Eager,

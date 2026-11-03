@@ -21,7 +21,7 @@ describe('ShareJoin', () => {
   const radios = () => Array.from(root().querySelectorAll<HTMLButtonElement>('button[role="radio"]'));
   const picked = () => radios().filter(radio => radio.getAttribute('aria-checked') === 'true');
   // The picture on top of the card: the emoji of the avatar it shows.
-  const hero = () => root().querySelector<HTMLElement>('.hero app-player-avatar')!;
+  const hero = () => root().querySelector<HTMLElement>('.hero kt-quiz-player-avatar')!;
   const idOf = (radio: HTMLButtonElement) => AVATARS.find(avatar => avatar.name === radio.getAttribute('aria-label'))!.id;
 
   async function type(text: string): Promise<void> {
@@ -119,7 +119,7 @@ describe('ShareJoin', () => {
   describe('the avatar', () => {
     it('offers the picker under the name field, labelled, with the 24 avatars', () => {
       expect(root().textContent).toContain('Chọn hình đại diện');
-      expect(root().querySelector('app-avatar-picker')).not.toBeNull();
+      expect(root().querySelector('kt-quiz-avatar-picker')).not.toBeNull();
       expect(radios().length).toBe(AVATARS.length);
     });
 

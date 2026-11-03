@@ -8,7 +8,7 @@
         <nz-icon class="done-icon" nzTheme="fill" nzType="check-circle"/>
         Đã giao bài.
       </p>
-      <app-share-link [code]="made.code" [qrSize]="200"/>
+      <kt-quiz-share-link [code]="made.code" [qrSize]="200"/>
       <div class="actions">
         <button (click)="tryAssignment(made)" nz-button nzType="default" type="button">
           <nz-icon nzTheme="outline" nzType="eye"/>
@@ -44,7 +44,7 @@
 
       <div class="field">
         <span class="field-label">Hẹn giờ đóng</span>
-        <app-deadline-picker [(value)]="deadline"/>
+        <kt-quiz-deadline-picker [(value)]="deadline"/>
       </div>
 
       <div class="field">

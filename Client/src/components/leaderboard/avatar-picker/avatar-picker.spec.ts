@@ -41,7 +41,7 @@ describe('AvatarPicker', () => {
     it('draws the emoji of each radio', () => {
       radios().forEach((radio, i) => {
         expect(radio.type).toBe('button');
-        expect(radio.querySelector('app-player-avatar')?.textContent?.trim()).toBe(AVATARS[i].emoji);
+        expect(radio.querySelector('kt-quiz-player-avatar')?.textContent?.trim()).toBe(AVATARS[i].emoji);
       });
     });
 
@@ -224,7 +224,7 @@ describe('AvatarPicker', () => {
 
 @Component({
   imports: [AvatarPicker],
-  template: `<app-avatar-picker [(value)]="avatar"/>`,
+  template: `<kt-quiz-avatar-picker [(value)]="avatar"/>`,
 })
 class Host {
   readonly avatar = signal('fox');

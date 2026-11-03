@@ -7,7 +7,7 @@
     @if (podium().length === 0) {
       <p class="note">Chưa ai có kết quả.</p>
     } @else {
-      <app-leaderboard-podium [entries]="podium()" [possible]="current.possible" [stageCount]="current.stageCount"/>
+      <kt-quiz-leaderboard-podium [entries]="podium()" [possible]="current.possible" [stageCount]="current.stageCount"/>
     }
 
     @if (onPodium()) {
@@ -17,10 +17,10 @@
     @if (ownRow(); as own) {
       <div class="own">
         <span class="rank">{{ own.rank }}</span>
-        <app-player-avatar [avatar]="own.avatar" [name]="own.name" size="md"/>
+        <kt-quiz-player-avatar [avatar]="own.avatar" [name]="own.name" size="md"/>
         <span class="info">
           <span class="who">
-            <app-marquee-text [text]="own.name"/>
+            <kt-quiz-marquee-text [text]="own.name"/>
             <span class="you-tag">Bạn</span>
           </span>
           <span class="score">

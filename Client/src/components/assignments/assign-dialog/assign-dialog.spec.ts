@@ -158,7 +158,7 @@ describe('AssignDialog', () => {
     expect(text()).toContain('Quiz HSK 1 bài 3');
     expect(text()).toContain('30 câu · 6 màn');
     expect(dialog()!.querySelector('#assign-label')).not.toBeNull();
-    expect(dialog()!.querySelector('app-deadline-picker')).not.toBeNull();
+    expect(dialog()!.querySelector('kt-quiz-deadline-picker')).not.toBeNull();
     expect(text()).toContain('Thời gian mỗi câu');
     expect(button('Giao bài').disabled).toBeFalse();
   });
@@ -581,7 +581,7 @@ describe('AssignDialog', () => {
     await settle();
 
     expect(text()).toContain('Đã giao bài.');
-    expect(dialog()!.querySelector('app-share-link')).not.toBeNull();
+    expect(dialog()!.querySelector('kt-quiz-share-link')).not.toBeNull();
     expect(dialog()!.querySelector('nz-qrcode')).not.toBeNull();
     expect(text()).toContain('K7M2X9QD4P');
     expect(dialog()!.querySelector('#assign-label')).toBeNull();
