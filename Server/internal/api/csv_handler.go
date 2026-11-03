@@ -436,7 +436,7 @@ func jobTitle(raw string, creative bool) string {
 		if creative {
 			return "AI tự nghĩ câu hỏi"
 		}
-		return "Từ ảnh bài học"
+		return "Hỏi chữ Hán"
 	}
 	if utf8.RuneCountInString(title) > maxTitleRunes {
 		title = string([]rune(title)[:maxTitleRunes])

@@ -336,19 +336,12 @@
   width: 80px;
 }
 
-/* The checkboxes sit beside the label when there is room and drop below it when there is not: 300px is
-   more than a phone leaves next to the label, so there the group takes the whole line and fits two games
-   a row instead of squeezing one into each. min-width 0 lets it shrink to the row, never push it wider. */
-.gesture-options .games-row {
-  align-items: flex-start;
-}
-
-.gesture-options nz-checkbox-group {
-  display: flex;
-  flex: 1 1 300px;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  min-width: 0;
+/* One card per game, three a row (two rows of three), or two on a phone, where a third would be under 120px. */
+.gesture-options .games {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(max(120px, calc((100% - 20px) / 3)), 1fr));
+  gap: 10px;
+  margin-top: 4px;
 }
 
 /* A line under the choices. */

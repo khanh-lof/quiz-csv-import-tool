@@ -2,7 +2,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
-  Directive,
   HostListener,
   signal,
   TemplateRef,
@@ -16,10 +15,8 @@ import { NzNotificationComponent, NzNotificationService } from 'ng-zorro-antd/no
 import { AiCsvService } from '../../services/ai-csv.service';
 import { AiJobService, NEW_JOB_IDLE_POLLS } from '../../services/ai-job.service';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
-import { NzCheckboxGroupComponent, NzCheckboxOption } from 'ng-zorro-antd/checkbox';
 import {
   AbstractControl,
-  ControlContainer,
   FormBuilder,
   FormControl,
   FormGroup,
@@ -49,7 +46,7 @@ import {
   questionsPerStageOf
 } from '../../models/gesture-quiz-options';
 import { formatLessonNumbers, lessonNumbersOf, MAX_LESSONS } from '../../models/lesson-numbers';
-import { STAGES } from '../../game/stages';
+import { stagePosition, STAGES } from '../../game/stages';
 import { finalize } from 'rxjs';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
@@ -58,6 +55,8 @@ import { UsageGuide } from '../usage-guide/usage-guide';
 import { WaygroundExtensionService } from '../../services/wayground-extension.service';
 import { escapeHtml } from '../../services/escape-html';
 import { NzContentComponent, NzLayoutComponent } from 'ng-zorro-antd/layout';
+import { NzTagComponent } from 'ng-zorro-antd/tag';
+import { GestureStageCard } from '../gesture-play/stage-card/stage-card';
 
 interface ImageItem {
   file: File;
@@ -67,20 +66,6 @@ interface ImageItem {
 // The page's choices, remembered between visits so a teacher going lesson by lesson does not
 // re-enter the course, level and platform every time.
 const SETTINGS_STORAGE_KEY = 'ai-generation-settings';
-
-// ng-zorro's checkbox keeps an ngModel on its own inner <input>, and Angular warns (NG01354) about every one of
-// them when the checkbox sits inside a [formGroup], as the games' group does. That input is not meant to join
-// the form: this hides the form from it, so it stays quiet. The group itself is bound with [formControl],
-// which needs no container.
-@Directive({
-  selector: '[appOutsideFormContainer]',
-  providers: [{
-    provide: ControlContainer,
-    useValue: null
-  }]
-})
-class OutsideFormContainer {
-}
 
 interface AiGenerationForm {
   courseType: FormControl<CourseType | null>;
@@ -109,8 +94,8 @@ interface AiGenerationForm {
     NzRadioGroupComponent,
     NzRadioComponent,
     NzInputNumberComponent,
-    NzCheckboxGroupComponent,
-    OutsideFormContainer,
+    NzTagComponent,
+    GestureStageCard,
     ReactiveFormsModule,
     NzOptionComponent,
     NzSelectComponent,
@@ -120,7 +105,7 @@ interface AiGenerationForm {
   ],
   templateUrl: './ai-generation.html',
   changeDetection: ChangeDetectionStrategy.Eager,
-  styleUrl: './ai-generation.css'
+  styleUrls: ['../gesture-play/game-themes.css', './ai-generation.css']
 })
 export class AiGeneration {
   // Signals, not plain fields, so a change made from an async callback (FileReader, HTTP) re-renders
@@ -139,11 +124,8 @@ export class AiGeneration {
   protected readonly questionsPerStageMax = QUESTIONS_PER_STAGE_MAX;
   protected readonly maxLessons = MAX_LESSONS;
   private readonly jobSentContent = viewChild.required<TemplateRef<{ $implicit: NzNotificationComponent, data: unknown }>>('jobSentContent');
-  // One checkbox per game, easiest first; the value is the stage number the game is known by everywhere.
-  protected readonly gestureStageOptions: NzCheckboxOption[] = STAGES.map(def => ({
-    label: `${def.icon} ${def.name}`,
-    value: def.stage,
-  }));
+  // One card per game, easiest first.
+  protected readonly stages = STAGES;
 
   // The options are rebuilt only when `lessonOptionsKey` changes, so the select is not handed a new list on every check.
   private lessonOptionsKey = '';
@@ -189,6 +171,25 @@ export class AiGeneration {
     return this.selectedImages().length > 0
       ? `Tạo câu hỏi (${this.selectedImages().length} ảnh)`
       : 'Tạo câu hỏi';
+  }
+
+  protected isGestureStageChosen(stage: number): boolean {
+    return this.formGroup.controls.gestureStages.value?.includes(stage) ?? false;
+  }
+
+  // "Màn N" as the quiz will number the game, by its place among the chosen ones; none for a game left out.
+  protected gestureStageLabel(stage: number): string | null {
+    const chosen = this.formGroup.controls.gestureStages.value ?? [];
+    return chosen.includes(stage) ? `Màn ${stagePosition(chosen, stage)}` : null;
+  }
+
+  protected toggleGestureStage(stage: number): void {
+    const control = this.formGroup.controls.gestureStages;
+    const chosen = control.value ?? [];
+    control.setValue(chosen.includes(stage)
+      ? chosen.filter(other => other !== stage)
+      : [...chosen, stage].sort((a, b) => a - b));
+    control.markAsDirty();
   }
 
   protected get maxLevel(): number {
@@ -340,7 +341,7 @@ export class AiGeneration {
     }
     const isFormatted = this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted;
     const submit$ = isFormatted
-      ? this.aiCsvService.submitFormatted(imageFiles, `Từ ảnh (${imageFiles.length} ảnh)`)
+      ? this.aiCsvService.submitFormatted(imageFiles, `Từ (${imageFiles.length} ảnh)`)
       : this.aiCsvService.submitCreative(imageFiles, {
         courseType: this.formGroup.controls.courseType.value,
         courseName: this.formGroup.controls.courseName.value,

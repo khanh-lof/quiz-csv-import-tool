@@ -56,7 +56,7 @@
         <label>Chọn chế độ: </label>
         <nz-radio-group [formControl]="formGroup.controls.AIMode" nzButtonStyle="solid">
           <label [nzValue]="AIGenerationMode.Auto" nz-radio-button>AI tự nghĩ câu hỏi</label>
-          <label [nzValue]="AIGenerationMode.Formatted" nz-radio-button>Tiếng Việt + pinyin + chữ Hán là gì?</label>
+          <label [nzValue]="AIGenerationMode.Formatted" nz-radio-button>Hỏi chữ Hán</label>
         </nz-radio-group>
       </div>
 
@@ -156,13 +156,19 @@
           </div>
         </div>
         @if (formGroup.controls.exportType.value === ExportType.GestureQuiz) {
-          <!-- Each game is one stage of the quiz; the hint under them says how many màn and câu the choice makes. -->
+          <!-- Each game is one stage of the quiz, numbered as the quiz will show it; a card toggles its game. -->
           <div class="gesture-options">
             <div class="field">
-              <div class="field-row games-row">
-                <span class="field-label" id="gestureStagesLabel">Trò chơi</span>
-                <nz-checkbox-group [formControl]="formGroup.controls.gestureStages" [nzOptions]="gestureStageOptions"
-                                   appOutsideFormContainer aria-labelledby="gestureStagesLabel" role="group"/>
+              <span class="field-label" id="gestureStagesLabel">Trò chơi</span>
+              <div aria-labelledby="gestureStagesLabel" class="games" role="group">
+                @for (def of stages; track def.stage) {
+                  <button (click)="toggleGestureStage(def.stage)" [attr.aria-pressed]="isGestureStageChosen(def.stage)"
+                          [def]="def" [label]="gestureStageLabel(def.stage)" appGestureStageCard compact>
+                    @if (isGestureStageChosen(def.stage)) {
+                      <nz-tag cardTag nzColor="success">✓</nz-tag>
+                    }
+                  </button>
+                }
               </div>
               <ng-container
                 *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Chọn ít nhất 1 trò chơi', $implicit: formGroup.controls.gestureStages}"/>

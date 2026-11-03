@@ -1,0 +1,15 @@
+<!-- The icon and the tag sit on the scene, the texts below it on white, so they read the same whatever the
+     scene's colours. -->
+<span class="card-scene">
+  <span aria-hidden="true" class="stage-icon">{{ def().icon }}</span>
+  <ng-content select="[cardTag]"/>
+</span>
+<span class="card-body">
+  <span class="stage-title">
+    @if (label(); as label) {
+      <span class="stage-no">{{ label }}</span>
+    }
+    <span class="stage-name">{{ def().name }}</span>
+  </span>
+  <ng-content/>
+</span>

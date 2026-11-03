@@ -266,6 +266,31 @@ describe('AiGeneration', () => {
     });
   });
 
+  it('toggles a game with its card, numbers the chosen ones as the quiz will, and needs one', () => {
+    fill({ courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 1, lessonNumbers: [1] });
+    page.formGroup.patchValue({ exportType: ExportType.GestureQuiz, gestureStages: [4, 6] });
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const cards = () => Array.from(element.querySelectorAll<HTMLButtonElement>('.gesture-options .stage-card'));
+
+    expect(cards().length).toBe(6);
+    expect(cards().map(card => card.getAttribute('aria-pressed')))
+      .toEqual(['false', 'false', 'false', 'true', 'false', 'true']);
+    expect(cards().map(card => card.querySelector('.stage-no')?.textContent ?? null))
+      .toEqual([null, null, null, 'Màn 1', null, 'Màn 2']);
+
+    cards()[0].click();
+    fixture.detectChanges();
+    expect(page.formGroup.get('gestureStages')?.value).toEqual([1, 4, 6]);
+    expect(cards()[3].querySelector('.stage-no')?.textContent).toBe('Màn 2');
+
+    [0, 3, 5].forEach(index => cards()[index].click());
+    fixture.detectChanges();
+    expect(page.formGroup.get('gestureStages')?.value).toEqual([]);
+    expect(page.formGroup.valid).toBeFalse();
+    expect(element.querySelector('.gesture-options .text-error')?.textContent).toContain('Chọn ít nhất 1 trò chơi');
+  });
+
   it('asks only for the course and the lessons for "Ghép bộ thủ"', async () => {
     page.formGroup.patchValue({
       courseType: CourseType.Other,

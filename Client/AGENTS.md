@@ -117,7 +117,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      import.
    - **`Auto`** (requires `courseType`/`lessonNumbers`/`exportType` in the page's form, plus `level`
      for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — or `courseName` for `Other`, and for Game
-     `gestureStages`, a checkbox per game with at least one ticked, and `questionsPerStage`, 4–10; images are
+     `gestureStages`, a toggle card per game (`GestureStageCard`, compact, numbered "Màn N" among the chosen ones) with at least one chosen, and `questionsPerStage`, 4–10; images are
      optional here. The two quiz controls are validated only for that platform, their limits and the sanitizers
      that read them back from the saved settings are `models/gesture-quiz-options.ts`, and `AiCsvService` sends
      them only for GestureQuiz; the form defaults to HSK 3.0) → the job's CSV
@@ -286,12 +286,14 @@ digits for tiles and Backspace to undo).
 saturated enough to survive a classroom projector. `game-themes.css` defines each game's world as custom
 properties keyed by `data-game` (`--g-scene`: 1 a violet game-show stage, 2 a sunset, 3 a pond, 4 dark wooden
 planks, 5 sunny yellow polka dots, 6 a chalkboard in a wooden frame; `--g-frame`, `--g-scrim`, `--g-inset`), and
-two components list it among their styles. `GesturePlay` puts `data-game` on the stage, where `play-themes.css`
+three components list it among their styles. `GesturePlay` puts `data-game` on the stage, where `play-themes.css`
 paints the scene behind the game, the frame and, while the camera is on, a scrim over the picture: the scene's
-colours at the top and bottom edges, clear in the middle where the player sees themselves. `GestureStageMap` puts
-it on each stage card, which wears the frame's colour and a band of the scene (the icon on a white disc, the
-status tag; the texts stay below it on white, and a locked card's band is faded), so a game looks the same on
-the map as once opened. The scrim is the stage's first element on purpose:
+colours at the top and bottom edges, clear in the middle where the player sees themselves. Each stage card
+(`GestureStageCard`, `stage-card/`, a `button[appGestureStageCard]` that sets `data-game` on itself) wears the
+frame's colour and a band of the scene (the icon on a white disc, a projected `cardTag` status tag; the texts
+stay below it on white, and a disabled or unchosen card's band is faded), so a game looks the same on the map
+as once opened. `GestureStageMap` and `AiGeneration`'s game choice place it, and each lists `game-themes.css`
+itself, because the card's host is styled by its placer's encapsulated selectors. The scrim is the stage's first element on purpose:
 `VisionService`'s video is prepended before it, so it lies between the picture and the game. A game's own
 palette (its cards, its accents) is in its stylesheet, and every game marks the shared meanings with the
 `--play-*` tokens of `styles.css`: `--play-ok` green with a ✓ stamp, `--play-bad` red with a ✗ stamp,
