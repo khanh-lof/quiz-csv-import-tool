@@ -71,7 +71,7 @@
               <nz-option [nzValue]="CourseType.Other" nzLabel="Khác"></nz-option>
             </nz-select>
             <ng-container
-              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Chưa nhập', $implicit: formGroup.controls.courseType}"/>
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.courseType}"/>
           </div>
           @if (formGroup.controls.courseType.value === CourseType.Hsk) {
             <!-- HSK 2.0 has 6 levels and the original Giáo trình chuẩn HSK; HSK 3.0 has 9 and its own books. -->
@@ -85,7 +85,7 @@
               <input [formControl]="formGroup.controls.courseName" class="course-name-input" nz-input
                      nzId="courseName" placeholder="Tên giáo trình"/>
               <ng-container
-                *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Chưa nhập', $implicit: formGroup.controls.courseName}"/>
+                *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.courseName}"/>
             </div>
           }
           <div class="field">
@@ -98,7 +98,7 @@
                                nzId="level"></nz-input-number>
             </div>
             <ng-container
-              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Chưa nhập', $implicit: formGroup.controls.level}"/>
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.level}"/>
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: 'HSK 2.0 chỉ có cấp 1–6', $implicit: formGroup.controls.level}"/>
           </div>
@@ -113,7 +113,7 @@
               </nz-select>
             </div>
             <ng-container
-              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Chưa nhập', $implicit: formGroup.controls.lessonNumbers}"/>
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.lessonNumbers}"/>
             @if (textbook; as book) {
               <ng-container
                 *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: book.title + ' chỉ có bài 1–' + book.lessons, $implicit: formGroup.controls.lessonNumbers}"/>
@@ -138,7 +138,7 @@
               <nz-option [nzValue]="ExportType.Radicals" nzLabel="Ghép bộ thủ"></nz-option>
             </nz-select>
             <ng-container
-              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Chưa nhập', $implicit: formGroup.controls.exportType}"/>
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.exportType}"/>
           </div>
           <div class="intelligence-selection">
             <label>Độ thông minh: </label>
@@ -181,7 +181,7 @@
                                  nzId="questionsPerStage"></nz-input-number>
               </div>
               <ng-container
-                *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Chưa nhập', $implicit: formGroup.controls.questionsPerStage}"/>
+                *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.questionsPerStage}"/>
             </div>
           </div>
         }
