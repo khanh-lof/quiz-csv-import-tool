@@ -1,7 +1,0 @@
-<button (click)="toggle()" [attr.aria-label]="compact() ? label() : null" [attr.aria-pressed]="paused()" [attr.title]="compact() ? label() : null" nz-button
-        nzSize="small" nzType="default" type="button">
-  <nz-icon [nzType]="paused() ? 'play-circle' : 'pause-circle'" nzTheme="outline"/>
-  @if (!compact()) {
-    <span>{{ label() }}</span>
-  }
-</button>

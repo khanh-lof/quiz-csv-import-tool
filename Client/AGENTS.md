@@ -414,7 +414,7 @@ routes added for this (see above for their guards).
   otherwise their own row under it (rank, avatar, marquee name, "Bạn" tag, "Hạng N · N/M màn · C/P câu"). A student
   who comes onto the podium hears `GameAudio`'s `finish` fanfare once per arrival (not on each poll; leaving the
   podium and returning plays it again). It also shows
-  "Chưa ai có kết quả." on an empty board, and a compact `MarqueePauseButton`. It loads on
+  "Chưa ai có kết quả." on an empty board. It loads on
   init and when `code` or `refreshKey` changes, every 30 s (`BOARD_POLL_MS`) while the tab is visible and once
   when it comes back; a failed load quietly keeps the last board and an older answer never replaces a newer
   one; nothing is drawn before the first answer. The page mounts it under the map in shared mode, with
@@ -508,13 +508,8 @@ page and the students' board:
 - `MarqueeText` (`app-marquee-text`, `text`) is a one-line name that scrolls only when it does not fit: right to
   left in a seamless loop (the text twice, 40 px apart, 40 px/s, holding still for the first 12% of each loop),
   like an LED ad sign. It measures on render, on a resize (`ResizeObserver`) and once the fonts have loaded,
-  pauses under the pointer, and stays still with an ellipsis while `MarqueeSettings.paused()` or under
-  `prefers-reduced-motion`; the full name is always its `title`. It needs a bounded width (`min-width: 0` in a
+  pauses under the pointer, and stays still with an ellipsis under `prefers-reduced-motion`; the full name is always its `title`. It needs a bounded width (`min-width: 0` in a
   grid or flex cell).
-- `MarqueeSettings` (root) keeps the "stop the moving names" choice in `localStorage['leaderboard-marquee-paused']`,
-  and `MarqueePauseButton` (`app-marquee-pause-button`, `compact`) toggles it: "Dừng chữ chạy" / "Bật chữ chạy".
-  That one switch for every moving name is what WCAG 2.2.2 (pause, stop, hide) asks of content that moves on
-  its own; keep one on any screen that shows marquee names.
 - `LeaderboardPodium` (`app-leaderboard-podium`: `entries` of `PodiumEntry`, `stageCount`, `possible`, `large`)
   is the top three: first in the middle and taller, second on its left, third on its right, by explicit grid
   column so the list reads 1, 2, 3. `podiumSteps` (`podium.ts`) groups the entries by rank 1 to 3: players tied
@@ -548,7 +543,7 @@ page and the students' board:
   `orderChanged`, `fileNameFor`, and `flip.ts` for the row slide). The header has the status and time mode and
   the actions: copy link, QR (a big code for a projector), "Xem thử" (`/play/preview/<id>`), "Đóng bài" and
   "Hẹn giờ đóng" while it is open, "Mở lại" when closed, "Tải bảng xếp hạng" and "Toàn màn hình" (full-screens the
-  board card, not the page). The board card ("Bảng xếp hạng", with a `MarqueePauseButton` beside "Làm mới")
+  board card, not the page). The board card ("Bảng xếp hạng", with "Làm mới")
   shows the server's order, never re-sorted: the `LeaderboardPodium` of the ranked players, then
   `ol.entries`, one `li.entry[data-player-id]` per ranked player (a subgrid of the list, so the columns line
   up): the rank (🥇🥈🥉, else the number), the avatar, the name in a `MarqueeText` with its move mark, one pip

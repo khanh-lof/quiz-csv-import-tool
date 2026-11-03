@@ -1,8 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MarqueeSettings } from '../marquee-settings.service';
 import { MARQUEE_GAP_PX, MARQUEE_MOVING_SHARE, MARQUEE_SPEED_PX_PER_S, MarqueeText } from './marquee-text';
 
-const KEY = 'leaderboard-marquee-paused';
 const SHORT = 'Lan';
 const LONG = 'Nguyễn Hoàng Bảo Ngọc Lan Phương Thảo Vy';
 
@@ -35,11 +33,8 @@ describe('MarqueeText', () => {
   let fixture: ComponentFixture<MarqueeText>;
 
   beforeEach(async () => {
-    localStorage.removeItem(KEY);
     await TestBed.configureTestingModule({ imports: [MarqueeText] }).compileComponents();
   });
-
-  afterEach(() => localStorage.removeItem(KEY));
 
   const host = () => fixture.nativeElement as HTMLElement;
   const isScrolling = () => host().classList.contains('is-scrolling');
@@ -161,23 +156,6 @@ describe('MarqueeText', () => {
 
       fixture.componentRef.setInput('text', LONG);
       await settle();
-      expect(isScrolling()).toBeTrue();
-    });
-
-    it('stays still, with an ellipsis, while names are paused, and runs again when they are not', async () => {
-      const settings = TestBed.inject(MarqueeSettings);
-
-      settings.setPaused(true);
-      fixture.detectChanges();
-      expect(isScrolling()).toBeFalse();
-      expect(track()).toBeNull();
-      expect(plain()?.textContent?.trim()).toBe(LONG);
-      expect(getComputedStyle(plain()!).textOverflow).toBe('ellipsis');
-      // Cut by the box: the text is wider than what is shown.
-      expect(plain()!.scrollWidth).toBeGreaterThan(plain()!.clientWidth);
-
-      settings.setPaused(false);
-      fixture.detectChanges();
       expect(isScrolling()).toBeTrue();
     });
 

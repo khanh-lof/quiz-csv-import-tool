@@ -7,7 +7,6 @@ import { SharedPlayService } from '../../../services/shared-play.service';
 import { BOARD_POLL_MS, StudentLeaderboard } from './student-leaderboard';
 
 const CODE = 'ABC123DEF4';
-const PAUSE_KEY = 'leaderboard-marquee-paused';
 
 function entry(rank: number | null, name: string, overrides: Partial<StudentBoardEntry> = {}): StudentBoardEntry {
   return {
@@ -45,7 +44,6 @@ describe('StudentLeaderboard', () => {
   let audio: jasmine.SpyObj<GameAudio>;
 
   beforeEach(() => {
-    localStorage.removeItem(PAUSE_KEY);
     visibility = spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
     shared = jasmine.createSpyObj<SharedPlayService>('SharedPlayService', ['leaderboard']);
     shared.leaderboard.and.callFake(() => of(board()));
@@ -62,7 +60,6 @@ describe('StudentLeaderboard', () => {
     });
   });
 
-  afterEach(() => localStorage.removeItem(PAUSE_KEY));
 
   const root = () => fixture.nativeElement as HTMLElement;
   const steps = () => Array.from(root().querySelectorAll<HTMLElement>('li.step'));
@@ -97,13 +94,11 @@ describe('StudentLeaderboard', () => {
     leave();
   }));
 
-  it('is a card titled "Bảng xếp hạng" with the pause switch for the moving names', fakeAsync(() => {
+  it('is a card titled "Bảng xếp hạng"', fakeAsync(() => {
     open();
 
     expect(clean(root().querySelector('h2'))).toBe('🏆 Bảng xếp hạng');
     expect(root().querySelector('section')?.getAttribute('aria-labelledby')).toBe(root().querySelector('h2')?.id);
-    const pause = root().querySelector('app-marquee-pause-button button')!;
-    expect(pause.getAttribute('aria-label')).toBe('Dừng chữ chạy');
     leave();
   }));
 

@@ -17,7 +17,6 @@ import { SharedPlayService } from '../../../services/shared-play.service';
 import { GameAudio } from '../../../game/game-audio';
 import { LeaderboardPodium } from '../../leaderboard/leaderboard-podium/leaderboard-podium';
 import { PodiumEntry } from '../../leaderboard/leaderboard-podium/podium';
-import { MarqueePauseButton } from '../../leaderboard/marquee-pause-button/marquee-pause-button';
 import { MarqueeText } from '../../leaderboard/marquee-text/marquee-text';
 import { PlayerAvatar } from '../../leaderboard/player-avatar/player-avatar';
 
@@ -41,7 +40,7 @@ const PODIUM_RANKS = 3;
 // closed when opened).
 @Component({
   selector: 'app-student-leaderboard',
-  imports: [LeaderboardPodium, MarqueePauseButton, MarqueeText, PlayerAvatar],
+  imports: [LeaderboardPodium, MarqueeText, PlayerAvatar],
   templateUrl: './student-leaderboard.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './student-leaderboard.css',

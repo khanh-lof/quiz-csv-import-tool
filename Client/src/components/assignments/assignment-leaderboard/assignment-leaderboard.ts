@@ -57,7 +57,6 @@ import {
 import { AssignmentService } from '../../../services/assignment.service';
 import { LeaderboardPodium } from '../../leaderboard/leaderboard-podium/leaderboard-podium';
 import { PodiumEntry } from '../../leaderboard/leaderboard-podium/podium';
-import { MarqueePauseButton } from '../../leaderboard/marquee-pause-button/marquee-pause-button';
 import { MarqueeText } from '../../leaderboard/marquee-text/marquee-text';
 import { PlayerAvatar } from '../../leaderboard/player-avatar/player-avatar';
 import { DeadlinePicker } from '../deadline-picker/deadline-picker';
@@ -125,7 +124,6 @@ interface RankedRow {
     FormsModule,
     DeadlinePicker,
     LeaderboardPodium,
-    MarqueePauseButton,
     MarqueeText,
     PlayerAvatar,
     ShareLink,
