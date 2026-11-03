@@ -1,9 +1,18 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, Directive, HostListener, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  Directive,
+  HostListener,
+  signal,
+  TemplateRef,
+  viewChild
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
-import { Router } from '@angular/router';
-import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { Router, RouterLink } from '@angular/router';
+import { NzNotificationComponent, NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiCsvService } from '../../services/ai-csv.service';
 import { AiJobService, NEW_JOB_IDLE_POLLS } from '../../services/ai-job.service';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
@@ -106,7 +115,8 @@ interface AiGenerationForm {
     NzOptionComponent,
     NzSelectComponent,
     NzInputDirective,
-    NzSpinComponent
+    NzSpinComponent,
+    RouterLink
   ],
   templateUrl: './ai-generation.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -128,6 +138,7 @@ export class AiGeneration {
   protected readonly questionsPerStageMin = QUESTIONS_PER_STAGE_MIN;
   protected readonly questionsPerStageMax = QUESTIONS_PER_STAGE_MAX;
   protected readonly maxLessons = MAX_LESSONS;
+  private readonly jobSentContent = viewChild.required<TemplateRef<{ $implicit: NzNotificationComponent, data: unknown }>>('jobSentContent');
   // One checkbox per game, easiest first; the value is the stage number the game is known by everywhere.
   protected readonly gestureStageOptions: NzCheckboxOption[] = STAGES.map(def => ({
     label: `${def.icon} ${def.name}`,
@@ -347,9 +358,7 @@ export class AiGeneration {
         // From here the server works on its own: the page may be left or closed, and the history tab
         // follows the job.
         this.clearAllImages();
-        this.notificationService.info('Đã gửi yêu cầu',
-          'Kết quả ở AI › Lịch sử.',
-          { nzPlacement: 'top' });
+        this.notificationService.info('Đã gửi yêu cầu', this.jobSentContent(), { nzPlacement: 'top' });
         // The first polls can come before the job is visible, so keep polling a little longer than usual.
         this.aiJobService.watch(NEW_JOB_IDLE_POLLS);
       },

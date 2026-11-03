@@ -72,7 +72,7 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
 `Workspace` (`src/components/workspace/`) is the shell of the main screens: a collapsible side menu (an
 inline `nz-menu` built from `NAV`: "Quiz thủ công", then the groups "AI" with "Tạo quiz" and "Lịch sử", and
 "Game" with "Chơi game" and "Bài đã giao", plus the login/logout item at its foot and, at its
-top, the collapse switch: a double-left/double-right icon button with a tooltip), a breadcrumb (`breadcrumbFor`, with its spec: group › page, and "Bảng xếp hạng" under "Bài đã giao" on an
+top, the collapse switch: a double-left/double-right icon button), a breadcrumb (`breadcrumbFor`, with its spec: group › page, and "Bảng xếp hạng" under "Bài đã giao" on an
 assignment's leaderboard, which is why that page has no back link) and the title. The pages are highlighted via
 `nzMatchRouter`, "Chơi game" never is because it leaves the frame for the full-screen `/play` page (see
 [Gesture quiz](#gesture-quiz-play)). The groups are open whenever the menu is; collapsed, the menu shows only
@@ -100,8 +100,8 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
 3. The `/ai` page, `AiGeneration` (drag-drop / paste / file-picker for one or more images,
    `AIGenerationMode.Formatted` or `.Auto` chosen in the page's form) →
    `AiCsvService.submitFormatted`/`submitCreative` posts it to the Server's `/api/csv/jobs`, which answers
-   `202 {id}` at once and goes on working. The page then shows a "Đã gửi yêu cầu" notice; the result is
-   not awaited. `AiJobService` (root service) keeps the user's jobs in a signal (`GET /api/csv/jobs`),
+   `202 {id}` at once and goes on working. The page then shows a "Đã gửi yêu cầu" notice, whose "AI › Lịch sử" is a router link
+   (an `ng-template` handed to the notification, closing it on click); the result is not awaited. `AiJobService` (root service) keeps the user's jobs in a signal (`GET /api/csv/jobs`),
    polling every 3 s while any job runs (`watch(idlePolls)`; stops after N answers without a running job
    or 10 failed ones, and is reset by `AuthService.cleared$` on logout) and announcing each job that
    finishes. `AiJobs` (`src/components/ai-jobs/`, the page of "AI › Lịch sử" in the menu, `/ai-history`) is the history table: client-side search
