@@ -270,17 +270,6 @@ func (d *Draft) assemble(info Info) assembled {
 
 // ---------- page configuration ----------
 
-func (b *builder) source() string {
-	o := b.d.opts
-	if o.VocabSource != "" {
-		return o.VocabSource
-	}
-	if o.CourseName != "" {
-		return "giáo trình " + o.CourseName
-	}
-	return ""
-}
-
 func (b *builder) config() map[string]string {
 	o := b.d.opts
 	source := o.VocabSource

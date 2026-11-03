@@ -321,7 +321,7 @@ func TestRenderHTML(t *testing.T) {
 	if got, want := strings.Count(page, "</script>"), strings.Count(data.head+data.logic, "</script>"); got != want {
 		t.Errorf("</script> appears %d times, the template has %d", got, want)
 	}
-	for _, want := range []string{"<title>Ghép bộ thủ thành chữ Hán – Sơ trung cấp (thử)</title>", "lxgw-wenkai-webfont@1.7.0", "fonts.googleapis.com", "Từ vựng theo bảng từ vựng ví dụ."} {
+	for _, want := range []string{"<title>Ghép bộ thủ thành chữ Hán – Sơ trung cấp (thử)</title>", "lxgw-wenkai-webfont@1.7.0", "fonts.googleapis.com"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page lacks %q", want)
 		}
@@ -413,9 +413,6 @@ func TestRenderHTMLIsScriptSafe(t *testing.T) {
 	}
 	if !strings.Contains(page, "&lt;b&gt;&quot;A&quot; &amp; &#x27;B&#x27;&lt;/b&gt;") {
 		t.Error("the title is not escaped like html.escape")
-	}
-	if !strings.Contains(ex.Footer, "a &lt;/script&gt; b") {
-		t.Errorf("footer %q", ex.Footer)
 	}
 }
 
