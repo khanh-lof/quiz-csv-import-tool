@@ -8,7 +8,7 @@ import { StageDef } from '../../../game/stages';
 // game-themes.css, which the placing component must list among its styles: the card sets data-game on its
 // host, and only the placing component's encapsulated selectors reach the host element.
 @Component({
-  selector: 'button[appGestureStageCard]',
+  selector: 'button[ktQuizGestureStageCard]',
   templateUrl: './stage-card.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './stage-card.css',

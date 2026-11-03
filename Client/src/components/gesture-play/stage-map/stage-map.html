@@ -24,7 +24,7 @@
     @for (card of cards(); track card.def.stage) {
       <button (click)="start.emit(card.def.stage)" [class]="'status-' + card.status" [def]="card.def"
               [disabled]="!card.playable" [label]="'Màn ' + card.position"
-              appGestureStageCard>
+              ktQuizGestureStageCard>
         @switch (card.status) {
           @case ('passed') {
             <nz-tag cardTag nzColor="success">Đã qua ✓</nz-tag>
