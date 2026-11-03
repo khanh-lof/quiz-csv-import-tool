@@ -109,7 +109,7 @@ func FromEnv() (Config, error) {
 
 		MongoURI:            os.Getenv("MONGODB_URI"),
 		MongoDatabase:       envOr("MONGODB_DATABASE", "QuizDb"),
-		MongoCollection:     envOr("MONGODB_COLLECTION", "Users"),
+		MongoCollection:     envOr("MONGODB_USERS_COLLECTION", "Users"),
 		MongoJobsCollection: envOr("MONGODB_JOBS_COLLECTION", "Jobs"),
 
 		MongoAssignmentsCollection: envOr("MONGODB_ASSIGNMENTS_COLLECTION", "Assignments"),
