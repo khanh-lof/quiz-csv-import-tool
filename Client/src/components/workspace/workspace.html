@@ -5,12 +5,10 @@
            (nzMatchRouter), so a refused navigation leaves the current page highlighted, and its group with it.
            The groups are open whenever the menu is, so the whole menu shows at once; collapsed, they are
            fly-outs, which must start closed. -->
-      <!-- The collapse switch sits at the top of the menu, an icon alone: its tooltip names the action. -->
+      <!-- The collapse switch sits at the top of the menu, an icon alone. -->
       <div class="sidebar-head">
-        <button (click)="toggleCollapsed()" [attr.aria-expanded]="!collapsed()" [attr.aria-label]="collapsed() ? 'Mở rộng menu' : 'Thu gọn menu'" [nzTooltipTitle]="collapsed() ? 'Mở rộng menu' : 'Thu gọn menu'"
-                class="collapse-toggle"
-                nz-tooltip
-                nzTooltipPlacement="right" type="button">
+        <button (click)="toggleCollapsed()" [attr.aria-expanded]="!collapsed()" [attr.aria-label]="collapsed() ? 'Mở rộng menu' : 'Thu gọn menu'"
+                class="collapse-toggle" type="button">
           <nz-icon [nzType]="collapsed() ? 'double-right' : 'double-left'" nzTheme="outline"/>
         </button>
       </div>
@@ -22,8 +20,7 @@
             <li [nzIcon]="entry.icon" [nzOpen]="!collapsed()" [nzTitle]="entry.label" nz-submenu>
               <ul>
                 @for (page of entry.pages; track page.route) {
-                  <li [nzTooltipTitle]="tooltipOf(page)" [nzTooltipTrigger]="tooltipTrigger(page)" nz-menu-item nz-tooltip
-                      nzMatchRouter nzTooltipPlacement="right">
+                  <li nz-menu-item nzMatchRouter>
                     <nz-icon [nzType]="page.icon" nzTheme="outline"/>
                     <span><a [routerLink]="page.route">{{ page.label }}</a></span>
                   </li>
@@ -31,8 +28,7 @@
               </ul>
             </li>
           } @else {
-            <li [nzTooltipTitle]="tooltipOf(entry)" [nzTooltipTrigger]="tooltipTrigger(entry)" nz-menu-item nz-tooltip
-                nzMatchRouter nzTooltipPlacement="right">
+            <li nz-menu-item nzMatchRouter>
               <nz-icon [nzType]="entry.icon" nzTheme="outline"/>
               <span><a [routerLink]="entry.route">{{ entry.label }}</a></span>
             </li>
@@ -44,14 +40,12 @@
            so logging in is optional; the AI pages ask for it on their own. -->
       <ul [nzInlineCollapsed]="collapsed()" [nzSelectable]="false" class="sidebar-foot" nz-menu nzMode="inline">
         @if (isLoggedIn()) {
-          <li (click)="logout()" [nzTooltipTrigger]="collapsed() ? 'hover' : null" nz-menu-item nz-tooltip
-              nzTooltipPlacement="right" nzTooltipTitle="Đăng xuất">
+          <li (click)="logout()" nz-menu-item>
             <nz-icon nzTheme="outline" nzType="logout"/>
             <span>Đăng xuất</span>
           </li>
         } @else {
-          <li (click)="login()" [nzTooltipTrigger]="collapsed() ? 'hover' : null" nz-menu-item nz-tooltip
-              nzTooltipPlacement="right" nzTooltipTitle="Đăng nhập">
+          <li (click)="login()" nz-menu-item>
             <nz-icon nzTheme="outline" nzType="login"/>
             <span>Đăng nhập</span>
           </li>

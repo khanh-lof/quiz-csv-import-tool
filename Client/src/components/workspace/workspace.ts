@@ -4,11 +4,8 @@ import {
   Component,
   computed,
   DestroyRef,
-  effect,
   inject,
-  signal,
-  untracked,
-  viewChildren
+  signal
 } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -17,7 +14,6 @@ import { NzBreadCrumbComponent, NzBreadCrumbItemComponent } from 'ng-zorro-antd/
 import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzMenuDirective, NzMenuItemComponent, NzSubMenuComponent } from 'ng-zorro-antd/menu';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { NzTooltipDirective } from 'ng-zorro-antd/tooltip';
 import { AuthService } from '../../services/auth.service';
 
 // The pages of the frame, as the routes that host them: the two ways of building a quiz, the history of the
@@ -30,8 +26,6 @@ export interface NavPage {
   route: WorkspaceMode | '/play';
   label: string;
   icon: string;
-  // Shown as the item's tooltip; none when the label says it all.
-  hint?: string;
   // The breadcrumb's last crumb on a page below this one (an assignment's leaderboard, a "Ghép bộ thủ" exercise).
   childLabel?: string;
 }
@@ -49,8 +43,7 @@ export const NAV: NavEntry[] = [
   {
     route: '/quiz',
     label: 'Quiz thủ công',
-    icon: 'table',
-    hint: 'Không cần đăng nhập.'
+    icon: 'table'
   },
   {
     label: 'AI',
@@ -59,14 +52,12 @@ export const NAV: NavEntry[] = [
       {
         route: '/ai',
         label: 'Tạo quiz',
-        icon: 'thunderbolt',
-        hint: 'Cần đăng nhập.'
+        icon: 'thunderbolt'
       },
       {
         route: '/ai-history',
         label: 'Lịch sử',
         icon: 'history',
-        hint: 'Cần đăng nhập.',
         childLabel: 'Ghép bộ thủ'
       }
     ]
@@ -84,7 +75,6 @@ export const NAV: NavEntry[] = [
         route: '/assignments',
         label: 'Bài đã giao',
         icon: 'trophy',
-        hint: 'Cần đăng nhập.',
         childLabel: 'Bảng xếp hạng'
       }
     ]
@@ -129,8 +119,7 @@ const NARROW_QUERY = '(max-width: 767px)';
     NzIconDirective,
     NzMenuDirective,
     NzMenuItemComponent,
-    NzSubMenuComponent,
-    NzTooltipDirective
+    NzSubMenuComponent
   ],
   templateUrl: './workspace.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -157,18 +146,6 @@ export class Workspace {
   private readonly narrow = matchMedia(NARROW_QUERY).matches;
   protected readonly collapsed = signal(this.narrow || this.storedCollapsed());
 
-  private readonly tooltips = viewChildren(NzTooltipDirective);
-
-  constructor() {
-    // Turning a trigger off leaves an open tooltip up, so the one on the item just navigated to (or on the
-    // collapse switch just used) is closed here.
-    effect(() => {
-      this.mode();
-      this.collapsed();
-      untracked(() => this.tooltips().forEach(tooltip => tooltip.hide()));
-    });
-  }
-
   // The router puts a mode's page on screen before its first change detection, which runs a task later.
   // In between the browser can draw the page without its ng-zorro classes (button types, checked radios,
   // input styles), and their `transition: all` then plays every control into its style slowly. Rendering
@@ -179,23 +156,6 @@ export class Workspace {
 
   protected isGroup(entry: NavEntry): entry is Extract<NavEntry, { pages: NavPage[] }> {
     return 'pages' in entry;
-  }
-
-  // An item's tooltip: always its name while the menu shows only icons, else the explanation, except on the
-  // page on screen, which already explains itself. It is turned off through the trigger, not by clearing the
-  // title, so the open one fades out with its text.
-  protected tooltipOf(page: NavPage): string {
-    if (!this.collapsed()) {
-      return page.hint ?? '';
-    }
-    return page.hint ? `${page.label}: ${page.hint}` : page.label;
-  }
-
-  protected tooltipTrigger(page: NavPage): 'hover' | null {
-    if (page.route === this.mode() || (!page.hint && !this.collapsed())) {
-      return null;
-    }
-    return 'hover';
   }
 
   protected toggleCollapsed(): void {

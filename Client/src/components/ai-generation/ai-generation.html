@@ -216,6 +216,9 @@
     </form>
   </nz-content>
 </nz-layout>
+<ng-template #jobSentContent let-notification>
+  Kết quả ở <a (click)="notification.close()" routerLink="/ai-history">AI › Lịch sử</a>.
+</ng-template>
 @if (isGenerating()) {
   <div aria-label="Đang gửi" aria-live="polite" class="generating-overlay" role="status">
     <nz-spin nzSimple nzSize="large"/>
