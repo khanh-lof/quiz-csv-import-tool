@@ -185,30 +185,30 @@
         @if (formGroup.controls.exportType.value === ExportType.GestureQuiz) {
           <!-- Each game is one stage of the quiz, numbered as the quiz will show it; a card toggles its game. -->
           <div class="gesture-options">
+          <div class="field">
+            <div class="field-row">
+              <label class="field-label" for="questionsPerStage">Số câu mỗi màn</label>
+              <nz-input-number [formControl]="formGroup.controls.questionsPerStage" [nzMax]="questionsPerStageMax"
+                               [nzMin]="questionsPerStageMin" [nzPrecision]="0" [nzStep]="1"
+                               nzId="questionsPerStage"></nz-input-number>
+            </div>
+            <ng-container
+              *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.questionsPerStage}"/>
+          </div>
             <div class="field">
-              <span class="field-label" id="gestureStagesLabel">Trò chơi</span>
+              <span class="field-label" id="gestureStagesLabel">Chọn Trò chơi</span>
               <div aria-labelledby="gestureStagesLabel" class="games" role="group">
                 @for (def of stages; track def.stage) {
                   <button (click)="toggleGestureStage(def.stage)" [attr.aria-pressed]="isGestureStageChosen(def.stage)"
-                          [def]="def" [label]="gestureStageLabel(def.stage)" appGestureStageCard compact>
+                          [def]="def" [label]="gestureStageLabel(def.stage)" ktQuizGestureStageCard compact>
                     @if (isGestureStageChosen(def.stage)) {
-                      <nz-tag cardTag nzColor="success">✓</nz-tag>
+                      <nz-tag cardTag nzColor="success">Đã chọn ✓</nz-tag>
                     }
                   </button>
                 }
               </div>
               <ng-container
                 *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Chọn ít nhất 1 trò chơi', $implicit: formGroup.controls.gestureStages}"/>
-            </div>
-            <div class="field">
-              <div class="field-row">
-                <label class="field-label" for="questionsPerStage">Số câu mỗi màn</label>
-                <nz-input-number [formControl]="formGroup.controls.questionsPerStage" [nzMax]="questionsPerStageMax"
-                                 [nzMin]="questionsPerStageMin" [nzPrecision]="0" [nzStep]="1"
-                                 nzId="questionsPerStage"></nz-input-number>
-              </div>
-              <ng-container
-                *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.questionsPerStage}"/>
             </div>
           </div>
         }
