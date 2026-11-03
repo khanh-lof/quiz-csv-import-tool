@@ -216,7 +216,7 @@ describe('RadicalsPlay', () => {
 
     expect(text()).toContain('Sửa các ô đỏ.');
     expect(text()).toContain('Pinyin không khớp số chữ');
-    expect(text()).toContain('Chưa nhập');
+    expect(text()).toContain('Nhập thiếu nàaa');
     expect(frame()).toBe('<html>v1</html>');
 
     // Typing in a flagged box takes its mark away until the next save.
