@@ -114,6 +114,18 @@ func TestParseCreativeOptions(t *testing.T) {
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=0", wantErr: "Invalid intelligence parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=3", wantErr: "Invalid intelligence parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=x", wantErr: "Invalid intelligence parameter."},
+		// The language: Chinese when absent, by ordinal or name, and the course must be one of its own.
+		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1", check: func(o Options) bool { return o.Language == Chinese }},
+		{query: "language=1&exportType=3&courseType=2&courseName=Global Success&level=6&lessonNumbers=2", check: func(o Options) bool {
+			return o.Language == English && o.CourseDisplayName() == "Global Success" && *o.Level == 6
+		}},
+		{query: "language=english&exportType=0&courseType=2&courseName=Kid's Box&lessonNumbers=1", check: func(o Options) bool {
+			return o.Language == English
+		}},
+		{query: "language=2&exportType=0&courseType=0&level=1&lessonNumbers=1", wantErr: "Invalid language parameter."},
+		{query: "language=1&exportType=0&courseType=0&level=1&lessonNumbers=1", wantErr: "Invalid or missing courseType parameter."},
+		{query: "language=1&exportType=0&courseType=1&level=6&lessonNumbers=1", wantErr: "Invalid or missing courseType parameter."},
+		{query: "language=1&exportType=4&courseType=2&courseName=Solutions&lessonNumbers=1", wantErr: "Radicals is only for Chinese."},
 	}
 	for _, tt := range tests {
 		q, _ := url.ParseQuery(tt.query)
@@ -609,6 +621,11 @@ func TestParseCreativeOptionsForTextbooks(t *testing.T) {
 		{query: "exportType=0&courseType=1&level=5&lessonNumbers=99", course: "YCT (Youth Chinese Test), taught from 《YCT标准教程》 YCT Standard Course (Giáo trình chuẩn YCT)"},
 		{query: "exportType=0&courseType=0&hskStandard=3&level=4&lessonNumbers=30", course: "HSK 3.0 (the nine-level standard GF 0025-2021), taught from the HSK 3.0 edition of 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK 3.0)"},
 		{query: "exportType=0&courseType=2&courseName=Boya&level=2&lessonNumbers=99", course: "Boya"},
+		// The English vocabulary review has no level, and its topics are 1 to 8.
+		{query: "language=1&exportType=0&courseType=3&lessonNumbers=8", course: "Ôn tập từ vựng lớp 10 (Grade 10 Vocabulary Review), the Ôn tập từ vựng lớp 10 textbook"},
+		{query: "language=1&exportType=0&courseType=3&level=5&lessonNumbers=1,2", course: "Ôn tập từ vựng lớp 10 (Grade 10 Vocabulary Review), the Ôn tập từ vựng lớp 10 textbook"},
+		{query: "language=1&exportType=0&courseType=3&lessonNumbers=9", wantErr: "Lesson must be 1 to 8 for Ôn tập từ vựng lớp 10."},
+		{query: "exportType=0&courseType=3&lessonNumbers=1", wantErr: "Invalid or missing courseType parameter."},
 	}
 	for _, tt := range tests {
 		q, _ := url.ParseQuery(tt.query)
@@ -622,6 +639,24 @@ func TestParseCreativeOptionsForTextbooks(t *testing.T) {
 		if err != nil || opts.CourseDisplayName() != tt.course {
 			t.Errorf("%s: got %q, %v, want course %q", tt.query, opts.CourseDisplayName(), err, tt.course)
 		}
+	}
+}
+
+func TestVocabularyReviewAsksForAnEasyQuiz(t *testing.T) {
+	useFixtureLibrary(t)
+	review := Options{Language: English, ExportType: GimKit, CourseType: VocabReview10, LessonNumbers: []int{2}}
+	level := 2
+	hsk := Options{ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumbers: []int{2}}
+	hasGuidance := func(opts Options) bool {
+		return slices.ContainsFunc(textsOf(t, buildCreativeRequest("m", nil, opts)), func(text string) bool {
+			return strings.HasPrefix(text, "Keep the quiz easy")
+		})
+	}
+	if !hasGuidance(review) {
+		t.Error("the vocabulary review's request must ask for an easy quiz")
+	}
+	if hasGuidance(hsk) {
+		t.Error("a book without guidance must not send any")
 	}
 }
 
@@ -780,7 +815,7 @@ func TestBuildCreativeRequestWithoutLessonMaterial(t *testing.T) {
 }
 
 func TestCreativeSystemPromptHasTheMaterialCase(t *testing.T) {
-	prompt := normalizePrompt(creativeSystemPrompt)
+	prompt := languagePrompts[Chinese].creativeSystem
 	for _, want := range []string{
 		"### When a LESSON MATERIAL message is provided",
 		"### When only images are provided",
@@ -795,5 +830,45 @@ func TestCreativeSystemPromptHasTheMaterialCase(t *testing.T) {
 	}
 	if strings.Index(prompt, "### When a LESSON MATERIAL") > strings.Index(prompt, "### When only images") {
 		t.Error("the material case comes first")
+	}
+}
+
+func TestPromptsByLanguage(t *testing.T) {
+	chinese, english := languagePrompts[Chinese], languagePrompts[English]
+	if !strings.HasPrefix(chinese.creativeSystem, "You are an expert Chinese-language teacher") ||
+		!strings.HasPrefix(english.creativeSystem, "You are an expert English-language teacher") {
+		t.Error("each language has its own teacher")
+	}
+	// The shared parts are sent to both.
+	for _, shared := range []string{"## IMAGE USAGE", "## CSV REQUIREMENTS", "### When a LESSON MATERIAL message is provided", "an image is only worth attaching"} {
+		if !strings.Contains(chinese.creativeSystem, shared) || !strings.Contains(english.creativeSystem, shared) {
+			t.Errorf("both prompts must have %q", shared)
+		}
+	}
+	for _, leftover := range []string{"{{", "Chinese", "pinyin", "Pinyin", "HSK", "汉", "a English", "A English"} {
+		if strings.Contains(english.creativeSystem, leftover) {
+			t.Errorf("the English prompt has %q", leftover)
+		}
+	}
+	if !strings.Contains(english.simpleSystem, "English vocabulary") || !strings.Contains(chinese.simpleSystem, "Chinese vocabulary") {
+		t.Error("the simple prompt follows the language")
+	}
+
+	opts := Options{Language: English, ExportType: GestureQuiz, CourseType: Other, CourseName: "Solutions", LessonNumbers: []int{1}}
+	message := buildGestureQuizMessage(opts)
+	for _, want := range []string{"leave every pinyin column empty", "at most 4 English words", "build an English sentence", "exactly 12 fields"} {
+		if !strings.Contains(message, want) {
+			t.Errorf("the English Game message lacks %q", want)
+		}
+	}
+	if strings.Contains(message, "tone marks") || strings.Contains(message, "{{") {
+		t.Error("the English Game message has Chinese rules")
+	}
+	req := buildCreativeRequest("m", nil, opts)
+	if req.Instructions != english.creativeSystem {
+		t.Error("an English request sends the English system prompt")
+	}
+	if got := buildSimpleRequest("m", nil, English).Messages[0].Content; got != english.simpleSystem {
+		t.Errorf("simple request: %v", got)
 	}
 }

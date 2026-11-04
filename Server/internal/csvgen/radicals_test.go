@@ -63,6 +63,9 @@ English: He plays basketball very well · Tiếng Việt: Anh ấy chơi bóng r
 // needs the vocabulary request.
 func TestTextbookLessonsGiveRadicalsWords(t *testing.T) {
 	for _, book := range books {
+		if !book.courseType.Teaches(Chinese) {
+			continue // Radicals is only for Chinese
+		}
 		for n, doc := range book.docs {
 			words := lessonVocabulary(doc)
 			if len(words) == 0 {

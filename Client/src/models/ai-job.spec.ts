@@ -2,6 +2,7 @@ import { AiJob, AiJobFilter, failedJobMessage, filterJobs, lessonLabel } from '.
 import { ExportType } from './export-type';
 import { CourseType } from './course-type';
 import { HskStandard } from './hsk-standard';
+import { QuizLanguage } from './quiz-language';
 
 function job(overrides: Partial<AiJob>): AiJob {
   return {
@@ -9,6 +10,7 @@ function job(overrides: Partial<AiJob>): AiJob {
     status: 'done',
     title: 'HSK3-Bai5',
     creative: true,
+    language: QuizLanguage.Chinese,
     exportType: ExportType.GimKit,
     intelligence: 1,
     imageCount: 0,
@@ -32,6 +34,7 @@ const NO_FILTER: AiJobFilter = {
   search: '',
   status: null,
   creative: null,
+  language: null,
   exportType: null,
   courseType: null,
   hskStandard: null,
@@ -162,6 +165,13 @@ describe('filterJobs by lesson', () => {
     expect(ids({ courseType: CourseType.Hsk })).toEqual(['a', 'b', 'c']);
     expect(ids({ courseType: CourseType.Yct })).toEqual(['d']);
     expect(ids({ courseType: CourseType.Other })).toEqual(['e']);
+  });
+
+  it('filters by language', () => {
+    const mixed = [...jobs, job({ id: 'g', language: QuizLanguage.English, courseType: CourseType.Other, courseName: 'Solutions' })];
+    const byLanguage = (language: QuizLanguage) => filterJobs(mixed, { ...NO_FILTER, language }).map(j => j.id);
+    expect(byLanguage(QuizLanguage.English)).toEqual(['g']);
+    expect(byLanguage(QuizLanguage.Chinese)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
   });
 
   it('filters by HSK standard', () => {

@@ -1,13 +1,23 @@
 <!-- The guide is a popup opened from a button, so the form keeps the full width.
      inert while generating: nothing behind the overlay can be clicked, focused or typed into. -->
 <nz-layout [attr.inert]="isGenerating() ? '' : null" class="ai-layout">
-  <kt-quiz-usage-guide>
-    <p><b>Tiếng Việt + pinyin + chữ Hán</b>: cần ít nhất 1 ảnh.</p>
-    <p><b>Giao bài</b>: gửi link cho học sinh, xem bảng xếp hạng ở <b>Bài đã giao</b>.</p>
-    <p>Tiện ích Wayground: <a (click)="downloadExtension($event)" href="/api/extension">tải về</a>,
-      <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
-         target="_blank">cách cài</a>.</p>
-  </kt-quiz-usage-guide>
+  <!-- The language decides everything below it (courses, platforms, prompts), so it heads the page on the left, the
+       guide on the right. -->
+  <div class="page-toolbar">
+    <nz-radio-group [formControl]="formGroup.controls.language" aria-label="Ngôn ngữ" class="language-switch"
+                    nzButtonStyle="solid" nzSize="large">
+      @for (option of languages; track option.value) {
+        <label [nzValue]="option.value" nz-radio-button><span class="language-tag">{{ option.tag }}</span>{{ option.label }}</label>
+      }
+    </nz-radio-group>
+    <kt-quiz-usage-guide>
+      <p><b>{{ language.formattedGuide }}</b>: cần ít nhất 1 ảnh.</p>
+      <p><b>Giao bài</b>: gửi link cho học sinh, xem bảng xếp hạng ở <b>Bài đã giao</b>.</p>
+      <p>Tiện ích Wayground: <a (click)="downloadExtension($event)" href="/api/extension">tải về</a>,
+        <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
+           target="_blank">cách cài</a>.</p>
+    </kt-quiz-usage-guide>
+  </div>
   <nz-content>
     <form (ngSubmit)="generate()" [formGroup]="formGroup" class="ai-form">
       <input #imageInput (change)="importFromImage($event)" accept="image/*" multiple style="display: none"
@@ -64,7 +74,7 @@
         <label>Chọn chế độ: </label>
         <nz-radio-group [formControl]="formGroup.controls.AIMode" nzButtonStyle="solid">
           <label [nzValue]="AIGenerationMode.Auto" nz-radio-button>AI tự nghĩ câu hỏi</label>
-          <label [nzValue]="AIGenerationMode.Formatted" nz-radio-button>Hỏi chữ Hán</label>
+          <label [nzValue]="AIGenerationMode.Formatted" nz-radio-button>{{ language.formattedLabel }}</label>
         </nz-radio-group>
         <div class="form-actions">
           <button [disabled]="isGenerating()" nz-button nzType="primary"
@@ -93,8 +103,9 @@
           <div class="field">
             <nz-select [formControl]="formGroup.controls.courseType" class="course-type-select"
                        nzId="courseType" nzPlaceHolder="Chọn giáo trình">
-              <nz-option [nzValue]="CourseType.Hsk" nzLabel="HSK"></nz-option>
-              <nz-option [nzValue]="CourseType.Yct" nzLabel="YCT"></nz-option>
+              @for (course of language.courses; track course.value) {
+                <nz-option [nzValue]="course.value" [nzLabel]="course.label"></nz-option>
+              }
               <nz-option [nzValue]="CourseType.Other" nzLabel="Khác"></nz-option>
             </nz-select>
             <ng-container
@@ -115,6 +126,7 @@
                 *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.courseName}"/>
             </div>
           }
+          @if (courseHasLevels(formGroup.controls.courseType.value)) {
           <div class="field">
             <div class="field-row">
               <label class="field-label" for="level">Cấp</label>
@@ -129,13 +141,14 @@
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: 'HSK 2.0 chỉ có cấp 1–6', $implicit: formGroup.controls.level}"/>
           </div>
+          }
           <div class="field">
             <div class="field-row">
-              <label class="field-label" for="lessonNumbers">Bài</label>
+              <label class="field-label" for="lessonNumbers">{{ lessonUnit }}</label>
               <nz-select [formControl]="formGroup.controls.lessonNumbers" [nzMaxMultipleCount]="maxLessons"
-                         class="lesson-select" nzId="lessonNumbers" nzMode="multiple" nzPlaceHolder="Chọn bài">
+                         class="lesson-select" nzId="lessonNumbers" nzMode="multiple" [nzPlaceHolder]="'Chọn ' + lessonUnit.toLowerCase()">
                 @for (lesson of lessonOptions; track lesson) {
-                  <nz-option [nzLabel]="lesson" [nzValue]="lesson"></nz-option>
+                  <nz-option [nzLabel]="lessonOptionLabel(lesson)" [nzValue]="lesson"></nz-option>
                 }
               </nz-select>
             </div>
@@ -143,7 +156,7 @@
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.lessonNumbers}"/>
             @if (textbook; as book) {
               <ng-container
-                *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: book.title + ' chỉ có bài 1–' + book.lessons, $implicit: formGroup.controls.lessonNumbers}"/>
+                *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: book.title + ' chỉ có ' + lessonUnit.toLowerCase() + ' 1–' + book.lessons, $implicit: formGroup.controls.lessonNumbers}"/>
             }
           </div>
         </div>
@@ -162,7 +175,9 @@
               <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
               <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
               <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Game (camera)"></nz-option>
-              <nz-option [nzValue]="ExportType.Radicals" nzLabel="Ghép bộ thủ"></nz-option>
+              @if (offers(ExportType.Radicals)) {
+                <nz-option [nzValue]="ExportType.Radicals" nzLabel="Ghép bộ thủ"></nz-option>
+              }
             </nz-select>
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.exportType}"/>

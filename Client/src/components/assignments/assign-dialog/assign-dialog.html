@@ -112,13 +112,15 @@
         </div>
       </div>
 
-      <div class="field">
-        <span class="field-label" id="assign-show-pinyin">Hiện pinyin</span>
-        <div aria-labelledby="assign-show-pinyin" class="attempts-row" role="group">
-          <nz-switch (ngModelChange)="showPinyin.set($event)" [ngModel]="showPinyin()"
-                     nzCheckedChildren="Bật" nzUnCheckedChildren="Tắt"/>
+      @if (quizHasPinyin()) {
+        <div class="field">
+          <span class="field-label" id="assign-show-pinyin">Hiện pinyin</span>
+          <div aria-labelledby="assign-show-pinyin" class="attempts-row" role="group">
+            <nz-switch (ngModelChange)="showPinyin.set($event)" [ngModel]="showPinyin()"
+                       nzCheckedChildren="Bật" nzUnCheckedChildren="Tắt"/>
+          </div>
         </div>
-      </div>
+      }
 
       @if (error(); as message) {
         <p class="error" role="alert">{{ message }}</p>

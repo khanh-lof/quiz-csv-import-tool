@@ -8,11 +8,17 @@ export interface Textbook {
   courseType: CourseType;
   // Only for HSK: the standard the book follows. A YCT book has none.
   hskStandard?: HskStandard;
-  level: number;
+  // Absent for a book with no levels (the English vocabulary review).
+  level?: number;
   // The book's lesson count: the server refuses a lesson number above it.
   lessons: number;
   title: string;
+  // What the book calls its lessons, "Bài" when absent, and their names, shown after the number in the lesson select.
+  lessonUnit?: string;
+  lessonNames?: readonly string[];
 }
+
+export const DEFAULT_LESSON_UNIT = 'Bài';
 
 export const TEXTBOOKS: readonly Textbook[] = [
   {
@@ -63,15 +69,23 @@ export const TEXTBOOKS: readonly Textbook[] = [
     lessons: 15,
     title: '《YCT标准教程6》'
   },
+  {
+    courseType: CourseType.VocabReview10,
+    lessons: 8,
+    title: 'Ôn tập từ vựng lớp 10',
+    lessonUnit: 'Topic',
+    lessonNames: ['The Environment', 'The Family', 'Culture', 'Employment', 'Education', 'Technology', 'Social Issues',
+      'Entertainment']
+  },
 ];
 
 // The book for the chosen course, or undefined when there is none (a course typed in by hand never has one,
 // and HSK needs the standard to match as well as the level).
 export function textbookFor(courseType: CourseType | null, hskStandard: HskStandard | null,
                             level: number | null): Textbook | undefined {
-  if (courseType === null || level === null || courseType === CourseType.Other) {
+  if (courseType === null || courseType === CourseType.Other) {
     return undefined;
   }
-  return TEXTBOOKS.find(book => book.courseType === courseType && book.level === level
+  return TEXTBOOKS.find(book => book.courseType === courseType && (book.level === undefined || book.level === level)
     && (courseType !== CourseType.Hsk || book.hskStandard === hskStandard));
 }

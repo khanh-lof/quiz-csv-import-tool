@@ -23,6 +23,9 @@ type Job struct {
 	// Title names the lesson for the user, e.g. "HSK3-Bai5"; chosen by the client.
 	Title    string `bson:"title"`
 	Creative bool   `bson:"creative"`
+	// Language is the csvgen.Language ordinal the job was asked in, for both modes; absent, Chinese, on the jobs
+	// from before English and on every Chinese job.
+	Language int `bson:"language,omitempty"`
 	// ExportType is the csvgen.ExportType ordinal; only creative jobs have one.
 	ExportType   *int `bson:"exportType,omitempty"`
 	Intelligence int  `bson:"intelligence"`

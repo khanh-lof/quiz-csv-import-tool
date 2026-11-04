@@ -3,8 +3,9 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AiGenerationRequest } from '../models/ai-generation-request';
 import { AIGenerationMode } from '../models/aigeneration-mode';
-import { CourseType } from '../models/course-type';
+import { CourseType, courseHasLevels } from '../models/course-type';
 import { ExportType } from '../models/export-type';
+import { QuizLanguage } from '../models/quiz-language';
 
 // What the server answers when it accepts a generation. The result is not in it: the server keeps
 // working on the job after answering, and `AiJobService` follows it.
@@ -28,11 +29,12 @@ export class AiCsvService {
     let params = new HttpParams()
       .set('title', title)
       .set('isCreative', aiGenerationRequest.AIMode === AIGenerationMode.Auto)
+      .set('language', aiGenerationRequest.language ?? QuizLanguage.Chinese)
       .set('exportType', aiGenerationRequest.exportType!)
       .set('courseType', aiGenerationRequest.courseType!)
       .set('lessonNumbers', [...aiGenerationRequest.lessonNumbers!].sort((a, b) => a - b).join(','));
 
-    if (aiGenerationRequest.level !== null) {
+    if (aiGenerationRequest.level !== null && courseHasLevels(aiGenerationRequest.courseType)) {
       params = params.set('level', aiGenerationRequest.level);
     }
     if (aiGenerationRequest.intelligence !== null) {
@@ -58,9 +60,9 @@ export class AiCsvService {
     return this.httpClient.post<SubmittedJob>(this.endpointUrl, this.buildBody(imageFiles), { params });
   }
 
-  submitFormatted(imageFiles: File[], title: string): Observable<SubmittedJob> {
+  submitFormatted(imageFiles: File[], title: string, language: QuizLanguage): Observable<SubmittedJob> {
     return this.httpClient.post<SubmittedJob>(this.endpointUrl, this.buildBody(imageFiles),
-      { params: new HttpParams().set('title', title) });
+      { params: new HttpParams().set('title', title).set('language', language) });
   }
 
   extractCsvContent(rawText: string): string {

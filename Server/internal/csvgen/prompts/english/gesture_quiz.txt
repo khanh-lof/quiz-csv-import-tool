@@ -1,0 +1,11 @@
+{{define "option-length" -}}
+at most 4 English words or about 6 Vietnamese words
+{{- end}}
+
+{{define "pinyin-columns" -}}
+Pinyin columns: the Question and every answer are followed by a pinyin column (Question Pinyin, Correct Answer Pinyin, Wrong Answer 1 Pinyin and so on), which only a Chinese quiz uses. This quiz is English, so leave every pinyin column empty in every row, and never write a pronunciation or a phonetic transcription in them.
+{{- end}}
+
+{{define "explanation" -}}
+one short Vietnamese sentence shown after the learner answers, for example the tested word with its meaning, or why the answer is right. It may quote the English words it explains, and it has no pinyin column.
+{{- end}}

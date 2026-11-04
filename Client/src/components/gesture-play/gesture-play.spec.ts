@@ -78,6 +78,7 @@ function gestureJob(overrides: Partial<AiJob> = {}): AiJob {
     status: 'done',
     title: 'HSK1 bài 1',
     creative: true,
+    language: 0,
     exportType: ExportType.GestureQuiz,
     intelligence: 1,
     imageCount: 0,

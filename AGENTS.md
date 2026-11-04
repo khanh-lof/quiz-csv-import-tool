@@ -4,7 +4,7 @@ This file provides guidance to AI when working with code in this repository.
 
 ## What this is
 
-QuizTool turns photos of a Chinese (HSK) lesson into a quiz file that can be imported into GimKit,
+QuizTool turns photos of a Chinese (HSK) or English lesson into a quiz file that can be imported into GimKit,
 Blooket, or Wayground, or into a quiz that QuizTool plays itself as a webcam gesture game
 ("Game"). A teacher can also hand a Game to students as a link ("Giao bài"): they play it
 with no account and the teacher watches their leaderboard. Besides quizzes, the AI page builds one
@@ -176,9 +176,36 @@ Consequences to keep in mind when changing anything here:
 - Export output format is per-platform: GimKit, Blooket and Game download as `.csv`, Wayground is
   converted to `.xlsx` via `xlsx` before download (`FileExportService.download`).
 
+## Chinese and English
+
+A quiz teaches one language, which the AI page asks for first, with a switch ("中 Tiếng Trung" / "EN Tiếng Anh") on
+the left of the "Hướng dẫn sử dụng" button. Each language keeps its own course, level, lessons and platform on the
+page. Everything else is shared; only what a language needs differs.
+
+- **The wire.** `Language` (`Server/internal/csvgen/language.go`) and `QuizLanguage` (`Client/src/models/quiz-language.ts`),
+  `Chinese` and `English` (0–1), travel **by ordinal** as `language` on `POST csv/jobs`, in both modes. Absent means
+  Chinese, what every request was before English; anything else is 400 `Invalid language parameter.`.
+- **Courses belong to a language.** `courseLanguages` on the server and `LANGUAGES[].courses` on the client, kept in
+  step by hand: HSK and YCT are Chinese, `Other` (a course typed in by hand) belongs to every language. A course of
+  the other language is 400 `Invalid or missing courseType parameter.`. English has one course of its own,
+  `VocabReview10` (ordinal 3, "Ôn tập từ vựng lớp 10", see [Textbook lessons](#textbook-lessons)), besides `Other`, which
+  the form still picks for the teacher when the language changes; further books are added like the Chinese ones, with a
+  `CourseType` member each.
+- **Platforms.** Every platform works in both languages except Radicals ("Ghép bộ thủ", built from the components of
+  characters): for English it is 400 `Radicals is only for Chinese.` and the form does not offer it.
+- **Prompts.** `prompts/creative_system.txt` and `prompts/gesture_quiz_template.txt` are shared `text/template`
+  skeletons; each language fills their `{{template}}` blocks from `prompts/<chinese|english>/` and has its own
+  `simple_system.txt` and `gesture_quiz_stages.txt` there. The Chinese prompts render exactly as they did before the split.
+- **The Game keeps one CSV layout.** An English Game has the same 12 columns with every pinyin column empty, so both
+  parsers, the server's dealing and the assignments are unchanged. The "Hiện pinyin" switches (the player's, the
+  assign dialog's and the leaderboard page's) are shown only for a quiz that has some pinyin (`hasPinyin`).
+- **The job keeps its language** (`language` on `store.Job`, omitted for Chinese; `GET csv/jobs` always sends it), so
+  "Tạo lại" asks in the same language and the history can be filtered by it. The formatted mode is named after the
+  language there and on the AI page ("Hỏi chữ Hán" / "Hỏi từ tiếng Anh").
+
 ## Textbook lessons
 
-For seven books QuizTool holds the lessons themselves:
+For seven Chinese books and one English book QuizTool holds the lessons themselves:
 
 | Book | Course | Lessons |
 |---|---|---|
@@ -189,6 +216,13 @@ For seven books QuizTool holds the lessons themselves:
 | 《新HSK教程2》 | HSK 3.0 level 2 | 15 |
 | 《新HSK教程3》 | HSK 3.0 level 3 | 18 |
 | 《YCT标准教程6》 | YCT level 6 | 15 |
+| Ôn tập từ vựng lớp 10 | `VocabReview10` (English, no level) | 8 topics |
+
+The English book is a vocabulary review, not a coursebook: each "lesson" is a topic (The Environment, The Family,
+Culture, Employment, Education, Technology, Social Issues, Entertainment), a passage with bolded words and their
+definitions. The AI form calls its lessons "Topic" and lists them by number and name (`lessonUnit` and `lessonNames`
+of the client's `TEXTBOOKS` entry). A book with no level has `level` 0 on the server and none on the client, and its
+request carries none.
 
 - **What gets sent.** One curated markdown document per lesson is embedded in the server
   (`Server/internal/csvgen/textbooks/<book>/lesson-NN.md`) and sent with a request for that lesson as its

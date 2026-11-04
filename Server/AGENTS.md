@@ -135,8 +135,10 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   errors are still answered synchronously with the plain-text bodies below. `title` (query, capped at
   100 runes) names the job. `listJobs` returns the user's jobs newest first (JSON `{"jobs": [...]}`,
   the CSV included, and `retryable`/`retryUntil` from `retryState`) after failing any job running past `LLM_TIMEOUT_SECONDS` + 1 min as abandoned (and
-  refunding its call). `isCreative=true` switches to the creative prompt and requires `exportType`,
-  `courseType`, `lessonNumbers`, plus `level` (HSK/YCT) or `courseName` (`Other`), and for GestureQuiz the
+  refunding its call). Both modes take an optional `language` (`csvgen.ParseLanguage`, see
+  [Chinese and English](../AGENTS.md#chinese-and-english)), which picks the prompts and is kept on the job.
+  `isCreative=true` switches to the creative prompt and requires `exportType`,
+  `courseType` (one of the language's courses), `lessonNumbers`, plus `level` (HSK/YCT) or `courseName` (`Other`), and for GestureQuiz the
   optional `gestureStages` and `questionsPerStage` (see [Choosing the games](../AGENTS.md#the-gesture-quiz-game)) — parsed by
   `csvgen.ParseCreativeOptions` (400 with the message on failure). `lessonNumbers` is a comma-separated list
   of distinct lessons, each 1 or more, in any order (kept ascending in `Options.LessonNumbers`). A missing or
@@ -309,7 +311,12 @@ cookie.
   `GestureQuiz`, which is not an import target: its columns are the ones the client's own game parser
   (`parseGestureQuiz`, `Client/src/models/gesture-quiz.ts`) reads, and the two are kept in step by hand.
 - Prompts live in `prompts/*.txt` (`go:embed`); CRLF from a Windows checkout is normalized at use.
-  `creative_system.txt` is the long Chinese-teacher prompt shared by every platform, and a platform's
+  What differs by language is in `prompts/chinese/` and `prompts/english/`, loaded per `Language` into
+  `languagePrompts` (`language.go`) when the package loads (a missing file or block panics): `simple_system.txt`, the
+  `{{define}}` blocks of `creative.txt` and `gesture_quiz.txt`, and the six rules of `gesture_quiz_stages.txt`. The
+  shared files are templates that the blocks fill in, with `.Lang`, `.ALang`, `.ALangCapital` and `.Forms`
+  (`pinyin` / `spelling`) for the one-word differences. Rewording the shared text changes both languages.
+  `creative_system.txt` is the long teacher prompt shared by every platform, and a platform's
   `exportTypeMessages` case sends its column line and, as a message of its own, `wayground_template.txt` for
   Wayground or what `buildGestureQuizMessage` builds for GestureQuiz. The Game message holds the whole format: the stages the teacher chose, which row shape each
   one takes, how to classify a question by its real difficulty into a stage, exactly `QuestionsPerStage` rows
@@ -317,7 +324,8 @@ cookie.
   the text, and empty where it would give the answer away), and a Vietnamese Explanation on every row. It is
   built from two files:
   `gesture_quiz_template.txt`, a `text/template` (`missingkey=error`) with the framing and its variants (one
-  stage or several, some stages left out, any stage with options), and `gesture_quiz_stages.txt`, the six
+  stage or several, some stages left out, any stage with options) and the language's blocks (option length, the
+  pinyin columns, the Explanation), and the language's `gesture_quiz_stages.txt`, the six
   tuned stage rules, one paragraph each starting `Stage N – `, of which only the chosen ones are sent word for
   word (the file is checked when the package loads and a malformed one panics). With the defaults (all six,
   5 each) it reads like the original one-file prompt apart from the counts. The message
@@ -325,12 +333,16 @@ cookie.
   a template defines stages or its own ordering format). The client plays those rows, so see the stage table in
   [../AGENTS.md](../AGENTS.md#the-gesture-quiz-game) before changing the template.
 - **Textbook lessons** (`textbooks.go`, `textbooks/<book>/lesson-NN.md`, embedded with `go:embed textbooks`).
-  For seven books the teacher need not send photos, nor leave the model to rebuild the lesson from memory:
+  For eight books the teacher need not send photos, nor leave the model to rebuild the lesson from memory:
   the curated document of the lesson is sent as a **LESSON MATERIAL** message. The books are the hand-kept
   `textbookRegistry` (`dir`, title, `CourseType`, `HskStandard`, level and the pinned **lesson count**):
   `hsk2-1`, `hsk2-2`, `hsk2-3` (HSK 2.0 levels 1 to 3, 15, 15 and 20 lessons, their own `hsk2` series: a learner of level 2 knows the level 1 book), `hsk3-1`, `hsk3-2`, `hsk3-3` (HSK 3.0 levels 1 to 3, 15, 15 and 18 lessons, one series: a learner of level
   N knows the lower books) and `yct-6` (YCT level 6, 15 lessons, alone; YCT 1 to 5 have no material and the
-  learner is assumed to know them). The client mirrors the registry in `Client/src/models/textbook.ts`, so
+  learner is assumed to know them) and `vocab10` (the English vocabulary review "Ôn tập từ vựng lớp 10",
+  `CourseType` `VocabReview10`, 8 topics as lessons, no level: its `level` is 0, `textbookFor` ignores the request's
+  level for it, and the request's `level` is optional for it as for `Other`; its Known vocabulary list is joined with
+  ", " instead of "、", and its `quizGuidance` ("Keep the quiz easy: …") is sent with the course and lesson in every
+  request; any book may carry one). The client mirrors the registry in `Client/src/models/textbook.ts`, so
   adding a book or a lesson means changing the folder, the registry and that file together. `textbookFor`
   matches `CourseType` + (HSK only) `HskStandard` + `*Level`; `Other` and HSK 2.0 above level 3 never match, and neither does
   anything when the library did not load. A match changes `CourseDisplayName()` to the book's full name

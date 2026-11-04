@@ -6,6 +6,7 @@ import { AIGenerationMode } from '../models/aigeneration-mode';
 import { CourseType } from '../models/course-type';
 import { ExportType } from '../models/export-type';
 import { HskStandard } from '../models/hsk-standard';
+import { QuizLanguage } from '../models/quiz-language';
 
 const URL = '/api/csv/jobs';
 
@@ -25,11 +26,12 @@ describe('AiCsvService', () => {
 
   it('returns the id the server answered for a formatted job', () => {
     let result: string | undefined;
-    service.submitFormatted([], 'Hỏi chữ Hán').subscribe(job => result = job.id);
+    service.submitFormatted([], 'Hỏi chữ Hán', QuizLanguage.Chinese).subscribe(job => result = job.id);
 
     const req = http.expectOne(r => r.url === URL);
     expect(req.request.method).toBe('POST');
     expect(req.request.params.get('title')).toBe('Hỏi chữ Hán');
+    expect(req.request.params.get('language')).toBe(String(QuizLanguage.Chinese));
     expect(req.request.params.has('isCreative')).toBeFalse();
     req.flush({ id: 'abc' });
 
@@ -38,6 +40,7 @@ describe('AiCsvService', () => {
 
   it('sends the lesson of a creative job as query parameters', () => {
     service.submitCreative([], {
+      language: QuizLanguage.Chinese,
       courseType: CourseType.Hsk,
       courseName: 'ignored',
       hskStandard: HskStandard.V3,
@@ -53,6 +56,7 @@ describe('AiCsvService', () => {
     const params = http.expectOne(r => r.url === URL).request.params;
     expect(params.get('title')).toBe('HSK3.0-4-Bai5');
     expect(params.get('isCreative')).toBe('true');
+    expect(params.get('language')).toBe(String(QuizLanguage.Chinese));
     expect(params.get('exportType')).toBe(String(ExportType.Wayground));
     expect(params.get('courseType')).toBe(String(CourseType.Hsk));
     expect(params.get('hskStandard')).toBe(String(HskStandard.V3));
@@ -63,8 +67,32 @@ describe('AiCsvService', () => {
     expect(params.has('courseName')).toBeFalse();
   });
 
+  it('sends the language of an English job, and Chinese when none is set', () => {
+    service.submitCreative([], {
+      language: QuizLanguage.English,
+      courseType: CourseType.Other,
+      courseName: 'Global Success',
+      hskStandard: HskStandard.V3,
+      level: 6,
+      lessonNumbers: [2],
+      AIMode: AIGenerationMode.Auto,
+      exportType: ExportType.GestureQuiz,
+      intelligence: 1,
+      gestureStages: null,
+      questionsPerStage: null,
+    }, 'Global Success6-Bai2').subscribe();
+    const params = http.expectOne(r => r.url === URL).request.params;
+    expect(params.get('language')).toBe(String(QuizLanguage.English));
+    expect(params.get('courseName')).toBe('Global Success');
+    expect(params.has('hskStandard')).toBeFalse();
+
+    service.submitFormatted([], 'Từ (1 ảnh)', QuizLanguage.English).subscribe();
+    expect(http.expectOne(r => r.url === URL).request.params.get('language')).toBe(String(QuizLanguage.English));
+  });
+
   describe('the lessons', () => {
     const lessonsRequest = (lessonNumbers: number[]) => ({
+      language: null,
       courseType: CourseType.Yct,
       courseName: null,
       hskStandard: null,
@@ -94,6 +122,7 @@ describe('AiCsvService', () => {
 
   describe('the gesture quiz options', () => {
     const request = (exportType: ExportType, gestureStages: number[] | null, questionsPerStage: number | null) => ({
+      language: QuizLanguage.Chinese,
       courseType: CourseType.Hsk,
       courseName: null,
       hskStandard: HskStandard.V2,
@@ -150,7 +179,7 @@ describe('AiCsvService', () => {
     }
 
     it('sends neither with a formatted job', () => {
-      service.submitFormatted([], 'Hỏi chữ Hán').subscribe();
+      service.submitFormatted([], 'Hỏi chữ Hán', QuizLanguage.Chinese).subscribe();
 
       const params = http.expectOne(r => r.url === URL).request.params;
       expect(params.has('gestureStages')).toBeFalse();
@@ -161,7 +190,7 @@ describe('AiCsvService', () => {
   for (const status of [400, 401, 403, 413, 500, 502, 503, 504]) {
     it(`does not re-send after ${status}`, () => {
       let got: number | undefined;
-      service.submitFormatted([], 'x').subscribe({ error: err => got = err.status });
+      service.submitFormatted([], 'x', QuizLanguage.Chinese).subscribe({ error: err => got = err.status });
 
       http.expectOne(r => r.url === URL).flush('error', {
         status,
@@ -181,6 +210,7 @@ describe('AiCsvService', () => {
 
   it('sends only the lesson for "Ghép bộ thủ"', () => {
     service.submitCreative([], {
+      language: QuizLanguage.Chinese,
       courseType: CourseType.Other,
       courseName: 'Boya',
       hskStandard: null,

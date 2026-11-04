@@ -16,6 +16,7 @@ function job(overrides: Partial<AiJob> = {}): AiJob {
     status: 'done',
     title: 'Quiz HSK 1 bài 3',
     creative: true,
+    language: 0,
     exportType: 3,
     intelligence: 1,
     imageCount: 0,
@@ -529,6 +530,13 @@ describe('AssignDialog', () => {
 
       expect(text()).toContain('Hiện pinyin');
       expect(pinyinSwitch().classList).not.toContain('ant-switch-checked');
+      expect((await send())['showPinyin']).toBeFalse();
+    });
+
+    it('is not offered for a quiz without pinyin, such as an English one, and is sent as false', async () => {
+      await show(job({ language: 1, csv: '1,"Apple" means quả táo.,,Đúng,,,,,,,,Apple là quả táo.' }));
+
+      expect(text()).not.toContain('Hiện pinyin');
       expect((await send())['showPinyin']).toBeFalse();
     });
 

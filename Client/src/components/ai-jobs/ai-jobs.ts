@@ -19,6 +19,7 @@ import { AiJob, AiJobStatus, failedJobMessage, filterJobs, lessonLabel } from '.
 import { ExportType } from '../../models/export-type';
 import { GESTURE_QUIZ_COLUMNS } from '../../models/gesture-quiz';
 import { CourseType } from '../../models/course-type';
+import { CourseOption, LANGUAGES, languageSpec, QuizLanguage, teachesCourse } from '../../models/quiz-language';
 import { hskMaxLevel, HskStandard } from '../../models/hsk-standard';
 import { AiJobService } from '../../services/ai-job.service';
 import { AiCsvService } from '../../services/ai-csv.service';
@@ -79,8 +80,9 @@ export class AiJobs implements OnInit {
   protected readonly HskStandard = HskStandard;
   protected readonly lessonLabel = lessonLabel;
   protected readonly failedJobMessage = failedJobMessage;
-  // Lets the filter accept any level a job could have (HSK 3.0 goes to 9).
-  protected readonly maxLevel = hskMaxLevel(HskStandard.V3);
+  protected readonly languages = LANGUAGES;
+  // Lets the filter accept any level a job could have (HSK 3.0 goes to 9, an English course's grades to 12).
+  protected readonly maxLevel = Math.max(hskMaxLevel(HskStandard.V3), 12);
   // Publishing needs the extension; without it only the download works.
   protected readonly extensionInstalled: boolean;
   protected readonly platformName = FileExportService.platformName;
@@ -88,6 +90,12 @@ export class AiJobs implements OnInit {
   protected readonly search = signal('');
   protected readonly status = signal<AiJobStatus | null>(null);
   protected readonly creative = signal<boolean | null>(null);
+  protected readonly language = signal<QuizLanguage | null>(null);
+  // The courses of the chosen language, or of every language; "Khác" is always offered after them.
+  protected readonly courseOptions = computed<CourseOption[]>(() => {
+    const language = this.language();
+    return LANGUAGES.filter(spec => language === null || spec.value === language).flatMap(spec => spec.courses);
+  });
   protected readonly exportType = signal<ExportType | null>(null);
   protected readonly courseType = signal<CourseType | null>(null);
   protected readonly hskStandard = signal<HskStandard | null>(null);
@@ -109,6 +117,7 @@ export class AiJobs implements OnInit {
     search: this.search(),
     status: this.status(),
     creative: this.creative(),
+    language: this.language(),
     exportType: this.exportType(),
     courseType: this.courseType(),
     hskStandard: this.hskStandard(),
@@ -116,7 +125,7 @@ export class AiJobs implements OnInit {
     lessonNumber: this.lessonNumber(),
   }));
   protected readonly isFiltering = computed(() =>
-    this.search().trim() !== '' || this.status() !== null || this.creative() !== null || this.exportType() !== null
+    this.search().trim() !== '' || this.status() !== null || this.creative() !== null || this.language() !== null || this.exportType() !== null
     || this.courseType() !== null || this.hskStandard() !== null || this.level() !== null || this.lessonNumber() !== null);
   // inject() rather than a constructor parameter: the fields below read the service while being initialized.
   private readonly jobService = inject(AiJobService);
@@ -146,11 +155,25 @@ export class AiJobs implements OnInit {
     this.search.set('');
     this.status.set(null);
     this.creative.set(null);
+    this.language.set(null);
     this.exportType.set(null);
     this.courseType.set(null);
     this.hskStandard.set(null);
     this.level.set(null);
     this.lessonNumber.set(null);
+  }
+
+  // The formatted mode's name, which depends on the language it asked in.
+  protected modeLabel(job: AiJob): string {
+    return job.creative ? 'AI tự nghĩ' : languageSpec(job.language).formattedLabel;
+  }
+
+  // A course of another language is dropped with the choice of language.
+  protected setLanguage(language: QuizLanguage | null): void {
+    this.language.set(language);
+    if (language !== null && !teachesCourse(language, this.courseType())) {
+      this.setCourseType(null);
+    }
   }
 
   // The HSK standard only means something for HSK, so its filter is hidden (and dropped) for other courses.

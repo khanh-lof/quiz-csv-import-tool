@@ -106,7 +106,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
    or 10 failed ones, and is reset by `AuthService.cleared$` on logout) and announcing each job that
    finishes. `AiJobs` (`src/components/ai-jobs/`, the page of "AI › Lịch sử" in the menu, `/ai-history`) is the history table: client-side search
    (`filterJobs` in `models/ai-job.ts`: accent- and case-insensitive over title, error and the generated
-   CSV) and status/mode/platform/course type/HSK standard/level/lesson filters (the last four match the
+   CSV) and status/mode/language/platform/course type/HSK standard/level/lesson filters (the last four match the
    lesson fields the server keeps on creative jobs), a "Thao tác" dropdown (`⋯`) on each finished row, which holds every action of the job: "Xem kết quả" (the result as a table in a popup; Auto jobs' headerless CSV gets the platform's column names, `CREATIVE_COLUMNS` in `ai-jobs.ts`), the delivery actions below, and "Xóa" (confirmed in a modal, because a popconfirm cannot live inside a menu item). A failed job's menu also has "Tạo lại" (`AiJobs.retry` → `AiJobService.retry`, `POST /api/csv/jobs/{id}/retry`: the server sends the same request and images again as a new job, which replaces the failed one). It shows until when the server keeps the job's images (`retryUntil`), and is disabled, with a title saying why, when `AiJobService.canRetry` is false: the images expired or the job is too old to rebuild, see [../AGENTS.md](../AGENTS.md#retrying-ai-requests). A running job has no menu.
    The delivery actions per job: The two modes diverge there (see
    [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the full picture):
@@ -129,9 +129,25 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      there, with "Tải file" only keeping the quiz, and "Giao bài" (`AiJobs.assign(job)`, which opens
      `AssignDialog`, see [Giao bài](#giao-bài-assignments)). The vocabulary table is never touched in this path.
 
+**Language.** The page's first choice, a large segmented switch on the left of the guide button (`.page-toolbar`),
+each option with its tag ("中", "EN"), is the `language` control: `models/quiz-language.ts` (`QuizLanguage`,
+`LANGUAGES` with each language's tag, courses and the formatted mode's name, `teachesCourse`, `offersExportType`)
+decides the course options (each language's, then "Khác") and hides "Ghép bộ thủ" for English. Each language keeps its
+own `LANGUAGE_CHOICES` (course, name, standard, level, lessons, platform and the Game options; the mode and the
+intelligence are shared): switching saves the shown language's choices in `choicesByLanguage` and puts the other's
+back, as pristine fields. The saved settings are `{language, AIMode, intelligence, byLanguage}`; a save from before
+reads as its language's choices. `fitChoicesToLanguage` then clears a course or platform of the other language and
+picks "Khác" for a language with no course of its own (English for now).
+Both `AiCsvService` submits send it; the history table names the formatted mode by the job's language and filters by
+it. See [../AGENTS.md](../AGENTS.md#chinese-and-english).
+
 **Textbooks.** `models/textbook.ts` (`TEXTBOOKS`, `textbookFor(courseType, hskStandard, level)`, with its spec) is a
 hand-kept mirror of the server's registry of curated books (`Server/internal/csvgen/textbooks.go`): HSK 3.0 levels 1–3
-and YCT 6 for now. For these the server sends the lesson's real material to the AI, so no photo is needed. In Auto
+and YCT 6 for now, and the English "Ôn tập từ vựng lớp 10" (`CourseType.VocabReview10`, 8 topics). That book has no
+level (`level` is optional, `courseHasLevels` hides the Cấp field and drops `level` from the request), calls its
+lessons "Topic" (`lessonUnit`, the select's label and placeholder) and lists them as "3. Culture" (`lessonNames`,
+`lessonOptionLabel`). Each language has a `defaultCourse` the form picks when it replaces the other language's course
+(English: `Other`). For these the server sends the lesson's real material to the AI, so no photo is needed. In Auto
 mode `AiGeneration` looks the book up from course type, standard and level (the `textbook` getter, like `maxLevel`)
 and shows under the Cấp/Bài row either "Có sẵn …, không cần ảnh." or a muted "Nên thêm ảnh." line; the Bài select
 offers lessons 1 to the book's `lessons` (100 without a book), and a lesson left over the cap (HSK 3.0 level 3 lesson 18, then

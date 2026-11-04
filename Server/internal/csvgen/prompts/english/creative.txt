@@ -1,0 +1,91 @@
+{{define "input-course" -}}
+* The course the lesson belongs to: a named English course or textbook, possibly written in Vietnamese, such as a Tiếng Anh book of the Vietnamese school curriculum or an international series.
+{{- end}}
+
+{{define "material-forms" -}}
+* Take the spelling of every word exactly as the table gives it. Take the meanings from the table too, and for the Vietnamese meaning prefer the Tiếng Việt column.
+{{- end}}
+
+{{define "rebuild-lesson" -}}
+Rebuild the lesson from your own knowledge of the textbook the course is taught from. Proficiency frameworks such as the CEFR levels or the Cambridge English Qualifications word lists are organised by level only and have no lessons, so a lesson number always refers to a textbook. Never search a word list for "lesson N".
+
+#### Step 1: identify the textbook, the book, and the lesson
+
+Most English textbooks are organised in units, each made of several lessons or sections. Unless the course says otherwise, read the lesson number as the unit number of the book, and the whole unit as the lesson.
+
+The English courses of Vietnamese schools follow the national curriculum: "Tiếng Anh" followed by a grade (lớp 1 to lớp 12) names the book of that grade, most often the Global Success series (Vietnam Education Publishing House); other series of the same curriculum include i-Learn Smart Start, i-Learn Smart World, Explore English, Friends Plus and English Discovery. For these the level is the grade.
+
+Other courses are usually international series, for example Family and Friends, Everybody Up, Kid's Box, Super Minds, Academy Stars, Solutions, Headway, or the Cambridge English preparation books for Starters, Movers, Flyers, A2 Key and B1 Preliminary. The level then means the book or volume number of the series.
+
+#### Step 2: recall the lesson
+
+Recall, in this order, because each item helps you recall the next:
+
+1. The unit title and its topic.
+2. The texts, dialogues, songs, or stories of the unit, in outline.
+3. The vocabulary list of the unit, in textbook order, with meaning.
+4. The grammar points and the phonics or pronunciation focus taught in the unit.
+
+Aim for the complete vocabulary list. As a rough guide, one unit introduces about 10 to 20 new words in primary-school and beginner books, and more at higher levels. Words from earlier units and lower books are known to the learner and may be used freely; words introduced in later units of the same series must not be tested.
+
+#### Step 3: fill the gaps instead of refusing
+
+If you remember the lesson only partially, still produce the quiz:
+
+* When you know the title or topic but not every word, complete the list with words of the learner's level (the CEFR level the book targets, or for young learners the matching Cambridge Starters, Movers, or Flyers word list) that clearly belong to that topic and to the unit's grammar point.
+* When you do not recall the lesson at all, use its position in the book: the unit number out of the total tells you how far into the level the unit is. Pick the topic that the book most likely covers at that point (early units are greetings, names, numbers, colours, family, and school things; later ones are food, weather, hobbies, places in town, jobs, travel, and so on) and take a coherent group of about 15 words of that level for it.
+* Never use words above the learner's level to fill a gap.
+{{- end}}
+
+{{define "analysis-forms" -}}
+* Spelling, and the word forms the lesson uses: plurals, verb forms, comparatives, word families.
+* Pronunciation points the lesson teaches, such as word stress or sounds that are easy to confuse.
+{{- end}}
+
+{{define "distractors" -}}
+* Vary how the distractors are built: sometimes near-synonyms, sometimes words that look or sound alike, sometimes the wrong form of the right word (tense, plural, part of speech), sometimes options that are grammatically wrong but lexically plausible.
+{{- end}}
+
+{{define "recognition-types" -}}
+* English word to Vietnamese meaning.
+* Vietnamese meaning to English word.
+* Choose the correctly spelled word among misspellings that are easy to make.
+* Simple English definition to the word it defines.
+* Identify the word that does not belong to a given topic group.
+{{- end}}
+
+{{define "function-words" -}}
+* Choose the correct preposition, article, pronoun, auxiliary, or question word.
+* Choose the correct form of a word: its tense, plural, comparative, or the member of its word family that fits.
+{{- end}}
+
+{{define "image-context-example" -}}
+3. Through the sentence context: when the tested word itself is abstract, such as a preposition, a quantifier, a question word, or a time adverb, illustrate the situation of the example sentence instead. For example, There are ___ books on the table. can show three books, so the count comes only from the picture; Where is the cat? with options on the table, under the table, on the chair can show a cat on a table; a situation question about what to say can show a market stall, so the setting comes only from the picture.
+{{- end}}
+
+{{define "image-giveaway" -}}
+* The image would give the answer away when the point of the question is discrimination, for example a photo that makes the choice trivial between two near-synonyms, or a picture containing the English word being tested.
+{{- end}}
+
+{{define "image-mistake" -}}
+* Attaching an image to a question the text already answers, for example a meaning question that states the Vietnamese meaning, a What is this? question with the answer's meaning in brackets, or a counting question that states the number. Hide the image and check: if the question still works, remove the image or rewrite the text.
+{{- end}}
+
+{{define "forms-section" -}}
+## SPELLING, PRONUNCIATION AND TRANSLATIONS
+
+Spell consistently, in British or American English, following the textbook when it is known.
+
+Include phonetic transcriptions and Vietnamese translations only when:
+
+* The CSV template contains corresponding fields, or
+* The user explicitly requests them.
+
+Follow the exact format required by the CSV template.
+
+Do not add additional columns.
+{{- end}}
+
+{{define "forms-check" -}}
+8. Spelling and grammar are correct in every English text.
+{{- end}}

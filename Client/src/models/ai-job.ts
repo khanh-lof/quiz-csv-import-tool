@@ -2,6 +2,7 @@ import { ExportType } from './export-type';
 import { CourseType } from './course-type';
 import { HskStandard } from './hsk-standard';
 import { formatLessonNumbers } from './lesson-numbers';
+import { QuizLanguage } from './quiz-language';
 
 export type AiJobStatus = 'running' | 'done' | 'failed';
 
@@ -12,6 +13,8 @@ export interface AiJob {
   status: AiJobStatus;
   title: string;
   creative: boolean;
+  // Every job has one, Chinese on the jobs from before English.
+  language: QuizLanguage;
   // Only creative jobs have a platform; sent by ordinal like everywhere else.
   exportType: ExportType | null;
   intelligence: number;
@@ -53,6 +56,7 @@ export interface AiJobFilter {
   search: string;
   status: AiJobStatus | null;
   creative: boolean | null;
+  language: QuizLanguage | null;
   exportType: ExportType | null;
   courseType: CourseType | null;
   hskStandard: HskStandard | null;
@@ -72,6 +76,7 @@ export function filterJobs(jobs: AiJob[], filter: AiJobFilter): AiJob[] {
   return jobs.filter(job =>
     (filter.status === null || job.status === filter.status)
     && (filter.creative === null || job.creative === filter.creative)
+    && (filter.language === null || job.language === filter.language)
     && (filter.exportType === null || job.exportType === filter.exportType)
     && (filter.courseType === null || job.courseType === filter.courseType)
     && (filter.hskStandard === null || job.hskStandard === filter.hskStandard)
@@ -87,8 +92,10 @@ export function lessonLabel(job: AiJob): string {
   }
   const course = job.courseType === CourseType.Hsk ? `HSK ${job.hskStandard === HskStandard.V3 ? '3.0' : '2.0'}`
     : job.courseType === CourseType.Yct ? 'YCT'
-      : (job.courseName || 'Khác');
+      : job.courseType === CourseType.VocabReview10 ? 'Ôn tập từ vựng lớp 10'
+        : (job.courseName || 'Khác');
   const lessons = job.lessonNumbers ?? [];
-  return [course, job.level === null ? null : `cấp ${job.level}`, lessons.length === 0 ? null : `bài ${formatLessonNumbers(lessons)}`]
+  return [course, job.level === null ? null : `cấp ${job.level}`, lessons.length === 0 ? null
+    : `${job.courseType === CourseType.VocabReview10 ? 'topic' : 'bài'} ${formatLessonNumbers(lessons)}`]
     .filter(part => part !== null).join(' · ');
 }

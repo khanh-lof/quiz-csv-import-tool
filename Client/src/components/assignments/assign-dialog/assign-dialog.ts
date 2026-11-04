@@ -41,7 +41,7 @@ import {
   StageLock,
   TIME_MODE_LABELS,
 } from '../../../models/assignment';
-import { GestureQuiz, parseGestureQuiz, questionCount } from '../../../models/gesture-quiz';
+import { GestureQuiz, hasPinyin, parseGestureQuiz, questionCount } from '../../../models/gesture-quiz';
 import { AiCsvService } from '../../../services/ai-csv.service';
 import { AssignmentService } from '../../../services/assignment.service';
 import { CsvImportService } from '../../../services/csv-import.service';
@@ -181,6 +181,10 @@ export class AssignDialog {
     const text = this.aiCsvService.extractCsvContent(job.csv);
     const rows = this.csvImportService.parseCsvRows(text.startsWith(BYTE_ORDER_MARK) ? text.slice(1) : text);
     return parseGestureQuiz(rows, job.title);
+  });
+  protected readonly quizHasPinyin = computed(() => {
+    const quiz = this.quiz();
+    return quiz !== null && hasPinyin(quiz);
   });
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);

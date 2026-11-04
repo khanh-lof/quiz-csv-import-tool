@@ -71,10 +71,12 @@
         <nz-icon nzTheme="outline" nzType="fullscreen"/>
         Toàn màn hình
       </button>
-      <label class="pinyin-switch">
-        <nz-switch (click)="toggleShowPinyin()" [nzLoading]="pinyinSaving()" [ngModel]="d.showPinyin" nzControl/>
-        Hiện pinyin
-      </label>
+      @if (quizHasPinyin()) {
+        <label class="pinyin-switch">
+          <nz-switch (click)="toggleShowPinyin()" [nzLoading]="pinyinSaving()" [ngModel]="d.showPinyin" nzControl/>
+          Hiện pinyin
+        </label>
+      }
     </div>
   </nz-card>
 

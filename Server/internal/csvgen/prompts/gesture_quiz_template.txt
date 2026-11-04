@@ -8,11 +8,11 @@ This quiz is not imported into another platform: QuizTool plays it itself as a c
 
 {{.Rules}}
 
-{{if .OptionStages}}Options are shown in big type on a camera screen, so keep every option short: at most 8 Chinese characters or about 6 Vietnamese words in {{.OptionStages}}. The options of a row must all be different, exactly one of them is correct, and none carries a label such as "A.", "1." or "a)". Never write an option such as "Cả A và B" that refers to other options.
+{{if .OptionStages}}Options are shown in big type on a camera screen, so keep every option short: {{template "option-length" .}} in {{.OptionStages}}. The options of a row must all be different, exactly one of them is correct, and none carries a label such as "A.", "1." or "a)". Never write an option such as "Cả A và B" that refers to other options.
 
-{{end}}Pinyin columns: the Question and every answer are followed by a column of their own pinyin (Question Pinyin, Correct Answer Pinyin, Wrong Answer 1 Pinyin and so on). The game shows the pinyin only when the teacher turns it on, so never write pinyin inside the Question or an answer: the text holds the Chinese characters and the Vietnamese, and its pinyin column holds the pinyin of the Chinese words in it, in the same order, with tone marks (nǐ hǎo, never ni3 hao3), one pinyin word per Chinese word, the blank ____ and the punctuation kept where the text has them, and the Vietnamese words left out. For example the Question 我 ____ 学生。 has the pinyin wǒ ____ xuéshēng. and the answer 是 has shì. Leave a pinyin column empty when its text has no Chinese character, and for every text of a row whose question is about pinyin itself (which pinyin or which tone a word has, or which characters a pinyin is): there the pinyin is what the learner must know, so it is written in the Question or the answers and their pinyin columns stay empty. Never write a pinyin that tells the right answer apart from the wrong ones.
+{{end}}{{template "pinyin-columns" .}}
 
-Explanation: one short Vietnamese sentence shown after the learner answers, for example the tested word with its pinyin and meaning, or why the answer is right. It is the one text that mixes Chinese, pinyin and Vietnamese freely, and it has no pinyin column. Every row has one.
+Explanation: {{template "explanation" .}} Every row has one.
 
 Stage: the number of the row's stage, which must be {{.Numbers}}, in the first column. No other stage number is allowed.
 
