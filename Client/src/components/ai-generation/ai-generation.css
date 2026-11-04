@@ -298,10 +298,11 @@
   width: 80px;
 }
 
-/* Room for a few chosen lessons as tags; they wrap onto more lines past that. */
+/* Grows with the chosen lessons up to the max width, then the tags wrap onto more lines. */
 .creative-selection .lesson-select {
+  width: max-content;
   min-width: 200px;
-  max-width: 100%;
+  max-width: min(320px, 100%);
 }
 
 /* Wide enough for the "Không bắt buộc" placeholder. */
