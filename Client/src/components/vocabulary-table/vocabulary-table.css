@@ -96,7 +96,7 @@ textarea[nz-input] {
 }
 
 td nz-select {
-  width: 120px;
+  width: 100%;
   height: 36px;
 }
 
