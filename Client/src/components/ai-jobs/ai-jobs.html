@@ -143,7 +143,8 @@
                         <!-- The extension imports and publishes the quiz in the user's Wayground tab; without it the
                              download above is the only way, and the title says why. -->
                         <li (click)="exportJob(job, true)" [nzDisabled]="!extensionInstalled"
-                            [title]="extensionInstalled ? '' : 'Chưa cài tiện ích QuizTool cho Chrome'"
+                            nz-tooltip
+                            [nzTooltipTitle]="extensionInstalled ? '' : 'Chưa cài tiện ích QuizTool'"
                             nz-menu-item>
                           <nz-icon nzTheme="outline" nzType="cloud-upload"/>
                           Tiện ích tự publish

@@ -35,9 +35,10 @@
             <!-- Without the extension only the download is possible; the disabled option says why. -->
             <nz-radio-group [formControl]="waygroundDelivery" nzButtonStyle="solid" nzSize="large">
               <label [nzValue]="WaygroundDelivery.Download" nz-radio-button>Tải file</label>
-              <label [nzDisabled]="!extensionInstalled" [nzValue]="WaygroundDelivery.Extension" [title]="extensionInstalled ? '' : 'Chưa cài tiện ích QuizTool cho Chrome'"
-                     nz-radio-button>Tiện ích tự
-                publish</label>
+              <label [nzDisabled]="!extensionInstalled" [nzValue]="WaygroundDelivery.Extension"
+                     nz-tooltip
+                     [nzTooltipTitle]="extensionInstalled ? '' : 'Chưa cài tiện ích QuizTool'"
+                     nz-radio-button>Tiện ích tự publish</label>
             </nz-radio-group>
           }
           <!-- Always shown: clicking it explains what is still missing (template, rows) instead of the

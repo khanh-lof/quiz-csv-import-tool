@@ -45,6 +45,7 @@ import { UsageGuide } from '../usage-guide/usage-guide';
 import { WaygroundDelivery } from '../../models/wayground-delivery';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { NzContentComponent, NzLayoutComponent } from 'ng-zorro-antd/layout';
+import { NzTooltipDirective } from 'ng-zorro-antd/tooltip';
 
 // The table's rows and chosen template, kept in the browser so a reload or a visit to another screen
 // (the AI page, the login) does not lose what the user typed.
@@ -74,7 +75,8 @@ interface TableDraft {
     ReactiveFormsModule,
     NgTemplateOutlet,
     NzModalModule,
-    CdkTextareaAutosize
+    CdkTextareaAutosize,
+    NzTooltipDirective
   ],
   templateUrl: './vocabulary-table.html',
   changeDetection: ChangeDetectionStrategy.Eager,
