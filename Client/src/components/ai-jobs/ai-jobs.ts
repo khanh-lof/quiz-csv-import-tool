@@ -163,6 +163,11 @@ export class AiJobs implements OnInit {
     this.lessonNumber.set(null);
   }
 
+  protected languageTag(language: QuizLanguage | null): string {
+    const spec = languageSpec(language);
+    return `${spec.tag} ${spec.label}`;
+  }
+
   // The formatted mode's name, which depends on the language it asked in.
   protected modeLabel(job: AiJob): string {
     return job.creative ? 'AI tự nghĩ' : languageSpec(job.language).formattedLabel;

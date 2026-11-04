@@ -217,6 +217,8 @@ page. Everything else is shared; only what a language needs differs.
 - **The Game keeps one CSV layout.** An English Game has the same 12 columns with every pinyin column empty, so both
   parsers, the server's dealing and the assignments are unchanged. The "Hiện pinyin" switches (the player's, the
   assign dialog's and the leaderboard page's) are shown only for a quiz that has some pinyin (`hasPinyin`).
+- **An assignment keeps the job's language** (`language` on `store.Assignment`, copied with the snapshot; every
+  assignment view always sends it), and the history and "Bài đã giao" tables each show it as a "Ngôn ngữ" column.
 - **The job keeps its language** (`language` on `store.Job`, omitted for Chinese; `GET csv/jobs` always sends it), so
   "Tạo lại" asks in the same language and the history can be filtered by it. The formatted mode is named after the
   language there and on the AI page ("Hỏi chữ Hán" / "Hỏi từ tiếng Anh").

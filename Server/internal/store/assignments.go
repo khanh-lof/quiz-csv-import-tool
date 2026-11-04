@@ -24,6 +24,8 @@ type Assignment struct {
 	Title    string `bson:"title"`
 	// Label names the class or group the teacher assigned it to; optional.
 	Label string `bson:"label"`
+	// Language is the csvgen.Language ordinal of the job it was made from; absent, Chinese.
+	Language int `bson:"language,omitempty"`
 	// CSV is the job's raw model answer, which the server parses to deal the questions of a run. It never
 	// reaches a student. List leaves it empty.
 	CSV string `bson:"csv"`

@@ -18,7 +18,7 @@
     <nz-select (ngModelChange)="setLanguage($event ?? null)" [ngModel]="language()" class="filter-select" nzAllowClear
                nzPlaceHolder="Ngôn ngữ">
       @for (option of languages; track option.value) {
-        <nz-option [nzValue]="option.value" [nzLabel]="option.label"></nz-option>
+        <nz-option [nzValue]="option.value" [nzLabel]="option.tag + ' ' + option.label"></nz-option>
       }
     </nz-select>
     <nz-select (ngModelChange)="exportType.set($event ?? null)" [ngModel]="exportType()" class="filter-select" nzAllowClear
@@ -62,6 +62,7 @@
     <thead>
     <tr>
       <th>Tiêu đề</th>
+      <th>Ngôn ngữ</th>
       <th>Chế độ</th>
       <th>Bài học</th>
       <th>Nền tảng</th>
@@ -74,6 +75,7 @@
       @for (job of jobsTable.data; track job.id) {
         <tr>
           <td class="job-title">{{ job.title }}</td>
+          <td><nz-tag>{{ languageTag(job.language) }}</nz-tag></td>
           <td>{{ modeLabel(job) }}</td>
           <td>{{ lessonLabel(job) }}</td>
           <td>{{ job.exportType === null ? '–' : platformName(job.exportType) }}</td>

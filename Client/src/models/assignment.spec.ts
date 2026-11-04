@@ -1,3 +1,4 @@
+import { QuizLanguage } from './quiz-language';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   Assignment,
@@ -6,6 +7,7 @@ import {
   assignmentStatusText,
   attemptsLeft,
   DEFAULT_ATTEMPTS_LIMIT,
+  filterAssignments,
   formatClose,
   formatStamp,
   isOpenAt,
@@ -32,6 +34,7 @@ function assignment(overrides: Partial<Assignment> = {}): Assignment {
     jobId: 'job-1',
     title: 'HSK1 bài 1',
     label: '',
+    language: QuizLanguage.Chinese,
     timeMode: 'standard',
     stageLock: 'sequential',
     passPercents: {
@@ -181,6 +184,39 @@ describe('isOpenAt', () => {
       open: false,
       closesAt: local(2026, 10, 14, 15)
     }), now)).toBeTrue();
+  });
+});
+
+describe('filterAssignments', () => {
+  const now = new Date(2026, 9, 14, 12, 0);
+  const noFilter = { search: '', status: null, language: null };
+  const open = assignment({ id: 'a', title: 'Bài Năm', label: 'Lớp 10A', language: QuizLanguage.Chinese });
+  const closed = assignment({
+    id: 'b',
+    title: 'Culture',
+    label: '',
+    language: QuizLanguage.English,
+    closedAt: local(2026, 10, 14, 11),
+  });
+  const all = [open, closed];
+
+  it('keeps everything without a filter', () => {
+    expect(filterAssignments(all, noFilter, now)).toEqual(all);
+  });
+
+  it('filters by status from the clock', () => {
+    expect(filterAssignments(all, { ...noFilter, status: 'open' }, now)).toEqual([open]);
+    expect(filterAssignments(all, { ...noFilter, status: 'closed' }, now)).toEqual([closed]);
+  });
+
+  it('filters by language', () => {
+    expect(filterAssignments(all, { ...noFilter, language: QuizLanguage.English }, now)).toEqual([closed]);
+  });
+
+  it('searches title and label without accents or case', () => {
+    expect(filterAssignments(all, { ...noFilter, search: 'bai nam' }, now)).toEqual([open]);
+    expect(filterAssignments(all, { ...noFilter, search: 'LOP 10a' }, now)).toEqual([open]);
+    expect(filterAssignments(all, { ...noFilter, search: 'zzz' }, now)).toEqual([]);
   });
 });
 

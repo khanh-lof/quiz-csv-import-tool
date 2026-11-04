@@ -2,7 +2,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TimeMode } from '../components/gesture-play/gesture-settings.service';
 import { DEFAULT_PASS_PERCENT, stagePosition, STAGES } from '../game/stages';
 import { Utils } from '../utils';
+import { normalizeForSearch } from './ai-job';
 import { GestureQuestion, GestureQuiz } from './gesture-quiz';
+import { QuizLanguage } from './quiz-language';
 
 export { DEFAULT_PASS_PERCENT, MAX_PASS_PERCENT, MIN_PASS_PERCENT } from '../game/stages';
 
@@ -25,6 +27,7 @@ export interface Assignment {
   jobId: string;
   title: string;
   label: string;
+  language: QuizLanguage;
   timeMode: TimeMode;
   stageLock: StageLock;
   passPercents: Record<string, number>;
@@ -276,6 +279,23 @@ export function placeholderQuiz(title: string, key: string, stageCounts: Record<
 export function isOpenAt(assignment: Assignment, now: Date): boolean {
   return assignment.closedAt === null
     && (assignment.closesAt === null || now.getTime() < new Date(assignment.closesAt).getTime());
+}
+
+export type AssignmentStatusFilter = 'open' | 'closed';
+
+export interface AssignmentFilter {
+  search: string;
+  status: AssignmentStatusFilter | null;
+  language: QuizLanguage | null;
+}
+
+// Keeps the assignments matching every filter that is set. The search looks through the title and the label.
+export function filterAssignments(assignments: Assignment[], filter: AssignmentFilter, now: Date): Assignment[] {
+  const needle = normalizeForSearch(filter.search.trim());
+  return assignments.filter(assignment =>
+    (filter.status === null || isOpenAt(assignment, now) === (filter.status === 'open'))
+    && (filter.language === null || assignment.language === filter.language)
+    && (needle === '' || normalizeForSearch(`${assignment.title}\n${assignment.label}`).includes(needle)));
 }
 
 function pad2(value: number): string {

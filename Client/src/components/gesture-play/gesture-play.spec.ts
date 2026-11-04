@@ -1,3 +1,4 @@
+import { QuizLanguage } from '../../models/quiz-language';
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal, Type } from '@angular/core';
@@ -147,6 +148,7 @@ function assignmentDetail(overrides: Partial<AssignmentDetail> = {}): Assignment
     jobId: 'job-1',
     title: 'HSK1 bài 1',
     label: 'Lớp 6A',
+    language: QuizLanguage.Chinese,
     timeMode: 'standard',
     stageLock: 'sequential',
     passPercents: {

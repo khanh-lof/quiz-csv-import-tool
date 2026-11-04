@@ -1,3 +1,4 @@
+import { QuizLanguage } from '../../../models/quiz-language';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -15,6 +16,7 @@ function assignment(id: string, overrides: Partial<Assignment> = {}): Assignment
     jobId: 'job-1',
     title: `Quiz ${id}`,
     label: '',
+    language: QuizLanguage.Chinese,
     timeMode: 'standard',
     stageLock: 'sequential',
     passPercents: { '1': 70 },
@@ -164,7 +166,7 @@ describe('AssignmentList', () => {
 
     expect(rows()[0].textContent).toContain('Đang mở');
     expect(rows()[0].textContent).not.toContain('Đã đóng');
-    expect(rows()[0].querySelectorAll('td')[2].textContent?.trim()).toBe('3');
+    expect(rows()[0].querySelectorAll('td')[3].textContent?.trim()).toBe('3');
   });
 
   it('keeps the reopen dialog open and says why when the server refuses', async () => {

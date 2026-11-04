@@ -1,3 +1,4 @@
+import { QuizLanguage } from '../../../models/quiz-language';
 import { Assignment, LeaderboardEntry } from '../../../models/assignment';
 import {
   fileNameFor,
@@ -29,6 +30,7 @@ function assignment(overrides: Partial<Assignment> = {}): Assignment {
     jobId: 'job-1',
     title: 'HSK1 bài 1',
     label: '',
+    language: QuizLanguage.Chinese,
     timeMode: 'standard',
     stageLock: 'sequential',
     passPercents: {

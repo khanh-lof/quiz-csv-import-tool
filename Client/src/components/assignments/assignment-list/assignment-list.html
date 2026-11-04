@@ -1,10 +1,34 @@
 <nz-card [nzExtra]="refreshTemplate" nzTitle="Bài đã giao">
-  <nz-table #listTable [nzData]="assignments()" [nzLoading]="loading()" [nzNoResult]="emptyTemplate" [nzPageSize]="pageSize"
-            [nzScroll]="{ x: '720px' }" [nzShowPagination]="assignments().length > pageSize"
+  @if (assignments().length > 0) {
+    <div class="list-filters">
+      <input (ngModelChange)="search.set($event ?? '')" [ngModel]="search()" aria-label="Tìm kiếm" class="search-input"
+             nz-input placeholder="Tìm kiếm" type="search"/>
+      <nz-select (ngModelChange)="status.set($event ?? null)" [ngModel]="status()" class="filter-select" nzAllowClear
+                 nzPlaceHolder="Trạng thái">
+        <nz-option nzLabel="Đang mở" nzValue="open"></nz-option>
+        <nz-option nzLabel="Đã đóng" nzValue="closed"></nz-option>
+      </nz-select>
+      <nz-select (ngModelChange)="language.set($event ?? null)" [ngModel]="language()" class="filter-select" nzAllowClear
+                 nzPlaceHolder="Ngôn ngữ">
+        @for (option of languages; track option.value) {
+          <nz-option [nzValue]="option.value" [nzLabel]="option.label"></nz-option>
+        }
+      </nz-select>
+      @if (isFiltering()) {
+        <button (click)="clearFilters()" nz-button nzType="default" type="button">
+          <nz-icon nzTheme="outline" nzType="close"/>
+          Bỏ lọc
+        </button>
+      }
+    </div>
+  }
+  <nz-table #listTable [nzData]="filtered()" [nzLoading]="loading()" [nzNoResult]="emptyTemplate" [nzPageSize]="pageSize"
+            [nzScroll]="{ x: '720px' }" [nzShowPagination]="filtered().length > pageSize"
             class="list-table" nzSize="small">
     <thead>
     <tr>
       <th>Bài</th>
+      <th>Ngôn ngữ</th>
       <th>Trạng thái</th>
       <th>Học sinh</th>
       <th>Lúc giao</th>
@@ -20,6 +44,7 @@
               <nz-tag class="label-tag">{{ assignment.label }}</nz-tag>
             }
           </td>
+          <td><nz-tag>{{ languageTag(assignment.language) }}</nz-tag></td>
           <td>
             <nz-tag [nzColor]="isOpen(assignment) ? 'green' : undefined">{{ statusText(assignment) }}</nz-tag>
           </td>
@@ -81,6 +106,8 @@
 <ng-template #emptyTemplate>
   @if (failed()) {
     <p class="help">Chưa tải được danh sách.</p>
+  } @else if (loaded() && isFiltering()) {
+    <p class="help">Không có kết quả.</p>
   } @else if (loaded()) {
     <div class="empty">
       <p class="help">{{ helpText }}</p>

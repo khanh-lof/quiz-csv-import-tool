@@ -44,6 +44,7 @@ type assignmentView struct {
 	JobID       string         `json:"jobId"`
 	Title       string         `json:"title"`
 	Label       string         `json:"label"`
+	Language    int            `json:"language"`
 	TimeMode    string         `json:"timeMode"`
 	StageLock   string         `json:"stageLock"`
 	StageCounts map[string]int `json:"stageCounts"`
@@ -72,7 +73,7 @@ func (s *Server) newAssignmentView(a *store.Assignment, now time.Time, playerCou
 		counts = map[string]int{}
 	}
 	return assignmentView{
-		ID: a.ID, Code: a.Code, JobID: a.JobID, Title: a.Title, Label: a.Label, TimeMode: a.TimeMode,
+		ID: a.ID, Code: a.Code, JobID: a.JobID, Title: a.Title, Label: a.Label, Language: a.Language, TimeMode: a.TimeMode,
 		StageLock:    stageLockOf(a),
 		PassPercents: passPercentsOf(a),
 		MaxAttempts:  a.MaxAttempts,
@@ -214,6 +215,7 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		JobID:        job.ID,
 		Title:        job.Title,
 		Label:        label,
+		Language:     job.Language,
 		CSV:          job.CSV,
 		TimeMode:     req.TimeMode,
 		StageLock:    req.StageLock,

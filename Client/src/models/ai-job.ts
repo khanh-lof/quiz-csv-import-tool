@@ -65,7 +65,7 @@ export interface AiJobFilter {
 }
 
 // Lower case with accents dropped, so "ni hao" finds "nǐ hǎo" and "cau hoi" finds "Câu hỏi".
-function normalizeForSearch(text: string): string {
+export function normalizeForSearch(text: string): string {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').toLowerCase();
 }
 

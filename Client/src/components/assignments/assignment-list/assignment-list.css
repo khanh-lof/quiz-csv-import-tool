@@ -15,6 +15,30 @@
   margin-bottom: 16px;
 }
 
+.list-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.search-input {
+  flex: 1 1 260px;
+  min-width: 200px;
+}
+
+.filter-select {
+  width: 170px;
+}
+
+@media (max-width: 767px) {
+  .filter-select {
+    flex: 1 1 140px;
+    width: auto;
+  }
+}
+
 .assignment-title {
   word-break: break-word;
 }
