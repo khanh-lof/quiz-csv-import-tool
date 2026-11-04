@@ -17,6 +17,7 @@ import { notifyAiRefusal } from '../../services/ai-refusal';
 import { httpFailure } from '../../models/http-failure';
 import { AiJobService, NEW_JOB_IDLE_POLLS } from '../../services/ai-job.service';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
+import { NzTooltipDirective } from 'ng-zorro-antd/tooltip';
 import {
   AbstractControl,
   FormBuilder,
@@ -137,6 +138,7 @@ type LanguageChoices =Pick<ReturnType<FormGroup<AiGenerationForm>['getRawValue']
     NzSelectComponent,
     NzInputDirective,
     NzSpinComponent,
+    NzTooltipDirective,
     RouterLink
   ],
   templateUrl: './ai-generation.html',
@@ -232,8 +234,8 @@ export class AiGeneration {
     if (this.isGenerating()) {
       return 'Đang gửi…';
     }
-    return this.selectedImages().length > 0
-      ? `Tạo câu hỏi (${this.selectedImages().length} ảnh)`
+    return this.shownImages.length > 0
+      ? `Tạo câu hỏi (${this.shownImages.length} ảnh)`
       : 'Tạo câu hỏi';
   }
 
@@ -268,12 +270,20 @@ export class AiGeneration {
     return this.textbookOf(this.formGroup);
   }
 
-  protected get isCourseChosen(): boolean {
-    const {
-      courseType,
-      level
-    } = this.formGroup.controls;
-    return courseType.value === CourseType.Other || (courseType.value !== null && (!courseHasLevels(courseType.value) || level.value !== null));
+  // A course with a book needs no photo, so the photos are shut.
+  protected get photosDisabled(): boolean {
+    return this.isAutoMode && this.textbook !== undefined;
+  }
+
+  // Why they are shut, in the zone's tooltip and its accessible name.
+  protected get photosDisabledReason(): string | null {
+    return this.photosDisabled ? `Có sẵn ${this.textbook?.title}, không cần ảnh.` : null;
+  }
+
+  // The photos shown and sent: none while they are shut, though those added before the book was picked are kept
+  // for a course without one.
+  protected get shownImages(): ImageItem[] {
+    return this.photosDisabled ? [] : this.selectedImages();
   }
 
   protected get maxLesson(): number {
@@ -306,13 +316,20 @@ export class AiGeneration {
   onDropZoneEnter(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
+    if (this.photosDisabled) {
+      return;
+    }
     this.dragEnterCounter++;
     this.isDragOver = true;
   }
 
+  // Prevented even while the photos are shut, so a file dropped there is not opened by the browser.
   onDropZoneDragOver(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
+    if (this.photosDisabled && event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'none';
+    }
   }
 
   onDropZoneDragLeave(event: DragEvent): void {
@@ -330,7 +347,7 @@ export class AiGeneration {
     event.stopPropagation();
     this.isDragOver = false;
     this.dragEnterCounter = 0;
-    if (this.isGenerating()) {
+    if (this.isGenerating() || this.photosDisabled) {
       return;
     }
 
@@ -347,7 +364,7 @@ export class AiGeneration {
   @HostListener('document:paste', ['$event'])
   onPaste(event: ClipboardEvent): void {
     const items = event.clipboardData?.items;
-    if (!items || this.isGenerating()) {
+    if (!items || this.isGenerating() || this.photosDisabled) {
       return;
     }
 
@@ -405,7 +422,7 @@ export class AiGeneration {
 
     let imageFiles: File[];
     try {
-      imageFiles = await this.imageCompressionService.compressForUpload(this.selectedImages().map(img => img.file));
+      imageFiles = await this.imageCompressionService.compressForUpload(this.shownImages.map(img => img.file));
     } catch (err) {
       this.setGenerating(false);
       this.showGenerationError(err);

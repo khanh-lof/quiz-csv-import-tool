@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpParams, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
+import { WritableSignal } from '@angular/core';
 import { FormGroup } from '@angular/forms';
 import { AiGeneration } from './ai-generation';
 import { CourseType } from '../../models/course-type';
@@ -17,6 +18,7 @@ interface Internals {
   textbook: { lessons: number } | undefined;
   maxLesson: number;
   lessonOptions: number[];
+  selectedImages: WritableSignal<{ file: File; preview: string }[]>;
   generate(): Promise<void>;
 }
 
@@ -55,13 +57,13 @@ describe('AiGeneration', () => {
   }
 
   const lessonErrors = () => page.formGroup.get('lessonNumbers')?.errors;
-  const hint = () => (fixture.nativeElement as HTMLElement).querySelector('.export-hint')?.textContent ?? '';
+  const photosShut = () => (fixture.nativeElement as HTMLElement).querySelector('.drop-zone')?.getAttribute('aria-disabled') === 'true';
 
   it('starts on HSK 3.0, the standard of the textbooks', () => {
     expect(page.formGroup.get('hskStandard')?.value).toBe(HskStandard.V3);
   });
 
-  it('caps the lesson at the textbook\'s lesson count and says the book is used', () => {
+  it('caps the lesson at the textbook\'s lesson count and shuts the photos', () => {
     fill({
       courseType: CourseType.Hsk,
       hskStandard: HskStandard.V3,
@@ -71,7 +73,9 @@ describe('AiGeneration', () => {
 
     expect(page.maxLesson).toBe(18);
     expect(page.formGroup.valid).toBeTrue();
-    expect(hint()).toContain('《新HSK教程3》');
+    expect(photosShut()).toBeTrue();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.drop-zone')?.getAttribute('aria-label'))
+      .toBe('Ảnh: Có sẵn 《新HSK教程3》, không cần ảnh.');
   });
 
   it('refuses a lesson past the textbook\'s, such as lesson 18 after switching to level 1', () => {
@@ -111,7 +115,7 @@ describe('AiGeneration', () => {
     expect(lessonErrors()?.['max']).toBeTruthy();
   });
 
-  it('keeps the old limit of 100 and the plain hint for a course without a book', () => {
+  it('keeps the old limit of 100 and the photos open for a course without a book', () => {
     fill({
       courseType: CourseType.Yct,
       level: 5,
@@ -120,26 +124,39 @@ describe('AiGeneration', () => {
 
     expect(page.maxLesson).toBe(100);
     expect(page.formGroup.valid).toBeTrue();
-    expect(hint()).toContain('Nên thêm ảnh');
+    expect(photosShut()).toBeFalse();
   });
 
-  it('shows no book hint until the course type and level are picked', () => {
-    expect(hint()).toBe('');
+  it('keeps the photos open until a course with a book is picked', () => {
+    expect(photosShut()).toBeFalse();
 
-    page.formGroup.patchValue({ courseType: CourseType.Yct });
+    page.formGroup.patchValue({ courseType: CourseType.Yct, level: 5 });
     fixture.detectChanges();
-    expect(hint()).toBe('');
+    expect(photosShut()).toBeFalse();
 
-    page.formGroup.patchValue({ level: 5 });
+    page.formGroup.patchValue({ level: 6 });
     fixture.detectChanges();
-    expect(hint()).toBe('Nên thêm ảnh.');
+    expect(photosShut()).toBeTrue();
   });
 
-  it('says there is no book for a course typed in by hand even without a level', () => {
+  it('keeps the photos open for a course typed in by hand', () => {
     page.formGroup.patchValue({ courseType: CourseType.Other });
     fixture.detectChanges();
 
-    expect(hint()).toBe('Nên thêm ảnh.');
+    expect(photosShut()).toBeFalse();
+  });
+
+  it('neither shows nor sends the photos added before a course with a book was picked', async () => {
+    page.selectedImages.set([{ file: new File(['x'], 'bai.png', { type: 'image/png' }), preview: 'data:image/png;base64,eA==' }]);
+    fill({ courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 3, lessonNumbers: [5] });
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('.image-item')).toBeNull();
+    expect(element.querySelector('.submit-button')?.textContent?.trim()).toBe('Tạo câu hỏi');
+
+    await page.generate();
+    const request = http.expectOne(r => r.url === '/api/csv/jobs').request;
+    expect(Array.from((request.body as FormData).keys())).toEqual([]);
   });
 
   it('applies the YCT book\'s lesson count', () => {

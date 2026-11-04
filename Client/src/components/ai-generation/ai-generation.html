@@ -42,11 +42,12 @@
       <input #imageInput (change)="importFromImage($event)" accept="image/*" multiple style="display: none"
              type="file"/>
 
-      <!-- What the quiz is made from: the lesson, then the photos, whose need the lesson decides. Side by side on a
-           wide screen, so the page fits a laptop's screen with the Game options open. -->
+      <!-- What the quiz is made from: the lesson, then the photos, which a course with a book shuts. Side by side on a
+           wide screen, the photos as high as the whole section, so the page fits a laptop's screen with the Game
+           options open. -->
       <section aria-labelledby="lessonHeading" class="qt-panel form-section">
-        <h2 class="section-title" id="lessonHeading">Bài học</h2>
-        <div class="lesson-body">
+        <div [class.with-fields]="isAutoMode" class="lesson-body">
+          <h2 class="section-title" id="lessonHeading">Bài học</h2>
           @if (isAutoMode) {
             <!-- Each .field stacks its label, its control and its error message. -->
             <div class="fields">
@@ -116,36 +117,31 @@
           }
 
           <div class="photos">
-            <div class="photos-head">
-              <span class="field-label" id="photosLabel">Ảnh</span>
-              @if (!isAutoMode) {
-                <small class="export-hint">Cần ít nhất 1 ảnh.</small>
-              } @else if (textbook; as book) {
-                <small class="export-hint">Có sẵn {{ book.title }}, không cần ảnh.</small>
-              } @else if (isCourseChosen) {
-                <small class="export-hint">Nên thêm ảnh.</small>
-              }
-              @if (selectedImages().length > 0 && !isGenerating()) {
+            @if (shownImages.length > 0 && !isGenerating()) {
+              <div class="photos-head">
                 <button (click)="clearAllImages()" class="clear-images" nz-button nzSize="small" nzType="text"
                         type="button">
                   <nz-icon nzTheme="outline" nzType="delete"/>
                   Xóa tất cả
                 </button>
-              }
-            </div>
-            <!-- Only the image area takes drops. Low when the course has a book, since photos are then optional. -->
+              </div>
+            }
+            <!-- Only the image area takes drops. -->
             <div (dragenter)="onDropZoneEnter($event)"
                  (dragleave)="onDropZoneDragLeave($event)"
                  (dragover)="onDropZoneDragOver($event)"
                  (drop)="onDrop($event)"
+                 [attr.aria-disabled]="photosDisabled || null"
+                 [attr.aria-label]="photosDisabledReason ? 'Ảnh: ' + photosDisabledReason : 'Ảnh'"
+                 [class.disabled]="photosDisabled"
                  [class.drag-over]="isDragOver"
-                 [class.optional]="isAutoMode && textbook !== undefined && selectedImages().length === 0"
-                 aria-labelledby="photosLabel"
+                 [nzTooltipTitle]="photosDisabledReason"
                  class="drop-zone"
+                 nz-tooltip
                  tabindex="0">
-              @if (selectedImages().length > 0) {
+              @if (shownImages.length > 0) {
                 <div class="images-list">
-                  @for (image of selectedImages(); let i = $index; track i) {
+                  @for (image of shownImages; let i = $index; track i) {
                     <div class="image-item">
                       @if (!isGenerating()) {
                         <button (click)="removeImage(i)" aria-label="Xóa ảnh" class="remove-btn" nz-button nzDanger
@@ -173,7 +169,12 @@
                 <div class="drop-zone-content">
                   <nz-icon class="drop-zone-icon" nzTheme="outline" nzType="picture"/>
                   <p class="drop-zone-text">Kéo thả, dán (Ctrl+V) hoặc
-                    <a (click)="imageInput.click()" class="file-link" href="javascript:void(0)">chọn file</a></p>
+                    @if (photosDisabled) {
+                      <span class="file-link">chọn file</span>
+                    } @else {
+                      <a (click)="imageInput.click()" class="file-link" href="javascript:void(0)">chọn file</a>
+                    }
+                  </p>
                 </div>
               }
             </div>

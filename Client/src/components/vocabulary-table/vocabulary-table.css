@@ -76,6 +76,25 @@ textarea[nz-input] {
   font-size: 16px;
 }
 
+/* The row's number: a quiet margin column, read when a duplicate or a missing answer is pointed out. */
+.row-number {
+  text-align: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--qt-text-faint);
+}
+
+.add-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  margin-top: 10px;
+  font-size: 15px;
+}
+
 td nz-select {
   width: 120px;
   height: 36px;
@@ -116,9 +135,12 @@ td nz-select {
   padding: 8px 20px;
 }
 
-.header-toolbar button[nz-button].ant-btn-circle {
-  width: 40px;
-  justify-content: center;
+.header-toolbar .left-buttons button[nz-button] {
+  padding-inline: 12px;
+}
+
+.header-toolbar kt-quiz-usage-guide {
+  margin-bottom: 0;
 }
 
 .header-toolbar nz-select {
@@ -128,4 +150,27 @@ td nz-select {
 
 .header-toolbar label[nz-radio-button] {
   font-size: 15px;
+}
+
+/* A phone: the two utilities share a line, the platform and the download the next one. */
+@media (max-width: 599px) {
+  .header-toolbar,
+  .left-buttons,
+  .right-buttons {
+    gap: 8px;
+  }
+
+  .right-buttons {
+    width: 100%;
+  }
+
+  .header-toolbar nz-select {
+    flex: 1 1 140px;
+    width: auto;
+    min-width: 0;
+  }
+
+  .header-toolbar button[nz-button]:not(.ant-btn-circle) {
+    padding: 8px 12px;
+  }
 }

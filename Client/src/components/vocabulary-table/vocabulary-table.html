@@ -1,33 +1,28 @@
-<!-- The guide is a popup opened from a button, so the table keeps the full width. -->
+<!-- The guide is a popup opened from a button in the toolbar, so the table keeps the full width and height. -->
 <nz-layout class="quiz-layout">
-  <kt-quiz-usage-guide>
-    <ol>
-      <li>Nhập câu hỏi và đáp án, hoặc mở từ <b>AI › Lịch sử</b> (<b>Mở trong bảng</b>).</li>
-      <li>Chọn nền tảng rồi tải file.</li>
-    </ol>
-    <p>Cần ít nhất {{ minRows }} câu, không trùng nhau; dòng trống bị bỏ qua.</p>
-    <p><b>Trắc nghiệm</b>: đáp án sai lấy từ đáp án của các câu khác.</p>
-    <p>Wayground: có thể dùng <b>Tiện ích tự publish</b> (@if (loggedIn) {<a
-      (click)="downloadExtension($event)" href="/api/extension">tải về</a>, }<a
-      href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
-      target="_blank">cách cài</a>).</p>
-  </kt-quiz-usage-guide>
   <nz-content>
     <form (ngSubmit)="exportFile()" [formGroup]="formGroup">
       <div class="header-toolbar">
 
-        <!-- LEFT BUTTON -->
         <div class="left-buttons">
-          <button (click)="addRow()" nz-button nzShape="circle" nzType="primary" type="button">
-            <nz-icon nzTheme="outline" nzType="plus"/>
-          </button>
-          <button (click)="confirmDeleteAllRows()" nz-button nzType="default" type="button">
+          <kt-quiz-usage-guide>
+            <ol>
+              <li>Nhập câu hỏi và đáp án, hoặc mở từ <b>AI › Lịch sử</b> (<b>Mở trong bảng</b>).</li>
+              <li>Chọn nền tảng rồi tải file.</li>
+            </ol>
+            <p>Cần ít nhất {{ minRows }} câu, không trùng nhau; dòng trống bị bỏ qua.</p>
+            <p><b>Trắc nghiệm</b>: đáp án sai lấy từ đáp án của các câu khác.</p>
+            <p>Wayground: có thể dùng <b>Tiện ích tự publish</b> (@if (loggedIn) {<a
+              (click)="downloadExtension($event)" href="/api/extension">tải về</a>, }<a
+              href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
+              target="_blank">cách cài</a>).</p>
+          </kt-quiz-usage-guide>
+          <button (click)="confirmDeleteAllRows()" nz-button nzType="text" type="button">
             <nz-icon nzTheme="outline" nzType="delete"/>
             Xóa tất cả
           </button>
         </div>
 
-        <!-- RIGHT BUTTONS -->
         <div class="right-buttons">
 
           <!-- Select page template -->
@@ -70,8 +65,9 @@
                 nzBordered>
         <thead>
         <tr>
-          <th nzWidth="50%">Câu hỏi</th>
-          <th nzWidth="30%">Đáp án</th>
+          <th class="row-number" nzWidth="52px"></th>
+          <th>Câu hỏi</th>
+          <th nzWidth="36%">Đáp án</th>
           @if (formGroup.get('exportType')?.value === ExportType.Wayground) {
             <th nzWidth="15%" style="text-align: center"></th>
           }
@@ -84,6 +80,7 @@
         <tbody formArrayName="listOfData">
           @for (item of tableWord.data; track item; let i = $index) {
             <tr [formGroup]="item">
+              <td class="row-number">{{ i + 1 }}</td>
               <td class="cell-flex">
                 <textarea #rowSourceInputs [formControl]="item.controls.question" cdkTextareaAutosize
                           nz-input></textarea>
@@ -109,7 +106,8 @@
               }
               @if (tableWord.data.length > minRows) {
                 <td style="text-align: center">
-                  <button (click)="deleteRow(i)" nz-button nzShape="circle" nzType="default" type="button">
+                  <button (click)="deleteRow(i)" aria-label="Xóa dòng" nz-button nzShape="circle" nzType="text"
+                          type="button">
                     <nz-icon nzTheme="outline" nzType="delete"/>
                   </button>
                 </td>
@@ -118,6 +116,11 @@
           }
         </tbody>
       </nz-table>
+      <!-- Under the table, where the next row will appear. -->
+      <button (click)="addRow()" class="add-row" nz-button nzBlock nzType="dashed" type="button">
+        <nz-icon nzTheme="outline" nzType="plus"/>
+        Thêm dòng
+      </button>
 
       <ng-template #errorMessage let-errorKey="errorKey" let-formControl let-message="message">
         @if (formControl.hasError(errorKey) && formControl.dirty) {

@@ -54,7 +54,10 @@
 
           <!-- Everything but AI generation works without an account, so let the user go back. -->
           <div [nzLg]="24" [nzMd]="24" [nzSm]="24" [nzXs]="24" class="back-link" nz-col>
-            <a routerLink="/quiz">← Dùng không cần đăng nhập</a>
+            <a class="skip-login" routerLink="/quiz">
+              <nz-icon nzTheme="outline" nzType="arrow-left"/>
+              Dùng không cần đăng nhập
+            </a>
           </div>
         </div>
       </form>

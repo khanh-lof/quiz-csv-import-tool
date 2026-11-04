@@ -1,6 +1,6 @@
 /*
- * App-wide look: a light pink-to-blue page, white sheets on it, dark text and one light pink accent, with a
- * pink-to-blue gradient on the primary button only. theme.less sets the library's own Less variables (colors, radius, font); this
+ * App-wide look: a light pink-to-blue page ruled like a Vietnamese school notebook (giấy ô li), white sheets on it,
+ * plum ink and one light pink accent, with a pink-to-blue gradient on the primary button only. theme.less sets the library's own Less variables (colors, radius, font); this
  * file adds the tokens and what those variables cannot express. Component stylesheets hold only layout and sizing,
  * never colors or library overrides, so a library component looks the same on every screen, including overlays
  * (modals, confirms, dropdowns, notifications) that render outside any component.
@@ -10,16 +10,29 @@
   --qt-page: linear-gradient(135deg, #ffe0f0 0%, #e0ecff 100%);
   --qt-paper: #fff0f7;
   --qt-sheet: #fff;
-  --qt-text: #333;
-  --qt-text-muted: #666;
+  /* Ruled like giấy ô li: a big square every 32px, split by fainter lines into four rows. Faint enough that the
+     sheets on it stay the content; the paper only shows in the gaps between them. */
+  --qt-grid-line: rgba(150, 110, 220, 0.06);
+  --qt-grid-line-bold: rgba(150, 110, 220, 0.11);
+  --qt-page-ruled: linear-gradient(var(--qt-grid-line-bold) 1px, transparent 1px) 0 0 / 32px 32px,
+  linear-gradient(90deg, var(--qt-grid-line-bold) 1px, transparent 1px) 0 0 / 32px 32px,
+  linear-gradient(var(--qt-grid-line) 1px, transparent 1px) 0 0 / 8px 8px,
+  var(--qt-page);
+  /* A plum-tinted ink, between the pink and the blue, so the text belongs to the palette. */
+  --qt-text: #2f2a3d;
+  --qt-text-muted: #6b6478;
+  --qt-text-faint: #9a93a6;
   --qt-border: #ffd1e6;
   --qt-border-strong: #ff99cc;
   --qt-accent: #ff8ecb;
   --qt-accent-dark: #ff66aa;
   --qt-accent-soft: #ffe6f2;
+  /* The accent as text (links, the selected page and option): the light pinks are too pale to read on white. */
+  --qt-accent-ink: #c2367f;
   --qt-blue: #8fb0ff;
-  /* The primary button's fill, the one place the blue appears. */
+  /* The primary button's fill, the one place the blue appears, with white text. */
   --qt-gradient: linear-gradient(90deg, var(--qt-accent), var(--qt-blue));
+  --qt-on-gradient: #fff;
   /* The quiet fill of secondary controls, table heads and inset areas. */
   --qt-surface: #fff0f7;
   --qt-surface-head: #ffe6f2;
@@ -28,14 +41,16 @@
   --qt-danger: #ff4d6d;
   --qt-danger-dark: #e8365a;
   --qt-font-ui: 'Be Vietnam Pro', -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* Titles: of the pages, sections, cards and dialogs. */
+  --qt-font-display: 'Bricolage Grotesque', var(--qt-font-ui);
   /* Hanzi in the games: a handwriting-style (Kai) face where the system has one, else any serif CJK font.
      Latin UI fonts come first, and they have no CJK glyphs, so Vietnamese and pinyin keep a readable face
      and the browser falls back to the Kai faces only for the hanzi themselves (KaiTi's own Latin is poor). */
   --qt-font-han: 'Be Vietnam Pro', 'Segoe UI', 'Helvetica Neue', Roboto, Arial, 'KaiTi', '楷体', 'STKaiti', 'Kaiti SC',
   'Noto Serif CJK SC', 'Songti SC', serif;
 
-  --qt-radius: 6px;
-  --qt-radius-lg: 10px;
+  --qt-radius: 8px;
+  --qt-radius-lg: 14px;
   --qt-border-width: 1px;
   --qt-focus-shadow: 0 0 0 3px rgba(136, 170, 255, 0.35);
   --qt-lift-shadow: 0 2px 6px rgba(255, 120, 170, 0.15);
@@ -70,10 +85,31 @@
 
 body {
   min-height: 100vh;
-  background: var(--qt-page) fixed;
+  background: var(--qt-page-ruled);
+  background-attachment: fixed;
   color: var(--qt-text);
   font-family: var(--qt-font-ui);
   -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--qt-font-display);
+  color: var(--qt-text);
+}
+
+a {
+  color: var(--qt-accent-ink);
+}
+
+a:hover {
+  color: var(--qt-accent-dark);
+}
+
+::selection {
+  background: var(--qt-accent-soft);
+  color: var(--qt-text);
 }
 
 :focus-visible {
@@ -130,6 +166,7 @@ body {
 }
 
 .ant-btn-primary {
+  font-weight: 600;
   text-shadow: none;
 }
 
@@ -138,12 +175,16 @@ body {
 .ant-btn-primary:not([disabled]):not(.ant-btn-dangerous):focus {
   background: var(--qt-gradient);
   border-color: transparent;
-  color: #fff;
+  color: var(--qt-on-gradient);
 }
 
 .ant-btn-primary:not([disabled]):not(.ant-btn-dangerous):hover,
 .ant-btn-primary:not([disabled]):not(.ant-btn-dangerous):focus {
-  filter: brightness(0.92);
+  filter: saturate(1.35) brightness(0.97);
+}
+
+.ant-btn-primary:not([disabled]):not(.ant-btn-dangerous):active {
+  filter: saturate(1.5) brightness(0.92);
 }
 
 /* A disabled primary keeps its place as the main action but reads as unavailable: a pale accent, not grey. */
@@ -153,7 +194,7 @@ body {
 .ant-btn-primary[disabled]:active {
   background: var(--qt-accent-soft);
   border-color: var(--qt-accent-soft);
-  color: rgba(255, 102, 170, 0.65);
+  color: rgba(194, 54, 127, 0.5);
 }
 
 /* Secondary buttons: plain nz-button (e.g. a confirm's Cancel), nzType="default" and "dashed". */
@@ -166,8 +207,22 @@ body {
 .ant-btn:not(.ant-btn-primary):not(.ant-btn-text):not(.ant-btn-link):not(.ant-btn-dangerous):not([disabled]):hover,
 .ant-btn:not(.ant-btn-primary):not(.ant-btn-text):not(.ant-btn-link):not(.ant-btn-dangerous):not([disabled]):focus {
   background: var(--qt-surface);
-  border-color: var(--qt-text-muted);
+  border-color: var(--qt-accent-dark);
   color: var(--qt-text);
+}
+
+.ant-btn-text:not([disabled]):not(.ant-btn-dangerous) {
+  color: var(--qt-text-muted);
+}
+
+.ant-btn-text:not([disabled]):not(.ant-btn-dangerous):hover,
+.ant-btn-text:not([disabled]):not(.ant-btn-dangerous):focus {
+  background: var(--qt-surface);
+  color: var(--qt-text);
+}
+
+.ant-btn-link:not([disabled]):not(.ant-btn-dangerous) {
+  color: var(--qt-accent-ink);
 }
 
 .ant-btn-dashed:not([disabled]) {
@@ -204,7 +259,7 @@ body {
 .ant-input-number:hover,
 .ant-input-affix-wrapper:hover,
 .ant-select:not(.ant-select-disabled):hover .ant-select-selector {
-  border-color: var(--qt-text-muted);
+  border-color: var(--qt-accent-dark);
 }
 
 .ant-input:focus,
@@ -219,7 +274,7 @@ body {
 .ant-input::placeholder,
 .ant-input-number-input::placeholder,
 .ant-select-selection-placeholder {
-  color: #999;
+  color: var(--qt-text-faint);
 }
 
 /* Pin text inputs to the same fixed heights as selects and radio buttons (border-box, so the border is inside).
@@ -274,7 +329,7 @@ input.ant-input-sm,
 }
 
 .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
-  color: var(--qt-accent-dark);
+  color: var(--qt-accent-ink);
   font-weight: 600;
 }
 
@@ -305,7 +360,8 @@ input.ant-input-sm,
 .ant-radio-group-solid .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled):hover {
   background: var(--qt-gradient);
   border-color: transparent;
-  color: #fff;
+  color: var(--qt-on-gradient);
+  font-weight: 600;
 }
 
 .ant-radio-group-solid .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled)::before {
@@ -334,8 +390,21 @@ input.ant-input-sm,
 }
 
 .ant-card-head-title {
-  font-size: 16px;
-  font-weight: 600;
+  font-family: var(--qt-font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--qt-text);
+}
+
+/* A section's own heading inside a .qt-panel (the AI form's "Bài học", "Tạo cho"). */
+.qt-section-title {
+  margin: 0;
+  font-family: var(--qt-font-display);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
   color: var(--qt-text);
 }
 
@@ -374,10 +443,30 @@ input.ant-input-sm,
   display: none;
 }
 
+/* The page on screen: a pink pill with the notebook's margin line down its left edge. */
 .qt-sidebar .ant-menu:not(.ant-menu-horizontal) .ant-menu-item-selected {
   background: var(--qt-accent-soft);
-  color: var(--qt-accent-dark);
+  box-shadow: inset 3px 0 0 var(--qt-accent-dark);
+  color: var(--qt-accent-ink);
   font-weight: 600;
+}
+
+.qt-sidebar .ant-menu-item a,
+.qt-sidebar .ant-menu-item:hover a {
+  color: inherit;
+}
+
+.qt-sidebar .ant-menu-item:not(.ant-menu-item-selected):hover,
+.qt-sidebar .ant-menu-submenu-title:hover {
+  background: var(--qt-surface);
+  color: var(--qt-text);
+}
+
+/* The group titles ("AI", "Game") head their pages rather than lead anywhere, so they are quieter than the pages. */
+.qt-sidebar .ant-menu-submenu-inline > .ant-menu-submenu-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--qt-text-muted);
 }
 
 /* ng-zorro marks every open inline group active, which colours its title like a selection: only the group of
@@ -406,8 +495,10 @@ input.ant-input-sm,
 }
 
 .ant-modal-title {
-  font-size: 17px;
-  font-weight: 600;
+  font-family: var(--qt-font-display);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--qt-text);
 }
 
@@ -424,8 +515,9 @@ input.ant-input-sm,
 }
 
 .ant-modal-confirm-body .ant-modal-confirm-title {
-  font-size: 17px;
-  font-weight: 600;
+  font-family: var(--qt-font-display);
+  font-size: 18px;
+  font-weight: 700;
   color: var(--qt-text);
 }
 
@@ -457,7 +549,8 @@ input.ant-input-sm,
 }
 
 .ant-notification-notice-message {
-  font-weight: 600;
+  font-family: var(--qt-font-display);
+  font-weight: 700;
 }
 
 .ant-notification-notice-description:empty {
@@ -478,6 +571,7 @@ input.ant-input-sm,
 .ant-table-thead > tr > th {
   background: var(--qt-surface-head);
   color: var(--qt-text-muted);
+  font-size: 13px;
   font-weight: 600;
   border-bottom: 1px solid var(--qt-border-strong);
 }
@@ -505,7 +599,28 @@ input.ant-input-sm,
 /* ===== Tags ===== */
 
 .ant-tag {
-  border-radius: 4px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+/* ===== Breadcrumb ===== */
+
+.ant-breadcrumb,
+.ant-breadcrumb-separator {
+  color: var(--qt-text-faint);
+}
+
+.ant-breadcrumb a {
+  color: var(--qt-text-muted);
+}
+
+.ant-breadcrumb a:hover {
+  background: transparent;
+  color: var(--qt-accent-ink);
+}
+
+.ant-empty-description {
+  color: var(--qt-text-muted);
 }
 
 /* ===== Collapse (the usage guides) ===== */

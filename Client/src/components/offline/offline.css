@@ -45,42 +45,11 @@
   }
 }
 
-.floating-particle {
-  animation: floatParticle 3s ease-in-out infinite alternate;
-}
-
-.p1 {
-  animation-delay: 0s;
-}
-
-.p2 {
-  animation-delay: 0.8s;
-}
-
-.p3 {
-  animation-delay: 1.4s;
-}
-
-.p4 {
-  animation-delay: 2.1s;
-}
-
-@keyframes floatParticle {
-  0% {
-    transform: translateY(0px) scale(0.9);
-    opacity: 0.4;
-  }
-  100% {
-    transform: translateY(-6px) scale(1.1);
-    opacity: 0.9;
-  }
-}
-
 .offline-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: #333;
   margin-bottom: 24px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .offline-actions {

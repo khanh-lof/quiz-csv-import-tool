@@ -156,8 +156,10 @@ lessons "Topic" (`lessonUnit`, the select's label and placeholder) and lists the
 `lessonOptionLabel`). Each language has a `defaultCourse` the form picks when it replaces the other language's course
 (English: `Other`). For these the server sends the lesson's real material to the AI, so no photo is needed. In Auto
 mode `AiGeneration` looks the book up from course type, standard and level (the `textbook` getter, like `maxLevel`)
-and shows beside the photos' label (the photos are the end of the "Bài học" section) either "Có sẵn …, không cần ảnh."
-(the drop zone then shrinks) or a muted "Nên thêm ảnh." line; the Bài select
+and, when there is one, shuts the photos (`photosDisabled`): the drop zone (the right column of the "Bài học" section,
+as high as the title and fields beside it, with no label or hint) is greyed out, says why in a tooltip ("Có sẵn …,
+không cần ảnh.", also its accessible name, `photosDisabledReason`) and takes no drop, paste or pick, and
+`shownImages`, what is shown and sent, is empty, though photos added before stay for a course without a book; the Bài select
 offers lessons 1 to the book's `lessons` (100 without a book), and a lesson left over the cap (HSK 3.0 level 3 lesson 18, then
 level 1) gets a `max` error from the form validator like the level's, so the form cannot be submitted; `lessonOptions`
 keeps an option for such a lesson, since ng-zorro's select hides a value without one and it could not be removed. Adding a book
@@ -610,12 +612,15 @@ ng-zorro-antd (Ant Design for Angular) components are imported individually per-
 `NzButtonComponent`, `NzTableModule`) rather than as one shared module, consistent with standalone
 component conventions. Styling is centralized so every library component looks the same on every screen, including
 overlays (modals, confirms, dropdowns, notifications) that render outside any component:
-- The look is light pink: a pink-to-blue page (`--qt-page`), white sheets on it (`--qt-sheet`, the cards, the
-  side menu and `.qt-panel`), dark text (`--qt-text`), pink rules (`--qt-border`, `--qt-border-strong` for inputs),
-  one light pink accent (`--qt-accent`, with `-dark` and `-soft`) for the selection, and a blue focus ring
+- The look is light pink: a pink-to-blue page (`--qt-page`) ruled like a Vietnamese notebook, giấy ô li
+  (`--qt-page-ruled`, the body's background), white sheets on it (`--qt-sheet`, the cards, the
+  side menu and `.qt-panel`), plum ink (`--qt-text`, `-muted`, `-faint`), pink rules (`--qt-border`, `--qt-border-strong` for inputs),
+  one light pink accent (`--qt-accent`, with `-dark` and `-soft`) for the selection, `--qt-accent-ink` where the
+  accent is text (links, the selected page), and a blue focus ring
   (`--qt-focus`). `--qt-paper` and `--qt-surface` are the flat pink tints for fills. The pink-to-blue
-  `--qt-gradient` fills the primary button and the checked option of a switch; no hover lifts. The UI font is
-  Be Vietnam Pro (loaded in `index.html`). The logo (`public/logo.ico`) heads the side menu, the login card and
+  `--qt-gradient` fills the primary button and the checked option of a switch, with white text; no hover lifts. The UI font is
+  Be Vietnam Pro; headings (`h1`–`h3`, card, modal and notification titles) use `--qt-font-display`, Bricolage
+  Grotesque (both loaded in `index.html`). The logo (`public/logo.ico`) heads the side menu, the login card and
   the loader.
 - `src/theme.less` sets ng-zorro's Less variables (primary pink, text and border colors, radius, font, …).
 - `src/styles.css` holds the design tokens (`--qt-*` custom properties on `:root`), the page
