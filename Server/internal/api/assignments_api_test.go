@@ -215,7 +215,7 @@ func TestAssignmentFlow(t *testing.T) {
 		t.Errorf("content type %q", got)
 	}
 	created := decode[map[string]any](t, rec)
-	wantKeys := []string{"closedAt", "closesAt", "code", "createdAt", "id", "jobId", "label", "maxAttempts", "open", "passPercents", "playerCount",
+	wantKeys := []string{"closedAt", "closesAt", "code", "createdAt", "id", "jobId", "label", "language", "maxAttempts", "open", "passPercents", "playerCount",
 		"showBoard", "showPinyin", "stageCounts", "stageLock", "timeLimits", "timeMode", "title"}
 	if got := keysOf(created); !slices.Equal(got, wantKeys) {
 		t.Fatalf("keys %v, want %v", got, wantKeys)

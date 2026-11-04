@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { finalize, interval } from 'rxjs';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
@@ -8,17 +9,22 @@ import { NzCardComponent } from 'ng-zorro-antd/card';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
+import { NzInputDirective } from 'ng-zorro-antd/input';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
+import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
 import {
   Assignment,
   assignmentErrorMessage,
+  AssignmentStatusFilter,
   assignmentStatusText,
+  filterAssignments,
   isOpenAt,
   shareUrl,
 } from '../../../models/assignment';
+import { LANGUAGES, languageSpec, QuizLanguage } from '../../../models/quiz-language';
 import { AssignmentService } from '../../../services/assignment.service';
 import { DeadlinePicker } from '../deadline-picker/deadline-picker';
 import { ShareLink } from '../share-link/share-link';
@@ -33,6 +39,10 @@ const CLOCK_TICK_MS = 30_000;
   selector: 'kt-quiz-assignment-list',
   imports: [
     CommonModule,
+    FormsModule,
+    NzInputDirective,
+    NzSelectComponent,
+    NzOptionComponent,
     RouterLink,
     NzCardComponent,
     NzTableModule,
@@ -51,6 +61,10 @@ const CLOCK_TICK_MS = 30_000;
 })
 export class AssignmentList implements OnInit {
   protected readonly pageSize = PAGE_SIZE;
+  protected readonly languageTag = (language: QuizLanguage): string => {
+    const spec = languageSpec(language);
+    return `${spec.tag} ${spec.label}`;
+  };
   protected readonly helpText =
     'Giao bài ở AI › Lịch sử.';
   protected readonly assignments = signal<Assignment[]>([]);
@@ -59,6 +73,18 @@ export class AssignmentList implements OnInit {
   protected readonly loaded = signal(false);
   protected readonly failed = signal(false);
   protected readonly now = signal(new Date());
+
+  protected readonly languages = LANGUAGES;
+  protected readonly search = signal('');
+  protected readonly status = signal<AssignmentStatusFilter | null>(null);
+  protected readonly language = signal<QuizLanguage | null>(null);
+  protected readonly filtered = computed(() => filterAssignments(this.assignments(), {
+    search: this.search(),
+    status: this.status(),
+    language: this.language(),
+  }, this.now()));
+  protected readonly isFiltering = computed(() =>
+    this.search().trim() !== '' || this.status() !== null || this.language() !== null);
 
   // The assignment whose QR code is in its popup. Kept apart from `qrOpen` so the content stays while the
   // popup fades out.
@@ -97,6 +123,12 @@ export class AssignmentList implements OnInit {
       },
       error: () => this.failed.set(true),
     });
+  }
+
+  protected clearFilters(): void {
+    this.search.set('');
+    this.status.set(null);
+    this.language.set(null);
   }
 
   protected isOpen(assignment: Assignment): boolean {
