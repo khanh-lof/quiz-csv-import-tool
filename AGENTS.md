@@ -53,6 +53,24 @@ go run ./cmd/server   # http://localhost:7071; needs MongoDB and a .env (see Ser
 Running the full app locally means starting both: the SPA on 4200 and the API on 7071. `ng serve`
 proxies `/api` to 7071 (`Client/proxy.conf.json`), so the browser only ever talks to 4200.
 
+**Local MongoDB (Podman).** The server needs MongoDB at `MONGODB_URI` (`mongodb://localhost:27017` in `Server/.env`).
+Run it as a Podman container named `quiz-mongo` (image `mongo:8`, port 27017, data in the container's volume):
+```bash
+podman ps -a --filter name=quiz-mongo        # check it first
+podman start quiz-mongo                      # if it exists but is stopped
+podman run -d --name quiz-mongo -p 27017:27017 -v quiz-mongo-data:/data/db mongo:8   # first time only
+podman stop quiz-mongo                       # when done; the data stays
+```
+`podman compose up -d mongo` in `Server/` does the same through `compose.yaml`. If Podman's machine is not running,
+`podman machine start` first. Leave a container that was already running as it was found.
+
+**Verifying a UI change.** Start both with `preview_start` (`quiz-tool-client`, `quiz-tool-server` in
+`.claude/launch.json`), never with a shell command, and open `http://localhost:4200/<page>` in the Browser pane.
+The pane's session usually stays logged in (the silent refresh on boot), so `/ai` and the other guarded pages open
+directly; if not, ask the user to log in. Prefer `find`/`read_page` and keyboard input over coordinate clicks
+(overlays such as the ng-zorro select dropdown close between calls), and measure with `javascript_tool`. Stop both
+with `preview_stop` when done.
+
 ## The client/server contract
 
 All server routes are under `/api`. The client calls them by relative URL (`/api/...`) — there is
