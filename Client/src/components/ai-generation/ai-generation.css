@@ -280,8 +280,11 @@
   white-space: nowrap;
 }
 
+/* Grows with the chosen course's name, so a long one ("Ôn tập từ vựng lớp 10") is not cut. */
 .creative-selection .course-type-select {
-  width: 150px;
+  width: max-content;
+  min-width: 150px;
+  max-width: 100%;
 }
 
 /* Takes whatever is left of the row, so choosing "Khác" keeps Cấp/Bài on the same line when they fit. */
@@ -344,7 +347,9 @@
 }
 
 .output-selection .export-type-select {
-  width: 200px;
+  width: max-content;
+  min-width: 200px;
+  max-width: 100%;
 }
 
 /* The Game choices under the platform row: the games, the question count and what they make. */
