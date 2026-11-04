@@ -597,7 +597,7 @@ export class AiGeneration {
         : courseType === CourseType.VocabReview10 ? 'Lop10'
           : (courseName ?? '');
     const shownLevel = courseHasLevels(courseType) ? level : null;
-    return `${course}${shownLevel ?? ''}-Bai${formatLessonNumbers(lessonNumbers ?? [], '-', '+')}`;
+    return `${course}${shownLevel ?? ''}-${courseType === CourseType.VocabReview10 ? 'Topic' : 'Bai'}${formatLessonNumbers(lessonNumbers ?? [], '-', '+')}`;
   }
 
   // is reported by AiJobService when the history table sees it fail.
