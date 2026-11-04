@@ -114,7 +114,7 @@
         <div class="creative-selection">
           <div class="field">
             <nz-select [formControl]="formGroup.controls.courseType" class="course-type-select"
-                       nzId="courseType" nzPlaceHolder="Chọn giáo trình">
+                       [nzDropdownMatchSelectWidth]="false" nzId="courseType"nzPlaceHolder="Chọn giáo trình">
               @for (course of language.courses; track course.value) {
                 <nz-option [nzValue]="course.value" [nzLabel]="course.label"></nz-option>
               }
@@ -182,7 +182,7 @@
         <div class="output-selection">
           <div class="field">
             <nz-select [formControl]="formGroup.controls.exportType" class="export-type-select"
-                       nzPlaceHolder="Tạo quiz cho">
+                       [nzDropdownMatchSelectWidth]="false" nzPlaceHolder="Tạo quiz cho">
               <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
               <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
               <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
