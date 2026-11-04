@@ -5,20 +5,27 @@
 // Override less variables to here
 // View all variables: https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/components/style/themes/default.less
 //
-// These give every ng-zorro component the app's pink/blue palette at the source: primary actions, hover
-// and focus states, checked radios/checkboxes, links, spinners and the like. Keep the values in sync with
-// the tokens on :root in styles.css, which layers the effects Less variables cannot express (gradients,
-// thicker borders, glow) on top.
+// The light pink look at the source: dark text, pink borders and one light pink accent for primary actions, selection,
+// focus, links and spinners. Keep the values in sync with the tokens on :root in styles.css, which
+// layers what Less variables cannot express on top.
+@font-family: 'Be Vietnam Pro', -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 @primary-color: #ff8ecb;
 @info-color: #8fb0ff;
-@link-color: #ff8ecb;
+@error-color: #ff4d4f;
+@link-color: #ff66aa;
 @link-hover-color: #88aaff;
+@link-active-color: #88aaff;
 @text-color: #333;
+@text-color-secondary: #666;
 @heading-color: #333;
+@disabled-color: #aaa;
 @border-color-base: #ff99cc;
-@border-radius-base: 8px;
+@border-color-split: #ffd1e6;
+@border-radius-base: 6px;
 @outline-color: #88aaff;
 @item-active-bg: #ffe6f2;
 @item-hover-bg: #fff0f7;
 @select-item-selected-bg: #ffccd9;
 @select-item-active-bg: #ffe6f2;
+@table-header-bg: #ffe6f2;
+@table-row-hover-bg: #fff0f7;

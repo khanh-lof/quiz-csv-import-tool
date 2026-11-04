@@ -15,12 +15,29 @@
   margin-bottom: 16px;
 }
 
-.list-filters {
+.list-panel {
+  padding: 16px;
+}
+
+/* The filters take the row; the refresh button keeps to its right end. */
+.list-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
   margin-bottom: 12px;
+}
+
+.list-filters {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.refresh {
+  margin-left: auto;
 }
 
 .search-input {

@@ -5,7 +5,6 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { finalize, interval } from 'rxjs';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
-import { NzCardComponent } from 'ng-zorro-antd/card';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
@@ -45,7 +44,6 @@ const CLOCK_TICK_MS = 30_000;
     NzSelectComponent,
     NzOptionComponent,
     RouterLink,
-    NzCardComponent,
     NzTableModule,
     NzModalModule,
     NzButtonComponent,

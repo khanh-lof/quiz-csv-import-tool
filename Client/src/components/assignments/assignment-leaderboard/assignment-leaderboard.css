@@ -99,7 +99,7 @@ nz-card {
 }
 
 .entry:hover {
-  background: var(--qt-gradient-soft);
+  background: var(--qt-surface);
 }
 
 /* A left accent in the medal's metal for the first three places (the number is the rank, so ties share it). */

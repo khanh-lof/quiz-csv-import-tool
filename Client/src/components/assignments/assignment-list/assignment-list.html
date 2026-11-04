@@ -1,4 +1,5 @@
-<nz-card [nzExtra]="refreshTemplate" nzTitle="Bài đã giao">
+<section aria-label="Bài đã giao" class="qt-panel list-panel">
+  <div class="list-toolbar">
   @if (assignments().length > 0) {
     <div class="list-filters">
       <input (ngModelChange)="search.set($event ?? '')" [ngModel]="search()" aria-label="Tìm kiếm" class="search-input"
@@ -22,6 +23,11 @@
       }
     </div>
   }
+    <button (click)="load()" [disabled]="loading()" class="refresh" nz-button nzType="default" type="button">
+      <nz-icon nzTheme="outline" nzType="reload"/>
+      Làm mới
+    </button>
+  </div>
   <nz-table #listTable [nzData]="filtered()" [nzLoading]="loading()" [nzNoResult]="emptyTemplate" [nzPageSize]="pageSize"
             [nzScroll]="{ x: '720px' }" [nzShowPagination]="filtered().length > pageSize"
             class="list-table" nzSize="small">
@@ -92,14 +98,7 @@
       }
     </tbody>
   </nz-table>
-</nz-card>
-
-<ng-template #refreshTemplate>
-  <button (click)="load()" [disabled]="loading()" nz-button nzType="default" type="button">
-    <nz-icon nzTheme="outline" nzType="reload"/>
-    Làm mới
-  </button>
-</ng-template>
+</section>
 
 <!-- Shown by the table only when there is no row; nothing until the first answer, so it never claims an
      empty list that was not loaded. -->

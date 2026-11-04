@@ -42,7 +42,7 @@ form {
 }
 
 :host ::ng-deep .ant-table-thead > tr > th {
-  font-size: 20px;
+  font-size: 15px;
 }
 
 /* nzScroll's `y` would force `overflow-y: scroll` (a scrollbar even when rows fit), so the table
@@ -68,9 +68,11 @@ form {
   padding: 8px;
 }
 
+/* Hanzi typed into a cell are written in the Kai face, as in the games. */
 textarea[nz-input] {
   min-height: 36px;
   padding: 4px 10px;
+  font-family: var(--qt-font-han);
   font-size: 16px;
 }
 
@@ -107,7 +109,7 @@ td nz-select {
   align-items: center;
   gap: 6px;
   height: 40px;
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .header-toolbar button[nz-button]:not(.ant-btn-circle) {
@@ -121,9 +123,9 @@ td nz-select {
 
 .header-toolbar nz-select {
   width: 220px;
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .header-toolbar label[nz-radio-button] {
-  font-size: 18px;
+  font-size: 15px;
 }

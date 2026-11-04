@@ -4,6 +4,28 @@
   padding: 20px;
 }
 
+.login-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 24px;
+}
+
+/* Cropped to its square of artwork, as in the side menu. */
+.login-logo {
+  width: 160px;
+  height: 160px;
+  object-fit: cover;
+}
+
+.login-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
 nz-form-item {
   margin-bottom: 20px;
 }
@@ -11,9 +33,10 @@ nz-form-item {
 label:not(.ant-checkbox-wrapper) {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--qt-text-muted);
 }
 
 button[nz-button] {

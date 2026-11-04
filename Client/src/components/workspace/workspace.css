@@ -38,16 +38,34 @@
   overflow: hidden auto;
 }
 
-/* The collapse switch: an icon button at the top, right-aligned while open and centered in the 80px rail when
-   collapsed. The nav takes the middle so the account item stays at the foot. */
+/* The logo centered at the top, the collapse switch in the corner beside it; collapsed, the switch alone is
+   centered in the 80px rail. The nav takes the middle so the account item stays at the foot. */
 .sidebar-head {
+  position: relative;
   display: flex;
-  justify-content: flex-end;
-  padding: 8px 12px 0;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 8px;
 }
 
-.sidebar.collapsed .sidebar-head {
-  justify-content: center;
+.sidebar:not(.collapsed) .collapse-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.brand {
+  display: flex;
+}
+
+/* The logo's image is mostly empty margin around a square of artwork: a square box with object-fit: cover crops
+   the margin at the sides, so the artwork is drawn larger. */
+.brand-logo {
+  display: block;
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
 }
 
 .collapse-toggle {
@@ -57,15 +75,16 @@
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
-  color: var(--qt-text);
-  font-size: 16px;
+  color: var(--qt-text-muted);
+  font-size: 14px;
   cursor: pointer;
 }
 
 .collapse-toggle:hover {
-  background: rgba(255, 180, 210, 0.25);
+  color: var(--qt-text);
+  background: var(--qt-surface);
 }
 
 .workspace-nav {
@@ -74,7 +93,11 @@
 
 .workspace-nav,
 .sidebar-foot {
-  font-size: 15px;
+  font-size: 14px;
+}
+
+.sidebar-foot {
+  padding: 6px 0;
 }
 
 /* One width for every page, so switching between them does not resize it; on a wide screen the page is
@@ -89,9 +112,23 @@
   padding: 4px 0;
 }
 
+.page-head {
+  flex: none;
+  margin: 6px 0 16px;
+}
+
 .workspace-breadcrumb {
-  margin-bottom: 8px;
-  padding: 6px 14px;
+  margin-bottom: 2px;
+  font-size: 13px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: var(--qt-text);
 }
 
 /* A phone cannot spare 40px a side, nor 220px for the menu: the padding shrinks, the menu stays collapsed
@@ -103,6 +140,10 @@
 
   .workspace-shell {
     gap: 12px;
+  }
+
+  .page-title {
+    font-size: 20px;
   }
 
   .sidebar-slot,

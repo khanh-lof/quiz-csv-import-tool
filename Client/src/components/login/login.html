@@ -1,6 +1,10 @@
 <div class="qt-centered-page">
   <div class="login-card">
-    <nz-card nzTitle="Đăng nhập QuizTool">
+    <nz-card>
+      <header class="login-head">
+        <img alt="QuizTool" class="login-logo" src="logo.ico"/>
+        <h1 class="login-title">Đăng nhập</h1>
+      </header>
       <form (ngSubmit)="onLogin()" [formGroup]="loginForm">
         <div [nzGutter]="16" nz-row>
           <div [nzLg]="24" [nzMd]="24" [nzSm]="24" [nzXs]="24" nz-col>

@@ -37,7 +37,7 @@
 }
 
 .cell.is-selected {
-  border-color: var(--qt-pink);
+  border-color: var(--qt-accent);
 }
 
 /* The ring alone is a colour; the tick says "picked" to everyone. */
@@ -54,7 +54,7 @@
   font-weight: 700;
   line-height: 1;
   color: #fff;
-  background: var(--qt-pink);
+  background: var(--qt-accent);
   border-radius: 50%;
 }
 
