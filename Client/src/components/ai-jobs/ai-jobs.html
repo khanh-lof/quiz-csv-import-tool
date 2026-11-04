@@ -17,7 +17,7 @@
     <nz-select (ngModelChange)="setLanguage($event ?? null)" [ngModel]="language()" class="filter-select" nzAllowClear
                nzPlaceHolder="Ngôn ngữ">
       @for (option of languages; track option.value) {
-        <nz-option [nzValue]="option.value" [nzLabel]="option.tag + ' ' + option.label"></nz-option>
+        <nz-option [nzValue]="option.value" [nzLabel]="languageTagText(option.value)"></nz-option>
       }
     </nz-select>
     <nz-select (ngModelChange)="exportType.set($event ?? null)" [ngModel]="exportType()" class="filter-select" nzAllowClear
@@ -28,7 +28,7 @@
       <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Game"></nz-option>
       <nz-option [nzValue]="ExportType.Radicals" nzLabel="Ghép bộ thủ"></nz-option>
     </nz-select>
-    <nz-select (ngModelChange)="setCourseType($event ?? null)" [ngModel]="courseType()" class="filter-select" nzAllowClear
+    <nz-select (ngModelChange)="setCourseType($event ?? null)" [ngModel]="courseType()" class="filter-select" nzAllowClear [nzDropdownMatchSelectWidth]="false"
                nzPlaceHolder="Giáo trình">
       @for (course of courseOptions(); track course.value) {
         <nz-option [nzValue]="course.value" [nzLabel]="course.label"></nz-option>

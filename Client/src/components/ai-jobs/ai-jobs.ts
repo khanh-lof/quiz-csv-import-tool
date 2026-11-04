@@ -357,4 +357,6 @@ export class AiJobs implements OnInit {
       error: () => this.notificationService.error('Không xóa được', 'Thử lại.'),
     });
   }
+
+  protected readonly languageTagText = languageTagText;
 }

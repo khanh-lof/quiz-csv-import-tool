@@ -233,4 +233,6 @@ export class AssignmentList implements OnInit {
   private fail(title: string, err: unknown): void {
     this.notificationService.error(title, assignmentErrorMessage(err));
   }
+
+  protected readonly languageTagText = languageTagText;
 }
