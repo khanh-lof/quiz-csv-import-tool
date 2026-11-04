@@ -113,13 +113,16 @@
         <!-- Each .field stacks its control over its error message, so a message never shifts the row. -->
         <div class="creative-selection">
           <div class="field">
-            <nz-select [formControl]="formGroup.controls.courseType" class="course-type-select"
-                       [nzDropdownMatchSelectWidth]="false" nzId="courseType"nzPlaceHolder="Chọn giáo trình">
-              @for (course of language.courses; track course.value) {
-                <nz-option [nzValue]="course.value" [nzLabel]="course.label"></nz-option>
-              }
-              <nz-option [nzValue]="CourseType.Other" nzLabel="Khác"></nz-option>
-            </nz-select>
+            <div class="field-row">
+              <label class="field-label" for="courseType">Giáo trình</label>
+              <nz-select [formControl]="formGroup.controls.courseType" class="course-type-select"
+                         [nzDropdownMatchSelectWidth]="false" nzId="courseType" nzPlaceHolder="Chọn giáo trình">
+                @for (course of language.courses; track course.value) {
+                  <nz-option [nzValue]="course.value" [nzLabel]="course.label"></nz-option>
+                }
+                <nz-option [nzValue]="CourseType.Other" nzLabel="Khác"></nz-option>
+              </nz-select>
+            </div>
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.courseType}"/>
           </div>
@@ -132,8 +135,11 @@
           }
           @if (formGroup.controls.courseType.value === CourseType.Other) {
             <div class="field course-name-field">
-              <input [formControl]="formGroup.controls.courseName" class="course-name-input" nz-input
-                     nzId="courseName" placeholder="Tên giáo trình"/>
+              <div class="field-row">
+                <label class="field-label" for="courseName">Tên giáo trình</label>
+                <input [formControl]="formGroup.controls.courseName" class="course-name-input" nz-input
+                       nzId="courseName"/>
+              </div>
               <ng-container
                 *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.courseName}"/>
             </div>
@@ -181,16 +187,19 @@
         }
         <div class="output-selection">
           <div class="field">
-            <nz-select [formControl]="formGroup.controls.exportType" class="export-type-select"
-                       [nzDropdownMatchSelectWidth]="false" nzPlaceHolder="Tạo quiz cho">
-              <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
-              <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
-              <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
-              <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Game (camera)"></nz-option>
-              @if (offers(ExportType.Radicals)) {
-                <nz-option [nzValue]="ExportType.Radicals" nzLabel="Ghép bộ thủ"></nz-option>
-              }
-            </nz-select>
+            <div class="field-row">
+              <label class="field-label" for="exportType">Tạo quiz cho</label>
+              <nz-select [formControl]="formGroup.controls.exportType" class="export-type-select"
+                         [nzDropdownMatchSelectWidth]="false" nzId="exportType" nzPlaceHolder="Chọn nền tảng">
+                <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
+                <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
+                <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
+                <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Game (camera)"></nz-option>
+                @if (offers(ExportType.Radicals)) {
+                  <nz-option [nzValue]="ExportType.Radicals" nzLabel="Ghép bộ thủ"></nz-option>
+                }
+              </nz-select>
+            </div>
             <ng-container
               *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.exportType}"/>
           </div>

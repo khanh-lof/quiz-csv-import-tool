@@ -278,6 +278,7 @@
 
 .creative-selection .field-label {
   white-space: nowrap;
+  font-weight: bold;
 }
 
 /* Grows with the chosen course's name, so a long one ("Ôn tập từ vựng lớp 10") is not cut. */
@@ -346,6 +347,17 @@
   gap: 2px;
 }
 
+.output-selection .field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.output-selection .field-label {
+  white-space: nowrap;
+  font-weight: bold;
+}
+
 .output-selection .export-type-select {
   width: max-content;
   min-width: 200px;
@@ -375,6 +387,7 @@
 
 .gesture-options .field-label {
   white-space: nowrap;
+  font-weight: bold;
 }
 
 .gesture-options nz-input-number {
