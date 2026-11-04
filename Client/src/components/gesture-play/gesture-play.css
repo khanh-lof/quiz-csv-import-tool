@@ -158,8 +158,10 @@
 
 .load-body h2 {
   margin: 4px 0 8px;
-  font-size: 24px;
+  font-size: 36px;
   font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
 }
 
 .problem {

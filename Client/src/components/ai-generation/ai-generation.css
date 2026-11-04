@@ -71,10 +71,10 @@
 
 .section-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
-  line-height: 1.3;
-  color: var(--qt-text);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 .field-label {
@@ -134,8 +134,8 @@
   max-width: 420px;
 }
 
-/* The photos under the fields, or, where the section is wide enough, the fields at their own width on the left and
-   the photos taking the rest of the row. */
+/* The title, the fields and the photos under each other, or, where the section is wide enough, the title and the
+   fields at their own width on the left and the photos taking the rest of the row, as high as both. */
 .form-section {
   container-type: inline-size;
 }
@@ -143,16 +143,23 @@
 .lesson-body {
   display: flex;
   flex-direction: column;
-  gap: 12px 24px;
+  gap: 10px 24px;
 }
 
 /* The fields keep one line there: a wrapping row is only as wide as its widest field, which would leave the rest to
    the photos and wrap the fields under each other. */
 @container (min-width: 760px) {
-  .lesson-body {
+  .lesson-body.with-fields {
     display: grid;
     grid-template-columns: minmax(min-content, 3fr) minmax(220px, 2fr);
+    grid-template-rows: auto 1fr;
     align-items: start;
+  }
+
+  .lesson-body.with-fields .photos {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: stretch;
   }
 
   .fields {
@@ -171,29 +178,20 @@
   min-width: 0;
 }
 
-/* The photos' label, whether they are needed, and the button that removes them all. */
+/* Only while there are photos: the button that removes them all. */
 .photos-head {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0 10px;
-  min-height: 20px;
+  justify-content: flex-end;
 }
 
-.export-hint {
-  color: var(--qt-text-muted);
-}
-
-.clear-images {
-  margin-left: auto;
-}
-
+/* Fills the photos' column, so it is as high as the title and the fields beside it. */
 .drop-zone {
+  flex: 1;
   padding: 12px;
   border: 1.5px dashed var(--qt-border-strong);
   border-radius: var(--qt-radius-lg);
   background: var(--qt-surface);
-  transition: border-color var(--qt-transition), box-shadow var(--qt-transition), min-height var(--qt-transition);
+  transition: border-color var(--qt-transition), box-shadow var(--qt-transition);
   cursor: pointer;
   outline: none;
   min-height: 56px;
@@ -203,10 +201,20 @@
   position: relative;
 }
 
-/* The course's book makes photos optional: the zone stays, as high as the fields beside it. */
-.drop-zone.optional {
-  min-height: 32px;
-  padding: 2px 12px;
+/* The course's book makes photos unneeded: the zone stays in place, shut. */
+.drop-zone.disabled {
+  border-color: var(--qt-border);
+  background: var(--qt-paper);
+  cursor: not-allowed;
+}
+
+.drop-zone.disabled .drop-zone-content {
+  opacity: 0.45;
+}
+
+.drop-zone.disabled .file-link {
+  border-bottom-color: transparent;
+  cursor: inherit;
 }
 
 .drop-zone:focus-visible,
@@ -233,12 +241,8 @@
   transition: transform var(--qt-transition), color var(--qt-transition);
 }
 
-.drop-zone.optional .drop-zone-icon {
-  font-size: 18px;
-}
-
 /* Grown with a transform, not font-size, so hovering does not change the page height. */
-.drop-zone:hover .drop-zone-icon,
+.drop-zone:not(.disabled):hover .drop-zone-icon,
 .drop-zone:focus-visible .drop-zone-icon,
 .drop-zone.drag-over .drop-zone-icon {
   transform: scale(1.15);
@@ -252,7 +256,7 @@
 }
 
 .file-link {
-  color: var(--qt-accent);
+  color: var(--qt-accent-ink);
   text-decoration: none;
   font-weight: 600;
   cursor: pointer;

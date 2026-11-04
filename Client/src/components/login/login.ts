@@ -8,6 +8,7 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 import { AuthService } from '../../services/auth.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
@@ -24,6 +25,7 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
     NzCardModule,
     NzCheckboxModule,
     NzSpinModule,
+    NzIconModule,
     RouterLink
   ],
   templateUrl: './login.html',
