@@ -36,6 +36,8 @@ type bookSpec struct {
 	series string
 	// alsoKnown is a sentence for the learner's knowledge outside the material, if any.
 	alsoKnown string
+	// quizGuidance is an instruction for the quiz built from the book, sent with the lesson, if any.
+	quizGuidance string
 }
 
 // fullName is the title with its English name, as the model is told about the textbook.
@@ -53,6 +55,9 @@ var textbookRegistry = []bookSpec{
 	// YCT 1 to 5 have no material here; the learner is assumed to know them.
 	{dir: "yct-6", title: "《YCT标准教程6》", english: "YCT Standard Course 6", course: "YCT", courseType: Yct, level: 6, lessons: 15,
 		alsoKnown: "The learner also knows the words of YCT levels 1 to 5."},
+	// A single English book with no levels: its level is zero and a request for it carries none.
+	{dir: "vocab10", title: "Ôn tập từ vựng lớp 10", english: "Grade 10 Vocabulary Review", course: "Ôn tập từ vựng lớp 10", courseType: VocabReview10, lessons: 8,
+		quizGuidance: "Keep the quiz easy, for a Vietnamese grade 10 learner. Use only simple question types: what an English word or phrase means (and the reverse), filling the blank in a short sentence with the right word, putting the words of a short simple sentence in order, a short question answered with the word, and finding the word that does not belong to a topic's vocabulary group. Keep every question and sentence short and plain, make the wrong answers clearly different from the right one and take them from other words of the material, and ask no trick questions."},
 }
 
 // textbook is a book of the registry with its loaded lessons.
@@ -197,11 +202,11 @@ func splitTableRow(line string) []string {
 // textbookFor returns the book the course and level of opts are taught from, nil when none of the
 // embedded ones is: a free-form course (Other), HSK 2.0 and any level without material never match.
 func textbookFor(opts Options) *textbook {
-	if opts.Level == nil {
-		return nil
-	}
 	for _, book := range books {
-		if book.courseType != opts.CourseType || book.level != *opts.Level {
+		if book.courseType != opts.CourseType {
+			continue
+		}
+		if book.level != 0 && (opts.Level == nil || book.level != *opts.Level) {
 			continue
 		}
 		if opts.CourseType == Hsk && book.standard != opts.HskStandard {
@@ -285,8 +290,12 @@ func knownVocabulary(book *textbook, lessons []int) string {
 				unique = append(unique, word)
 			}
 		}
+		separator := "、"
+		if courseLanguages[book.courseType] == English {
+			separator = ", "
+		}
 		line = fmt.Sprintf("Known vocabulary (words of %s, which the learner already knows; use them freely in sentences and distractors): %s",
-			strings.Join(sources, " and of "), strings.Join(unique, "、"))
+			strings.Join(sources, " and of "), strings.Join(unique, separator))
 	}
 	if book.alsoKnown != "" {
 		line += "\n" + book.alsoKnown

@@ -230,6 +230,17 @@ export function parseGestureQuiz(rows: string[][], title: string): GestureQuiz {
   };
 }
 
+// Whether any question or answer has a pinyin. A quiz in another language than Chinese has none, so a switch to
+// show the pinyin would show nothing.
+export function hasPinyin(quiz: GestureQuiz): boolean {
+  for (const questions of quiz.stages.values()) {
+    if (questions.some(question => question.questionPinyin || question.correctPinyin || question.wrongPinyin.some(pinyin => pinyin))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function questionCount(quiz: GestureQuiz): number {
   let count = 0;
   for (const questions of quiz.stages.values()) {

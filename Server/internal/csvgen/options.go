@@ -28,16 +28,23 @@ const (
 var exportTypeNames = []string{"GimKit", "Blooket", "Wayground", "GestureQuiz", "Radicals"}
 
 // CourseType identifies the course a lesson belongs to. Sent by ordinal; keep in the same order
-// as Client/src/models/course-type.ts.
+// as Client/src/models/course-type.ts. Each course teaches one language, see courseLanguages.
 type CourseType int
 
 const (
 	Hsk CourseType = iota
 	Yct
 	Other
+	// VocabReview10 is the English "Ôn tập từ vựng lớp 10" vocabulary review, a single book with no levels.
+	VocabReview10
 )
 
-var courseTypeNames = []string{"Hsk", "Yct", "Other"}
+var courseTypeNames = []string{"Hsk", "Yct", "Other", "VocabReview10"}
+
+// hasLevels says whether the course is taught in levels. Other may have one or not; a single-book course has none.
+func (c CourseType) hasLevels() bool {
+	return c != VocabReview10
+}
 
 // HskStandard is the version of the HSK standard an HSK lesson follows. Sent by value (2 or 3), not
 // by ordinal; keep in step with Client/src/models/hsk-standard.ts.
@@ -97,6 +104,8 @@ func AllGestureStages() []int {
 // CourseType Other, and images are optional altogether: without them the model falls back to the
 // canonical word list of the lesson.
 type Options struct {
+	// Language is the language the quiz teaches; its zero value, Chinese, is also the formatted mode's default.
+	Language   Language
 	ExportType ExportType
 	CourseType CourseType
 	// CourseName is free text, only used when CourseType is Other.
@@ -137,6 +146,9 @@ func (o Options) GestureQuizQuestions() int {
 // lessons are embedded (see textbooks.go) is named exactly.
 func (o Options) CourseDisplayName() string {
 	if book := textbookFor(o); book != nil {
+		if book.level == 0 {
+			return fmt.Sprintf("%s, the %s textbook", book.fullName(), book.course)
+		}
 		return fmt.Sprintf("%s, the %s level %d textbook", book.fullName(), book.course, book.level)
 	}
 	switch o.CourseType {
@@ -149,7 +161,7 @@ func (o Options) CourseDisplayName() string {
 		return "YCT (Youth Chinese Test), taught from 《YCT标准教程》 YCT Standard Course (Giáo trình chuẩn YCT)"
 	}
 	if strings.TrimSpace(o.CourseName) == "" {
-		return "an unnamed Chinese course"
+		return "an unnamed " + o.Language.String() + " course"
 	}
 	return o.CourseName
 }
@@ -165,7 +177,18 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 	if !ok {
 		return Options{}, errors.New("Invalid or missing courseType parameter.")
 	}
-	opts := Options{ExportType: ExportType(exportType), CourseType: CourseType(courseType)}
+	language, err := ParseLanguage(q)
+	if err != nil {
+		return Options{}, err
+	}
+	if !CourseType(courseType).Teaches(language) {
+		return Options{}, errors.New("Invalid or missing courseType parameter.")
+	}
+	// The exercise is built from the components of Chinese characters.
+	if ExportType(exportType) == Radicals && language != Chinese {
+		return Options{}, errors.New("Radicals is only for Chinese.")
+	}
+	opts := Options{Language: language, ExportType: ExportType(exportType), CourseType: CourseType(courseType)}
 
 	if opts.CourseType == Hsk {
 		opts.HskStandard = Hsk2
@@ -194,8 +217,8 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 			return Options{}, fmt.Errorf("HSK %d.0 has levels 1 to %d.", opts.HskStandard, opts.HskStandard.MaxLevel())
 		}
 		opts.Level = &level
-	} else if opts.CourseType != Other {
-		// Only a free-form course may come without a level.
+	} else if opts.CourseType.hasLevels() && opts.CourseType != Other {
+		// Only a free-form course or a single-book course may come without a level.
 		return Options{}, errors.New("Invalid or missing level parameter.")
 	}
 

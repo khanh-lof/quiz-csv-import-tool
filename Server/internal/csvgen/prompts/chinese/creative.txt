@@ -1,0 +1,100 @@
+{{define "input-course" -}}
+* The course the lesson belongs to: HSK 2.0, HSK 3.0, YCT, or another named Chinese course or textbook, possibly written in Vietnamese.
+{{- end}}
+
+{{define "material-forms" -}}
+* Take the pinyin exactly as the table gives it. Take the meanings from the table too, and for the Vietnamese meaning prefer the Tiếng Việt column.
+{{- end}}
+
+{{define "rebuild-lesson" -}}
+Rebuild the lesson from your own knowledge of the textbook the course is taught from. Exam syllabuses such as the HSK 3.0 Standard (GF 0025-2021) or the YCT word lists are organised by level only and have no lessons, so a lesson number always refers to a textbook. Never search a syllabus for "lesson N".
+
+#### Step 1: identify the textbook, the book, and the lesson
+
+HSK comes in two standards, and the course always says which one. They have different word lists per level, so never mix them.
+
+HSK 2.0 is the six-level standard, taught from 《HSK标准教程》 (HSK Standard Course, 姜丽萍 chief editor, Beijing Language and Culture University Press), sold in Vietnam as "Giáo trình chuẩn HSK". This is the edition most Vietnamese classrooms use. The level is the book number, 1 to 6, and lessons are numbered as printed in that book:
+
+* HSK 1: lessons 1 to 15.
+* HSK 2: lessons 1 to 15.
+* HSK 3: lessons 1 to 20.
+* HSK 4: lessons 1 to 20, split into 4上 (1 to 10) and 4下 (11 to 20).
+* HSK 5: lessons 1 to 36, split into 5上 (1 to 18) and 5下 (19 to 36).
+* HSK 6: lessons 1 to 40, split into 6上 (1 to 20) and 6下 (21 to 40).
+
+HSK 3.0 is the nine-level standard 《国际中文教育中文水平等级标准》 (GF 0025-2021). It is taught from the edition of 《HSK标准教程》 rewritten for HSK 3.0, sold in Vietnam as "Giáo trình chuẩn HSK 3.0". The level is the book number, 1 to 9, and lessons are numbered as printed in that book. Its books are not the HSK 2.0 books: an HSK 3.0 level covers more words than the HSK 2.0 level of the same number, so never substitute an HSK 2.0 lesson for it. If you do not reliably know the lessons of the HSK 3.0 book, or for levels 7 to 9, treat the lesson number as the position of one coherent topic inside the HSK 3.0 word list of that level, see Step 3.
+
+YCT means 《YCT标准教程》 (YCT Standard Course, Hanban / Higher Education Press), sold in Vietnam as "Giáo trình chuẩn YCT". The level is the book number, 1 to 6, and lessons are numbered as printed in that book. YCT learners are children, so the lessons revolve around concrete, everyday topics.
+
+Any other course is usually a textbook series. Map a Vietnamese title to the original book, for example "Giáo trình Hán ngữ" is 《汉语教程》 (杨寄洲), "Boya" is 《博雅汉语》, "Msutong" is 《汉语直通车》 (MSUTONG), "Phát triển Hán ngữ" is 《发展汉语》. The level then means the book or volume ("quyển"). Some series number lessons continuously across volumes and others restart at 1 in each volume: if the lesson number is larger than the lessons of the stated volume, read it as a continuous number.
+
+#### Step 2: recall the lesson
+
+Recall, in this order, because each item helps you recall the next:
+
+1. The lesson title (课文标题) and its topic.
+2. The dialogues or texts (课文) of the lesson, in outline.
+3. The new-word list (生词), in textbook order, with pinyin and meaning, plus the proper nouns (专有名词) section.
+4. The grammar points or notes (语法 / 注释) taught in the lesson.
+
+Aim for the complete new-word list. As a rough guide, one lesson introduces about 10 to 20 new words in HSK 1 to 3 and YCT, and more at higher levels. Words from earlier lessons and lower books are known to the learner and may be used freely; words introduced in later lessons of the same series must not be tested.
+
+#### Step 3: fill the gaps instead of refusing
+
+If you remember the lesson only partially, still produce the quiz:
+
+* When you know the title or topic but not every word, complete the list with words of the same level of the syllabus (for HSK, the matching level of the stated standard, HSK 2.0 or HSK 3.0; for YCT, the matching YCT level) that clearly belong to that topic and to the lesson's grammar point.
+* When you do not recall the lesson at all, use its position in the book: the lesson number out of the total tells you how far into the level the lesson is. Pick the topic that the book most likely covers at that point (early lessons are greetings, names, numbers, family, dates and time; later ones are shopping, weather, transport, health, hobbies, and so on) and take a coherent group of about 15 words of that level for it.
+* Never use words above the stated level to fill a gap.
+{{- end}}
+
+{{define "analysis-forms" -}}
+* Chinese characters.
+* Pinyin.
+{{- end}}
+
+{{define "distractors" -}}
+* Vary how the distractors are built: sometimes near-synonyms, sometimes look-alike characters, sometimes same-pinyin different-tone words, sometimes options that are grammatically wrong but lexically plausible.
+{{- end}}
+
+{{define "recognition-types" -}}
+* Chinese word to Vietnamese meaning.
+* Vietnamese meaning to Chinese word.
+* Chinese word to correct pinyin, including tones.
+* Pinyin to correct Chinese characters, using homophone distractors.
+* Vietnamese meaning plus pinyin to Chinese word.
+* Identify the word that does not belong to a given topic group.
+{{- end}}
+
+{{define "function-words" -}}
+* Choose the appropriate measure word, particle, or question word.
+{{- end}}
+
+{{define "image-context-example" -}}
+3. Through the sentence context: when the tested word itself is abstract, such as a particle, measure word, question word, or time adverb, illustrate the situation of the example sentence instead. For example, 桌子上有___本书。 can show three books, so the count comes only from the picture; 猫在哪儿？ with options 桌子上, 桌子下, 椅子上 can show a cat on a table; a situation question about what to say can show a market stall, so the setting comes only from the picture.
+{{- end}}
+
+{{define "image-giveaway" -}}
+* The image would give the answer away when the point of the question is discrimination, for example a photo that makes the choice trivial between two near-synonyms, or a picture containing the Chinese characters or the pinyin being tested.
+{{- end}}
+
+{{define "image-mistake" -}}
+* Attaching an image to a question the text already answers, for example a meaning question that states the Vietnamese meaning, a 这是什么？ question with the answer's meaning in brackets, or a counting question that states the number. Hide the image and check: if the question still works, remove the image or rewrite the text.
+{{- end}}
+
+{{define "forms-section" -}}
+## PINYIN AND TRANSLATIONS
+
+Include pinyin and Vietnamese translations only when:
+
+* The CSV template contains corresponding fields, or
+* The user explicitly requests them.
+
+Follow the exact format required by the CSV template.
+
+Do not add additional columns.
+{{- end}}
+
+{{define "forms-check" -}}
+8. Pinyin is correct where required.
+{{- end}}

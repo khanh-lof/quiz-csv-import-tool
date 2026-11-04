@@ -53,8 +53,16 @@ describe('textbookFor', () => {
     expect(textbookFor(null, HskStandard.V3, 1)).toBeUndefined();
   });
 
+  it('finds the vocabulary review without a level, and names its topics', () => {
+    const book = textbookFor(CourseType.VocabReview10, null, null);
+    expect(book?.lessons).toBe(8);
+    expect(book?.lessonUnit).toBe('Topic');
+    expect(book?.lessonNames?.length).toBe(8);
+    expect(textbookFor(CourseType.VocabReview10, HskStandard.V3, 3)).toBe(book);
+  });
+
   it('lists each book once', () => {
-    const keys = TEXTBOOKS.map(b => `${b.courseType}/${b.hskStandard ?? ''}/${b.level}`);
+    const keys = TEXTBOOKS.map(b => `${b.courseType}/${b.hskStandard ?? ''}/${b.level ?? ''}`);
     expect(new Set(keys).size).toBe(keys.length);
   });
 });

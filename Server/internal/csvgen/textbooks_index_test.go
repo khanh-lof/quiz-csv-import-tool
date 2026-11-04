@@ -47,7 +47,7 @@ func readVocabularyIndex(t *testing.T, dir string) map[int][]indexEntry {
 			continue
 		}
 		cells := splitTableRow(line)
-		if len(cells) < 3 || cells[0] == "词语" {
+		if len(cells) < 3 || cells[0] == "词语" || cells[0] == "Word" {
 			continue
 		}
 		lessonCell := cells[2]

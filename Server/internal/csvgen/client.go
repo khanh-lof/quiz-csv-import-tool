@@ -76,7 +76,7 @@ func (c *Client) Generate(ctx context.Context, images []Image, creative bool, op
 	if creative {
 		content, err = c.respond(ctx, buildCreativeRequest(c.modelFor(opts), images, opts))
 	} else {
-		content, err = c.complete(ctx, buildSimpleRequest(c.model, images))
+		content, err = c.complete(ctx, buildSimpleRequest(c.model, images, opts.Language))
 	}
 	if err != nil {
 		return Result{}, err

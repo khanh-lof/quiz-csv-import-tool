@@ -18,6 +18,13 @@ by hand (by an AI curator reading the scan) to the format in [LESSON_DOC_FORMAT.
 | `hsk3-2` | 《新HSK教程2》 New HSK Course 2 | HSK 3.0, level 2 | 15 | 16 |
 | `hsk3-3` | 《新HSK教程3》 New HSK Course 3 | HSK 3.0, level 3 | 18 | 12 |
 | `yct-6` | 《YCT标准教程6》 YCT Standard Course 6 | YCT, level 6 | 15 | 5 |
+| `vocab10` | Ôn tập từ vựng lớp 10 (Grade 10 Vocabulary Review, English) | `VocabReview10`, no level | 8 topics | 0 |
+
+`vocab10` has no printed title page, so its name is the one the teacher gave it. Each topic is one lesson. Its
+`vocabulary-index.md` is `| Word | Pinyin | Topic |` with no pinyin, and its lesson docs leave the Pinyin column empty
+and put the book's definition in English. The scan's tables stop early for Culture (no table) and Employment (14 of
+19 definitions): those words carry "no definition in the scan" in the Note column, and their English is a curator's
+gloss. The Technology table prints "computer-literate" for the word the passage bolds as "computer-illiterate".
 
 ## What each book folder holds
 

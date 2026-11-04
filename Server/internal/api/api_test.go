@@ -783,6 +783,38 @@ func TestRetryJobSendsTheSameRequestAgain(t *testing.T) {
 	}
 }
 
+func TestJobsKeepTheirLanguage(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	env.gen.err = errors.New("boom")
+	env.upload(t, upload{token: token, query: "?title=GS6-Bai2&isCreative=true&language=1&exportType=0&courseType=2" +
+		"&courseName=Global%20Success&level=6&lessonNumbers=2"})
+	failed := env.onlyJob(t, "alice")
+	if failed.Language != int(csvgen.English) || env.gen.opts.Language != csvgen.English {
+		t.Fatalf("job %+v, generator %+v", failed, env.gen.opts)
+	}
+	if view := env.listJobs(t, token)[0]; view["language"] != 1.0 {
+		t.Fatalf("view: %v", view)
+	}
+	env.gen.err, env.gen.opts = nil, csvgen.Options{}
+	if rec := env.retry(t, token, failed.ID); rec.Code != http.StatusAccepted {
+		t.Fatalf("retry: %d %q", rec.Code, rec.Body)
+	}
+	if job := env.onlyJob(t, "alice"); job.Language != int(csvgen.English) || env.gen.opts.Language != csvgen.English {
+		t.Fatalf("retried job %+v, generator %+v", job, env.gen.opts)
+	}
+
+	for _, refused := range []struct{ query, msg string }{
+		{"?isCreative=true&language=1&exportType=0&courseType=0&level=1&lessonNumbers=1", "Invalid or missing courseType parameter."},
+		{"?isCreative=true&language=1&exportType=4&courseType=2&courseName=Solutions&lessonNumbers=1", "Radicals is only for Chinese."},
+		{"?isCreative=true&language=9&exportType=0&courseType=0&level=1&lessonNumbers=1", "Invalid language parameter."},
+	} {
+		if rec := env.upload(t, upload{token: token, query: refused.query}); rec.Code != http.StatusBadRequest || rec.Body.String() != refused.msg {
+			t.Errorf("%s: %d %q", refused.query, rec.Code, rec.Body)
+		}
+	}
+}
+
 func TestListJobsReturnsLessonNumbers(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")

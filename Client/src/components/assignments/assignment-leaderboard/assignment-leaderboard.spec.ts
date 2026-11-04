@@ -6,6 +6,7 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { of } from 'rxjs';
 import { Assignment, AssignmentDetail, LeaderboardEntry } from '../../../models/assignment';
 import { AssignmentLeaderboard } from './assignment-leaderboard';
+import { DEMO_QUIZ_CSV } from '../../../game/demo-quiz';
 
 const MINUTE = 60 * 1000;
 const ENDPOINT = '/api/assignments/a1';
@@ -125,7 +126,7 @@ function detail(overrides: Partial<AssignmentDetail> = {}): AssignmentDetail {
     closedAt: null,
     open: true,
     playerCount: 3,
-    csv: '',
+    csv: DEMO_QUIZ_CSV,
     players: [LAN, MINH, HOA], ...overrides,
   };
 }
@@ -924,6 +925,12 @@ describe('AssignmentLeaderboard', () => {
       expect(text()).toContain('Mở lại');
       expect(text()).not.toContain('Hẹn giờ đóng');
       expect(notifications.success).not.toHaveBeenCalled();
+      leave();
+    }));
+
+    it('has no pinyin switch for a quiz without pinyin, such as an English one', fakeAsync(() => {
+      open(detail({ csv: '1,"Apple" means quả táo.,,Đúng,,,,,,,,Apple là quả táo.' }));
+      expect(text()).not.toContain('Hiện pinyin');
       leave();
     }));
 

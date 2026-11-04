@@ -101,4 +101,12 @@ For YCT, the texts are the lesson's story / dialogue panels and the "Let's learn
 
 Its New words table holds every word of lessons 1–14, with each row copied from those lessons' docs.
 
+**English review book (`vocab10`).** Its lessons are topics, and the format bends so:
+- the title line is `# Ôn tập từ vựng lớp 10 Topic N — <topic>`;
+- the Pinyin column is empty, POS is `n.`, `adj.`, `v.` or `phrase` from the book's table, and English is the book's
+  definition of the word;
+- a word the scan has no definition for gets a curator's gloss and `no definition in the scan` in Note, with a line
+  saying so under the title;
+- Texts holds the topic's reading passage, with no bolding.
+
 **Size.** A doc is usually 3–10 KB. Do not pad it.

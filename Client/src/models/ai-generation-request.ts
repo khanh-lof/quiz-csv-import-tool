@@ -2,8 +2,10 @@ import { AIGenerationMode } from './aigeneration-mode';
 import { ExportType } from './export-type';
 import { CourseType } from './course-type';
 import { HskStandard } from './hsk-standard';
+import { QuizLanguage } from './quiz-language';
 
 export interface AiGenerationRequest {
+  language: QuizLanguage | null;
   courseType: CourseType | null;
   courseName: string | null;
   // Only sent for HSK.

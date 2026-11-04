@@ -57,12 +57,16 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var opts csvgen.Options
+	var err error
 	if creative {
-		var err error
-		if opts, err = csvgen.ParseCreativeOptions(r.URL.Query()); err != nil {
-			writeText(w, http.StatusBadRequest, err.Error())
-			return
-		}
+		opts, err = csvgen.ParseCreativeOptions(r.URL.Query())
+	} else {
+		// The formatted mode has nothing else to choose: the language picks its prompt.
+		opts.Language, err = csvgen.ParseLanguage(r.URL.Query())
+	}
+	if err != nil {
+		writeText(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	job := newJob(jobTitle(r.URL.Query().Get("title"), creative), creative, len(images), opts)
@@ -132,10 +136,10 @@ func (s *Server) jobOwner(w http.ResponseWriter, r *http.Request) (*store.User, 
 	return user, true
 }
 
-// newJob describes a job to start. A creative job keeps its lesson, so the history can be filtered by it,
-// and everything else retryOptions needs to ask for the same quiz again.
+// newJob describes a job to start. Every job keeps its language, and a creative job its lesson, so the history
+// can be filtered by them, and everything else retryOptions needs to ask for the same quiz again.
 func newJob(title string, creative bool, imageCount int, opts csvgen.Options) *store.Job {
-	job := &store.Job{Title: title, Creative: creative, ImageCount: imageCount}
+	job := &store.Job{Title: title, Creative: creative, ImageCount: imageCount, Language: int(opts.Language)}
 	if !creative {
 		return job
 	}
@@ -161,12 +165,13 @@ func newJob(title string, creative bool, imageCount int, opts csvgen.Options) *s
 // job from before the lesson, or a Game's choice of games, was kept: sending it again would ask for another quiz.
 func retryOptions(job *store.Job) (csvgen.Options, bool) {
 	if !job.Creative {
-		return csvgen.Options{}, true
+		return csvgen.Options{Language: csvgen.Language(job.Language)}, true
 	}
 	if job.ExportType == nil || job.CourseType == nil || len(job.LessonNumbers) == 0 {
 		return csvgen.Options{}, false
 	}
 	opts := csvgen.Options{
+		Language:   csvgen.Language(job.Language),
 		ExportType: csvgen.ExportType(*job.ExportType), CourseType: csvgen.CourseType(*job.CourseType),
 		CourseName: job.CourseName, Level: job.Level, LessonNumbers: job.LessonNumbers, Intelligence: job.Intelligence,
 	}
@@ -295,6 +300,7 @@ type jobView struct {
 	Status        string     `json:"status"`
 	Title         string     `json:"title"`
 	Creative      bool       `json:"creative"`
+	Language      int        `json:"language"`
 	ExportType    *int       `json:"exportType"`
 	Intelligence  int        `json:"intelligence"`
 	ImageCount    int        `json:"imageCount"`
@@ -355,7 +361,7 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 func (s *Server) newJobView(j *store.Job) jobView {
 	retryable, retryUntil := s.retryState(j)
 	return jobView{
-		ID: j.ID, Status: string(j.Status), Title: j.Title, Creative: j.Creative, ExportType: j.ExportType,
+		ID: j.ID, Status: string(j.Status), Title: j.Title, Creative: j.Creative, Language: j.Language, ExportType: j.ExportType,
 		Intelligence: j.Intelligence, ImageCount: j.ImageCount, CourseType: j.CourseType, CourseName: j.CourseName,
 		HskStandard: j.HskStandard, Level: j.Level, LessonNumbers: j.LessonNumbers, CSV: j.CSV,
 		ErrorStatus: j.ErrorStatus, ErrorMessage: j.ErrorMessage, CreatedAt: j.CreatedAt, FinishedAt: j.FinishedAt,

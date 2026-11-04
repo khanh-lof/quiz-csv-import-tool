@@ -10,6 +10,25 @@
   flex: 0 0 auto;
 }
 
+/* The language switch on the left above the form, the guide button on the right. */
+.page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.page-toolbar kt-quiz-usage-guide {
+  margin-bottom: 0;
+}
+
+.language-tag {
+  margin-right: 8px;
+  font-weight: 600;
+}
+
 /* Covers the whole page content (the form) while the AI request runs. */
 .generating-overlay {
   position: absolute;

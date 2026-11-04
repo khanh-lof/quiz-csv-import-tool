@@ -55,6 +55,9 @@ import {
   TIME_MODE_LABELS,
 } from '../../../models/assignment';
 import { AssignmentService } from '../../../services/assignment.service';
+import { AiCsvService } from '../../../services/ai-csv.service';
+import { CsvImportService } from '../../../services/csv-import.service';
+import { hasPinyin, parseGestureQuiz } from '../../../models/gesture-quiz';
 import { LeaderboardPodium } from '../../leaderboard/leaderboard-podium/leaderboard-podium';
 import { PodiumEntry } from '../../leaderboard/leaderboard-podium/podium';
 import { MarqueeText } from '../../leaderboard/marquee-text/marquee-text';
@@ -139,6 +142,11 @@ export class AssignmentLeaderboard {
   protected readonly stageLockLabels = STAGE_LOCK_LABELS;
 
   protected readonly detail = signal<AssignmentDetail | null>(null);
+  // Its own signal so the polling, which replaces the detail, does not parse the same quiz again.
+  private readonly quizCsv = computed(() => this.detail()?.csv ?? '');
+  // An English quiz has no pinyin, so it has no switch to show it.
+  protected readonly quizHasPinyin = computed(() =>
+    hasPinyin(parseGestureQuiz(this.csvImportService.parseCsvRows(this.aiCsvService.extractCsvContent(this.quizCsv())), '')));
   protected readonly notFound = signal(false);
   // Why the first load failed, while there is nothing to show yet. Later failures keep the last data.
   protected readonly loadError = signal<string | null>(null);
@@ -226,6 +234,8 @@ export class AssignmentLeaderboard {
 
   private readonly route = inject(ActivatedRoute);
   private readonly assignments = inject(AssignmentService);
+  private readonly aiCsvService = inject(AiCsvService);
+  private readonly csvImportService = inject(CsvImportService);
   private readonly notificationService = inject(NzNotificationService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);

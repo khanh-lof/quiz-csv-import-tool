@@ -44,7 +44,7 @@ import {
 } from '../../models/assignment';
 import { avatarDef, randomAvatar } from '../../models/avatar';
 import { ExportType } from '../../models/export-type';
-import { GestureQuiz, parseGestureQuiz, questionCount } from '../../models/gesture-quiz';
+import { GestureQuiz, hasPinyin, parseGestureQuiz, questionCount } from '../../models/gesture-quiz';
 import { AiCsvService } from '../../services/ai-csv.service';
 import { AiJobService } from '../../services/ai-job.service';
 import { AssignmentService } from '../../services/assignment.service';
@@ -525,6 +525,10 @@ export class GesturePlay implements OnInit, OnDestroy {
         key: `asg:${this.shareCode()}:${player.playerId}`
       }
       : base;
+  });
+  protected readonly quizHasPinyin = computed(() => {
+    const quiz = this.quiz();
+    return quiz !== null && hasPinyin(quiz);
   });
   protected readonly playerName = computed(() => this.player()?.name ?? '');
   protected readonly playerAvatar = computed(() => this.player()?.avatar ?? '');

@@ -79,7 +79,7 @@
     @case ('map') {
       @if (quiz(); as openQuiz) {
         <kt-quiz-gesture-stage-map (start)="openIntro($event)" [allOpen]="allStagesOpen()"
-                               [allowPinyinChoice]="ownQuiz()" [allowReset]="ownQuiz()"
+                               [allowPinyinChoice]="ownQuiz() && quizHasPinyin()" [allowReset]="ownQuiz()"
                                [attemptsLeft]="attemptsLeftByStage()" [lockedTimeMode]="assignmentTimeMode()"
                                [passPercents]="assignmentPassPercents()" [quiz]="openQuiz">
           @if (mode() === 'shared') {

@@ -10,18 +10,16 @@ import (
 )
 
 var (
-	//go:embed prompts/simple_system.txt
-	simpleSystemPrompt string
+	// The creative system prompt is shared by the languages: a text/template whose {{template}} blocks each
+	// language defines in prompts/<dir>/creative.txt (see language.go).
 	//go:embed prompts/creative_system.txt
-	creativeSystemPrompt string
+	creativeSystemTemplate string
 	//go:embed prompts/wayground_template.txt
 	waygroundTemplate string
-	// The Game message is built from two files: the framing, a text/template that fills in the
-	// chosen stages, and the six stage rules, of which only the chosen ones are sent.
+	// The Game message is built from the framing, a text/template that fills in the chosen stages and the
+	// language's blocks, and the language's six stage rules, of which only the chosen ones are sent.
 	//go:embed prompts/gesture_quiz_template.txt
 	gestureQuizTemplate string
-	//go:embed prompts/gesture_quiz_stages.txt
-	gestureQuizStages string
 )
 
 // Image is one uploaded lesson photo.
@@ -92,10 +90,10 @@ const (
 
 // buildSimpleRequest asks for a two-column CSV (Câu hỏi / Đáp án), header included, that the client
 // loads into its vocabulary table.
-func buildSimpleRequest(model string, images []Image) chatRequest {
+func buildSimpleRequest(model string, images []Image, language Language) chatRequest {
 	parts := []contentPart{textPart("Convert the image to CSV using the required format.")}
 	// Plain transcription: low reasoning effort is enough and is the cheapest rate.
-	return newRequest(model, simpleSystemPrompt, "low", append(parts, imageParts(images)...))
+	return newRequest(model, languagePrompts[language].simpleSystem, "low", append(parts, imageParts(images)...))
 }
 
 // buildCreativeRequest asks for ready-to-import rows, without a header, laid out for the target
@@ -144,7 +142,7 @@ func buildCreativeRequest(model string, images []Image, opts Options) responsesR
 	// no effort levels, so each runs at its own default.
 	req := responsesRequest{
 		Model:           model,
-		Instructions:    normalizePrompt(creativeSystemPrompt),
+		Instructions:    languagePrompts[opts.Language].creativeSystem,
 		Input:           []responsesInput{{Role: "user", Content: content}},
 		MaxOutputTokens: maxOutputTokens,
 	}
@@ -172,6 +170,9 @@ func lessonMessages(opts Options) []string {
 		msgs = append(msgs, fmt.Sprintf("Lesson number: %d", opts.LessonNumbers[0]))
 	default:
 		msgs = append(msgs, fmt.Sprintf("Lesson numbers: %s. Write one quiz that reviews all of these lessons together.", joinWords(numberStrings(opts.LessonNumbers), "and")))
+	}
+	if book := textbookFor(opts); book != nil && book.quizGuidance != "" {
+		msgs = append(msgs, book.quizGuidance)
 	}
 	return msgs
 }
@@ -222,37 +223,31 @@ var gestureStages = [GestureStageCount]gestureStage{
 	{"sentence ordering", false},
 }
 
-var (
-	// gestureStageRules holds the six rule paragraphs of prompts/gesture_quiz_stages.txt, indexed by
-	// stage number minus one. They are tuned text and are sent word for word, only the chosen ones.
-	gestureStageRules = splitGestureStageRules(gestureQuizStages)
-	// gestureQuizPrompt is the framing of prompts/gesture_quiz_template.txt.
-	gestureQuizPrompt = template.Must(template.New("gesture_quiz").Option("missingkey=error").Parse(normalizePrompt(gestureQuizTemplate)))
-)
-
-// splitGestureStageRules cuts the stage rules file into its paragraphs, one per stage in order. A file
+// splitGestureStageRules cuts a language's stage rules file into its paragraphs, one per stage in order, indexed
+// by stage number minus one. They are tuned text and are sent word for word, only the chosen ones. A file
 // that does not hold exactly one "Stage N – " paragraph per stage would silently send the wrong rules,
 // so it panics at start-up instead, like the unknown export type above.
 func splitGestureStageRules(file string) [GestureStageCount]string {
 	paragraphs := strings.Split(normalizePrompt(file), "\n\n")
 	if len(paragraphs) != GestureStageCount {
-		panic(fmt.Sprintf("csvgen: gesture_quiz_stages.txt has %d paragraphs, want %d", len(paragraphs), GestureStageCount))
+		panic(fmt.Sprintf("csvgen: a gesture_quiz_stages.txt has %d paragraphs, want %d", len(paragraphs), GestureStageCount))
 	}
 	var rules [GestureStageCount]string
 	for i, paragraph := range paragraphs {
 		if !strings.HasPrefix(paragraph, fmt.Sprintf("Stage %d – ", i+1)) {
-			panic(fmt.Sprintf("csvgen: paragraph %d of gesture_quiz_stages.txt does not start with its stage number", i+1))
+			panic(fmt.Sprintf("csvgen: paragraph %d of a gesture_quiz_stages.txt does not start with its stage number", i+1))
 		}
 		rules[i] = strings.TrimSpace(paragraph)
 	}
 	return rules
 }
 
-// buildGestureQuizMessage fills prompts/gesture_quiz_template.txt for the stages and the number of
+// buildGestureQuizMessage fills prompts/gesture_quiz_template.txt for the language, the stages and the number of
 // questions the teacher chose, so the model is only told about the games it has to write. The template
-// holds the framing and its single/several-stage variants, the stage rules come from the second file,
+// holds the framing and its single/several-stage variants, the stage rules come from the language's file,
 // and the short-options paragraph is left out when no chosen stage shows options.
 func buildGestureQuizMessage(opts Options) string {
+	prompt := languagePrompts[opts.Language]
 	stages := opts.GestureQuizStages()
 	questions := opts.GestureQuizQuestions()
 
@@ -260,7 +255,7 @@ func buildGestureQuizMessage(opts Options) string {
 	stageList := make([]string, 0, len(stages))
 	var withOptions []int
 	for _, n := range stages {
-		rules = append(rules, gestureStageRules[n-1])
+		rules = append(rules, prompt.gestureStageRules[n-1])
 		stageList = append(stageList, fmt.Sprintf("stage %d (%s)", n, gestureStages[n-1].name))
 		if gestureStages[n-1].hasOptions {
 			withOptions = append(withOptions, n)
@@ -271,8 +266,7 @@ func buildGestureQuizMessage(opts Options) string {
 		optionStages = describeStages(withOptions)
 	}
 
-	var out strings.Builder
-	err := gestureQuizPrompt.Execute(&out, map[string]any{
+	return executePrompt(prompt.gestureQuiz, map[string]any{
 		"Single":       len(stages) == 1,
 		"Skipped":      len(stages) < GestureStageCount,
 		"Count":        len(stages),
@@ -284,8 +278,13 @@ func buildGestureQuizMessage(opts Options) string {
 		"Total":        len(stages) * questions,
 		"First":        stages[0],
 	})
-	if err != nil {
-		panic(fmt.Sprintf("csvgen: gesture quiz template: %v", err))
+}
+
+// executePrompt fills a prompt template. The data is always complete, so an error is a broken prompt file.
+func executePrompt(tmpl *template.Template, data map[string]any) string {
+	var out strings.Builder
+	if err := tmpl.Execute(&out, data); err != nil {
+		panic(fmt.Sprintf("csvgen: %s template: %v", tmpl.Name(), err))
 	}
 	return normalizePrompt(out.String())
 }

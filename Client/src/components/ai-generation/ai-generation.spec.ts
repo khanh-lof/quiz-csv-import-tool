@@ -7,6 +7,7 @@ import { AiGeneration } from './ai-generation';
 import { CourseType } from '../../models/course-type';
 import { HskStandard } from '../../models/hsk-standard';
 import { ExportType } from '../../models/export-type';
+import { QuizLanguage } from '../../models/quiz-language';
 
 const SETTINGS_STORAGE_KEY = 'ai-generation-settings';
 
@@ -308,5 +309,134 @@ describe('AiGeneration', () => {
     expect(request.params.get('exportType')).toBe(String(ExportType.Radicals));
     expect(request.params.get('lessonNumbers')).toBe('2,4');
     expect(Array.from((request.body as FormData).keys())).toEqual([]);
+  });
+
+  describe('the language', () => {
+    const element = (): HTMLElement => fixture.nativeElement;
+    const control = (name: string) => page.formGroup.get(name)!;
+    const chooseLanguage = (label: string): void => {
+      const radio = Array.from(element().querySelectorAll<HTMLElement>('.page-toolbar label[nz-radio-button]'))
+        .find(candidate => candidate.textContent?.includes(label))!;
+      radio.querySelector('input')!.click();
+      fixture.detectChanges();
+    };
+
+    it('is chosen on the left of the guide button, Chinese first, each with its tag', () => {
+      const toolbar = element().querySelector('.page-toolbar')!;
+      expect(Array.from(toolbar.children).map(child => child.tagName.toLowerCase())).toEqual(['nz-radio-group', 'kt-quiz-usage-guide']);
+      expect(Array.from(toolbar.querySelectorAll('label[nz-radio-button]')).map(label => label.textContent?.replace(/\s+/g, '')))
+        .toEqual(['中TiếngTrung', 'ENTiếngAnh']);
+      expect(control('language').value).toBe(QuizLanguage.Chinese);
+      expect(element().textContent).toContain('Hỏi chữ Hán');
+    });
+
+    it('drops the Chinese course and platform for English and picks the course typed in by hand', () => {
+      page.formGroup.patchValue({ courseType: CourseType.Hsk, exportType: ExportType.Radicals });
+
+      chooseLanguage('Tiếng Anh');
+
+      expect(control('language').value).toBe(QuizLanguage.English);
+      expect(control('courseType').value).toBe(CourseType.Other);
+      expect(control('exportType').value).toBeNull();
+      expect(element().textContent).toContain('Hỏi từ tiếng Anh');
+      expect(element().querySelector('.course-name-input')).not.toBeNull();
+    });
+
+    it('names the topics of the vocabulary review, which has no level', () => {
+      chooseLanguage('Tiếng Anh');
+      page.formGroup.patchValue({ courseType: CourseType.VocabReview10 });
+      fixture.detectChanges();
+
+      expect(element().querySelector('label[for="level"]')).toBeNull();
+      expect(element().querySelector('label[for="lessonNumbers"]')?.textContent?.trim()).toBe('Topic');
+      expect((page as any).lessonOptionLabel(3)).toBe('3. Culture');
+      expect(control('level').hasError('required')).toBeFalse();
+    });
+
+    it('gives each language back its own choices', () => {
+      page.formGroup.patchValue({ courseType: CourseType.Hsk, level: 2, lessonNumbers: [4], exportType: ExportType.Radicals });
+
+      chooseLanguage('Tiếng Anh');
+      expect(control('level').value).toBeNull();
+      expect(control('lessonNumbers').value).toEqual([]);
+      page.formGroup.patchValue({ courseName: 'Solutions', level: 3, lessonNumbers: [1], exportType: ExportType.GimKit });
+
+      chooseLanguage('Tiếng Trung');
+      expect(control('courseType').value).toBe(CourseType.Hsk);
+      expect(control('level').value).toBe(2);
+      expect(control('lessonNumbers').value).toEqual([4]);
+      expect(control('exportType').value).toBe(ExportType.Radicals);
+
+      chooseLanguage('Tiếng Anh');
+      expect(control('courseName').value).toBe('Solutions');
+      expect(control('level').value).toBe(3);
+      expect(control('exportType').value).toBe(ExportType.GimKit);
+    });
+
+    it('starts the other language with fresh fields, not with errors left from this one', () => {
+      page.formGroup.markAllAsDirty();
+      chooseLanguage('Tiếng Anh');
+
+      expect(control('lessonNumbers').dirty).toBeFalse();
+      expect(control('AIMode').dirty).toBeTrue();
+    });
+
+    it('keeps the mode and the intelligence, which are not a language\'s', () => {
+      page.formGroup.patchValue({ intelligence: 2 });
+
+      chooseLanguage('Tiếng Anh');
+
+      expect(control('intelligence').value).toBe(2);
+    });
+
+    it('is sent with the job and remembered', async () => {
+      chooseLanguage('Tiếng Anh');
+      page.formGroup.patchValue({ courseName: 'Global Success', level: 6, lessonNumbers: [2], exportType: ExportType.GimKit });
+
+      await page.generate();
+      const params = http.expectOne(request => request.url === '/api/csv/jobs').request.params;
+      expect(params.get('language')).toBe(String(QuizLanguage.English));
+      expect(params.get('courseType')).toBe(String(CourseType.Other));
+      expect(params.get('title')).toBe('Global Success6-Bai2');
+      const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!);
+      expect(saved.language).toBe(QuizLanguage.English);
+      expect(saved.byLanguage[QuizLanguage.English].courseName).toBe('Global Success');
+      expect(saved.byLanguage[QuizLanguage.Chinese].courseType).toBeNull();
+    });
+
+    it('restores the choices of both languages', () => {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({
+        language: QuizLanguage.English,
+        intelligence: 2,
+        byLanguage: {
+          [QuizLanguage.Chinese]: { courseType: CourseType.Yct, level: 6, lessonNumbers: [3] },
+          [QuizLanguage.English]: { courseType: CourseType.Other, courseName: 'Solutions', lessonNumbers: [2] }
+        }
+      }));
+      fixture = TestBed.createComponent(AiGeneration);
+      page = fixture.componentInstance as unknown as Internals;
+      fixture.detectChanges();
+
+      expect(control('language').value).toBe(QuizLanguage.English);
+      expect(control('intelligence').value).toBe(2);
+      expect(control('courseName').value).toBe('Solutions');
+      chooseLanguage('Tiếng Trung');
+      expect(control('courseType').value).toBe(CourseType.Yct);
+      expect(control('level').value).toBe(6);
+      expect(control('lessonNumbers').value).toEqual([3]);
+    });
+
+    it('fits remembered settings to it', () => {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({
+        language: QuizLanguage.English,
+        courseType: CourseType.Yct,
+        exportType: ExportType.Radicals
+      }));
+      const restored = (TestBed.createComponent(AiGeneration).componentInstance as unknown as Internals).formGroup;
+
+      expect(restored.get('language')?.value).toBe(QuizLanguage.English);
+      expect(restored.get('courseType')?.value).toBe(CourseType.Other);
+      expect(restored.get('exportType')?.value).toBeNull();
+    });
   });
 });
