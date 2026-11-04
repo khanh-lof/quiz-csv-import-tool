@@ -12,7 +12,7 @@
       <nz-select (ngModelChange)="language.set($event ?? null)" [ngModel]="language()" class="filter-select" nzAllowClear
                  nzPlaceHolder="Ngôn ngữ">
         @for (option of languages; track option.value) {
-          <nz-option [nzValue]="option.value" [nzLabel]="option.label"></nz-option>
+          <nz-option [nzValue]="option.value" [nzLabel]="languageTagText(option.value)"></nz-option>
         }
       </nz-select>
       @if (isFiltering()) {
