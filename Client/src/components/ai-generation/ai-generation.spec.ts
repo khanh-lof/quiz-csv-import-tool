@@ -323,8 +323,11 @@ describe('AiGeneration', () => {
 
     it('is chosen on the left of the guide button, Chinese first, each with its tag', () => {
       const toolbar = element().querySelector('.page-toolbar')!;
-      expect(Array.from(toolbar.children).map(child => child.tagName.toLowerCase())).toEqual(['nz-radio-group', 'kt-quiz-usage-guide']);
-      expect(Array.from(toolbar.querySelectorAll('label[nz-radio-button]')).map(label => label.textContent?.replace(/\s+/g, '')))
+      expect(toolbar.children.length).toBe(2);
+      expect(toolbar.firstElementChild?.classList).toContain('page-choices');
+      expect(toolbar.lastElementChild?.tagName.toLowerCase()).toBe('kt-quiz-usage-guide');
+      const languageSwitch = toolbar.querySelector('.page-choices')!.firstElementChild!;
+      expect(Array.from(languageSwitch.querySelectorAll('label[nz-radio-button]')).map(label => label.textContent?.replace(/\s+/g, '')))
         .toEqual(['中TiếngTrung', 'ENTiếngAnh']);
       expect(control('language').value).toBe(QuizLanguage.Chinese);
       expect(element().textContent).toContain('Hỏi chữ Hán');
