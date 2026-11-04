@@ -9,8 +9,7 @@ import {
 } from '@angular/core';
 
 import { GameAudio } from '../../../../game/game-audio';
-import { QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
-import { stageDef } from '../../../../game/stages';
+import { OptionGameBase, QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
 import { HoldSelector, isPlainKey, ringOffset } from '../../../../game/hold-select';
 import {
   IDLE_THUMB_VIEW,
@@ -37,27 +36,19 @@ import {
   templateUrl: './true-false-game.html',
   styleUrl: './true-false-game.css',
 })
-export class TrueFalseGame extends StageGameBase {
-  readonly visionKind = stageDef(1).vision;
+export class TrueFalseGame extends OptionGameBase {
 
   protected readonly targets = THUMB_TARGETS;
   // Which target is Đúng, for the template to colour it green and the other red.
   protected readonly trueIndex = TRUE_INDEX;
-  // input cannot answer twice.
-  protected readonly picked = linkedSignal<QuestionView, number | null>({
-    source: this.question,
-    computation: () => null,
-  });
   // What the camera side shows: the charging target and its progress. Back to idle on every question.
   protected readonly view = linkedSignal<QuestionView, ThumbView>({
     source: this.question,
     computation: () => IDLE_THUMB_VIEW,
     equal: sameThumbView,
   });
-  protected readonly locked = computed(() => this.paused() || this.reveal() !== null);
   protected readonly status = computed(() => thumbStatus(this.view()));
 
-  // The option the player answered with for this question, by gesture, click or key, so that a second
   private readonly audio = inject(GameAudio);
   private readonly reader = new ThumbReader();
   private readonly selector = new HoldSelector(THUMB_HOLD_MS);
@@ -111,15 +102,6 @@ export class TrueFalseGame extends StageGameBase {
 
   protected offset(index: number): number {
     return ringOffset(this.view(), index);
-  }
-
-  protected isCorrect(index: number): boolean {
-    return this.reveal()?.correctIndex === index;
-  }
-
-  protected isWrong(index: number): boolean {
-    const reveal = this.reveal();
-    return reveal !== null && !reveal.correct && reveal.chosen === index;
   }
 
   // One answer per question. A gesture answer leaves its ring full on the chosen target, the other

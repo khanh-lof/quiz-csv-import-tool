@@ -125,14 +125,3 @@ func (r *statusRecorder) WriteHeader(status int) {
 }
 
 func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
-
-func writeText(w http.ResponseWriter, status int, msg string) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(msg))
-}
-
-func (s *Server) internalError(w http.ResponseWriter, r *http.Request, msg string, err error) {
-	s.Logger.Error(msg, "path", r.URL.Path, "error", err)
-	w.WriteHeader(http.StatusInternalServerError)
-}

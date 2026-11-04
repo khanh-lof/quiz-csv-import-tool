@@ -177,17 +177,18 @@ func lessonVocabulary(doc string) []radicals.Word {
 			section = line
 			continue
 		}
-		if (section != "## New words" && section != "## Proper nouns") || !strings.HasPrefix(line, "|") ||
+		if (section != newWordsHeading && section != properNounsHeading) || !strings.HasPrefix(line, "|") ||
 			strings.HasPrefix(line, "|---") || strings.HasPrefix(line, "| Word ") {
 			continue
 		}
 		cells := splitTableRow(line)
-		proper := section == "## Proper nouns"
-		if (!proper && len(cells) != newWordsColumns) || (proper && len(cells) != 4) {
+		proper := section == properNounsHeading
+		if (!proper && len(cells) != newWordsColumns) || (proper && len(cells) != properNounsColumns) {
 			continue
 		}
 		hanzi, pinyin := expandOptional(cells[0]), expandOptional(cells[1])
-		meaning, star := cells[4-boolInt(proper)], !proper && strings.Contains(cells[5], "★")
+		// The Vietnamese meaning is the last column but one of New words and the last of Proper nouns.
+		meaning, star := cells[4-boolInt(proper)], !proper && strings.Contains(cells[newWordsNoteColumn], "★")
 		if alternatives := strings.Split(pinyin, "/"); len(alternatives) > 1 {
 			pinyin = alternatives[0]
 		}
@@ -430,13 +431,7 @@ func buildRadicalsVocabularyRequest(model string, images []Image, opts Options, 
 		}
 		texts = append(texts, msg.String())
 	}
-	content := make([]inputPart, 0, len(texts)+len(images))
-	for _, text := range texts {
-		content = append(content, inputPart{Type: "input_text", Text: text})
-	}
-	for _, img := range images {
-		content = append(content, inputPart{Type: "input_image", ImageURL: dataURL(img)})
-	}
+	content := inputParts(texts, images)
 	return responsesRequest{
 		Model:           model,
 		Instructions:    normalizePrompt(radicalsVocabularyPrompt),

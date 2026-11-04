@@ -23,6 +23,13 @@ export interface StageDef {
   seconds: number;
 }
 
+// The two stages whose shape is fixed: stage 1 answers are always these two words, in this order (index 0 is
+// the thumbs-up answer), and stage 6 has chunks to put in order instead of options.
+export const TRUE_FALSE_STAGE = 1;
+export const WORD_ORDER_STAGE = 6;
+export const TRUE_ANSWER = 'Đúng';
+export const FALSE_ANSWER = 'Sai';
+
 // Easiest to hardest: the player has to pass a stage to unlock the next one.
 export const STAGES: StageDef[] = [
   {

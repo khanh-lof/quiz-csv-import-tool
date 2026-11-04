@@ -46,8 +46,7 @@ export class OfflineComponent implements OnInit {
       } else {
         this.notificationService.warning(
           'Chưa có kết nối',
-          '',
-          { nzPlacement: 'top' }
+          ''
         );
       }
     } finally {

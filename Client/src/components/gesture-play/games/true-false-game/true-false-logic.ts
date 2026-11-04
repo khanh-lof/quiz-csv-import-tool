@@ -1,5 +1,6 @@
 import { thumbChoice } from '../../../../game/gestures';
 import type { HandFrame } from '../../../../game/stage-game';
+import { FALSE_ANSWER, TRUE_ANSWER } from '../../../../game/stages';
 import { HoldView, sameProgress, StableReading } from '../../../../game/hold-select';
 
 // MediaPipe's gesture score a thumb has to reach, and how long the thumb is held to answer. The
@@ -27,13 +28,13 @@ export const THUMB_TARGETS: readonly ThumbTarget[] = [
   {
     index: TRUE_INDEX,
     emoji: '👍',
-    label: 'Đúng',
+    label: TRUE_ANSWER,
     keys: '1 · ←'
   },
   {
     index: FALSE_INDEX,
     emoji: '👎',
-    label: 'Sai',
+    label: FALSE_ANSWER,
     keys: '2 · →'
   },
 ];

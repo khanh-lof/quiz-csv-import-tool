@@ -5,6 +5,7 @@ import { NzInputDirective } from 'ng-zorro-antd/input';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzQRCodeComponent } from 'ng-zorro-antd/qr-code';
 import { shareUrl } from '../../../models/assignment';
+import { copyShareLink } from '../../../services/copy-share-link';
 
 // What a teacher hands to the students: the link of an assignment to copy, its code, and a QR code of the
 // link for a phone or a projector. Compact, so it fits in a dialog and on the leaderboard page.
@@ -29,14 +30,8 @@ export class ShareLink {
   }
 
   protected async copy(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(this.url());
-      this.notificationService.success('Đã sao chép link', '', { nzPlacement: 'top' });
-    } catch {
-      // No clipboard access (an insecure page, or the browser said no): leave the link selected, ready for Ctrl+C.
+    if (!await copyShareLink(this.notificationService, this.code(), 'Nhấn Ctrl+C để sao chép.')) {
       this.selectLink();
-      this.notificationService.warning('Chưa sao chép được',
-        'Nhấn Ctrl+C để sao chép.', { nzPlacement: 'top' });
     }
   }
 }

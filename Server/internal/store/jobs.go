@@ -77,8 +77,12 @@ type Jobs interface {
 	// Delete removes one job; ErrNotFound when the user has no such job.
 	Delete(ctx context.Context, username, id string) error
 	// ExpireRunning fails the user's jobs that have been running since before the cutoff, which only
-	// happens when the process handling them died, and returns the ones it failed.
+	// happens when the process handling them died, with ExpiredJobStatus, and returns the ones it failed.
 	ExpireRunning(ctx context.Context, username string, before time.Time, message string) ([]Job, error)
 	// Prune deletes all but the user's newest keep jobs.
 	Prune(ctx context.Context, username string, keep int) error
 }
+
+// ExpiredJobStatus is the error status of a job ExpireRunning failed: a gateway timeout, like a generation
+// that ran out of time.
+const ExpiredJobStatus = 504

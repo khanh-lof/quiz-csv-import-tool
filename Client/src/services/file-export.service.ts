@@ -5,6 +5,7 @@ import { QuestionDefinition } from '../models/question-definition';
 import { ExportType } from '../models/export-type';
 import { WaygroundCsvBuilder } from './wayground-csv-builder';
 import { GestureQuizCsvBuilder } from './gesture-quiz-csv-builder';
+import { fileSafeLabel } from './file-name';
 import * as XLSX from 'xlsx';
 
 // What an export built. For Wayground it also carries the .xlsx itself, so the same file (with the
@@ -25,9 +26,6 @@ export class FileExportService {
               private readonly gestureQuizCsvBuilder: GestureQuizCsvBuilder) {
   }
 
-  // Both exports return the file they built (Wayground's becomes .xlsx), or null when there was nothing
-  // to export. The file is downloaded unless `download` is false, as when the extension takes the
-
   public static platformName(exportType: ExportType): string {
     switch (exportType) {
       case ExportType.GimKit:
@@ -45,11 +43,11 @@ export class FileExportService {
     }
   }
 
+  // A download name that says what the file is, e.g. "HSK3-Bai5-Gimkit.csv". Characters a file system
   // rejects are dropped and spaces become dashes, in the platform's name too ("HSK3-Bai5-Game.csv").
   public static buildFileName(label: string, exportType: ExportType): string {
-    const safeLabel = label.replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '-') || 'QuizTool';
     const platform = FileExportService.platformName(exportType).replace(/\s+/g, '-');
-    return `${safeLabel}-${platform}.csv`;
+    return `${fileSafeLabel(label)}-${platform}.csv`;
   }
 
   // Reads the CSV text into a workbook and writes it back out as .xlsx bytes.
@@ -61,6 +59,8 @@ export class FileExportService {
     }));
   }
 
+  // Both exports return the file they built (Wayground's becomes .xlsx), or null when there was nothing
+  // to export. The file is downloaded unless `download` is false, as when the extension takes the
   // Wayground file instead.
   public exportFile(filename: string, rows: QuestionDefinition[], exportType: ExportType = ExportType.GimKit,
                     download = true): ExportedFile | null {
@@ -69,8 +69,6 @@ export class FileExportService {
     const csvResult = this.buildCsvStringForExportTypeFromRows(exportType, rows);
     return this.buildFile(filename, csvResult, exportType, download);
   }
-
-  // A download name that says what the file is, e.g. "HSK3-Bai5-Gimkit.csv". Characters a file system
 
   public exportFileFromCsvContent(filename: string, csvContent: string, exportType: ExportType = ExportType.GimKit,
                                   download = true): ExportedFile | null {

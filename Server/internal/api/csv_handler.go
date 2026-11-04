@@ -15,7 +15,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"quiz-csv-import-tool/server/internal/auth"
 	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/radicals"
 	"quiz-csv-import-tool/server/internal/store"
@@ -79,21 +78,15 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 // job, which replaces the failed one. The images come from retryImages, so a job sent with images can be
 // retried only while they are kept. Rate-limited and answered like createJob.
 func (s *Server) retryJob(w http.ResponseWriter, r *http.Request) {
-	if s.Jobs == nil {
-		s.internalError(w, r, "jobs are not configured", errors.New("no job store"))
+	if !s.jobStoreReady(w, r) {
 		return
 	}
 	user, ok := s.jobOwner(w, r)
 	if !ok {
 		return
 	}
-	failed, err := s.Jobs.Get(r.Context(), user.Username, r.PathValue("id"))
-	if errors.Is(err, store.ErrNotFound) {
-		writeText(w, http.StatusNotFound, "Job not found")
-		return
-	}
-	if err != nil {
-		s.internalError(w, r, "loading job failed", err)
+	failed, ok := s.ownedJob(w, r, user.Username, r.PathValue("id"))
+	if !ok {
 		return
 	}
 	if failed.Status != store.JobFailed {
@@ -123,8 +116,7 @@ func (s *Server) retryJob(w http.ResponseWriter, r *http.Request) {
 // outlives a deleted user by up to its lifetime. The job routes wrap their handlers in authenticate and
 // requireRole, so the caller's claims are always in the context.
 func (s *Server) jobOwner(w http.ResponseWriter, r *http.Request) (*store.User, bool) {
-	claims, _ := auth.FromContext(r.Context())
-	user, err := s.Users.FindByUsername(r.Context(), claims.Username())
+	user, err := s.Users.FindByUsername(r.Context(), callerName(r))
 	if errors.Is(err, store.ErrNotFound) {
 		writeText(w, http.StatusNotFound, "User not found")
 		return nil, false
@@ -134,60 +126,6 @@ func (s *Server) jobOwner(w http.ResponseWriter, r *http.Request) (*store.User, 
 		return nil, false
 	}
 	return user, true
-}
-
-// newJob describes a job to start. Every job keeps its language, and a creative job its lesson, so the history
-// can be filtered by them, and everything else retryOptions needs to ask for the same quiz again.
-func newJob(title string, creative bool, imageCount int, opts csvgen.Options) *store.Job {
-	job := &store.Job{Title: title, Creative: creative, ImageCount: imageCount, Language: int(opts.Language)}
-	if !creative {
-		return job
-	}
-	exportType := int(opts.ExportType)
-	courseType := int(opts.CourseType)
-	job.ExportType, job.Intelligence, job.CourseType = &exportType, opts.Intelligence, &courseType
-	job.Level, job.LessonNumbers = opts.Level, opts.LessonNumbers
-	if opts.CourseType == csvgen.Hsk {
-		hskStandard := int(opts.HskStandard)
-		job.HskStandard = &hskStandard
-	}
-	if opts.CourseType == csvgen.Other {
-		job.CourseName = opts.CourseName
-	}
-	if opts.ExportType == csvgen.GestureQuiz {
-		questionsPerStage := opts.GestureQuizQuestions()
-		job.GestureStages, job.QuestionsPerStage = opts.GestureQuizStages(), &questionsPerStage
-	}
-	return job
-}
-
-// retryOptions rebuilds the options a job was generated with from what the job keeps. False for a creative
-// job from before the lesson, or a Game's choice of games, was kept: sending it again would ask for another quiz.
-func retryOptions(job *store.Job) (csvgen.Options, bool) {
-	if !job.Creative {
-		return csvgen.Options{Language: csvgen.Language(job.Language)}, true
-	}
-	if job.ExportType == nil || job.CourseType == nil || len(job.LessonNumbers) == 0 {
-		return csvgen.Options{}, false
-	}
-	opts := csvgen.Options{
-		Language:   csvgen.Language(job.Language),
-		ExportType: csvgen.ExportType(*job.ExportType), CourseType: csvgen.CourseType(*job.CourseType),
-		CourseName: job.CourseName, Level: job.Level, LessonNumbers: job.LessonNumbers, Intelligence: job.Intelligence,
-	}
-	if opts.CourseType == csvgen.Hsk {
-		opts.HskStandard = csvgen.Hsk2
-		if job.HskStandard != nil {
-			opts.HskStandard = csvgen.HskStandard(*job.HskStandard)
-		}
-	}
-	if opts.ExportType == csvgen.GestureQuiz {
-		if job.GestureStages == nil || job.QuestionsPerStage == nil {
-			return csvgen.Options{}, false
-		}
-		opts.GestureStages, opts.QuestionsPerStage = job.GestureStages, *job.QuestionsPerStage
-	}
-	return opts, true
 }
 
 // startJob counts the call against the user's rate limit, stores the job as running and answers 202 with its
@@ -209,7 +147,7 @@ func (s *Server) startJob(w http.ResponseWriter, r *http.Request, username strin
 		return false
 	}
 
-	job.ID, job.Username, job.Status, job.RoundStart = newJobID(), username, store.JobRunning, roundStart
+	job.ID, job.Username, job.Status, job.RoundStart = newID(), username, store.JobRunning, roundStart
 	job.CreatedAt = time.Now().UTC().Truncate(time.Millisecond)
 	if err := s.Jobs.Create(r.Context(), job); err != nil {
 		s.refundAICall(r, username, roundStart)
@@ -322,10 +260,8 @@ type jobView struct {
 
 // listJobs handles GET /api/csv/jobs: the caller's newest jobs, which the client polls while any is running.
 func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
-	claims, _ := auth.FromContext(r.Context())
-	username := claims.Username()
-	if s.Jobs == nil {
-		s.internalError(w, r, "jobs are not configured", errors.New("no job store"))
+	username := callerName(r)
+	if !s.jobStoreReady(w, r) {
 		return
 	}
 
@@ -353,9 +289,8 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 	for i := range jobs {
 		views[i] = s.newJobView(&jobs[i])
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	_ = json.NewEncoder(w).Encode(map[string]any{"jobs": views})
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"jobs": views})
 }
 
 func (s *Server) newJobView(j *store.Job) jobView {
@@ -371,12 +306,10 @@ func (s *Server) newJobView(j *store.Job) jobView {
 
 // deleteJob handles DELETE /api/csv/jobs/{id}.
 func (s *Server) deleteJob(w http.ResponseWriter, r *http.Request) {
-	claims, _ := auth.FromContext(r.Context())
-	if s.Jobs == nil {
-		s.internalError(w, r, "jobs are not configured", errors.New("no job store"))
+	if !s.jobStoreReady(w, r) {
 		return
 	}
-	err := s.Jobs.Delete(r.Context(), claims.Username(), r.PathValue("id"))
+	err := s.Jobs.Delete(r.Context(), callerName(r), r.PathValue("id"))
 	if errors.Is(err, store.ErrNotFound) {
 		writeText(w, http.StatusNotFound, "Job not found")
 		return
@@ -407,7 +340,7 @@ func (s *Server) jobPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
+	noStore(w)
 	_, _ = io.WriteString(w, page)
 }
 
@@ -429,7 +362,7 @@ func (s *Server) retryState(job *store.Job) (bool, *time.Time) {
 	return false, nil
 }
 
-func newJobID() string {
+func newID() string {
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)

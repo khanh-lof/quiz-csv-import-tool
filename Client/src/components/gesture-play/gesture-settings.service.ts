@@ -1,10 +1,8 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { GameAudio } from '../../game/game-audio';
+import { TIME_MODES, TimeMode } from '../../models/time-mode';
 
 const STORAGE_KEY = 'gesture-quiz-settings';
-
-// How long a question lasts: the stage's own seconds, half as long again, or no timer at all.
-export type TimeMode = 'standard' | 'extra' | 'unlimited';
 
 export interface GestureSettings {
   timeMode: TimeMode;
@@ -22,8 +20,6 @@ const DEFAULTS: GestureSettings = {
   useCamera: false,
   showPinyin: false
 };
-
-const TIME_MODES: TimeMode[] = ['standard', 'extra', 'unlimited'];
 
 // Fills in whatever a stored value lacks or has the wrong type for, so an older or hand-edited value
 // still gives a usable set of settings.

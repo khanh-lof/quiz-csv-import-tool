@@ -22,10 +22,11 @@ import {
   assignmentStatusText,
   filterAssignments,
   isOpenAt,
-  shareUrl,
 } from '../../../models/assignment';
-import { LANGUAGES, languageSpec, QuizLanguage } from '../../../models/quiz-language';
+import { LANGUAGES, languageTagColor, languageTagText, QuizLanguage } from '../../../models/quiz-language';
 import { AssignmentService } from '../../../services/assignment.service';
+import { confirmDelete } from '../../../services/confirm-delete';
+import { copyShareLink } from '../../../services/copy-share-link';
 import { DeadlinePicker } from '../deadline-picker/deadline-picker';
 import { ShareLink } from '../share-link/share-link';
 
@@ -61,11 +62,8 @@ const CLOCK_TICK_MS = 30_000;
 })
 export class AssignmentList implements OnInit {
   protected readonly pageSize = PAGE_SIZE;
-  protected readonly languageColor = (language: QuizLanguage): string => languageSpec(language).tagColor;
-  protected readonly languageTag = (language: QuizLanguage): string => {
-    const spec = languageSpec(language);
-    return `${spec.tag} ${spec.label}`;
-  };
+  protected readonly languageColor = languageTagColor;
+  protected readonly languageTag = languageTagText;
   protected readonly helpText =
     'Giao bài ở AI › Lịch sử.';
   protected readonly assignments = signal<Assignment[]>([]);
@@ -141,13 +139,7 @@ export class AssignmentList implements OnInit {
   }
 
   protected async copyLink(assignment: Assignment): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(shareUrl(assignment.code));
-      this.notificationService.success('Đã sao chép link', '', { nzPlacement: 'top' });
-    } catch {
-      // No clipboard access (an insecure page, or the browser said no): the QR popup shows the link to copy by hand.
-      this.notificationService.warning('Chưa sao chép được',
-        'Lấy link ở Mã QR.', { nzPlacement: 'top' });
+    if (!await copyShareLink(this.notificationService, assignment.code, 'Lấy link ở Mã QR.')) {
       this.showQr(assignment);
     }
   }
@@ -169,14 +161,13 @@ export class AssignmentList implements OnInit {
     });
   }
 
+  // Reopening asks for a new closing time first: the old one may be past, and the server refuses a reopen
   // that would close at once.
   protected askReopen(assignment: Assignment): void {
     this.reopening.set(assignment);
     this.reopenDeadline.set(null);
     this.reopenOpen.set(true);
   }
-
-  // Reopening asks for a new closing time first: the old one may be past, and the server refuses a reopen
 
   protected reopenDeadlinePassed(): boolean {
     const deadline = this.reopenDeadline();
@@ -205,16 +196,10 @@ export class AssignmentList implements OnInit {
   }
 
   protected confirmRemove(assignment: Assignment): void {
-    this.modalService.confirm({
-      nzTitle: 'Xóa bài này?',
-      nzContent: 'Bài và kết quả của học sinh sẽ bị xóa.',
-      nzOkText: 'Xóa',
-      nzOkDanger: true,
-      nzClassName: 'qt-confirm-danger',
-      nzIconType: 'delete',
-      nzCancelText: 'Giữ lại',
-      nzCentered: true,
-      nzOnOk: () => this.remove(assignment),
+    confirmDelete(this.modalService, {
+      title: 'Xóa bài này?',
+      content: 'Bài và kết quả của học sinh sẽ bị xóa.',
+      onOk: () => this.remove(assignment),
     });
   }
 
@@ -248,6 +233,6 @@ export class AssignmentList implements OnInit {
   }
 
   private fail(title: string, err: unknown): void {
-    this.notificationService.error(title, assignmentErrorMessage(err), { nzPlacement: 'top' });
+    this.notificationService.error(title, assignmentErrorMessage(err));
   }
 }

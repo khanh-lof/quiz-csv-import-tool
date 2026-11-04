@@ -33,7 +33,7 @@ import { CsvImportService } from '../../services/csv-import.service';
 import { SharedPlayService } from '../../services/shared-play.service';
 import { timeLimitFor } from './gesture-engine';
 import { GesturePlay } from './gesture-play';
-import { TimeMode } from './gesture-settings.service';
+import { TimeMode } from '../../models/time-mode';
 import { ShareJoin } from './share-join/share-join';
 
 const PROGRESS_KEY = 'gesture-quiz-progress';
@@ -577,7 +577,6 @@ describe('GesturePlay', () => {
 
       expect(notifications.warning).toHaveBeenCalledTimes(1);
       expect(notifications.warning.calls.mostRecent().args[0]).toContain('1 dòng');
-      expect(notifications.warning.calls.mostRecent().args[2]).toEqual({ nzPlacement: 'top' });
     });
   });
 
@@ -1818,7 +1817,7 @@ describe('GesturePlay', () => {
 
           await save();
 
-          expect(notifications.error).toHaveBeenCalledOnceWith('Chưa đổi được hình đại diện', '', jasmine.anything());
+          expect(notifications.error).toHaveBeenCalledOnceWith('Chưa đổi được hình đại diện', '');
           expect(dialogOpen()).toBeTrue();
           expect(avatarButton()!.querySelector('kt-quiz-player-avatar')?.textContent?.trim()).toBe('🐱');
           expect(stageCards().length).toBe(6);
@@ -2233,7 +2232,7 @@ describe('GesturePlay', () => {
         click('button', 'Bắt đầu');
 
         expect(shared.startRun).toHaveBeenCalledTimes(1);
-        expect(notifications.warning).toHaveBeenCalledOnceWith('Hết lượt chơi', '', jasmine.anything());
+        expect(notifications.warning).toHaveBeenCalledOnceWith('Hết lượt chơi', '');
         expect(element().querySelector('.stage[data-game]')).toBeNull();
         expect(cardText(0)).toContain('Hết lượt');
         expect(stageCards()[0].disabled).toBeTrue();
@@ -3112,7 +3111,7 @@ describe('GesturePlay', () => {
 
           expect(stageCards().length).toBe(6);
           expect(element().querySelector('.intro')).toBeNull();
-          expect(notifications.warning).toHaveBeenCalledOnceWith('Màn này chưa mở', jasmine.any(String), jasmine.anything());
+          expect(notifications.warning).toHaveBeenCalledOnceWith('Màn này chưa mở', jasmine.any(String));
         });
 
         it('stays on the intro and says so on a failed connection, so Bắt đầu is there to try again', () => {
@@ -3122,7 +3121,7 @@ describe('GesturePlay', () => {
 
           expect(element().querySelector('.intro')).not.toBeNull();
           expect(notifications.error).toHaveBeenCalledOnceWith(
-            'Chưa bắt đầu được màn', 'Mất kết nối.', jasmine.anything());
+            'Chưa bắt đầu được màn', 'Mất kết nối.');
           const button = Array.from(element().querySelectorAll('button')).find(b => b.textContent?.includes('Bắt đầu'))!;
           expect(button.classList).not.toContain('ant-btn-loading');
 
@@ -3201,8 +3200,7 @@ describe('GesturePlay', () => {
           expect(stageCards().length).toBe(6);
           expect(notifications.warning).toHaveBeenCalledOnceWith(
             'Lượt chơi đã kết thúc',
-            'Màn này đang mở ở tab khác.',
-            jasmine.anything());
+            'Màn này đang mở ở tab khác.');
           expect(vision.stopCamera).toHaveBeenCalled();
         });
 

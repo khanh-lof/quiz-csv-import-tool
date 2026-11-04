@@ -6,22 +6,20 @@ import {
   forwardRef,
   HostListener,
   inject,
-  linkedSignal,
   signal,
   untracked,
 } from '@angular/core';
 
 import { GameAudio } from '../../../../game/game-audio';
 import { clamp } from '../../../../game/gestures';
-import { FaceFrame, QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
-import { stageDef } from '../../../../game/stages';
+import { FaceFrame, OptionGameBase, QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
+import { isTypingTarget } from '../../../../game/hold-select';
 import { VisionService } from '../../../../game/vision.service';
 import { FaceCalibrationPanel } from '../head-tilt-game/face-calibration-panel';
 import {
   CalibrationStatus,
   FaceCalibrator,
   FacePose,
-  isTypingTarget,
   splitOption,
   wordSize,
 } from '../head-tilt-game/face-common';
@@ -53,14 +51,7 @@ const MISSED_HINT_MS = 1400;
   templateUrl: './frog-bite-game.html',
   styleUrl: './frog-bite-game.css',
 })
-export class FrogBiteGame extends StageGameBase {
-  readonly visionKind = stageDef(3).vision;
-  // The lane the player bit (by click, key or mouth) for this question, so nothing can answer twice.
-  protected readonly picked = linkedSignal<QuestionView, number | null>({
-    source: this.question,
-    computation: () => null,
-  });
-  protected readonly locked = computed(() => this.paused() || this.reveal() !== null);
+export class FrogBiteGame extends OptionGameBase {
   // One lane per option, in the order the page shuffled them; a lane without an option stays empty.
   protected readonly lanes = computed(() =>
     Array.from({ length: LANES }, (_, index) => {
@@ -81,6 +72,7 @@ export class FrogBiteGame extends StageGameBase {
   );
   protected readonly calibrationStatus = signal<CalibrationStatus>('collecting');
   protected readonly calibrationProgress = signal(0);
+  // The lane the head (or the arrow keys) put the frog in, and whether it has stayed there long enough
   // for a bite to count.
   protected readonly lane = signal<Lane>(1);
   protected readonly stable = signal(false);
@@ -90,7 +82,6 @@ export class FrogBiteGame extends StageGameBase {
   protected readonly problem = signal(false);
   // After a bite the frog stays at the lane it bit.
   protected readonly frogLane = computed<number>(() => this.picked() ?? this.lane());
-  // The lane the head (or the arrow keys) put the frog in, and whether it has stayed there long enough
   // The lane whose bite counts right now: the frog has held it long enough and nothing is locked.
   protected readonly armedLane = computed<number | null>(() =>
     this.cameraActive() && this.stable() && !this.locked() ? this.frogLane() : null,
@@ -201,15 +192,6 @@ export class FrogBiteGame extends StageGameBase {
     if (this.cameraActive()) {
       this.beginCalibration();
     }
-  }
-
-  protected isCorrect(index: number): boolean {
-    return this.reveal()?.correctIndex === index;
-  }
-
-  protected isWrong(index: number): boolean {
-    const reveal = this.reveal();
-    return reveal !== null && !reveal.correct && reveal.chosen === index;
   }
 
   private moveFrog(key: string): void {

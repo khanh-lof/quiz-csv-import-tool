@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
+import { HttpStatusCode } from '@angular/common/http';
 import { finalize } from 'rxjs';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
@@ -19,10 +19,21 @@ import { AiJob, AiJobStatus, failedJobMessage, filterJobs, lessonLabel } from '.
 import { ExportType } from '../../models/export-type';
 import { GESTURE_QUIZ_COLUMNS } from '../../models/gesture-quiz';
 import { CourseType } from '../../models/course-type';
-import { CourseOption, LANGUAGES, languageSpec, QuizLanguage, teachesCourse } from '../../models/quiz-language';
+import {
+  CourseOption,
+  LANGUAGES,
+  languageSpec,
+  languageTagColor,
+  languageTagText,
+  QuizLanguage,
+  teachesCourse
+} from '../../models/quiz-language';
 import { hskMaxLevel, HskStandard } from '../../models/hsk-standard';
 import { AiJobService } from '../../services/ai-job.service';
 import { AiCsvService } from '../../services/ai-csv.service';
+import { notifyAiRefusal } from '../../services/ai-refusal';
+import { httpFailure } from '../../models/http-failure';
+import { confirmDelete } from '../../services/confirm-delete';
 import { CsvImportService } from '../../services/csv-import.service';
 import { PendingImportService } from '../../services/pending-import.service';
 import { FileExportService } from '../../services/file-export.service';
@@ -163,14 +174,8 @@ export class AiJobs implements OnInit {
     this.lessonNumber.set(null);
   }
 
-  protected languageColor(language: QuizLanguage | null): string {
-    return languageSpec(language).tagColor;
-  }
-
-  protected languageTag(language: QuizLanguage | null): string {
-    const spec = languageSpec(language);
-    return `${spec.tag} ${spec.label}`;
-  }
+  protected readonly languageColor = languageTagColor;
+  protected readonly languageTag = languageTagText;
 
   // The formatted mode's name, which depends on the language it asked in.
   protected modeLabel(job: AiJob): string {
@@ -203,8 +208,6 @@ export class AiJobs implements OnInit {
     return this.aiCsvService.extractCsvContent(job.csv);
   }
 
-  // The result as rows and columns. A Formatted job's CSV carries its own header row; an Auto job's has
-
   protected rowCount(job: AiJob): number {
     const text = this.resultText(job);
     return text ? text.split(/\r?\n/).filter(line => line.trim() !== '').length : 0;
@@ -214,7 +217,7 @@ export class AiJobs implements OnInit {
   protected openInTable(job: AiJob): void {
     const rows = this.csvImportService.parseCsv(this.resultText(job));
     if (rows.length === 0) {
-      this.notificationService.warning('Không có dữ liệu', '', { nzPlacement: 'top' });
+      this.notificationService.warning('Không có dữ liệu', '');
       return;
     }
     this.pendingImportService.set(rows);
@@ -234,7 +237,7 @@ export class AiJobs implements OnInit {
   protected downloadRadicals(job: AiJob): void {
     this.radicalsPageService.page(job.id).subscribe({
       next: html => this.radicalsPageService.download(job, html),
-      error: () => this.notificationService.error('Không tải được', 'Thử lại.', { nzPlacement: 'top' }),
+      error: () => this.notificationService.error('Không tải được', 'Thử lại.'),
     });
   }
 
@@ -244,21 +247,22 @@ export class AiJobs implements OnInit {
     this.assignOpen.set(true);
   }
 
+  // A creative job is already a whole quiz: build the platform's file, then download it, or (Wayground
   // only, the user's choice per job) let the extension publish it.
   protected exportJob(job: AiJob, publish: boolean): void {
     const exportType = job.exportType!;
     const exported = this.fileExportService.exportFileFromCsvContent(
       FileExportService.buildFileName(job.title, exportType), this.resultText(job), exportType, !publish);
     if (!exported) {
-      this.notificationService.warning('Không có dữ liệu', '', { nzPlacement: 'top' });
+      this.notificationService.warning('Không có dữ liệu', '');
       return;
     }
     if (publish && exported.xlsx) {
       this.waygroundExtensionService.sendImport(job.title, exported.fileName, exported.xlsx);
       this.notificationService.info('Đang tạo quiz trên Wayground…',
-        'Xong sẽ báo link ở đây.', { nzPlacement: 'top' });
+        'Xong sẽ báo link ở đây.');
     } else if (exportType === ExportType.GestureQuiz) {
-      this.notificationService.success('Đã tải file', 'Mở file ở trang Chơi game.', { nzPlacement: 'top' });
+      this.notificationService.success('Đã tải file', 'Mở file ở trang Chơi game.');
     }
   }
 
@@ -289,20 +293,12 @@ export class AiJobs implements OnInit {
     });
   }
 
-  // A creative job is already a whole quiz: build the platform's file, then download it, or (Wayground
-
   // A menu item cannot hold a popconfirm (the menu closes under it), so deleting asks in a modal.
   protected confirmRemove(job: AiJob): void {
-    this.modalService.confirm({
-      nzTitle: 'Xóa lần tạo này?',
-      nzContent: job.title,
-      nzOkText: 'Xóa',
-      nzOkDanger: true,
-      nzClassName: 'qt-confirm-danger',
-      nzIconType: 'delete',
-      nzCancelText: 'Giữ lại',
-      nzCentered: true,
-      nzOnOk: () => this.remove(job),
+    confirmDelete(this.modalService, {
+      title: 'Xóa lần tạo này?',
+      content: job.title,
+      onOk: () => this.remove(job),
     });
   }
 
@@ -317,6 +313,7 @@ export class AiJobs implements OnInit {
     }
   }
 
+  // The result as rows and columns. A Formatted job's CSV carries its own header row; an Auto job's has
   // none, so the columns are named after the platform it was made for.
   private resultTable(job: AiJob): ResultTable {
     const rows = this.csvImportService.parseCsvRows(this.resultText(job)).filter(row => row.some(cell => cell !== ''));
@@ -337,28 +334,25 @@ export class AiJobs implements OnInit {
 
   // The retry's own refusals, worded as the AI page words a submit's; a job that fails later is announced by AiJobService.
   private showRetryError(err: unknown): void {
-    const status = err instanceof HttpErrorResponse ? err.status : null;
-    const serverMessage = err instanceof HttpErrorResponse && typeof err.error === 'string' ? err.error.trim() : '';
-    if (status === HttpStatusCode.Forbidden && serverMessage) {
-      this.notificationService.warning('Hết lượt dùng AI', 'Thử lại sau ít phút.', { nzPlacement: 'top', nzDuration: 0 });
-    } else if (status === HttpStatusCode.Forbidden) {
-      this.notificationService.error('Không có quyền', 'Chưa được dùng AI.', { nzPlacement: 'top' });
-    } else if (status === 0) {
-      this.notificationService.error('Mất kết nối', 'Kiểm tra mạng rồi thử lại.', { nzPlacement: 'top' });
-    } else if (status === HttpStatusCode.Gone || status === HttpStatusCode.NotFound || status === HttpStatusCode.Conflict) {
+    const failure = httpFailure(err);
+    const status = failure.status;
+    if (notifyAiRefusal(this.notificationService, failure)) {
+      return;
+    }
+    if (status === HttpStatusCode.Gone || status === HttpStatusCode.NotFound || status === HttpStatusCode.Conflict) {
       // The table was older than the server (the images expired, another tab sent or deleted the job): catch up.
       this.notificationService.error('Không tạo lại được', status === HttpStatusCode.Gone
         ? 'Ảnh đã hết hạn lưu. Gửi lại ở AI › Tạo quiz.'
-        : 'Gửi lại ở AI › Tạo quiz.', { nzPlacement: 'top' });
+        : 'Gửi lại ở AI › Tạo quiz.');
       this.jobService.watch();
     } else {
-      this.notificationService.error('Không tạo lại được', 'Thử lại.', { nzPlacement: 'top' });
+      this.notificationService.error('Không tạo lại được', 'Thử lại.');
     }
   }
 
   private remove(job: AiJob): void {
     this.jobService.remove(job.id).subscribe({
-      error: () => this.notificationService.error('Không xóa được', 'Thử lại.', { nzPlacement: 'top' }),
+      error: () => this.notificationService.error('Không xóa được', 'Thử lại.'),
     });
   }
 }

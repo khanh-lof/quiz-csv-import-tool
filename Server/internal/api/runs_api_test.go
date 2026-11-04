@@ -234,7 +234,7 @@ func (c *classroom) finish(t *testing.T, token string, stage, correct int) verdi
 // playerOf is what the store holds of the student with that token, run included.
 func (c *classroom) playerOf(t *testing.T, token string) *store.Player {
 	t.Helper()
-	p, err := c.assignments.PlayerByToken(context.Background(), c.a.ID, hashPlayerToken(token))
+	p, err := c.assignments.PlayerByToken(context.Background(), c.a.ID, hashKey(token))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,7 +350,7 @@ func TestPlayAWholeStageOfEveryGame(t *testing.T) {
 				}
 
 				if i == total-1 {
-					if v.Result == nil || *v.Result != (runResult{Correct: total, Total: total, Passed: true}) {
+					if v.Result == nil || *v.Result != (stageResult{Correct: total, Total: total, Passed: true}) {
 						t.Fatalf("last verdict %+v", v)
 					}
 					break
@@ -643,7 +643,7 @@ func TestAWrongAnswerATimeoutAndALateAnswer(t *testing.T) {
 			q = c.next(t, token, run.RunID)
 		}
 	}
-	if v.Result == nil || *v.Result != (runResult{Correct: 7, Total: 10, Passed: true}) {
+	if v.Result == nil || *v.Result != (stageResult{Correct: 7, Total: 10, Passed: true}) {
 		t.Fatalf("result %+v", v.Result)
 	}
 	if lan := c.detail(t).Players[0]; lan.Stages["2"] != (stageScore{Correct: 7, Total: 10, Passed: true, Attempts: 1}) {
@@ -662,7 +662,7 @@ func TestATimeoutOnTheLastQuestionFinishesTheRun(t *testing.T) {
 		q = c.next(t, token, run.RunID)
 	}
 	v := c.answerOK(t, token, run.RunID, 4, nil)
-	if !v.TimedOut || v.Result == nil || *v.Result != (runResult{Correct: 4, Total: 5, Passed: true}) {
+	if !v.TimedOut || v.Result == nil || *v.Result != (stageResult{Correct: 4, Total: 5, Passed: true}) {
 		t.Fatalf("last verdict %+v", v)
 	}
 }
@@ -808,7 +808,7 @@ func TestResendingAnAnswerReturnsTheStoredVerdict(t *testing.T) {
 			q = c.next(t, token, run.RunID)
 			continue
 		}
-		if last.Result == nil || *last.Result != (runResult{Correct: 4, Total: 5, Passed: true}) {
+		if last.Result == nil || *last.Result != (stageResult{Correct: 4, Total: 5, Passed: true}) {
 			t.Fatalf("result %+v", last.Result)
 		}
 		// The reply to the last answer is lost: asking again returns the verdict with the result.
@@ -980,10 +980,10 @@ func TestSentenceAnswers(t *testing.T) {
 func TestPassUsesTheAssignmentsPassPercent(t *testing.T) {
 	c := newClassroom(t, map[string]any{"stageLock": "open", "passPercents": map[string]int{"1": 60, "2": 100}})
 	_, token := c.join(t, "Lan")
-	if v := c.finish(t, token, 1, 3); v.Result == nil || *v.Result != (runResult{Correct: 3, Total: 5, Passed: true}) {
+	if v := c.finish(t, token, 1, 3); v.Result == nil || *v.Result != (stageResult{Correct: 3, Total: 5, Passed: true}) {
 		t.Fatalf("3 of 5 at 60%%: %+v", v.Result)
 	}
-	if v := c.finish(t, token, 2, 9); v.Result == nil || *v.Result != (runResult{Correct: 9, Total: 10}) {
+	if v := c.finish(t, token, 2, 9); v.Result == nil || *v.Result != (stageResult{Correct: 9, Total: 10}) {
 		t.Fatalf("9 of 10 at 100%%: %+v", v.Result)
 	}
 	if v := c.finish(t, token, 2, 10); !v.Result.Passed {
@@ -1056,7 +1056,7 @@ func TestShareAnswersTheCallersResults(t *testing.T) {
 	c := newClassroom(t, map[string]any{"stageLock": "open"})
 	_, lan := c.join(t, "Lan")
 	_, nam := c.join(t, "Nam")
-	shared := func(opts ...reqOpt) (results map[string]sharedStageResult, attempts map[string]int, counts map[string]int) {
+	shared := func(opts ...reqOpt) (results map[string]stageResult, attempts map[string]int, counts map[string]int) {
 		t.Helper()
 		rec := c.send(http.MethodGet, c.shareURL(""), "", opts...)
 		wantStatus(t, rec, http.StatusOK)
@@ -1070,7 +1070,7 @@ func TestShareAnswersTheCallersResults(t *testing.T) {
 			}
 		}
 		got := decode[struct {
-			Results     map[string]sharedStageResult
+			Results     map[string]stageResult
 			Attempts    map[string]int
 			StageCounts map[string]int
 		}](t, rec)
@@ -1092,14 +1092,14 @@ func TestShareAnswersTheCallersResults(t *testing.T) {
 	c.finish(t, nam, 2, 9)
 
 	results, attempts, _ = shared(header(playerTokenHeader, lan))
-	if want := map[string]sharedStageResult{"1": {Correct: 5, Total: 5, Passed: true}}; !reflect.DeepEqual(results, want) {
+	if want := map[string]stageResult{"1": {Correct: 5, Total: 5, Passed: true}}; !reflect.DeepEqual(results, want) {
 		t.Errorf("lan results %v, want %v", results, want)
 	}
 	if want := map[string]int{"1": 3, "2": 1}; !reflect.DeepEqual(attempts, want) {
 		t.Errorf("lan attempts %v, want %v", attempts, want)
 	}
 	results, attempts, _ = shared(header(playerTokenHeader, nam))
-	if want := map[string]sharedStageResult{"2": {Correct: 9, Total: 10, Passed: true}}; !reflect.DeepEqual(results, want) {
+	if want := map[string]stageResult{"2": {Correct: 9, Total: 10, Passed: true}}; !reflect.DeepEqual(results, want) {
 		t.Errorf("nam results %v, want %v", results, want)
 	}
 	if want := map[string]int{"2": 1}; !reflect.DeepEqual(attempts, want) {
@@ -1114,7 +1114,7 @@ func TestShareAnswersTheCallersResults(t *testing.T) {
 	} {
 		wantStatus(t, rec, http.StatusOK)
 		if got := decode[struct {
-			Results  map[string]sharedStageResult
+			Results  map[string]stageResult
 			Attempts map[string]int
 		}](t, rec); len(got.Results) != 0 || len(got.Attempts) != 0 {
 			t.Errorf("%s: %+v", name, got)

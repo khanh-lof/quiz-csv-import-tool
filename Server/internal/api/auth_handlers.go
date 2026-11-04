@@ -1,11 +1,7 @@
 package api
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
-	"io"
 	"math"
 	"net/http"
 	"strconv"
@@ -35,7 +31,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Counted before the password is checked, so concurrent attempts cannot slip past the limit together.
-	attemptKey := loginAttemptKey(req.Username)
+	attemptKey := hashKey(req.Username)
 	retryAt, ok, err := s.LoginAttempts.TryConsume(r.Context(), attemptKey, s.LoginMaxAttempts, s.LoginWindow)
 	if err != nil {
 		s.internalError(w, r, "counting login attempt failed", err)
@@ -61,13 +57,6 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		s.Logger.Warn("resetting login attempts failed", "error", err)
 	}
 	s.writeSession(w, session)
-}
-
-// loginAttemptKey hashes the typed username, so the attempts collection never stores what was typed in the
-// field (sometimes a password) and every key has the same size.
-func loginAttemptKey(username string) string {
-	sum := sha256.Sum256([]byte(username))
-	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
 func (s *Server) refresh(w http.ResponseWriter, r *http.Request) {
@@ -163,25 +152,6 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]string{"username": req.Username})
 }
 
-// readJSON decodes the body into dst (field names match case-insensitively). On failure it writes
-// the 400 response and returns false.
-func (s *Server) readJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
-	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxJSONBodyBytes))
-	if err != nil {
-		writeText(w, http.StatusBadRequest, "Invalid payload")
-		return false
-	}
-	if strings.TrimSpace(string(body)) == "" {
-		writeText(w, http.StatusBadRequest, "Missing body")
-		return false
-	}
-	if err := json.Unmarshal(body, dst); err != nil {
-		writeText(w, http.StatusBadRequest, "Invalid payload")
-		return false
-	}
-	return true
-}
-
 func (s *Server) writeSession(w http.ResponseWriter, session auth.Session) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     refreshCookieName,
@@ -215,10 +185,4 @@ func refreshTokenFromCookie(r *http.Request) string {
 		return ""
 	}
 	return c.Value
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
 }

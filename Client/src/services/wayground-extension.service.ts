@@ -61,8 +61,7 @@ export class WaygroundExtensionService {
   public downloadExtension(): void {
     this.httpClient.get(EXTENSION_ZIP_URL, { responseType: 'blob' }).subscribe({
       next: zip => this.fileExportService.downloadBlob(EXTENSION_ZIP_NAME, zip),
-      error: () => this.notificationService.error('Không tải được tiện ích', 'Thử lại.',
-        { nzPlacement: 'top' }),
+      error: () => this.notificationService.error('Không tải được tiện ích', 'Thử lại.'),
     });
   }
 
@@ -82,8 +81,6 @@ export class WaygroundExtensionService {
     }
   }
 
-  // Hands the file to the extension, which opens a Wayground tab, publishes the quiz there and
-
   public savePreferredDelivery(delivery: WaygroundDelivery): void {
     try {
       localStorage.setItem(DELIVERY_STORAGE_KEY, delivery);
@@ -96,6 +93,7 @@ export class WaygroundExtensionService {
     return delivery === WaygroundDelivery.Extension && this.isInstalled();
   }
 
+  // Hands the file to the extension, which opens a Wayground tab, publishes the quiz there and
   // closes the tab again. The outcome arrives later and is shown as its own notification.
   public sendImport(title: string, fileName: string, xlsx: Uint8Array): void {
     const requestId = crypto.randomUUID();
@@ -126,11 +124,7 @@ export class WaygroundExtensionService {
       // The file was not downloaded when the extension took it, so fetch it now for the manual import.
       this.fileExportService.downloadXlsx(file.fileName, file.xlsx);
       this.notificationService.error('Wayground chưa publish được',
-        `Đã tải ${escapeHtml(file.fileName)}, import bằng tay.`,
-        {
-          nzPlacement: 'top',
-          nzDuration: 0
-        });
+        `Đã tải ${escapeHtml(file.fileName)}, import bằng tay.`, { nzDuration: 0 });
       return;
     }
     // The tab is focused again (the extension closed the Wayground tab), so the copy usually works;
@@ -144,10 +138,6 @@ export class WaygroundExtensionService {
     const url = escapeHtml(result.shareUrl!);
     this.notificationService.success('Đã publish quiz trên Wayground',
       `"${escapeHtml(result.title)}"${copied ? ' (đã sao chép)' : ''}: ` +
-      `<a href="${url}" target="_blank" rel="noopener">${url}</a>`,
-      {
-        nzPlacement: 'top',
-        nzDuration: 0
-      });
+      `<a href="${url}" target="_blank" rel="noopener">${url}</a>`, { nzDuration: 0 });
   }
 }

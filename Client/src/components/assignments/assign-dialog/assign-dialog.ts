@@ -30,6 +30,7 @@ import {
   stagePosition,
   STAGES
 } from '../../../game/stages';
+import { clamp } from '../../../game/gestures';
 import { AiJob } from '../../../models/ai-job';
 import {
   Assignment,
@@ -39,17 +40,13 @@ import {
   MIN_ATTEMPTS_LIMIT,
   STAGE_LOCK_LABELS,
   StageLock,
-  TIME_MODE_LABELS,
 } from '../../../models/assignment';
-import { GestureQuiz, hasPinyin, parseGestureQuiz, questionCount } from '../../../models/gesture-quiz';
-import { AiCsvService } from '../../../services/ai-csv.service';
+import { GestureQuiz, hasPinyin, questionCount, quizFromCsvText } from '../../../models/gesture-quiz';
 import { AssignmentService } from '../../../services/assignment.service';
-import { CsvImportService } from '../../../services/csv-import.service';
-import { TimeMode } from '../../gesture-play/gesture-settings.service';
+import { TIME_MODE_LABELS, TimeMode } from '../../../models/time-mode';
 import { DeadlinePicker } from '../deadline-picker/deadline-picker';
 import { ShareLink } from '../share-link/share-link';
 
-const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
 const MAX_LABEL_LENGTH = 60;
 const PERCENT_SUFFIX = / ?%$/;
 
@@ -71,7 +68,7 @@ function effectivePercent(value: number | null): number {
   if (value === null || !Number.isFinite(value)) {
     return DEFAULT_PASS_PERCENT;
   }
-  return Math.min(MAX_PASS_PERCENT, Math.max(MIN_PASS_PERCENT, Math.round(value)));
+  return clamp(Math.round(value), MIN_PASS_PERCENT, MAX_PASS_PERCENT);
 }
 
 // What a typed replay limit means: a whole number from the minimum to the maximum, the default when empty.
@@ -79,7 +76,7 @@ function effectiveAttempts(value: number | null): number {
   if (value === null || !Number.isFinite(value)) {
     return DEFAULT_ATTEMPTS_LIMIT;
   }
-  return Math.min(MAX_ATTEMPTS_LIMIT, Math.max(MIN_ATTEMPTS_LIMIT, Math.round(value)));
+  return clamp(Math.round(value), MIN_ATTEMPTS_LIMIT, MAX_ATTEMPTS_LIMIT);
 }
 
 // The dialog that gives a finished Game job to students: label, closing time and time mode, then
@@ -132,11 +129,11 @@ export class AssignDialog {
   // Whether the students see the board (the top five and their own place); on by default.
   protected readonly showBoard = signal(true);
   protected readonly showPinyin = signal(false);
+  // The replay limit per stage: whether the teacher set one, and the number typed (null while the box is
   // empty). It only exists with the `open` stage lock, see `maxAttemptsSent`.
   protected readonly limitAttempts = signal(false);
   protected readonly attemptsInput = signal<number | null>(DEFAULT_ATTEMPTS_LIMIT);
   protected readonly sending = signal(false);
-  // The replay limit per stage: whether the teacher set one, and the number typed (null while the box is
   protected readonly error = signal('');
   // The assignment the dialog made: while it is set, the dialog shows its link instead of the form.
   protected readonly assignment = signal<Assignment | null>(null);
@@ -170,17 +167,13 @@ export class AssignDialog {
     });
   });
   private readonly assignmentService = inject(AssignmentService);
-  private readonly aiCsvService = inject(AiCsvService);
-  private readonly csvImportService = inject(CsvImportService);
   // The job's quiz read the way the game reads it, so the dialog counts and checks what students will play.
   protected readonly quiz = computed<GestureQuiz | null>(() => {
     const job = this.job();
     if (!job) {
       return null;
     }
-    const text = this.aiCsvService.extractCsvContent(job.csv);
-    const rows = this.csvImportService.parseCsvRows(text.startsWith(BYTE_ORDER_MARK) ? text.slice(1) : text);
-    return parseGestureQuiz(rows, job.title);
+    return quizFromCsvText(job.csv, job.title);
   });
   protected readonly quizHasPinyin = computed(() => {
     const quiz = this.quiz();

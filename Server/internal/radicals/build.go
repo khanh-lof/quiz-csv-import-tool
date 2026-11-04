@@ -35,7 +35,7 @@ func (d *Draft) Build(info Info) (*Exercise, error) {
 // appear in the exercise with no description, and words with no meaning.
 func (d *Draft) Needs() Needs {
 	if len(d.groups) == 0 {
-		return Needs{Words: []WordNeed{}, Chars: []CharNeed{}, Components: []ComponentNeed{}}
+		return emptyNeeds()
 	}
 	return d.assemble(Info{}).needs
 }
@@ -175,7 +175,7 @@ func (d *Draft) assemble(info Info) assembled {
 	defer d.mu.Unlock()
 	b := &builder{
 		d: d, data: d.data, a: d.analysis, info: info,
-		needs:     Needs{Words: []WordNeed{}, Chars: []CharNeed{}, Components: []ComponentNeed{}},
+		needs:     emptyNeeds(),
 		needWord:  map[string]bool{},
 		needChar:  map[string]bool{},
 		needComp:  map[string]bool{},
@@ -257,7 +257,7 @@ func (d *Draft) assemble(info Info) assembled {
 	}
 	preset := options.Preset
 	if preset == "" {
-		preset = "jade"
+		preset = DefaultPreset
 	}
 	exercise := &Exercise{
 		Version: 1, Config: b.config(), Title: title, Footer: "", Preset: preset,
@@ -615,7 +615,7 @@ func (b *builder) buildComponents() {
 			continue
 		}
 		source := pseudoComponents[comp]
-		if spec, ok := b.glyphs[source]; !ok || !spec.split || !slices.Contains(spec.names, comp) {
+		if !b.splitsInto(source, comp) {
 			source = ""
 			for _, c := range b.compChars[comp] {
 				source = c
@@ -747,7 +747,7 @@ func (b *builder) fixPseudoSources() {
 		if !e.NoGlyph {
 			continue
 		}
-		if spec, ok := b.glyphs[e.From]; ok && spec.split && slices.Contains(spec.names, comp) {
+		if b.splitsInto(e.From, comp) {
 			continue
 		}
 		e.NoGlyph, e.From = false, ""
@@ -876,7 +876,7 @@ func (b *builder) check(played []Lesson, lessons map[int]lessonEntry, chars char
 				if syl, ok := words.syllables[r.Word]; !ok || len(syl) != len(runes) {
 					errs = append(errs, fmt.Sprintf("%s: the syllables of %s have the wrong count.", tag, r.Word))
 				}
-				if spec, ok := b.glyphs[ch]; !ok || !spec.split || !slices.Contains(spec.names, r.Miss) {
+				if !b.splitsInto(ch, r.Miss) {
 					errs = append(errs, fmt.Sprintf("%s: character %s is not split into component %s.", tag, ch, r.Miss))
 				}
 				if part, ok := b.parts[r.Miss]; !ok {
@@ -908,7 +908,7 @@ func (b *builder) check(played []Lesson, lessons map[int]lessonEntry, chars char
 	for _, k := range b.partKeys {
 		e := b.parts[k]
 		if e.NoGlyph {
-			if spec, ok := b.glyphs[e.From]; !ok || !spec.split || !slices.Contains(spec.names, k) {
+			if !b.splitsInto(e.From, k) {
 				errs = append(errs, fmt.Sprintf("pseudo component %s: source character %s has no shape.", k, e.From))
 			}
 		}
@@ -921,4 +921,15 @@ func sortedCopy(s []string) []string {
 	c := slices.Clone(s)
 	slices.Sort(c)
 	return c
+}
+
+// splitsInto reports whether the character's glyph is drawn split into components, one of them comp.
+func (b *builder) splitsInto(char, comp string) bool {
+	spec, ok := b.glyphs[char]
+	return ok && spec.split && slices.Contains(spec.names, comp)
+}
+
+// emptyNeeds is a Needs with every list empty rather than nil, so it encodes as [] in JSON.
+func emptyNeeds() Needs {
+	return Needs{Words: []WordNeed{}, Chars: []CharNeed{}, Components: []ComponentNeed{}}
 }

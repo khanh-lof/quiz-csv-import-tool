@@ -150,7 +150,10 @@ var palettes = map[string]palette{
 	"red_black":  {primary: "#b3261e", accent: "#b3261e", background: "#f4f1ee", tray: "#1f1f23", highlight: "#f2a81d", tile: "#fdf9ec", ink: "#1c1c1f"},
 }
 
-var presetNames = []string{"jade", "blue", "lilac", "terracotta", "rose", "red_black"}
+// DefaultPreset is the colour preset of a page that names none.
+const DefaultPreset = "jade"
+
+var presetNames = []string{DefaultPreset, "blue", "lilac", "terracotta", "rose", "red_black"}
 
 // Presets lists the colour preset names in order, "jade" first.
 func Presets() []string { return append([]string(nil), presetNames...) }
@@ -238,13 +241,13 @@ func highlightVars(c string) []cssVar {
 // themeCSS resolves a preset to the text of a `:root{...}` override. An unknown preset is an error.
 func themeCSS(preset string) (string, error) {
 	if preset == "" {
-		preset = "jade"
+		preset = DefaultPreset
 	}
 	cur, ok := palettes[preset]
 	if !ok {
 		return "", fmt.Errorf("Unknown colour preset %q. Choose one of: %s.", preset, strings.Join(presetNames, ", "))
 	}
-	def := palettes["jade"]
+	def := palettes[DefaultPreset]
 	vars := append([]cssVar(nil), fixedVars...)
 	for _, step := range []struct {
 		key        string

@@ -29,6 +29,7 @@ import { FileExportService } from '../../services/file-export.service';
 import { Utils } from '../../utils';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
+import { confirmDelete } from '../../services/confirm-delete';
 import { CsvImportService } from '../../services/csv-import.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { QuestionDefinitionForm } from '../../models/question-definition-form';
@@ -168,7 +169,7 @@ export class VocabularyTable implements OnInit {
       const rows = this.csvImportService.parseCsv(content);
 
       if (!rows.length) {
-        this.notificationService.warning('Không có dữ liệu', 'File không có dòng hợp lệ.', { nzPlacement: 'top' });
+        this.notificationService.warning('Không có dữ liệu', 'File không có dòng hợp lệ.');
         return;
       }
 
@@ -188,7 +189,7 @@ export class VocabularyTable implements OnInit {
     const exportTypeControl = this.formGroup.get('exportType')!;
     if (exportTypeControl.value === null) {
       exportTypeControl.markAsDirty();
-      this.notificationService.error('Chưa chọn nền tảng', '', { nzPlacement: 'top' });
+      this.notificationService.error('Chưa chọn nền tảng', '');
       return;
     }
     // Rows left completely empty are ignored rather than blocking the export, as long as enough real
@@ -196,7 +197,7 @@ export class VocabularyTable implements OnInit {
     const filledRowCount = this.questionForms.controls.filter(x => !this.isEmptyRow(x)).length;
     if (filledRowCount < this.minRows) {
       this.notificationService.error('Chưa đủ câu hỏi',
-        `Cần ít nhất ${this.minRows} câu hỏi có đáp án.`, { nzPlacement: 'top' });
+        `Cần ít nhất ${this.minRows} câu hỏi có đáp án.`);
       return;
     }
     this.removeEmptyControls();
@@ -207,7 +208,7 @@ export class VocabularyTable implements OnInit {
       const problem = this.questionForms.hasError('duplicateExists')
         ? 'Có câu hỏi hoặc đáp án trùng'
         : 'Còn ô trống';
-      this.notificationService.error(problem, '', { nzPlacement: 'top' });
+      this.notificationService.error(problem, '');
       return;
     }
     const exportType: ExportType = exportTypeControl.value;
@@ -220,7 +221,7 @@ export class VocabularyTable implements OnInit {
     if (publish && exported.xlsx) {
       this.waygroundExtensionService.sendImport(title, exported.fileName, exported.xlsx);
       this.notificationService.info('Đang tạo quiz trên Wayground…',
-        'Xong sẽ báo link ở đây.', { nzPlacement: 'top' });
+        'Xong sẽ báo link ở đây.');
       return;
     }
   }
@@ -230,15 +231,9 @@ export class VocabularyTable implements OnInit {
       this.deleteAllRows();
       return;
     }
-    this.modalService.confirm({
-      nzTitle: 'Xóa tất cả câu hỏi?',
-      nzOkText: 'Xóa',
-      nzOkDanger: true,
-      nzClassName: 'qt-confirm-danger',
-      nzIconType: 'delete',
-      nzCancelText: 'Giữ lại',
-      nzCentered: true,
-      nzOnOk: () => this.deleteAllRows()
+    confirmDelete(this.modalService, {
+      title: 'Xóa tất cả câu hỏi?',
+      onOk: () => this.deleteAllRows(),
     });
   }
 

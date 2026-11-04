@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	ErrNotFound  = errors.New("user not found")
-	ErrDuplicate = errors.New("user already exists")
+	// ErrNotFound and ErrDuplicate are shared by every store: users, jobs, assignments and players.
+	ErrNotFound  = errors.New("not found")
+	ErrDuplicate = errors.New("already exists")
 	// ErrConflict means a read-modify-write kept losing to concurrent writers.
 	ErrConflict = errors.New("too many concurrent updates")
 )

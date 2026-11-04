@@ -41,13 +41,12 @@ export class LoginComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly notificationService = inject(NzNotificationService);
 
+  // Where to go after logging in, e.g. back to the table with the AI popup reopened. Only an in-app path
   // is accepted ("/…" but not "//…"), so the query param cannot send the user to another site.
   private get returnUrl(): string {
     const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
     return returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//') ? returnUrl : '/quiz';
   }
-
-  // Where to go after logging in, e.g. back to the table with the AI popup reopened. Only an in-app path
 
   ngOnInit() {
     this.initializeForm();
@@ -91,7 +90,7 @@ export class LoginComponent implements OnInit {
         } else if (error.status === 0) {
           errorMessage = 'Kiểm tra mạng rồi thử lại.';
         }
-        this.notificationService.error('Đăng nhập thất bại', errorMessage, { nzPlacement: 'top' });
+        this.notificationService.error('Đăng nhập thất bại', errorMessage);
       }
     });
   }

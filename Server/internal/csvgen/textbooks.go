@@ -140,9 +140,15 @@ func lessonFileName(lesson int) string {
 	return fmt.Sprintf("lesson-%02d.md", lesson)
 }
 
-// newWordsColumns is the width of the New words table of a lesson document: Word, Pinyin, POS,
-// English, Tiếng Việt and Note.
-const newWordsColumns = 6
+// The two word tables of a lesson document. New words has Word, Pinyin, POS, English, Tiếng Việt and Note
+// (where ★ marks a word beyond the syllabus); Proper nouns has four columns, the meaning last.
+const (
+	newWordsHeading    = "## New words"
+	properNounsHeading = "## Proper nouns"
+	newWordsColumns    = 6
+	newWordsNoteColumn = 5
+	properNounsColumns = 4
+)
 
 // parseNewWords returns the Word cell of every row of the "## New words" table of a normalized lesson
 // document: the rows between that heading and the next "## " heading, without the header and its
@@ -157,7 +163,7 @@ func parseNewWords(doc string) ([]string, error) {
 			if inSection {
 				break
 			}
-			inSection = line == "## New words"
+			inSection = line == newWordsHeading
 			found = found || inSection
 			continue
 		}

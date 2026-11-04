@@ -96,9 +96,7 @@ func scorePlayer(p store.Player, stageCounts map[string]int, possible int) leade
 		if _, ok := stageCounts[stage]; !ok {
 			continue
 		}
-		// A run counts as an attempt from the moment it starts, so a stage's attempts are what was
-		// started, or what its results say for a player from before the server dealt the runs.
-		attempts := max(r.Attempts, p.Started[stage])
+		attempts := p.RunsStarted(stage)
 		row.Stages[stage] = stageScore{Correct: r.Correct, Total: r.Total, Passed: r.Passed, Attempts: attempts}
 		row.Correct += r.Correct
 		row.Attempts += attempts

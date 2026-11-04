@@ -43,7 +43,7 @@ type Options struct {
 	ReviewPrevious bool   // allow words of earlier lessons to fill a group
 	Seed           uint64 // 0: 1
 	Tries          int    // random attempts per lesson and group count; 0: 400
-	Preset         string // colour preset, see Presets; "": "jade"
+	Preset         string // colour preset, see Presets; "": DefaultPreset
 	Level          string // level label shown in the star note ("HSK 2"); may be empty
 	CourseName     string // names the textbook in the footer ("Từ vựng theo giáo trình …"); may be empty
 	VocabSource    string // overrides the footer's source of the vocabulary

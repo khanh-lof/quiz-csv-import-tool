@@ -1,4 +1,5 @@
-import { stageDef, STAGES } from '../game/stages';
+import { FALSE_ANSWER, stageDef, STAGES, TRUE_ANSWER, TRUE_FALSE_STAGE, WORD_ORDER_STAGE } from '../game/stages';
+import { extractCsvContent, parseCsvRows, stripByteOrderMark } from './csv-text';
 
 // The columns of a gesture quiz's CSV, which the AI returns without a header row (the order the server's
 // prompt asks for). The downloaded file gets this header, and the quiz parses the same with or without it.
@@ -53,9 +54,6 @@ export interface GestureQuiz {
   skipped: number;
 }
 
-const TRUE_ANSWER = 'Đúng';
-const FALSE_ANSWER = 'Sai';
-const WORD_ORDER_STAGE = 6;
 const MIN_CHUNKS = 2;
 const MAX_CHUNKS = 8;
 
@@ -107,7 +105,7 @@ function parseRow(row: string[]): GestureQuestion | null {
     explanation: cell(EXPLANATION),
   };
 
-  if (stage === 1) {
+  if (stage === TRUE_FALSE_STAGE) {
     const folded = foldAnswer(correct);
     const answer = TRUE_WORDS.has(folded) ? TRUE_ANSWER : FALSE_WORDS.has(folded) ? FALSE_ANSWER : null;
     return answer ? { ...base, correct: answer, correctPinyin: '' } : null;
@@ -178,7 +176,7 @@ function fnv1a(text: string): string {
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
-// Builds a quiz from CSV rows (`CsvImportService.parseCsvRows`). A header row is skipped when present
+// Builds a quiz from CSV rows (`parseCsvRows`). A header row is skipped when present
 // and not required, empty rows are ignored, and rows that break their stage's rules are dropped and
 // counted in `skipped`.
 export function parseGestureQuiz(rows: string[][], title: string): GestureQuiz {
@@ -230,6 +228,11 @@ export function parseGestureQuiz(rows: string[][], title: string): GestureQuiz {
   };
 }
 
+// The quiz in the text of a CSV: a job's result as the AI wrote it, or the file a player opened.
+export function quizFromCsvText(text: string, title: string): GestureQuiz {
+  return parseGestureQuiz(parseCsvRows(extractCsvContent(stripByteOrderMark(text))), title);
+}
+
 // Whether any question or answer has a pinyin. A quiz in another language than Chinese has none, so a switch to
 // show the pinyin would show nothing.
 export function hasPinyin(quiz: GestureQuiz): boolean {
@@ -247,6 +250,12 @@ export function questionCount(quiz: GestureQuiz): number {
     count += questions.length;
   }
   return count;
+}
+
+// The pinyin of a stage-6 answer, piece by piece in the order given. `chunks` are the pieces as a game shows them
+// and `chunkPinyins` the pinyin of each in the same order; '' without the pinyin or for a piece that has none.
+export function sentencePinyinOf(order: readonly string[], chunks: readonly string[], chunkPinyins: readonly string[] | undefined): string {
+  return chunkPinyins ? order.map(chunk => chunkPinyins[chunks.indexOf(chunk)] ?? '').filter(p => p).join(' ') : '';
 }
 
 // A character that is written with spaces between words, as opposed to hanzi and punctuation.

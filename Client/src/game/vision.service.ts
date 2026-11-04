@@ -174,8 +174,6 @@ export class VisionService {
     return this.readonlyStates[kind];
   }
 
-  // Never throws: every failure ends in a camera state and a message, because the quiz is still
-
   // The stream's intrinsic size, which the games need to map landmarks onto the cropped preview.
   videoSize(): { width: number; height: number } {
     if (this.cameraStateSignal() !== 'on') {
@@ -190,6 +188,7 @@ export class VisionService {
     };
   }
 
+  // Never throws: every failure ends in a camera state and a message, because the quiz is still
   // playable with the mouse.
   startCamera(): Promise<void> {
     if (this.cameraStateSignal() === 'on') {
@@ -207,10 +206,6 @@ export class VisionService {
     return run;
   }
 
-  // Loads and creates the model for `kind` (once per session). Safe to call before the camera
-  // starts, so the download runs in parallel with the permission prompt. Rejects on failure or
-  // timeout; a later call retries, and picks up a load that is still running instead of starting
-
   stopCamera(): void {
     // Invalidates a start that is still waiting for the permission prompt or for the first frame.
     this.generation++;
@@ -220,9 +215,9 @@ export class VisionService {
     this.cameraMessageSignal.set('');
   }
 
-  // The latest result for `kind`, or null when there is nothing new to report (camera off, model
-  // not ready, no new video frame, or called again too soon). "Nothing in view" is a frame with
-
+  // Loads and creates the model for `kind` (once per session). Safe to call before the camera
+  // starts, so the download runs in parallel with the permission prompt. Rejects on failure or
+  // timeout; a later call retries, and picks up a load that is still running instead of starting
   // a second one.
   ensureModel(kind: VisionKind): Promise<void> {
     if (this.recognizers[kind]) {
@@ -249,6 +244,8 @@ export class VisionService {
     });
   }
 
+  // The latest result for `kind`, or null when there is nothing new to report (camera off, model
+  // not ready, no new video frame, or called again too soon). "Nothing in view" is a frame with
   // `landmarks: null`, so a null return never means "no hand".
   detect(kind: VisionKind, now: number): VisionFrame | null {
     if (this.cameraStateSignal() !== 'on' || this.states[kind]() !== 'ready') {

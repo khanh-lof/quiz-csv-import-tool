@@ -11,7 +11,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"quiz-csv-import-tool/server/internal/auth"
 	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/gesturequiz"
 	"quiz-csv-import-tool/server/internal/store"
@@ -23,8 +22,6 @@ const (
 	maxLabelRunes         = 60
 	// maxClosesAhead is how far in the future a closing time may be set.
 	maxClosesAhead = 180 * 24 * time.Hour
-	// stageNumbers is how many stages the game has; the keys of passPercents run from "1" to this.
-	stageNumbers = 6
 	// createAttempts is how often creating an assignment is tried when a freshly drawn id or code
 	// turns out to be taken (which practically never happens with 50 random bits in a code).
 	createAttempts = 3
@@ -106,8 +103,7 @@ type assignmentDetailView struct {
 // each stage are the server's own, read off the job's CSV with the same parser that later deals the
 // questions to the students; a "stageCounts" in the body, as an older page sends, is ignored.
 func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
-	claims, _ := auth.FromContext(r.Context())
-	username := claims.Username()
+	username := callerName(r)
 
 	var req struct {
 		JobID     string  `json:"jobId"`
@@ -185,16 +181,11 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job, err := s.Jobs.Get(r.Context(), username, req.JobID)
-	if errors.Is(err, store.ErrNotFound) {
-		writeText(w, http.StatusNotFound, "Job not found")
+	job, ok := s.ownedJob(w, r, username, req.JobID)
+	if !ok {
 		return
 	}
-	if err != nil {
-		s.internalError(w, r, "loading job failed", err)
-		return
-	}
-	if job.Status != store.JobDone || !job.Creative || job.ExportType == nil || *job.ExportType != int(csvgen.GestureQuiz) {
+	if !isFinishedJobOf(job, csvgen.GestureQuiz) {
 		writeText(w, http.StatusConflict, "Job is not a finished gesture quiz.")
 		return
 	}
@@ -227,14 +218,7 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:    now.UTC().Truncate(time.Millisecond),
 		ClosesAt:     closesAt,
 	}
-	for attempt := 1; ; attempt++ {
-		a.ID, a.Code = newJobID(), newShareCode()
-		err = s.Assignments.Create(r.Context(), a)
-		if !errors.Is(err, store.ErrDuplicate) || attempt == createAttempts {
-			break
-		}
-	}
-	if err != nil {
+	if err := s.createWithFreshCode(r, a); err != nil {
 		s.internalError(w, r, "creating assignment failed", err)
 		return
 	}
@@ -243,8 +227,7 @@ func (s *Server) createAssignment(w http.ResponseWriter, r *http.Request) {
 
 // listAssignments handles GET /api/assignments: the caller's assignments, newest first.
 func (s *Server) listAssignments(w http.ResponseWriter, r *http.Request) {
-	claims, _ := auth.FromContext(r.Context())
-	assignments, err := s.Assignments.List(r.Context(), claims.Username(), maxAssignmentsPerUser)
+	assignments, err := s.Assignments.List(r.Context(), callerName(r), maxAssignmentsPerUser)
 	if err != nil {
 		s.internalError(w, r, "listing assignments failed", err)
 		return
@@ -264,20 +247,14 @@ func (s *Server) listAssignments(w http.ResponseWriter, r *http.Request) {
 	for i := range assignments {
 		views[i] = s.newAssignmentView(&assignments[i], now, counts[assignments[i].ID])
 	}
-	w.Header().Set("Cache-Control", "no-store")
+	noStore(w)
 	writeJSON(w, http.StatusOK, map[string]any{"assignments": views})
 }
 
 // getAssignment handles GET /api/assignments/{id}: the leaderboard page's data, which the page polls.
 func (s *Server) getAssignment(w http.ResponseWriter, r *http.Request) {
-	claims, _ := auth.FromContext(r.Context())
-	a, err := s.Assignments.Get(r.Context(), claims.Username(), r.PathValue("id"))
-	if errors.Is(err, store.ErrNotFound) {
-		writeText(w, http.StatusNotFound, "Assignment not found")
-		return
-	}
-	if err != nil {
-		s.internalError(w, r, "loading assignment failed", err)
+	a, ok := s.ownedAssignment(w, r, callerName(r), r.PathValue("id"))
+	if !ok {
 		return
 	}
 	players, err := s.Assignments.ListPlayers(r.Context(), a.ID)
@@ -285,7 +262,7 @@ func (s *Server) getAssignment(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "listing players failed", err)
 		return
 	}
-	w.Header().Set("Cache-Control", "no-store")
+	noStore(w)
 	writeJSON(w, http.StatusOK, assignmentDetailView{
 		assignmentView: s.newAssignmentView(a, s.now(), len(players)),
 		CSV:            a.CSV,
@@ -296,29 +273,22 @@ func (s *Server) getAssignment(w http.ResponseWriter, r *http.Request) {
 // patchAssignment handles PATCH /api/assignments/{id}. The body is read as a map of raw values so a
 // key that is absent (leave it) differs from one that is null (clear the closing time).
 func (s *Server) patchAssignment(w http.ResponseWriter, r *http.Request) {
-	claims, _ := auth.FromContext(r.Context())
-	username := claims.Username()
+	username := callerName(r)
 
 	var body map[string]json.RawMessage
 	if !s.readJSON(w, r, &body) {
 		return
 	}
-	a, err := s.Assignments.Get(r.Context(), username, r.PathValue("id"))
-	if errors.Is(err, store.ErrNotFound) {
-		writeText(w, http.StatusNotFound, "Assignment not found")
-		return
-	}
-	if err != nil {
-		s.internalError(w, r, "loading assignment failed", err)
+	a, ok := s.ownedAssignment(w, r, username, r.PathValue("id"))
+	if !ok {
 		return
 	}
 	now := s.now()
 
 	var update store.AssignmentUpdate
 	if raw, ok := body["label"]; ok {
-		var text string
-		// A null would decode into the empty string without complaint, so it is refused by hand.
-		if string(raw) == "null" || json.Unmarshal(raw, &text) != nil {
+		text, ok := decodeNonNull[string](raw)
+		if !ok {
 			writeText(w, http.StatusBadRequest, "Invalid payload")
 			return
 		}
@@ -331,8 +301,8 @@ func (s *Server) patchAssignment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if raw, ok := body["showPinyin"]; ok {
-		var show bool
-		if string(raw) == "null" || json.Unmarshal(raw, &show) != nil {
+		show, ok := decodeNonNull[bool](raw)
+		if !ok {
 			writeText(w, http.StatusBadRequest, "Invalid payload")
 			return
 		}
@@ -345,8 +315,8 @@ func (s *Server) patchAssignment(w http.ResponseWriter, r *http.Request) {
 		if string(raw) == "null" {
 			closesAt = nil
 		} else {
-			var text string
-			if json.Unmarshal(raw, &text) != nil {
+			text, ok := decodeNonNull[string](raw)
+			if !ok {
 				writeText(w, http.StatusBadRequest, "Invalid payload")
 				return
 			}
@@ -360,8 +330,8 @@ func (s *Server) patchAssignment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if raw, ok := body["closed"]; ok {
-		var closed bool
-		if string(raw) == "null" || json.Unmarshal(raw, &closed) != nil {
+		closed, ok := decodeNonNull[bool](raw)
+		if !ok {
 			writeText(w, http.StatusBadRequest, "Invalid payload")
 			return
 		}
@@ -402,8 +372,7 @@ func (s *Server) patchAssignment(w http.ResponseWriter, r *http.Request) {
 
 // deleteAssignment handles DELETE /api/assignments/{id}; the store removes its players too.
 func (s *Server) deleteAssignment(w http.ResponseWriter, r *http.Request) {
-	claims, _ := auth.FromContext(r.Context())
-	err := s.Assignments.Delete(r.Context(), claims.Username(), r.PathValue("id"))
+	err := s.Assignments.Delete(r.Context(), callerName(r), r.PathValue("id"))
 	if errors.Is(err, store.ErrNotFound) {
 		writeText(w, http.StatusNotFound, "Assignment not found")
 		return
@@ -419,17 +388,11 @@ func (s *Server) deleteAssignment(w http.ResponseWriter, r *http.Request) {
 // student with a joke name. The assignment is loaded first only to check that it is the caller's:
 // the player methods of the store do not know about owners.
 func (s *Server) deleteAssignmentPlayer(w http.ResponseWriter, r *http.Request) {
-	claims, _ := auth.FromContext(r.Context())
-	a, err := s.Assignments.Get(r.Context(), claims.Username(), r.PathValue("id"))
-	if errors.Is(err, store.ErrNotFound) {
-		writeText(w, http.StatusNotFound, "Assignment not found")
+	a, ok := s.ownedAssignment(w, r, callerName(r), r.PathValue("id"))
+	if !ok {
 		return
 	}
-	if err != nil {
-		s.internalError(w, r, "loading assignment failed", err)
-		return
-	}
-	err = s.Assignments.DeletePlayer(r.Context(), a.ID, r.PathValue("playerId"))
+	err := s.Assignments.DeletePlayer(r.Context(), a.ID, r.PathValue("playerId"))
 	if errors.Is(err, store.ErrNotFound) {
 		writeText(w, http.StatusNotFound, "Player not found")
 		return
@@ -441,6 +404,18 @@ func (s *Server) deleteAssignmentPlayer(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// createWithFreshCode stores the assignment under a newly drawn id and code, drawing again when either turns
+// out to be taken.
+func (s *Server) createWithFreshCode(r *http.Request, a *store.Assignment) error {
+	for attempt := 1; ; attempt++ {
+		a.ID, a.Code = newID(), newShareCode()
+		err := s.Assignments.Create(r.Context(), a)
+		if !errors.Is(err, store.ErrDuplicate) || attempt == createAttempts {
+			return err
+		}
+	}
+}
+
 // cleanLabel trims a label and reports whether it fits.
 func cleanLabel(raw string) (string, bool) {
 	label := strings.TrimSpace(raw)
@@ -449,7 +424,7 @@ func cleanLabel(raw string) (string, bool) {
 
 func validTimeMode(mode string) bool {
 	switch mode {
-	case "standard", "extra", "unlimited":
+	case gesturequiz.TimeStandard, gesturequiz.TimeExtra, gesturequiz.TimeUnlimited:
 		return true
 	}
 	return false
@@ -506,11 +481,11 @@ const (
 // (nil); otherwise a plain JSON integer from minMaxAttempts to maxMaxAttempts, and only on an "open"
 // stage lock, since a sequential assignment's replays are always unlimited.
 func parseMaxAttempts(raw json.RawMessage, stageLock string) (*int, bool) {
-	if len(raw) == 0 || string(raw) == "null" {
+	if isAbsent(raw) {
 		return nil, true
 	}
-	n, err := strconv.Atoi(string(raw))
-	if err != nil || n < minMaxAttempts || n > maxMaxAttempts || stageLock != stageLockOpen {
+	n, ok := parseInteger(raw)
+	if !ok || n < minMaxAttempts || n > maxMaxAttempts || stageLock != stageLockOpen {
 		return nil, false
 	}
 	return &n, true
@@ -521,7 +496,7 @@ func parseMaxAttempts(raw json.RawMessage, stageLock string) (*int, bool) {
 // at, so a client that sends the wrong type never hides or shows anything by accident. Null is handled
 // before unmarshalling, because decoding null into a bool succeeds and leaves false.
 func parseOptionalBool(raw json.RawMessage, absent bool) (bool, bool) {
-	if len(raw) == 0 || string(raw) == "null" {
+	if isAbsent(raw) {
 		return absent, true
 	}
 	var show bool
@@ -536,7 +511,7 @@ func parseOptionalBool(raw json.RawMessage, absent bool) (bool, bool) {
 // values are integers from minPassPercent to maxPassPercent, written as plain JSON integers. Only what was
 // sent is kept; the caller drops the stages its quiz does not have.
 func parsePassPercents(raw json.RawMessage) (map[string]int, bool) {
-	if len(raw) == 0 || string(raw) == "null" {
+	if isAbsent(raw) {
 		return nil, true
 	}
 	var values map[string]json.RawMessage
@@ -548,8 +523,8 @@ func parsePassPercents(raw json.RawMessage) (map[string]int, bool) {
 		if !validStageKey(stage) {
 			return nil, false
 		}
-		p, err := strconv.Atoi(string(v))
-		if err != nil || p < minPassPercent || p > maxPassPercent {
+		p, ok := parseInteger(v)
+		if !ok || p < minPassPercent || p > maxPassPercent {
 			return nil, false
 		}
 		out[stage] = p
@@ -567,10 +542,25 @@ func parseClosesAt(raw string, now time.Time) (time.Time, bool) {
 	return t.UTC().Truncate(time.Millisecond), true
 }
 
+// isAbsent reports whether a value read raw was left out or sent as null.
+func isAbsent(raw json.RawMessage) bool {
+	return len(raw) == 0 || string(raw) == "null"
+}
+
+// decodeNonNull decodes a value read raw, refusing a null, which would otherwise decode into the zero value
+// without complaint.
+func decodeNonNull[T any](raw json.RawMessage) (T, bool) {
+	var v T
+	if string(raw) == "null" || json.Unmarshal(raw, &v) != nil {
+		return v, false
+	}
+	return v, true
+}
+
 // validStageKey reports whether the key names a stage of the game by its canonical spelling: "1" to "6".
 func validStageKey(key string) bool {
 	stage, err := strconv.Atoi(key)
-	return err == nil && strconv.Itoa(stage) == key && stage >= 1 && stage <= stageNumbers
+	return err == nil && strconv.Itoa(stage) == key && stage >= gesturequiz.FirstStage && stage <= gesturequiz.LastStage
 }
 
 // newShareCode draws the code of a link from crypto/rand.

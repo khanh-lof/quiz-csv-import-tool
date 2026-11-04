@@ -7,10 +7,11 @@ import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { NzSwitchComponent } from 'ng-zorro-antd/switch';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
 import { DEFAULT_PASS_PERCENT, StageDef, stagePosition, STAGES } from '../../../game/stages';
-import { passPercentOf, TIME_MODE_LABELS } from '../../../models/assignment';
+import { passPercentOf } from '../../../models/assignment';
+import { TIME_MODE_LABELS, TimeMode } from '../../../models/time-mode';
 import { GestureQuiz, questionCount } from '../../../models/gesture-quiz';
 import { GestureProgressService, POINTS_PER_CORRECT, StageBest, } from '../../../services/gesture-progress.service';
-import { GestureSettingsService, TimeMode } from '../gesture-settings.service';
+import { GestureSettingsService } from '../gesture-settings.service';
 import { GestureStageCard } from '../stage-card/stage-card';
 
 // 'used' is an open stage whose runs are all spent (the teacher's replay limit).

@@ -36,14 +36,13 @@ export class AiJobService {
     authService.cleared$.subscribe(() => this.reset());
   }
 
-  // Starts polling if it is not already, and keeps it going for at least `idlePolls` answers without a
-
   refresh(): Observable<AiJob[]> {
     return this.http.get<{ jobs: AiJob[] }>(this.endpointUrl).pipe(
       map(body => body.jobs),
       tap(jobs => this.apply(jobs)));
   }
 
+  // Starts polling if it is not already, and keeps it going for at least `idlePolls` answers without a
   // running job. A just-submitted job passes a larger number: its first poll may come before the job is visible.
   watch(idlePolls = DEFAULT_IDLE_POLLS): void {
     this.idlePollsToStop = Math.max(this.idlePollsToStop, idlePolls);
@@ -114,14 +113,11 @@ export class AiJobService {
     const title = escapeHtml(job.title);
     if (job.status === 'done') {
       this.notificationService.success('AI đã tạo xong',
-        `"${title}" — xem ở AI › Lịch sử.`, { nzPlacement: 'top' });
+        `"${title}" — xem ở AI › Lịch sử.`);
       return;
     }
     this.notificationService.error('AI không tạo được',
-      `"${title}": ${escapeHtml(failedJobMessage(job))}`, {
-        nzPlacement: 'top',
-        nzDuration: 0
-      });
+      `"${title}": ${escapeHtml(failedJobMessage(job))}`, { nzDuration: 0 });
   }
 
   private reset(): void {

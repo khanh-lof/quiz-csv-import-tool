@@ -13,6 +13,8 @@ import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { Router, RouterLink } from '@angular/router';
 import { NzNotificationComponent, NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiCsvService } from '../../services/ai-csv.service';
+import { notifyAiRefusal } from '../../services/ai-refusal';
+import { httpFailure } from '../../models/http-failure';
 import { AiJobService, NEW_JOB_IDLE_POLLS } from '../../services/ai-job.service';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
 import {
@@ -58,7 +60,7 @@ import { formatLessonNumbers, lessonNumbersOf, MAX_LESSONS } from '../../models/
 import { stagePosition, STAGES } from '../../game/stages';
 import { finalize } from 'rxjs';
 import { NzSpinComponent } from 'ng-zorro-antd/spin';
-import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
+import { HttpStatusCode } from '@angular/common/http';
 import { ImageCompressionService, UploadTooLargeError } from '../../services/image-compression.service';
 import { UsageGuide } from '../usage-guide/usage-guide';
 import { WaygroundExtensionService } from '../../services/wayground-extension.service';
@@ -276,8 +278,6 @@ export class AiGeneration {
     return this.lessonOptionsList;
   }
 
-  // Listens on the whole document so Ctrl+V works as soon as the page is open, without clicking the
-
   onDropZoneEnter(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
@@ -317,6 +317,7 @@ export class AiGeneration {
     this.processImageFiles(Array.from(files));
   }
 
+  // Listens on the whole document so Ctrl+V works as soon as the page is open, without clicking the
   // drop zone first. Only a paste carrying images is taken over; pasting text into a field still works.
   @HostListener('document:paste', ['$event'])
   onPaste(event: ClipboardEvent): void {
@@ -358,8 +359,6 @@ export class AiGeneration {
     this.selectedImages.update(images => images.filter((_, i) => i !== index));
   }
 
-  // Only what can go wrong before the server accepts the job. A job that fails later (AI error, timeout)
-
   clearAllImages(): void {
     this.selectedImages.set([]);
   }
@@ -372,7 +371,7 @@ export class AiGeneration {
     }
     // Only the formatted mode needs images: the creative mode can work from the lesson identifiers alone.
     if (this.selectedImages().length === 0 && this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
-      this.notificationService.warning('Cần ít nhất 1 ảnh', '', { nzPlacement: 'top' });
+      this.notificationService.warning('Cần ít nhất 1 ảnh', '');
       return;
     }
 
@@ -408,7 +407,7 @@ export class AiGeneration {
         // From here the server works on its own: the page may be left or closed, and the history tab
         // follows the job.
         this.clearAllImages();
-        this.notificationService.info('Đã gửi yêu cầu', this.jobSentContent(), { nzPlacement: 'top' });
+        this.notificationService.info('Đã gửi yêu cầu', this.jobSentContent());
         // The first polls can come before the job is visible, so keep polling a little longer than usual.
         this.aiJobService.watch(NEW_JOB_IDLE_POLLS);
       },
@@ -557,7 +556,7 @@ export class AiGeneration {
   private processImageFiles(files: File[]): void {
     const validFiles = files.filter(file => {
       if (!file.type.startsWith('image/')) {
-        this.notificationService.error('Không phải ảnh', escapeHtml(file.name), { nzPlacement: 'top' });
+        this.notificationService.error('Không phải ảnh', escapeHtml(file.name));
         return false;
       }
       return true;
@@ -570,7 +569,7 @@ export class AiGeneration {
         // Compared by content, not name/size/date: every paste yields a fresh "image.png" stamped with
         // the current time, so pasting the same image twice would otherwise slip through.
         if (this.selectedImages().some(x => x.preview === preview)) {
-          this.notificationService.error('Ảnh trùng lặp', escapeHtml(file.name), { nzPlacement: 'top' });
+          this.notificationService.error('Ảnh trùng lặp', escapeHtml(file.name));
           return;
         }
         this.selectedImages.update(images => [...images, {
@@ -600,49 +599,29 @@ export class AiGeneration {
     return `${course}${shownLevel ?? ''}-${courseType === CourseType.VocabReview10 ? 'Topic' : 'Bai'}${formatLessonNumbers(lessonNumbers ?? [], '-', '+')}`;
   }
 
+  // Only what can go wrong before the server accepts the job. A job that fails later (AI error, timeout)
   // is reported by AiJobService when the history table sees it fail.
   private showGenerationError(err: unknown): void {
-    const status = err instanceof HttpErrorResponse ? err.status : null;
-    const serverMessage = err instanceof HttpErrorResponse && typeof err.error === 'string' ? err.error.trim() : '';
+    const failure = httpFailure(err);
+    const status = failure.status;
     if (status === HttpStatusCode.Unauthorized) {
-      this.notificationService.warning('Hết phiên đăng nhập', '', { nzPlacement: 'top' });
+      this.notificationService.warning('Hết phiên đăng nhập', '');
       this.setGenerating(false);
       this.router.navigate(['/login'], { queryParams: { returnUrl: '/ai' } });
       return;
     }
-    if (status === HttpStatusCode.Forbidden) {
-      // The server answers 403 both for the per-user AI rate limit (with a message) and for a role
-      // that may not use AI (empty body).
-      if (serverMessage) {
-        this.notificationService.warning('Hết lượt dùng AI',
-          'Thử lại sau ít phút.',
-          {
-            nzPlacement: 'top',
-            nzDuration: 0
-          });
-      } else {
-        this.notificationService.error('Không có quyền', 'Chưa được dùng AI.', { nzPlacement: 'top' });
-      }
-      return;
-    }
-    if (status === 0) {
-      this.notificationService.error('Mất kết nối',
-        'Kiểm tra mạng rồi thử lại.', { nzPlacement: 'top' });
+    if (notifyAiRefusal(this.notificationService, failure)) {
       return;
     }
     if (status === HttpStatusCode.BadRequest) {
-      this.notificationService.error('Yêu cầu không hợp lệ', '', { nzPlacement: 'top' });
+      this.notificationService.error('Yêu cầu không hợp lệ', '');
       return;
     }
     if (err instanceof UploadTooLargeError || status === HttpStatusCode.PayloadTooLarge) {
       this.notificationService.error('Ảnh quá lớn',
-        'Giảm số ảnh.',
-        {
-          nzPlacement: 'top',
-          nzDuration: 0
-        });
+        'Giảm số ảnh.', { nzDuration: 0 });
       return;
     }
-    this.notificationService.error('Chưa gửi được yêu cầu', 'Thử lại.', { nzPlacement: 'top' });
+    this.notificationService.error('Chưa gửi được yêu cầu', 'Thử lại.');
   }
 }

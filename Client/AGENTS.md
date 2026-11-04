@@ -235,7 +235,7 @@ question, shows "Mất kết nối" with a "Thử lại" instead, see below).
 when the list is empty, fetched once with `refresh()`, and a job that is missing, still running, failed or
 not a GestureQuiz shows its own message; the other two fetch their quiz from the server), `join` (a student's
 first screen on `/play/s/:code`, `ShareJoin`), `load` (`/play`: "Mở file quiz" reads a `.csv` with `FileReader`, "Chơi thử quiz
-mẫu" uses `game/demo-quiz.ts`; both go through `CsvImportService.parseCsvRows` and `parseGestureQuiz`, with
+mẫu" uses `game/demo-quiz.ts`; both go through `quizFromCsvText` (`models/gesture-quiz.ts`: the BOM stripped, `extractCsvContent`, `parseCsvRows` and `parseGestureQuiz`, the one pipeline every caller uses), with
 a warning when rows were `skipped`), `map` (`GestureStageMap`, `stage-map/`: a card for each stage the quiz has, numbered by its
 position (`stagePosition`), with its questions, best result and passed/locked status, the time-mode and sound settings and a progress reset), `intro`
 (the stage's hint, camera switch and preview, status chips), `playing` and `result` (`GestureStageResult`,
@@ -537,7 +537,7 @@ page and the students' board:
 **Teacher components** (`src/components/assignments/`, all with their own spec):
 - `AssignDialog` (`assign-dialog/`, `kt-quiz-assign-dialog`: input `job`, `[(open)]`, output `created`) is mounted by
   `AiJobs` and opened by "Giao bài" on a done GestureQuiz job. It parses the job's CSV the way the game does
-  (`extractCsvContent`, `parseCsvRows`, `parseGestureQuiz`) to show the question count and build `stageCounts`,
+  (`quizFromCsvText`) to show the question count and build `stageCounts`,
   and refuses a quiz with no questions. The form is the label (optional, 60 characters), the closing time
   (`DeadlinePicker`) and the time mode (all students share it); "Xem thử" there opens the plain job,
   `/play/<job id>`, in a new tab. After `create` the dialog shows the link (`ShareLink`), "Xem thử" (now
@@ -621,7 +621,14 @@ overlays (modals, confirms, dropdowns, notifications) that render outside any co
 - Read https://ng.ant.design/llms-full.txt and understand NG-ZORRO components. Use this knowledge when writing code with NG-ZORRO
 `provideNzI18n(en_US)` is set in `app.config.ts` despite most user-facing
 notification strings in the codebase being written in Vietnamese directly at the call site (not via
-i18n).
+i18n). `provideNzConfig` there also places every notification at the top, so call sites pass no `nzPlacement`.
+
+Shared helpers to reuse rather than repeat: `models/http-failure.ts` (`httpFailure`: the status and plain-text body
+of a refused request), `services/ai-refusal.ts` (the rate-limit, role and offline notices of an AI request),
+`services/confirm-delete.ts`, `services/copy-share-link.ts`, `services/fullscreen.ts`, `services/file-name.ts`,
+`models/csv-text.ts` (`extractCsvContent`, `parseCsvRows`; the services' methods delegate to them) and
+`models/time-mode.ts`. The server's student refusals are named constants in `models/assignment.ts` beside
+`TEACHER_ERRORS`.
 
 ### User messages
 UI text (notifications, hints, helper text, empty states, modal text, tooltips) is kept to the minimum: the
