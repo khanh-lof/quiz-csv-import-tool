@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { AiGenerationRequest } from '../models/ai-generation-request';
 import { AIGenerationMode } from '../models/aigeneration-mode';
 import { CourseType, courseHasLevels } from '../models/course-type';
+import { extractCsvContent } from '../models/csv-text';
 import { ExportType } from '../models/export-type';
 import { QuizLanguage } from '../models/quiz-language';
 
@@ -66,22 +67,7 @@ export class AiCsvService {
   }
 
   extractCsvContent(rawText: string): string {
-    const trimmed = (rawText || '').trim();
-    if (!trimmed) {
-      return '';
-    }
-
-    const fenced = trimmed.match(/```(?:csv)?\s*([\s\S]*?)```/i);
-    if (fenced?.[1]) {
-      return fenced[1].trim();
-    }
-
-    const headerMatch = trimmed.match(/(?:^|\n)(Câu hỏi\s*,\s*Đáp án[\s\S]*)/i);
-    if (headerMatch?.[1]) {
-      return headerMatch[1].trim();
-    }
-
-    return trimmed;
+    return extractCsvContent(rawText);
   }
 
   private buildBody(imageFiles: File[]): FormData {

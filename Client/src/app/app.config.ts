@@ -17,6 +17,7 @@ import { finalize, firstValueFrom, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { AuthService } from '../services/auth.service';
+import { provideNzConfig } from 'ng-zorro-antd/core/config';
 import { provideNzDateFnsAdapter } from 'ng-zorro-antd/core/time';
 
 
@@ -29,6 +30,7 @@ export const appConfig: ApplicationConfig = {
     provideAnimationsAsync(),
     provideRouter(routes),
     provideNzI18n(en_US),
+    provideNzConfig({ notification: { nzPlacement: 'top' } }),
     provideHttpClient(withXhr(), withInterceptorsFromDi()),
     provideAppInitializer(() =>
       firstValueFrom(inject(AuthService)

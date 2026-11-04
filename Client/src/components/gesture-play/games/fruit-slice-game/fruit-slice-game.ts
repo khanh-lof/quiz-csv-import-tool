@@ -10,7 +10,6 @@ import {
   forwardRef,
   HostListener,
   inject,
-  linkedSignal,
   NgZone,
   signal,
   untracked,
@@ -20,8 +19,8 @@ import {
 
 import { GameAudio } from '../../../../game/game-audio';
 import { INDEX_TIP, mapToStage } from '../../../../game/gestures';
-import { QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
-import { stageDef } from '../../../../game/stages';
+import { isTypingTarget } from '../../../../game/hold-select';
+import { OptionGameBase, StageGameBase, VisionFrame } from '../../../../game/stage-game';
 import { VisionService } from '../../../../game/vision.service';
 import { drawCursor, drawField, drawTrail, TrailPoint } from './fruit-slice-draw';
 import { FruitField, HandCursor, Segment, SLOTS } from './fruit-slice-physics';
@@ -71,13 +70,6 @@ function fitSize(box: HTMLElement, span: HTMLElement, start: number): number {
   return size;
 }
 
-function isTyping(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-  );
-}
-
 // Stage 4, "Chém hoa quả": the question and three coloured answer boxes sit on top, and waves of
 // three unlabeled fruits (watermelon, apple, lemon) are thrown up the stage. The player finds the
 // right answer, then slashes the fruit of the same colour: green box = watermelon, red = apple,
@@ -95,18 +87,14 @@ function isTyping(target: EventTarget | null): boolean {
   templateUrl: './fruit-slice-game.html',
   styleUrl: './fruit-slice-game.css'
 })
-export class FruitSliceGame extends StageGameBase {
-  readonly visionKind = stageDef(4).vision;
+export class FruitSliceGame extends OptionGameBase {
+  // The fruit each answer box stands for (slot 0 watermelon/green, 1 apple/red, 2 lemon/yellow, as in
   // SLOTS), shown in the box so the match does not rest on colour alone.
   protected readonly fruitIcons = ['🍉', '🍎', '🍋'];
   // At most one answer per fruit colour; stage 4 always has three.
   protected readonly answers = computed(() => this.question().options.slice(0, SLOTS.length));
   protected readonly slotCount = computed(() => this.answers().length);
-  // nothing else can be chosen, and it resets by itself when the next question arrives.
-  protected readonly picked = linkedSignal<QuestionView, number | null>({
-    source: this.question,
-    computation: () => null
-  });
+  // How each answer box looks: the judged answers show the right one (and the wrong choice), until
   // then the box that was cut is only outlined.
   protected readonly states = computed(() => {
     const reveal = this.reveal();
@@ -126,20 +114,17 @@ export class FruitSliceGame extends StageGameBase {
   private readonly zone = inject(NgZone);
   private readonly destroyRef = inject(DestroyRef);
 
-  // The fruit each answer box stands for (slot 0 watermelon/green, 1 apple/red, 2 lemon/yellow, as in
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('field');
   private readonly topRef = viewChild.required<ElementRef<HTMLElement>>('top');
 
-  // The slot the player cut for this question. It doubles as the per-question lock: while it is set
   private readonly questionBox = viewChild.required<ElementRef<HTMLElement>>('questionBox');
 
-  // How each answer box looks: the judged answers show the right one (and the wrong choice), until
   private readonly answerBoxes = viewChildren<ElementRef<HTMLElement>>('answerBox');
 
-  // The how-to line at the bottom of the stage. It goes away once it has been understood (the
   private readonly played = signal(false);
   private readonly handSeen = signal(false);
+  // The how-to line at the bottom of the stage. It goes away once it has been understood (the
   // player has cut a fruit), except that a camera without a hand in view keeps asking for one.
   protected readonly hint = computed(() => {
     if (this.picked() !== null || this.reveal() !== null) {
@@ -217,7 +202,7 @@ export class FruitSliceGame extends StageGameBase {
       event.ctrlKey ||
       event.metaKey ||
       event.altKey ||
-      isTyping(event.target) ||
+      isTypingTarget(event.target) ||
       !/^[1-9]$/.test(event.key)
     ) {
       return;

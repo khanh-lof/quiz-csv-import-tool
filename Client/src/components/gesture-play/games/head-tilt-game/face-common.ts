@@ -131,13 +131,12 @@ export class FaceCalibrator {
     };
   }
 
-  // Compared with the mean of the samples so far, not with the previous frame, so a slow drift adds
-
   reset(): void {
     this.samples = [];
     this.last = null;
   }
 
+  // Compared with the mean of the samples so far, not with the previous frame, so a slow drift adds
   // up and restarts the second just like a sudden move.
   private drifted(pose: FacePose): boolean {
     const mean = FaceCalibrator.mean(this.samples);
@@ -184,15 +183,4 @@ export function splitOption(text: string): { main: string; note: string } {
 export function wordSize(main: string): 'big' | 'mid' | 'small' {
   const length = [...main].length;
   return length <= 3 ? 'big' : length <= 5 ? 'mid' : 'small';
-}
-
-// The game's answer keys must not fire while the player types somewhere.
-export function isTypingTarget(target: EventTarget | null): boolean {
-  const element = target as HTMLElement | null;
-  if (!element || typeof element.tagName !== 'string') {
-    return false;
-  }
-  const tag = element.tagName;
-  const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-  return typing || element.isContentEditable === true;
 }

@@ -1,4 +1,4 @@
-import { Directive, input, output, signal } from '@angular/core';
+import { computed, Directive, input, linkedSignal, output, signal } from '@angular/core';
 
 // Which MediaPipe task feeds a game: hand gestures (GestureRecognizer) or the face (FaceLandmarker).
 // The page only runs the task a stage needs, so a game never receives frames of the other kind.
@@ -72,9 +72,6 @@ export interface Reveal {
 // must ignore all input, camera and mouse/keyboard alike, and must not emit `choose`.
 @Directive()
 export abstract class StageGameBase {
-  // Which MediaPipe result this game wants in `onFrame`.
-  abstract readonly visionKind: VisionKind;
-
   readonly question = input.required<QuestionView>();
   readonly reveal = input<Reveal | null>(null);
   readonly paused = input(false);
@@ -87,7 +84,7 @@ export abstract class StageGameBase {
   // the timer back; every other game stays ready from the start.
   readonly ready = signal(true);
 
-  // Called with the latest MediaPipe result for `visionKind` from the page's requestAnimationFrame
+  // Called with the latest MediaPipe result for the stage's `vision` kind from the page's requestAnimationFrame
   // loop, which runs outside the Angular zone: a game that shows a value in its template must write it
   // to a signal, and `now` is a performance.now() timestamp in ms.
   onFrame(_frame: VisionFrame, _now: number): void {
@@ -96,5 +93,26 @@ export abstract class StageGameBase {
   // Called on every animation frame (`dt` in seconds since the previous one) by canvas-drawn games for
   // their own simulation and drawing. Games that only react to frames can leave it alone.
   tick(_dt: number, _now: number): void {
+  }
+}
+
+// What the games that pick one of the options share (every stage but the sentence one): the option picked for
+// the question, which locks the game so that a second input cannot answer twice, and how the verdict marks
+// an option.
+@Directive()
+export abstract class OptionGameBase extends StageGameBase {
+  protected readonly picked = linkedSignal<QuestionView, number | null>({
+    source: this.question,
+    computation: () => null,
+  });
+  protected readonly locked = computed(() => this.paused() || this.reveal() !== null);
+
+  protected isCorrect(index: number): boolean {
+    return this.reveal()?.correctIndex === index;
+  }
+
+  protected isWrong(index: number): boolean {
+    const reveal = this.reveal();
+    return reveal !== null && !reveal.correct && reveal.chosen === index;
   }
 }

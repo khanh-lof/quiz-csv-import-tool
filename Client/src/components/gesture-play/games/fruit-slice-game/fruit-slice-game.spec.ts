@@ -110,8 +110,7 @@ describe('FruitSliceGame', () => {
     game.choose.subscribe(choice => emitted.push(choice));
   });
 
-  it('is a hand game', () => {
-    expect(game.visionKind).toBe('hand');
+  it('is ready from the start', () => {
     expect(game.ready()).toBeTrue();
     expect(field.ready).toBeTrue();
   });

@@ -80,7 +80,7 @@ func (m *MemoryJobs) List(_ context.Context, username string, limit int) ([]Job,
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	jobs := m.newestFirst(username)
-	jobs = jobs[:min(limit, len(jobs))]
+	jobs = jobs[:max(min(limit, len(jobs)), 0)]
 	for i := range jobs {
 		jobs[i].Source = ""
 	}
@@ -115,7 +115,7 @@ func (m *MemoryJobs) ExpireRunning(_ context.Context, username string, before ti
 	now := m.Now().UTC()
 	for id, j := range m.jobs {
 		if j.Username == username && j.Status == JobRunning && j.CreatedAt.Before(before) {
-			j.Status, j.ErrorStatus, j.ErrorMessage, j.FinishedAt = JobFailed, 504, message, &now
+			j.Status, j.ErrorStatus, j.ErrorMessage, j.FinishedAt = JobFailed, ExpiredJobStatus, message, &now
 			m.jobs[id] = j
 			expired = append(expired, j)
 		}

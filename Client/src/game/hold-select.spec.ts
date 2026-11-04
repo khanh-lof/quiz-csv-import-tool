@@ -213,6 +213,7 @@ describe('key and target checks', () => {
     expect(isTypingTarget(document.createElement('button'))).toBeFalse();
     expect(isTypingTarget(document.createElement('div'))).toBeFalse();
     expect(isTypingTarget(null)).toBeFalse();
+    expect(isTypingTarget(document)).toBeFalse();
   });
 });
 

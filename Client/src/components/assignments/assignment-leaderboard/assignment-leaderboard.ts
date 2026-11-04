@@ -50,14 +50,14 @@ import {
   leaderboardCsv,
   LeaderboardEntry,
   passPercentOf,
-  shareUrl,
   STAGE_LOCK_LABELS,
-  TIME_MODE_LABELS,
 } from '../../../models/assignment';
 import { AssignmentService } from '../../../services/assignment.service';
-import { AiCsvService } from '../../../services/ai-csv.service';
-import { CsvImportService } from '../../../services/csv-import.service';
-import { hasPinyin, parseGestureQuiz } from '../../../models/gesture-quiz';
+import { copyShareLink } from '../../../services/copy-share-link';
+import { FileExportService } from '../../../services/file-export.service';
+import { toggleFullscreen } from '../../../services/fullscreen';
+import { hasPinyin, quizFromCsvText } from '../../../models/gesture-quiz';
+import { TIME_MODE_LABELS } from '../../../models/time-mode';
 import { LeaderboardPodium } from '../../leaderboard/leaderboard-podium/leaderboard-podium';
 import { PodiumEntry } from '../../leaderboard/leaderboard-podium/podium';
 import { MarqueeText } from '../../leaderboard/marquee-text/marquee-text';
@@ -146,14 +146,14 @@ export class AssignmentLeaderboard {
   private readonly quizCsv = computed(() => this.detail()?.csv ?? '');
   // An English quiz has no pinyin, so it has no switch to show it.
   protected readonly quizHasPinyin = computed(() =>
-    hasPinyin(parseGestureQuiz(this.csvImportService.parseCsvRows(this.aiCsvService.extractCsvContent(this.quizCsv())), '')));
+    hasPinyin(quizFromCsvText(this.quizCsv(), '')));
   protected readonly notFound = signal(false);
   // Why the first load failed, while there is nothing to show yet. Later failures keep the last data.
   protected readonly loadError = signal<string | null>(null);
   // A refresh the teacher asked for is under way.
   protected readonly refreshing = signal(false);
-  // A change to the assignment (close, reopen, closing time) is being saved.
   protected readonly pinyinSaving = signal(false);
+  // A change to the assignment (close, reopen, closing time) is being saved.
   protected readonly busy = signal(false);
   protected readonly fullscreen = signal(false);
   protected readonly qrOpen = signal(false);
@@ -234,9 +234,8 @@ export class AssignmentLeaderboard {
 
   private readonly route = inject(ActivatedRoute);
   private readonly assignments = inject(AssignmentService);
-  private readonly aiCsvService = inject(AiCsvService);
-  private readonly csvImportService = inject(CsvImportService);
   private readonly notificationService = inject(NzNotificationService);
+  private readonly fileExport = inject(FileExportService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly board = viewChild('board', { read: ElementRef<HTMLElement> });
@@ -292,14 +291,7 @@ export class AssignmentLeaderboard {
     if (detail === null) {
       return;
     }
-    try {
-      await navigator.clipboard.writeText(shareUrl(detail.code));
-      this.notificationService.success('Đã sao chép link', '', { nzPlacement: 'top' });
-    } catch {
-      // No clipboard access (an insecure page, or the browser said no): the QR dialog shows a field to copy by hand.
-      this.notificationService.warning('Chưa sao chép được',
-        'Lấy link ở Mã QR.', { nzPlacement: 'top' });
-    }
+    await copyShareLink(this.notificationService, detail.code, 'Lấy link ở Mã QR.');
   }
 
   // Shows or hides the pinyin from the students' next question on.
@@ -348,28 +340,11 @@ export class AssignmentLeaderboard {
     if (detail === null) {
       return;
     }
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(new Blob([leaderboardCsv(detail)], { type: 'text/csv;charset=utf-8' }));
-    link.href = url;
-    link.download = fileNameFor(detail);
-    link.click();
-    URL.revokeObjectURL(url);
+    this.fileExport.downloadBlob(fileNameFor(detail), new Blob([leaderboardCsv(detail)], { type: 'text/csv;charset=utf-8' }));
   }
 
   protected toggleFullscreen(): void {
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => undefined);
-      return;
-    }
-    const failed = () => this.notificationService.warning(
-      'Không bật được toàn màn hình',
-      '',
-      { nzPlacement: 'top' });
-    try {
-      this.board()?.nativeElement.requestFullscreen().catch(failed);
-    } catch {
-      failed();
-    }
+    toggleFullscreen(this.board()?.nativeElement, this.notificationService);
   }
 
   protected removePlayer(player: LeaderboardEntry): void {
@@ -472,6 +447,6 @@ export class AssignmentLeaderboard {
     if (err instanceof HttpErrorResponse && err.status === 404) {
       this.notFound.set(true);
     }
-    this.notificationService.error(title, assignmentErrorMessage(err), { nzPlacement: 'top' });
+    this.notificationService.error(title, assignmentErrorMessage(err));
   }
 }

@@ -132,6 +132,12 @@ type Player struct {
 	Version int `bson:"version"`
 }
 
+// RunsStarted is how many runs of the stage the player has started, finished or not: what Started counts,
+// or what the results say for a player from before the server dealt the runs. The replay limit counts it.
+func (p *Player) RunsStarted(stage string) int {
+	return max(p.Started[stage], p.Stages[stage].Attempts)
+}
+
 // Run is one play of one stage, dealt and judged by the server: the questions in the order they are
 // asked, how each was shown and, once answered, how it went. It holds no answer text; the right answer is
 // found in the assignment's quiz by each question's Item.
@@ -236,7 +242,7 @@ func MergeRun(p *Player, stage string, correct, total int, passed bool, now time
 	now = storedTime(now)
 
 	r, played := p.Stages[stage]
-	r.Attempts = max(r.Attempts, p.Started[stage])
+	r.Attempts = p.RunsStarted(stage)
 	r.Total = total
 	if !played || correct > r.Correct {
 		r.Correct = correct

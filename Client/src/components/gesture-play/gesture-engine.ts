@@ -1,10 +1,9 @@
 import { Choice, QuestionView, Reveal } from '../../game/stage-game';
-import { chunkPinyinOf, GestureQuestion, pinyinOf, sentenceOf } from '../../models/gesture-quiz';
+import { FALSE_ANSWER, TRUE_ANSWER, TRUE_FALSE_STAGE, WORD_ORDER_STAGE } from '../../game/stages';
+import { chunkPinyinOf, GestureQuestion, pinyinOf, sentenceOf, sentencePinyinOf } from '../../models/gesture-quiz';
 import { Utils } from '../../utils';
-import { TimeMode } from './gesture-settings.service';
+import { TimeMode } from '../../models/time-mode';
 
-const TRUE_FALSE_STAGE = 1;
-const WORD_ORDER_STAGE = 6;
 const EXTRA_TIME_FACTOR = 1.5;
 const QUIZ_FILE_SUFFIX = /-(?:Game|Quiz-cử-chỉ)$/i;
 
@@ -59,7 +58,7 @@ export function prepareQuestion(question: GestureQuestion, showPinyin = false): 
       correctOrder: order,
     };
   }
-  const options = stage === TRUE_FALSE_STAGE ? ['Đúng', 'Sai'] : shuffled([question.correct, ...question.wrong]);
+  const options = stage === TRUE_FALSE_STAGE ? [TRUE_ANSWER, FALSE_ANSWER] : shuffled([question.correct, ...question.wrong]);
   return {
     source: question,
     view: {
@@ -71,7 +70,7 @@ export function prepareQuestion(question: GestureQuestion, showPinyin = false): 
         optionPinyins: options.map(option => pinyinOf(question, option))
       })
     },
-    correctIndex: stage === TRUE_FALSE_STAGE ? (question.correct === 'Đúng' ? 0 : 1) : options.indexOf(question.correct),
+    correctIndex: stage === TRUE_FALSE_STAGE ? (question.correct === TRUE_ANSWER ? 0 : 1) : options.indexOf(question.correct),
     correctOrder: null,
   };
 }
@@ -120,9 +119,7 @@ export function correctAnswerText(play: PlayQuestion): string {
 export function correctAnswerPinyin(play: PlayQuestion): string {
   const { view } = play;
   if (play.correctOrder) {
-    const pinyins = view.chunkPinyins;
-    const chunks = view.chunks ?? [];
-    return pinyins ? play.correctOrder.map(chunk => pinyins[chunks.indexOf(chunk)] ?? '').filter(p => p).join(' ') : '';
+    return sentencePinyinOf(play.correctOrder, view.chunks ?? [], view.chunkPinyins);
   }
   return play.correctIndex === null ? '' : view.optionPinyins?.[play.correctIndex] ?? '';
 }

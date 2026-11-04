@@ -19,13 +19,7 @@ export class GimkitCsvBuilder extends CsvBuilderBase {
       rows
         .map(row => {
             const possibleIncorrectAnswer = rows.filter(x => x.question !== row.question);
-            const cells = [row.question, row.answer];
-            while (cells.length < 5) {
-              let incorrectAnswer = Utils.getRandomItem(possibleIncorrectAnswer).answer;
-              if (!cells.includes(incorrectAnswer)) {
-                cells.push(incorrectAnswer);
-              }
-            }
+            const cells = this.fillWithOtherAnswers([row.question, row.answer], 5, possibleIncorrectAnswer);
             return cells.map(x => Utils.escapeCsvField(x)).join(this.separator);
           }
         )

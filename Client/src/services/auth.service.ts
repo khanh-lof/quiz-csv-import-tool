@@ -43,14 +43,13 @@ export class AuthService {
     );
   }
 
+  // Revokes this device's refresh cookie on the server; the local token is dropped whatever the outcome,
   // so the user is logged out here even when the server cannot be reached.
   logout() {
     return this.http.post(`${this.baseUrl}/logout`, {}, { responseType: 'text' }).pipe(
       finalize(() => this.clear())
     );
   }
-
-  // Revokes this device's refresh cookie on the server; the local token is dropped whatever the outcome,
 
   refreshToken() {
     return this.http.post<any>(

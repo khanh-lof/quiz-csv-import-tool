@@ -65,6 +65,16 @@ export function languageSpec(language: QuizLanguage | null): LanguageSpec {
   return LANGUAGES.find(spec => spec.value === language) ?? LANGUAGES[0];
 }
 
+// The colour and the text of the tag that names a language in the tables, e.g. "中 Tiếng Trung".
+export function languageTagColor(language: QuizLanguage | null): string {
+  return languageSpec(language).tagColor;
+}
+
+export function languageTagText(language: QuizLanguage | null): string {
+  const spec = languageSpec(language);
+  return `${spec.tag} ${spec.label}`;
+}
+
 // The saved or received language, Chinese for anything that is not one.
 export function quizLanguageOf(value: unknown): QuizLanguage {
   return LANGUAGES.some(spec => spec.value === value) ? value as QuizLanguage : QuizLanguage.Chinese;

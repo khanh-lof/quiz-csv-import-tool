@@ -17,10 +17,10 @@ import {
 
 import { GameAudio } from '../../../../game/game-audio';
 import { INDEX_TIP, mapToStage, PinchDetector, PointSmoother } from '../../../../game/gestures';
+import { isTypingTarget } from '../../../../game/hold-select';
 import { QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
-import { stageDef } from '../../../../game/stages';
 import { VisionService } from '../../../../game/vision.service';
-import { sentenceOf } from '../../../../models/gesture-quiz';
+import { sentenceOf, sentencePinyinOf } from '../../../../models/gesture-quiz';
 import {
   applyTarget,
   CompletionTimer,
@@ -59,9 +59,9 @@ const UNIT_ASPECT = 16 / 9;
   styleUrl: './word-order-game.css',
 })
 export class WordOrderGame extends StageGameBase {
-  readonly visionKind = stageDef(6).vision;
   protected readonly undoId = UNDO_TARGET;
   protected readonly chunks = computed(() => this.question().chunks ?? []);
+  // The tiles the player has placed, as positions in `chunks` (not texts, as two tiles may read the
   // same), in the order placed; a new question starts again from none.
   protected readonly line = linkedSignal<QuestionView, number[]>({
     source: this.question,
@@ -78,6 +78,7 @@ export class WordOrderGame extends StageGameBase {
       pinyin: position < line.length ? pinyins?.[line[position]] ?? '' : '',
     }));
   });
+  // The pool keeps every tile in its own place and only hides the placed ones, so picking one never
   // moves the others under a cursor that is resting still.
   protected readonly pool = computed(() => {
     const line = this.line();
@@ -94,23 +95,15 @@ export class WordOrderGame extends StageGameBase {
     return reveal === null ? null : reveal.correct ? 'right' : 'wrong';
   });
 
-  // The tiles the player has placed, as positions in `chunks` (not texts, as two tiles may read the
   protected readonly solution = computed(() => sentenceOf(this.reveal()?.correctOrder ?? []));
   // The solution's pinyin, piece by piece, when the pinyin is shown.
-  protected readonly solutionPinyin = computed(() => {
-    const pinyins = this.question().chunkPinyins;
-    const chunks = this.chunks();
-    return pinyins
-      ? (this.reveal()?.correctOrder ?? []).map(chunk => pinyins[chunks.indexOf(chunk)] ?? '').filter(p => p).join(' ')
-      : '';
-  });
+  protected readonly solutionPinyin = computed(() =>
+    sentencePinyinOf(this.reveal()?.correctOrder ?? [], this.chunks(), this.question().chunkPinyins));
 
-  // Set once the finished sentence has been reported, so nothing can change it before the verdict
   protected readonly hovered = signal<string | null>(null);
   protected readonly handVisible = signal(false);
   protected readonly pinched = signal(false);
 
-  // The pool keeps every tile in its own place and only hides the placed ones, so picking one never
   protected readonly hint = computed(() => {
     return this.cameraActive() && !this.handVisible() ? 'Đưa tay vào khung hình' : '';
   });
@@ -118,6 +111,7 @@ export class WordOrderGame extends StageGameBase {
   private readonly audio = inject(GameAudio);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly cursorElement = viewChild<ElementRef<HTMLElement>>('cursor');
+  // Set once the finished sentence has been reported, so nothing can change it before the verdict
   // arrives.
   private readonly submitted = linkedSignal<QuestionView, boolean>({
     source: this.question,
@@ -185,7 +179,7 @@ export class WordOrderGame extends StageGameBase {
 
   @HostListener('document:keydown', ['$event'])
   onKey(event: KeyboardEvent): void {
-    if (this.locked() || event.ctrlKey || event.metaKey || event.altKey || isTyping(event.target)) {
+    if (this.locked() || event.ctrlKey || event.metaKey || event.altKey || isTypingTarget(event.target)) {
       return;
     }
     // Digits name the tiles by their place in the pool (the number shown on each), which does not
@@ -388,12 +382,4 @@ export class WordOrderGame extends StageGameBase {
       element.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
     }
   }
-}
-
-// Keys typed into a field are not answers.
-function isTyping(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-  );
 }

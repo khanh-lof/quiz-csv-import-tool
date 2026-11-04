@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 
+import { parseCsvRows } from '../models/csv-text';
 import { QuestionDefinition } from '../models/question-definition';
 import { QuestionType } from '../models/question-type';
 
@@ -32,50 +33,7 @@ export class CsvImportService {
 
   // The raw cells of every row, with no header handling: for showing a CSV the way it is laid out.
   parseCsvRows(content: string): string[][] {
-    const rows: string[][] = [];
-    let currentRow: string[] = [];
-    let currentValue = '';
-    let inQuotes = false;
-
-    for (let i = 0; i < content.length; i += 1) {
-      const char = content[i];
-
-      if (char === '"') {
-        if (inQuotes && content[i + 1] === '"') {
-          currentValue += '"';
-          i += 1;
-        } else {
-          inQuotes = !inQuotes;
-        }
-        continue;
-      }
-
-      if (char === ',' && !inQuotes) {
-        currentRow.push(currentValue.trim());
-        currentValue = '';
-        continue;
-      }
-
-      if ((char === '\n' || char === '\r') && !inQuotes) {
-        if (char === '\r' && content[i + 1] === '\n') {
-          i += 1;
-        }
-        currentRow.push(currentValue.trim());
-        rows.push(currentRow);
-        currentRow = [];
-        currentValue = '';
-        continue;
-      }
-
-      currentValue += char;
-    }
-
-    if (currentValue.length > 0 || currentRow.length > 0) {
-      currentRow.push(currentValue.trim());
-      rows.push(currentRow);
-    }
-
-    return rows;
+    return parseCsvRows(content);
   }
 
   private getHeaderIndexMap(headerRow: string[]): { question: number; answer: number } {

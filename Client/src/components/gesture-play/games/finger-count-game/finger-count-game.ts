@@ -9,8 +9,7 @@ import {
 } from '@angular/core';
 
 import { GameAudio } from '../../../../game/game-audio';
-import { QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
-import { stageDef } from '../../../../game/stages';
+import { OptionGameBase, QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
 import { VisionService } from '../../../../game/vision.service';
 import { HoldSelector, isPlainKey, ringOffset } from '../../../../game/hold-select';
 import {
@@ -40,30 +39,22 @@ import {
   templateUrl: './finger-count-game.html',
   styleUrl: './finger-count-game.css',
 })
-export class FingerCountGame extends StageGameBase {
-  readonly visionKind = stageDef(5).vision;
+export class FingerCountGame extends OptionGameBase {
 
   // The four fingers of the pictogram on each card.
   protected readonly fingers = Array.from({ length: MAX_FINGERS }, (_, finger) => finger);
-  // input cannot answer twice.
-  protected readonly picked = linkedSignal<QuestionView, number | null>({
-    source: this.question,
-    computation: () => null,
-  });
+  // What the camera side shows: the finger count, the charging card and its progress. Back to idle on
   // every question.
   protected readonly view = linkedSignal<QuestionView, FingerView>({
     source: this.question,
     computation: () => IDLE_FINGER_VIEW,
     equal: sameFingerView,
   });
-  protected readonly locked = computed(() => this.paused() || this.reveal() !== null);
   protected readonly badge = computed(() => fingerBadge(this.view().count));
   protected readonly status = computed(() => fingerStatus(this.view()));
 
-  // The option the player answered with for this question, by gesture, click or key, so that a second
   private readonly audio = inject(GameAudio);
 
-  // What the camera side shows: the finger count, the charging card and its progress. Back to idle on
   private readonly vision = inject(VisionService);
   private readonly reader = new FingerReader();
   private readonly selector = new HoldSelector(FINGER_HOLD_MS);
@@ -125,15 +116,6 @@ export class FingerCountGame extends StageGameBase {
 
   protected isHan(option: string): boolean {
     return hasHanzi(option);
-  }
-
-  protected isCorrect(index: number): boolean {
-    return this.reveal()?.correctIndex === index;
-  }
-
-  protected isWrong(index: number): boolean {
-    const reveal = this.reveal();
-    return reveal !== null && !reveal.correct && reveal.chosen === index;
   }
 
   // One answer per question. A gesture answer leaves its ring full on the chosen card, the other ways

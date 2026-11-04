@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"quiz-csv-import-tool/server/internal/auth"
 	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/radicals"
 	"quiz-csv-import-tool/server/internal/store"
@@ -13,21 +12,14 @@ import (
 // radicalsJob loads the caller's finished Radicals job, or answers why it cannot: 404 for no such job of the caller,
 // 409 for a job that is no finished exercise.
 func (s *Server) radicalsJob(w http.ResponseWriter, r *http.Request) (*store.Job, bool) {
-	claims, _ := auth.FromContext(r.Context())
-	if s.Jobs == nil {
-		s.internalError(w, r, "jobs are not configured", errors.New("no job store"))
+	if !s.jobStoreReady(w, r) {
 		return nil, false
 	}
-	job, err := s.Jobs.Get(r.Context(), claims.Username(), r.PathValue("id"))
-	if errors.Is(err, store.ErrNotFound) {
-		writeText(w, http.StatusNotFound, "Job not found")
+	job, ok := s.ownedJob(w, r, callerName(r), r.PathValue("id"))
+	if !ok {
 		return nil, false
 	}
-	if err != nil {
-		s.internalError(w, r, "loading job failed", err)
-		return nil, false
-	}
-	if job.Status != store.JobDone || !job.Creative || job.ExportType == nil || csvgen.ExportType(*job.ExportType) != csvgen.Radicals {
+	if !isFinishedJobOf(job, csvgen.Radicals) {
 		writeText(w, http.StatusConflict, "Job is not a finished radicals exercise.")
 		return nil, false
 	}
@@ -57,7 +49,7 @@ func (s *Server) radicalsEdit(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "reading the exercise's source failed", err)
 		return
 	}
-	w.Header().Set("Cache-Control", "no-store")
+	noStore(w)
 	writeJSON(w, http.StatusOK, edit)
 }
 
@@ -80,7 +72,7 @@ func (s *Server) reviseRadicals(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, err.Error())
 		return
 	case errors.Is(err, csvgen.ErrIncomplete):
-		w.Header().Set("Cache-Control", "no-store")
+		noStore(w)
 		writeJSON(w, http.StatusUnprocessableEntity, edit)
 		return
 	case errors.Is(err, radicals.ErrNothingToPlay):
@@ -100,6 +92,6 @@ func (s *Server) reviseRadicals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	job.CSV = result.CSV
-	w.Header().Set("Cache-Control", "no-store")
+	noStore(w)
 	writeJSON(w, http.StatusOK, s.newJobView(job))
 }

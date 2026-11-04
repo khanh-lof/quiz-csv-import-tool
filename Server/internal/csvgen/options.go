@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"quiz-csv-import-tool/server/internal/gesturequiz"
 )
 
 // ExportType is the quiz platform the CSV is meant for. The client sends it by ordinal, so the
@@ -76,7 +78,7 @@ const DefaultIntelligence = 1
 // GestureStageCount is how many games (stages) a Game can have. A stage's number, 1 to
 // GestureStageCount, is the identity of its game in the CSV, so it never changes when a quiz leaves
 // other stages out. Keep in step with STAGES in Client/src/game/stages.ts.
-const GestureStageCount = 6
+const GestureStageCount = gesturequiz.LastStage
 
 // The number of questions a gesture quiz asks for in each of its stages. Four is the minimum because
 // a stage is passed with 70% right, and with fewer questions it would be all-or-nothing. Keep in step

@@ -85,6 +85,10 @@ func (m *MongoJobs) Get(ctx context.Context, username, id string) (*Job, error) 
 }
 
 func (m *MongoJobs) List(ctx context.Context, username string, limit int) ([]Job, error) {
+	if limit <= 0 {
+		// Mongo reads a limit of 0 as "no limit"; the memory store returns nothing.
+		return []Job{}, nil
+	}
 	// The source of a Radicals job is only read to rebuild it, never by the history the list feeds.
 	cursor, err := m.jobs.Find(ctx, bson.M{"username": username},
 		options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}).SetLimit(int64(limit)).
@@ -117,7 +121,7 @@ func (m *MongoJobs) ExpireRunning(ctx context.Context, username string, before t
 		err := m.jobs.FindOneAndUpdate(ctx,
 			bson.M{"username": username, "status": JobRunning, "createdAt": bson.M{"$lt": before}},
 			bson.M{"$set": bson.M{
-				"status": JobFailed, "errorStatus": 504, "errorMessage": message, "finishedAt": m.now().UTC(),
+				"status": JobFailed, "errorStatus": ExpiredJobStatus, "errorMessage": message, "finishedAt": m.now().UTC(),
 			}},
 			options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&job)
 		if errors.Is(err, mongo.ErrNoDocuments) {

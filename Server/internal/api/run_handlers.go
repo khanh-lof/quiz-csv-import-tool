@@ -48,24 +48,17 @@ type sharedQuestion struct {
 	GraceMs        int64    `json:"graceMs"`
 }
 
-// runResult is what a finished run scored, and whether that passes the stage.
-type runResult struct {
-	Correct int  `json:"correct"`
-	Total   int  `json:"total"`
-	Passed  bool `json:"passed"`
-}
-
 // verdict is the server's judgement of one answer, with the right answer and its explanation. Exactly one
 // of CorrectIndex (the option stages) and CorrectOrder (the sentence stage) is set. Result is set on the
 // last question of a run, which finishes it.
 type verdict struct {
-	Correct      bool       `json:"correct"`
-	TimedOut     bool       `json:"timedOut"`
-	CorrectIndex *int       `json:"correctIndex,omitempty"`
-	CorrectOrder []string   `json:"correctOrder,omitempty"`
-	Answer       string     `json:"answer"`
-	Explanation  string     `json:"explanation"`
-	Result       *runResult `json:"result"`
+	Correct      bool         `json:"correct"`
+	TimedOut     bool         `json:"timedOut"`
+	CorrectIndex *int         `json:"correctIndex,omitempty"`
+	CorrectOrder []string     `json:"correctOrder,omitempty"`
+	Answer       string       `json:"answer"`
+	Explanation  string       `json:"explanation"`
+	Result       *stageResult `json:"result"`
 }
 
 // startRun handles POST /api/share/{code}/runs: a student starts a run of one stage. The server parses the
@@ -78,14 +71,9 @@ type verdict struct {
 // for a stage the quiz does not have), then, on fresh data inside the update, the stage lock (409 "Stage
 // locked") and the replay limit (409 "Replay limit reached").
 func (s *Server) startRun(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	a, ok := s.sharedAssignment(w, r)
+	noStore(w)
+	a, now, ok := s.sharedAssignmentWhile(w, r, (*store.Assignment).OpenAt)
 	if !ok {
-		return
-	}
-	now := s.now()
-	if !a.OpenAt(now) {
-		writeText(w, http.StatusGone, "Assignment closed")
 		return
 	}
 	player, ok := s.requestPlayer(w, r, a)
@@ -113,9 +101,7 @@ func (s *Server) startRun(w http.ResponseWriter, r *http.Request) {
 		if stageLockOf(a) == stageLockSequential && !lowerStagesPassed(a, p, req.Stage) {
 			return errStageLocked
 		}
-		// What a stage has used up is the larger of the runs started and the runs a player from before the
-		// server dealt them finished.
-		used := max(p.Started[stage], p.Stages[stage].Attempts)
+		used := p.RunsStarted(stage)
 		if a.MaxAttempts != nil && used >= *a.MaxAttempts {
 			return errReplayLimit
 		}
@@ -156,14 +142,9 @@ func (s *Server) startRun(w http.ResponseWriter, r *http.Request) {
 // it stands, with the time that is left, so asking never buys time. Like answering, it is taken for the
 // result grace after the assignment closes, so a student in the middle of a stage does not lose it.
 func (s *Server) nextQuestion(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	a, ok := s.sharedAssignment(w, r)
+	noStore(w)
+	a, now, ok := s.sharedAssignmentWhile(w, r, (*store.Assignment).AcceptsResultsAt)
 	if !ok {
-		return
-	}
-	now := s.now()
-	if !a.AcceptsResultsAt(now) {
-		writeText(w, http.StatusGone, "Assignment closed")
 		return
 	}
 	player, ok := s.requestPlayer(w, r, a)
@@ -171,7 +152,7 @@ func (s *Server) nextQuestion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	runID := r.PathValue("runId")
-	if player.Run == nil || player.Run.ID != runID {
+	if !ownsRun(player, runID) {
 		writeText(w, http.StatusNotFound, "Run not found")
 		return
 	}
@@ -185,7 +166,7 @@ func (s *Server) nextQuestion(w http.ResponseWriter, r *http.Request) {
 	if current := firstOpen(run); current >= 0 && run.Questions[current].ServedAt == nil {
 		// Serving is a write: the clock starts now, and two requests asking at once must not both set it.
 		updated, err := s.Assignments.UpdatePlayer(r.Context(), a.ID, player.ID, func(p *store.Player) error {
-			if p.Run == nil || p.Run.ID != runID {
+			if !ownsRun(p, runID) {
 				return errRunGone
 			}
 			if p.Run.FinishedAt != nil {
@@ -226,14 +207,9 @@ func (s *Server) nextQuestion(w http.ResponseWriter, r *http.Request) {
 // question in play is a 400, as is a body that is not an integer index and a choice of a kind that is
 // none of the three. Nothing is rejected for being late: a late answer is judged a timeout.
 func (s *Server) answerQuestion(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	a, ok := s.sharedAssignment(w, r)
+	noStore(w)
+	a, now, ok := s.sharedAssignmentWhile(w, r, (*store.Assignment).AcceptsResultsAt)
 	if !ok {
-		return
-	}
-	now := s.now()
-	if !a.AcceptsResultsAt(now) {
-		writeText(w, http.StatusGone, "Assignment closed")
 		return
 	}
 	player, ok := s.requestPlayer(w, r, a)
@@ -241,7 +217,7 @@ func (s *Server) answerQuestion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	runID := r.PathValue("runId")
-	if player.Run == nil || player.Run.ID != runID {
+	if !ownsRun(player, runID) {
 		writeText(w, http.StatusNotFound, "Run not found")
 		return
 	}
@@ -279,7 +255,7 @@ func (s *Server) answerQuestion(w http.ResponseWriter, r *http.Request) {
 	// original) can have answered the question since it was read, and must not be judged twice.
 	var settled *store.Run
 	updated, err := s.Assignments.UpdatePlayer(r.Context(), a.ID, player.ID, func(p *store.Player) error {
-		if p.Run == nil || p.Run.ID != runID {
+		if !ownsRun(p, runID) {
 			return errRunGone
 		}
 		if index < 0 || index >= len(p.Run.Questions) {
@@ -403,24 +379,9 @@ func (s *Server) runUpdateFailed(w http.ResponseWriter, r *http.Request, err err
 	return true
 }
 
-// requestPlayer is the student behind the X-Player-Token header, or a 403 "Unknown player" for a missing
-// token or one that no player of this assignment holds.
-func (s *Server) requestPlayer(w http.ResponseWriter, r *http.Request, a *store.Assignment) (*store.Player, bool) {
-	token := r.Header.Get(playerTokenHeader)
-	if token == "" {
-		writeText(w, http.StatusForbidden, "Unknown player")
-		return nil, false
-	}
-	player, err := s.Assignments.PlayerByToken(r.Context(), a.ID, hashPlayerToken(token))
-	if errors.Is(err, store.ErrNotFound) {
-		writeText(w, http.StatusForbidden, "Unknown player")
-		return nil, false
-	}
-	if err != nil {
-		s.internalError(w, r, "looking up player failed", err)
-		return nil, false
-	}
-	return player, true
+// ownsRun reports whether the run is the player's latest, the only one their requests may play.
+func ownsRun(p *store.Player, runID string) bool {
+	return p.Run != nil && p.Run.ID == runID
 }
 
 // lowerStagesPassed reports whether the player has passed every stage of the assignment before this one,
@@ -441,7 +402,7 @@ func dealRun(quiz *gesturequiz.Quiz, stage int, now time.Time) *store.Run {
 	questions := quiz.Stages[stage]
 	order := mrand.Perm(len(questions))
 	run := &store.Run{
-		ID:        newJobID(),
+		ID:        newID(),
 		Stage:     strconv.Itoa(stage),
 		StartedAt: now,
 		Questions: make([]store.RunQuestion, len(order)),
@@ -567,7 +528,7 @@ func (s *Server) questionOf(a *store.Assignment, run *store.Run, quiz *gesturequ
 
 // resultOf is what a finished run scored: its right answers, out of all its questions, and whether that
 // reaches the assignment's pass mark for the stage.
-func resultOf(a *store.Assignment, run *store.Run) runResult {
+func resultOf(a *store.Assignment, run *store.Run) stageResult {
 	correct := 0
 	for _, q := range run.Questions {
 		if q.Correct {
@@ -575,7 +536,7 @@ func resultOf(a *store.Assignment, run *store.Run) runResult {
 		}
 	}
 	total := len(run.Questions)
-	return runResult{Correct: correct, Total: total, Passed: correct >= passMark(total, passPercentOf(a, run.Stage))}
+	return stageResult{Correct: correct, Total: total, Passed: correct >= passMark(total, passPercentOf(a, run.Stage))}
 }
 
 // The kinds of choice an answer can carry.

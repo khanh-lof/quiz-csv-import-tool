@@ -966,7 +966,7 @@ describe('AssignmentLeaderboard', () => {
       tick();
       fixture.detectChanges();
       expect(pinyinSwitch().classList).toContain('ant-switch-checked');
-      expect(notifications.error).toHaveBeenCalledWith('Không đổi được cài đặt pinyin', jasmine.any(String), jasmine.anything());
+      expect(notifications.error).toHaveBeenCalledWith('Không đổi được cài đặt pinyin', jasmine.any(String));
       leave();
     }));
 

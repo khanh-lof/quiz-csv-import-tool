@@ -131,13 +131,7 @@ func buildCreativeRequest(model string, images []Image, opts Options) responsesR
 	if material != "" {
 		texts = append(texts, material)
 	}
-	content := make([]inputPart, 0, len(texts)+len(images))
-	for _, text := range texts {
-		content = append(content, inputPart{Type: "input_text", Text: text})
-	}
-	for _, img := range images {
-		content = append(content, inputPart{Type: "input_image", ImageURL: dataURL(img)})
-	}
+	content := inputParts(texts, images)
 	// No reasoning effort: the model is picked by "Độ thông minh" and some of them (gpt-6-astra) have
 	// no effort levels, so each runs at its own default.
 	req := responsesRequest{
@@ -354,4 +348,16 @@ func dataURL(img Image) string {
 // normalizePrompt undoes a CRLF checkout of the embedded prompt files and drops the trailing newline.
 func normalizePrompt(s string) string {
 	return strings.TrimSpace(strings.ReplaceAll(s, "\r\n", "\n"))
+}
+
+// inputParts is the content of a user message of the Responses API: each text, then each image.
+func inputParts(texts []string, images []Image) []inputPart {
+	content := make([]inputPart, 0, len(texts)+len(images))
+	for _, text := range texts {
+		content = append(content, inputPart{Type: "input_text", Text: text})
+	}
+	for _, img := range images {
+		content = append(content, inputPart{Type: "input_image", ImageURL: dataURL(img)})
+	}
+	return content
 }

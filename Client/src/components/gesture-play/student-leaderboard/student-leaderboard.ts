@@ -11,8 +11,8 @@ import {
   untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { HttpErrorResponse } from '@angular/common/http';
-import { StudentBoard, StudentBoardEntry } from '../../../models/assignment';
+import { BOARD_HIDDEN, StudentBoard, StudentBoardEntry } from '../../../models/assignment';
+import { httpFailure } from '../../../models/http-failure';
 import { SharedPlayService } from '../../../services/shared-play.service';
 import { GameAudio } from '../../../game/game-audio';
 import { LeaderboardPodium } from '../../leaderboard/leaderboard-podium/leaderboard-podium';
@@ -22,9 +22,6 @@ import { PlayerAvatar } from '../../leaderboard/player-avatar/player-avatar';
 
 // How often a visible board asks again, in ms.
 export const BOARD_POLL_MS = 30000;
-
-// The plain-text body of the 404 the server answers when the teacher hid the board from the students.
-const BOARD_HIDDEN = 'Board hidden';
 
 const PODIUM_RANKS = 3;
 
@@ -146,6 +143,6 @@ export class StudentLeaderboard {
 // Whether a failed load is the server saying the teacher hid the board (404 with that plain-text body), as
 // opposed to an unknown code or a network or server error, which only leave the last board in place.
 function isBoardHidden(err: unknown): boolean {
-  return err instanceof HttpErrorResponse && err.status === 404
-    && (typeof err.error === 'string' ? err.error.trim() : '') === BOARD_HIDDEN;
+  const { status, body } = httpFailure(err);
+  return status === 404 && body === BOARD_HIDDEN;
 }

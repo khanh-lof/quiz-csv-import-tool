@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { AiJob } from '../models/ai-job';
 import { RadicalsEdit } from '../models/radicals-edit';
 import { FileExportService } from './file-export.service';
+import { fileSafeLabel } from './file-name';
 
 // The page of a finished "Ghép bộ thủ" job (`GET csv/jobs/{id}/page`): a standalone HTML file that the server
 // draws from the exercise the job keeps. Fetched with the token like every job route, then shown in a frame
@@ -16,8 +17,7 @@ export class RadicalsPageService {
   }
 
   static fileName(title: string): string {
-    const safeTitle = title.replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '-') || 'QuizTool';
-    return `${safeTitle}-GhepBoThu.html`;
+    return `${fileSafeLabel(title)}-GhepBoThu.html`;
   }
 
   page(jobId: string): Observable<string> {

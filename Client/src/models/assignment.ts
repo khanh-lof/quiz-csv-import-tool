@@ -1,10 +1,11 @@
-import { HttpErrorResponse } from '@angular/common/http';
-import { TimeMode } from '../components/gesture-play/gesture-settings.service';
 import { DEFAULT_PASS_PERCENT, stagePosition, STAGES } from '../game/stages';
 import { Utils } from '../utils';
 import { normalizeForSearch } from './ai-job';
+import { BYTE_ORDER_MARK } from './csv-text';
 import { GestureQuestion, GestureQuiz } from './gesture-quiz';
+import { httpFailure } from './http-failure';
 import { QuizLanguage } from './quiz-language';
+import { TimeMode } from './time-mode';
 
 export { DEFAULT_PASS_PERCENT, MAX_PASS_PERCENT, MIN_PASS_PERCENT } from '../game/stages';
 
@@ -215,12 +216,6 @@ export interface StudentBoard {
   playerCount: number;
 }
 
-export const TIME_MODE_LABELS: Record<TimeMode, string> = {
-  standard: 'Chuẩn',
-  extra: 'Thêm giờ (×1,5)',
-  unlimited: 'Không giới hạn',
-};
-
 export const STAGE_LOCK_LABELS: Record<StageLock, string> = {
   sequential: 'Phải qua màn trước mới mở màn sau',
   open: 'Mở tất cả các màn',
@@ -335,8 +330,6 @@ function stageHeader(keys: string[], key: string): string {
   return def ? `Màn ${position} (${def.name})` : `Màn ${position}`;
 }
 
-const BOM = String.fromCharCode(0xfeff);
-
 // A student's name is typed by the student and opened by the teacher in a spreadsheet, where a cell
 // starting with one of these characters runs as a formula. A leading apostrophe makes it plain text.
 function spreadsheetSafe(text: string): string {
@@ -356,19 +349,27 @@ const TEACHER_ERRORS: Record<string, string> = {
   'Invalid replay limit.': 'Số lần chơi mỗi màn: 1–10, chỉ khi mở tất cả các màn.',
 };
 
+// The server's plain-text answers to a student's request that the client tells apart from the rest.
+export const NAME_TAKEN = 'Name taken';
+export const ASSIGNMENT_FULL = 'Assignment is full';
+export const STAGE_LOCKED = 'Stage locked';
+export const REPLAY_LIMIT_REACHED = 'Replay limit reached';
+export const RUN_NOT_FOUND = 'Run not found';
+export const BOARD_HIDDEN = 'Board hidden';
+
 // What to tell the teacher when an AssignmentService call fails.
 export function assignmentErrorMessage(err: unknown): string {
-  if (!(err instanceof HttpErrorResponse)) {
+  const { status, body } = httpFailure(err);
+  if (status === null) {
     return 'Thử lại.';
   }
-  if (err.status === 0) {
+  if (status === 0) {
     return 'Mất kết nối. Thử lại.';
   }
-  if (err.status === 401) {
+  if (status === 401) {
     return 'Hết phiên đăng nhập. Đăng nhập lại.';
   }
-  const body = typeof err.error === 'string' ? err.error.trim() : '';
-  return TEACHER_ERRORS[body] ?? (err.status === 400 ? 'Thông tin chưa hợp lệ.' : 'Thử lại.');
+  return TEACHER_ERRORS[body] ?? (status === 400 ? 'Thông tin chưa hợp lệ.' : 'Thử lại.');
 }
 
 // The leaderboard as a CSV file, rows in the order given (the server's leaderboard order). It starts with a BOM
@@ -390,5 +391,5 @@ export function leaderboardCsv(detail: AssignmentDetail): string {
     player.lastPlayedAt ? formatStamp(player.lastPlayedAt) : '',
   ]);
   const lines = [header, ...rows].map(row => row.map(field => Utils.escapeCsvField(field)).join(','));
-  return BOM + lines.join('\r\n') + '\r\n';
+  return BYTE_ORDER_MARK + lines.join('\r\n') + '\r\n';
 }

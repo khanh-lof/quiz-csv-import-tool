@@ -77,14 +77,7 @@ Leave blank for ""Open-Ended"", ""Poll"", ""Draw"" and ""Fill-in-the-Blank"".","
   }
 
   private generateAnswers(row: QuestionDefinition, possibleIncorrectAnswer: QuestionDefinition[]) {
-    let answers = [row.answer];
-    while (answers.length < 4) {
-      let incorrectAnswer = Utils.getRandomItem(possibleIncorrectAnswer).answer;
-      if (!answers.includes(incorrectAnswer)) {
-        answers.push(incorrectAnswer);
-      }
-    }
-    return Utils.shuffle(answers);
+    return Utils.shuffle(this.fillWithOtherAnswers([row.answer], 4, possibleIncorrectAnswer));
   }
 
   private resolveQuestionTypeLabel(questionType: QuestionType) {

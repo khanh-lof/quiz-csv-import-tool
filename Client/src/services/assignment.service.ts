@@ -33,12 +33,11 @@ export class AssignmentService {
     return this.http.get<AssignmentDetail>(`${this.endpointUrl}/${encodeURIComponent(id)}`);
   }
 
-  // Deletes the assignment and its students' results. One that is already gone (another tab deleted it)
-
   update(id: string, change: AssignmentChange): Observable<Assignment> {
     return this.http.patch<Assignment>(`${this.endpointUrl}/${encodeURIComponent(id)}`, change);
   }
 
+  // Deletes the assignment and its students' results. One that is already gone (another tab deleted it)
   // counts as deleted, like an AI job.
   remove(id: string): Observable<void> {
     return this.http.delete<void>(`${this.endpointUrl}/${encodeURIComponent(id)}`).pipe(

@@ -4,7 +4,6 @@ import {
   calibrationMessage,
   FaceCalibrator,
   faceProblemMessage,
-  isTypingTarget,
   readFacePose,
   splitOption,
   wordSize,
@@ -213,13 +212,5 @@ describe('card text helpers', () => {
     expect(wordSize('老师好')).toBe('big');
     expect(wordSize('Tạm biệt')).toBe('small');
     expect(wordSize('朋友们好吗')).toBe('mid');
-  });
-
-  it('knows when the player is typing', () => {
-    expect(isTypingTarget(document.createElement('input'))).toBeTrue();
-    expect(isTypingTarget(document.createElement('textarea'))).toBeTrue();
-    expect(isTypingTarget(document.createElement('button'))).toBeFalse();
-    expect(isTypingTarget(null)).toBeFalse();
-    expect(isTypingTarget(document)).toBeFalse();
   });
 });

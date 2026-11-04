@@ -1,3 +1,4 @@
+import { TIME_MODE_LABELS } from './time-mode';
 import { QuizLanguage } from './quiz-language';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
@@ -18,7 +19,6 @@ import {
   passPercentOf,
   placeholderQuiz,
   shareUrl,
-  TIME_MODE_LABELS,
 } from './assignment';
 
 // A time in the browser's own zone, as an RFC 3339 string: the formatting is local, so the specs build

@@ -6,22 +6,20 @@ import {
   forwardRef,
   HostListener,
   inject,
-  linkedSignal,
   signal,
   untracked,
 } from '@angular/core';
 
 import { GameAudio } from '../../../../game/game-audio';
-import { FaceFrame, QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
-import { stageDef } from '../../../../game/stages';
+import { FaceFrame, OptionGameBase, QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
 import { VisionService } from '../../../../game/vision.service';
 import { FaceCalibrationPanel } from './face-calibration-panel';
-import { CalibrationStatus, FaceCalibrator, FacePose, isTypingTarget, splitOption, wordSize, } from './face-common';
+import { CalibrationStatus, FaceCalibrator, FacePose, splitOption, wordSize, } from './face-common';
+import { isTypingTarget } from '../../../../game/hold-select';
 import { HeadTiltReader, meterPercent, sideToIndex, tiltHint } from './head-tilt-logic';
 
 // The circumference of the hold ring (r = 96 in a 200 x 200 viewBox).
 const RING_LENGTH = 603.19;
-
 
 // Stage 2: two cards, left and right, chosen by leaning the head toward one and holding it. Without
 // the camera the cards are clicked or picked with the keys (1 or ←, 2 or →).
@@ -36,14 +34,7 @@ const RING_LENGTH = 603.19;
   templateUrl: './head-tilt-game.html',
   styleUrl: './head-tilt-game.css',
 })
-export class HeadTiltGame extends StageGameBase {
-  readonly visionKind = stageDef(2).vision;
-  // twice.
-  protected readonly picked = linkedSignal<QuestionView, number | null>({
-    source: this.question,
-    computation: () => null,
-  });
-  protected readonly locked = computed(() => this.paused() || this.reveal() !== null);
+export class HeadTiltGame extends OptionGameBase {
   // Option 0 is the left card and option 1 the right one, in the order the page shuffled them.
   protected readonly cards = computed(() =>
     [0, 1].map(index => {
@@ -65,7 +56,6 @@ export class HeadTiltGame extends StageGameBase {
   // Which card is charging, and how far (0..1 of the hold).
   protected readonly activeSide = signal<0 | 1 | null>(null);
 
-  // The option the player chose for this question (by click, key or head), so nothing can answer
   protected readonly progress = signal(0);
   protected readonly lean = signal(0);
   protected readonly hint = signal('');
@@ -172,15 +162,6 @@ export class HeadTiltGame extends StageGameBase {
     if (this.cameraActive()) {
       this.beginCalibration();
     }
-  }
-
-  protected isCorrect(index: number): boolean {
-    return this.reveal()?.correctIndex === index;
-  }
-
-  protected isWrong(index: number): boolean {
-    const reveal = this.reveal();
-    return reveal !== null && !reveal.correct && reveal.chosen === index;
   }
 
   private calibrate(face: FaceFrame, w: number, h: number, now: number): void {

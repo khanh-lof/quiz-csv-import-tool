@@ -166,7 +166,7 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   a user at the cap gets the 409 even for a job id that does not exist. `stageCounts` is the server's own count
   of each stage from that parse (a `stageCounts` in the body, which older pages send, is ignored), and a pass
   percent for a stage the quiz does not have is dropped. It copies `job.Title` and `job.CSV`, draws the id
-  (`newJobID`) and the code (`newShareCode`: 10 characters of Crockford base32 from `crypto/rand`) and retries on
+  (`newID`) and the code (`newShareCode`: 10 characters of Crockford base32 from `crypto/rand`) and retries on
   `ErrDuplicate` up to 3 times. `listAssignments` leaves the CSV out and adds each `playerCount`;
   `getAssignment` adds the CSV and `buildLeaderboard`'s output (`leaderboard.go`, one `leaderboardEntry` per
   player, with the player's `avatar`) to the same view, and both answer
@@ -197,7 +197,7 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   `avatar` (400 `Invalid avatar.` when it is not empty and not in `avatarIDs`, `avatars.go`, so a bad avatar on
   a full assignment is a 400, not a 409), then the 300-player cap
   (409 `Assignment is full`), then `CreatePlayer` (409 `Name taken` on `ErrDuplicate`); it mints a token of 32
-  random bytes (base64url), stores only `hashPlayerToken(token)` (SHA-256, base64url, the same as the refresh
+  random bytes (base64url), stores only `hashKey(token)` (`respond.go`: SHA-256, base64url, the same as the refresh
   tokens; `auth` keeps its helper unexported) and answers 201 `{playerId, token, name, avatar}` (`avatar` is `""`
   when none was sent). The avatar set is the 24 animal ids of `avatarIDs`, which the client's `AVATARS`
   (`Client/src/models/avatar.ts`) mirrors in the same order, kept in step by hand; `validAvatar` matches an id
@@ -264,6 +264,14 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
 `Server.Now` is the clock the assignment and share handlers read (nil means `time.Now`; they call `s.now()`),
 so a test can step through a closing time or the grace period without waiting. The other handlers still read
 `time.Now` directly.
+
+Shared handler helpers, to reuse rather than repeat: `respond.go` (`writeText`, `writeJSON`, `readJSON`,
+`noStore`, `internalError`, `hashKey`), `lookups.go` (`callerName`, `ownedJob`, `ownedAssignment`,
+`isFinishedJobOf`, `jobStoreReady`), and for the student routes `share_handlers.go`'s `sharedAssignmentWhile`
+(the code's 404 then the 410 for a state such as `(*store.Assignment).OpenAt`), `requestPlayer` (403) and
+`optionalPlayer` (a missing or unknown token is nil, never an error). `job_options.go` holds `newJob` and
+`retryOptions`, the two mirror images of what a job keeps of its request: a new job setting goes into both, and
+`TestJobOptionsRoundTrip` checks them together.
 
 Auth is net/http middleware (`middleware.go`), composed per route in `Server.Handler`: `authenticate`
 stores the validated `*auth.Claims` in the request context under an unexported key

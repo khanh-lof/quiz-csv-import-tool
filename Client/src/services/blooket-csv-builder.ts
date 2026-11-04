@@ -19,15 +19,8 @@ export class BlooketCsvBuilder extends CsvBuilderBase {
       rows
         .map(row => {
             const possibleIncorrectAnswer = rows.filter(x => x.question !== row.question);
-            let answers = [row.answer];
             const cells = [rows.indexOf(row) + 1, row.question];
-            while (answers.length < 4) {
-              let incorrectAnswer = Utils.getRandomItem(possibleIncorrectAnswer).answer;
-              if (!answers.includes(incorrectAnswer)) {
-                answers.push(incorrectAnswer);
-              }
-            }
-            answers = Utils.shuffle(answers);
+            const answers = Utils.shuffle(this.fillWithOtherAnswers([row.answer], 4, possibleIncorrectAnswer));
             return cells.concat([...answers, 20, (answers.indexOf(row.answer) + 1).toString()]).map(x => Utils.escapeCsvField(x)).join(this.separator);
           }
         )
