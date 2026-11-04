@@ -5,7 +5,7 @@
   flex-direction: column;
   height: 100dvh;
   overflow: hidden;
-  background: var(--qt-gradient-page);
+  background: var(--qt-page);
 }
 
 .topbar {
@@ -34,7 +34,7 @@
   padding: 4px 12px;
   font-size: 14px;
   text-align: center;
-  background: var(--qt-gradient-soft);
+  background: var(--qt-surface);
   border: 1px solid var(--qt-focus);
   border-radius: var(--qt-radius);
 }
@@ -83,7 +83,7 @@
   line-height: 16px;
   text-align: center;
   color: var(--qt-text);
-  background: var(--qt-pink);
+  background: var(--qt-accent);
   border-radius: 50%;
   opacity: 0;
   transition: opacity var(--qt-transition);
@@ -223,7 +223,7 @@
 .stand {
   margin: 12px 0 0;
   padding: 8px 12px;
-  background: var(--qt-gradient-soft);
+  background: var(--qt-surface);
   border-radius: var(--qt-radius);
 }
 
@@ -241,7 +241,7 @@
   min-width: 200px;
   aspect-ratio: 4 / 3;
   overflow: hidden;
-  background: var(--qt-gradient-soft);
+  background: var(--qt-surface);
   border: var(--qt-border-width) solid var(--qt-border);
   border-radius: var(--qt-radius-lg);
 }
@@ -295,7 +295,7 @@
 }
 
 .pill.streak {
-  background: var(--qt-gradient-soft);
+  background: var(--qt-surface);
 }
 
 @keyframes time-pulse {
@@ -351,7 +351,7 @@
   flex: 1 1 0;
   min-height: 260px;
   overflow: hidden;
-  background: var(--qt-gradient-soft);
+  background: var(--qt-surface);
   border: var(--qt-border-width) solid var(--qt-border);
   border-radius: var(--qt-radius-lg);
   box-shadow: var(--qt-card-shadow);
@@ -397,7 +397,7 @@
 }
 
 .feedback[data-kind='correct'] {
-  background: var(--qt-gradient-soft);
+  background: var(--qt-surface);
   border-color: var(--qt-focus);
 }
 

@@ -610,10 +610,20 @@ ng-zorro-antd (Ant Design for Angular) components are imported individually per-
 `NzButtonComponent`, `NzTableModule`) rather than as one shared module, consistent with standalone
 component conventions. Styling is centralized so every library component looks the same on every screen, including
 overlays (modals, confirms, dropdowns, notifications) that render outside any component:
-- `src/theme.less` sets ng-zorro's Less variables (primary pink, border color, radius, …).
+- The look is light pink: a pink-to-blue page (`--qt-page`), white sheets on it (`--qt-sheet`, the cards, the
+  side menu and `.qt-panel`), dark text (`--qt-text`), pink rules (`--qt-border`, `--qt-border-strong` for inputs),
+  one light pink accent (`--qt-accent`, with `-dark` and `-soft`) for the selection, and a blue focus ring
+  (`--qt-focus`). `--qt-paper` and `--qt-surface` are the flat pink tints for fills. The pink-to-blue
+  `--qt-gradient` fills the primary button and the checked option of a switch; no hover lifts. The UI font is
+  Be Vietnam Pro (loaded in `index.html`). The logo (`public/logo.ico`) heads the side menu, the login card and
+  the loader.
+- `src/theme.less` sets ng-zorro's Less variables (primary pink, text and border colors, radius, font, …).
 - `src/styles.css` holds the design tokens (`--qt-*` custom properties on `:root`), the page
   background, the `.qt-centered-page` layout helper, `.text-error`, and global overrides of `.ant-*`
-  classes for what Less variables can't express (gradient buttons/headers, 2px borders, focus glow).
+  classes for what Less variables can't express (the primary gradient, flat secondary buttons, the segmented
+  switches' gradient, the focus ring, the side menu's panel).
+- The workspace frame draws each page's title (the breadcrumb's last crumb, as an `h1`, with the crumbs before it
+  above): pages inside the frame have no title of their own.
   `--qt-font-han` is the font stack of the gesture quiz's hanzi: Latin UI fonts first (they have no CJK
   glyphs, so Vietnamese and pinyin keep a readable face), then the Kai (handwriting-style) faces, so only
   the hanzi fall through to a Kai font. Use it on text that shows Chinese characters instead of naming

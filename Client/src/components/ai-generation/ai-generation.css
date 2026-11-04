@@ -39,7 +39,7 @@
 .generating-overlay {
   position: absolute;
   inset: 0;
-  border-radius: 12px;
+  border-radius: var(--qt-radius-lg);
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -190,9 +190,9 @@
 
 .drop-zone {
   padding: 12px;
-  border: 2px dashed var(--qt-border);
-  border-radius: 12px;
-  background: var(--qt-gradient-soft);
+  border: 1.5px dashed var(--qt-border-strong);
+  border-radius: var(--qt-radius-lg);
+  background: var(--qt-surface);
   transition: border-color var(--qt-transition), box-shadow var(--qt-transition), min-height var(--qt-transition);
   cursor: pointer;
   outline: none;
@@ -229,7 +229,7 @@
 
 .drop-zone-icon {
   font-size: 30px;
-  color: var(--qt-border);
+  color: var(--qt-text-muted);
   transition: transform var(--qt-transition), color var(--qt-transition);
 }
 
@@ -252,16 +252,16 @@
 }
 
 .file-link {
-  color: var(--qt-pink);
+  color: var(--qt-accent);
   text-decoration: none;
   font-weight: 600;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
+  border-bottom: 1px solid transparent;
 }
 
 .file-link:hover {
-  color: var(--qt-focus);
-  border-bottom-color: var(--qt-focus);
+  color: var(--qt-accent-dark);
+  border-bottom-color: currentColor;
 }
 
 .file-link:focus-visible {
@@ -286,8 +286,8 @@
   gap: 8px;
   padding: 8px;
   border-radius: 8px;
-  background: white;
-  border: 1px solid rgba(255, 150, 170, 0.25);
+  background: var(--qt-sheet);
+  border: 1px solid var(--qt-border);
   position: relative;
 }
 
@@ -300,7 +300,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: var(--qt-surface);
 }
 
 .preview-img {
@@ -336,10 +336,10 @@
   align-items: center;
   justify-content: center;
   min-height: 74px;
-  border: 2px dashed var(--qt-border);
+  border: 1.5px dashed var(--qt-border-strong);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.6);
-  color: var(--qt-border);
+  background: var(--qt-sheet);
+  color: var(--qt-text-muted);
   font-size: 28px;
   cursor: pointer;
   transition: border-color var(--qt-transition), color var(--qt-transition);
@@ -364,8 +364,8 @@
   font-size: 10px;
 }
 
-/* One tile per platform: its icon beside its name and what it makes. The chosen one wears the app's gradient,
-   as a border and on its icon. */
+/* One tile per platform: its icon beside its name and what it makes. The chosen one takes the accent: its border
+   and a tint of it. */
 .platforms {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -379,24 +379,22 @@
   column-gap: 10px;
   align-items: center;
   padding: 8px 12px;
-  border: 2px solid rgba(255, 153, 204, 0.45);
+  border: 1px solid var(--qt-border-strong);
   border-radius: var(--qt-radius-lg);
-  background: #fff;
+  background: var(--qt-sheet);
   cursor: pointer;
-  transition: border-color var(--qt-transition), box-shadow var(--qt-transition), transform var(--qt-transition);
+  transition: border-color var(--qt-transition), background-color var(--qt-transition);
 }
 
 .platform-tile:hover {
-  border-color: var(--qt-focus);
+  border-color: var(--qt-text-muted);
 }
 
-/* The chosen platform is filled like the primary button, white on the gradient. */
+/* The 1px of the thicker border comes out of the padding, so choosing a tile does not move its content. */
 .platform-tile.chosen {
-  border-color: transparent;
-  background: var(--qt-gradient);
-  color: #fff;
-  box-shadow: var(--qt-lift-shadow);
-  transform: translateY(-2px);
+  padding: 7px 11px;
+  border: 2px solid var(--qt-accent);
+  background: var(--qt-accent-soft);
 }
 
 .platform-tile:has(.platform-radio:focus-visible) {
@@ -421,8 +419,8 @@
   height: 34px;
   border-radius: 50%;
   font-size: 18px;
-  color: var(--qt-pink);
-  background: var(--qt-gradient-soft);
+  color: var(--qt-accent);
+  background: var(--qt-surface);
   transition: background var(--qt-transition), color var(--qt-transition);
 }
 
@@ -434,15 +432,9 @@
   object-fit: contain;
 }
 
-/* On a white backing, so the icon and the platforms' own logo colours read on the gradient. */
-.platform-tile.chosen .platform-icon,
-.platform-tile.chosen .platform-logo {
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-.platform-tile.chosen .platform-logo {
-  padding: 2px;
+/* On a white backing, so the icon reads on the chosen tile's tint. */
+.platform-tile.chosen .platform-icon {
+  background: var(--qt-sheet);
 }
 
 .platform-name {
@@ -456,17 +448,13 @@
   color: var(--qt-text-muted);
 }
 
-.platform-tile.chosen .platform-output {
-  color: #fff;
-}
-
 /* The Game choices under the platforms: one line with the games' label and the question count, then the games. */
 .gesture-options {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding-top: 10px;
-  border-top: 1px solid rgba(255, 180, 210, 0.4);
+  border-top: 1px solid var(--qt-border);
   container-type: inline-size;
 }
 
@@ -523,7 +511,7 @@
 }
 
 .intelligence-warning {
-  color: #fa8c16;
+  color: #c2410c;
 }
 
 .submit-button {

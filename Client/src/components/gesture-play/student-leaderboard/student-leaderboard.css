@@ -36,7 +36,7 @@
   gap: 8px;
   margin-top: 12px;
   padding: 4px 8px;
-  background: var(--qt-gradient-soft);
+  background: var(--qt-surface);
   border: 1px solid var(--qt-focus);
   border-radius: var(--qt-radius);
 }
@@ -68,7 +68,7 @@
   font-weight: 700;
   line-height: 18px;
   color: var(--qt-text);
-  background: var(--qt-pink);
+  background: var(--qt-accent);
   border-radius: 9px;
 }
 

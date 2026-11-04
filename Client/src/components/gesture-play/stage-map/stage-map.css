@@ -9,7 +9,7 @@
   margin-bottom: 16px;
   padding: 16px 20px;
   text-align: center;
-  background: var(--qt-gradient-soft);
+  background: var(--qt-surface);
   border: var(--qt-border-width) solid var(--qt-focus);
   border-radius: var(--qt-radius-lg);
   box-shadow: var(--qt-card-shadow);

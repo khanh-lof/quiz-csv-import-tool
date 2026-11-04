@@ -5,8 +5,13 @@
            (nzMatchRouter), so a refused navigation leaves the current page highlighted, and its group with it.
            The groups are open whenever the menu is, so the whole menu shows at once; collapsed, they are
            fly-outs, which must start closed. -->
-      <!-- The collapse switch sits at the top of the menu, an icon alone. -->
+      <!-- The logo, then the collapse switch, an icon alone; collapsed, only the switch stays. -->
       <div class="sidebar-head">
+        @if (!collapsed()) {
+          <a class="brand" routerLink="/quiz">
+            <img alt="QuizTool" class="brand-logo" src="logo.ico"/>
+          </a>
+        }
         <button (click)="toggleCollapsed()" [attr.aria-expanded]="!collapsed()" [attr.aria-label]="collapsed() ? 'Mở rộng menu' : 'Thu gọn menu'"
                 class="collapse-toggle" type="button">
           <nz-icon [nzType]="collapsed() ? 'double-right' : 'double-left'" nzTheme="outline"/>
@@ -55,18 +60,24 @@
   </div>
 
   <div class="center-container">
+    <!-- The page's title is the breadcrumb's last crumb; the crumbs before it, when there are any, sit above it. -->
     @if (breadcrumb().length) {
-      <nz-breadcrumb class="qt-breadcrumb workspace-breadcrumb">
-        @for (crumb of breadcrumb(); track $index) {
-          <nz-breadcrumb-item>
-            @if (crumb.link) {
-              <a [routerLink]="crumb.link">{{ crumb.label }}</a>
-            } @else {
-              {{ crumb.label }}
+      <header class="page-head">
+        @if (breadcrumb().length > 1) {
+          <nz-breadcrumb class="workspace-breadcrumb">
+            @for (crumb of breadcrumb().slice(0, -1); track $index) {
+              <nz-breadcrumb-item>
+                @if (crumb.link) {
+                  <a [routerLink]="crumb.link">{{ crumb.label }}</a>
+                } @else {
+                  {{ crumb.label }}
+                }
+              </nz-breadcrumb-item>
             }
-          </nz-breadcrumb-item>
+          </nz-breadcrumb>
         }
-      </nz-breadcrumb>
+        <h1 class="page-title">{{ breadcrumb().at(-1)?.label }}</h1>
+      </header>
     }
     <router-outlet (activate)="onPageActivate()"/>
   </div>

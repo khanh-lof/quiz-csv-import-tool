@@ -2,11 +2,8 @@
   display: block;
 }
 
-.jobs-title {
-  margin: 0 0 12px;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--qt-text);
+.jobs {
+  padding: 16px;
 }
 
 .jobs-filters {
@@ -53,7 +50,7 @@
 
 .job-error {
   margin: 0;
-  color: #cf1322;
+  color: var(--qt-error);
 }
 
 .filter-number {

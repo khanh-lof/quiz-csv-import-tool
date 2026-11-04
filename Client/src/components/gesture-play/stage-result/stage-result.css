@@ -74,7 +74,7 @@
 
 .missed li {
   padding: 8px 12px;
-  background: var(--qt-gradient-soft);
+  background: var(--qt-surface);
   border-radius: var(--qt-radius);
 }
 
