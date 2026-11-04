@@ -129,6 +129,13 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      there, with "Tải file" only keeping the quiz, and "Giao bài" (`AiJobs.assign(job)`, which opens
      `AssignDialog`, see [Giao bài](#giao-bài-assignments)). The vocabulary table is never touched in this path.
 
+**Layout.** The toolbar holds the language and the mode switches. The form is two `.qt-panel` sections, "Bài học"
+(course fields, with the photos beside them on a wide section) and "Tạo cho" (one tile per platform, `PLATFORMS` in
+`ai-generation.ts`: native radios bound to `exportType`, then the Game options: the question count on the games'
+label line and the six cards in one row), and a sticky action bar with the intelligence and the send button. The
+formatted mode shows only the photos and the button. With the Game options open the page fits a 14" laptop's
+browser (1280×650) without scrolling, the menu open and the "Khác" course included; keep it so when adding to the form.
+
 **Language.** The page's first choice, a large segmented switch on the left of the guide button (`.page-toolbar`),
 each option with its tag ("中", "EN"), is the `language` control: `models/quiz-language.ts` (`QuizLanguage`,
 `LANGUAGES` with each language's tag, courses and the formatted mode's name, `teachesCourse`, `offersExportType`)
@@ -149,7 +156,8 @@ lessons "Topic" (`lessonUnit`, the select's label and placeholder) and lists the
 `lessonOptionLabel`). Each language has a `defaultCourse` the form picks when it replaces the other language's course
 (English: `Other`). For these the server sends the lesson's real material to the AI, so no photo is needed. In Auto
 mode `AiGeneration` looks the book up from course type, standard and level (the `textbook` getter, like `maxLevel`)
-and shows under the Cấp/Bài row either "Có sẵn …, không cần ảnh." or a muted "Nên thêm ảnh." line; the Bài select
+and shows beside the photos' label (the photos are the end of the "Bài học" section) either "Có sẵn …, không cần ảnh."
+(the drop zone then shrinks) or a muted "Nên thêm ảnh." line; the Bài select
 offers lessons 1 to the book's `lessons` (100 without a book), and a lesson left over the cap (HSK 3.0 level 3 lesson 18, then
 level 1) gets a `max` error from the form validator like the level's, so the form cannot be submitted; `lessonOptions`
 keeps an option for such a lesson, since ng-zorro's select hides a value without one and it could not be removed. Adding a book

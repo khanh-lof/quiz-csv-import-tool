@@ -98,7 +98,24 @@ interface AiGenerationForm {
   questionsPerStage: FormControl<number | null>;
 }
 
-type LanguageChoices = Pick<ReturnType<FormGroup<AiGenerationForm>['getRawValue']>, typeof LANGUAGE_CHOICES[number]>;
+interface PlatformOption {
+  value: ExportType;
+  label: string;
+  icon: string;
+  logo?: string;
+  // What the teacher gets from the job.
+  output: string;
+}
+
+const PLATFORMS: readonly PlatformOption[] = [
+  { value: ExportType.GimKit, label: 'Gimkit', icon: 'thunderbolt', logo: 'platforms/gimkit.png', output: 'File CSV' },
+  { value: ExportType.Blooket, label: 'Blooket', icon: 'appstore', logo: 'platforms/blooket.png', output: 'File CSV' },
+  { value: ExportType.Wayground, label: 'Wayground', icon: 'global', logo: 'platforms/wayground.png', output: 'File Excel' },
+  { value: ExportType.GestureQuiz, label: 'Game', icon: 'camera', output: 'Chơi bằng camera' },
+  { value: ExportType.Radicals, label: 'Ghép bộ thủ', icon: 'build', output: 'Trang bài tập' },
+];
+
+type LanguageChoices =Pick<ReturnType<FormGroup<AiGenerationForm>['getRawValue']>, typeof LANGUAGE_CHOICES[number]>;
 
 @Component({
   selector: 'kt-quiz-ai-generation',
@@ -196,6 +213,14 @@ export class AiGeneration {
 
   protected offers(exportType: ExportType): boolean {
     return offersExportType(this.formGroup.controls.language.value, exportType);
+  }
+
+  protected get isAutoMode(): boolean {
+    return this.formGroup.controls.AIMode.value === AIGenerationMode.Auto;
+  }
+
+  protected get platforms(): readonly PlatformOption[] {
+    return PLATFORMS.filter(platform => this.offers(platform.value));
   }
 
   protected downloadExtension(event: Event): void {

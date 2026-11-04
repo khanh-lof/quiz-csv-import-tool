@@ -20,6 +20,12 @@
   margin-bottom: 12px;
 }
 
+.page-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .page-toolbar kt-quiz-usage-guide {
   margin-bottom: 0;
 }
@@ -46,7 +52,6 @@
   backdrop-filter: blur(3px);
 }
 
-
 /* Never squeezed by the page fitting the screen (see :host); its min-height would let it shrink. */
 .ai-form {
   flex-shrink: 0;
@@ -56,70 +61,194 @@
   width: 100%;
 }
 
+/* Kept tight, so with the Game options open the page still fits a 14" laptop's screen (about 1280×650). */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--qt-text);
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--qt-text-muted);
+}
+
+/* Label over control over error message; the row aligns the controls' tops, so a message never shifts them. */
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Grows with the chosen course's name, so a long one ("Ôn tập từ vựng lớp 10") is not cut. */
+.course-type-select {
+  width: max-content;
+  min-width: 150px;
+  max-width: 100%;
+}
+
+.course-name-field {
+  flex: 1 1 180px;
+  min-width: 160px;
+  max-width: 320px;
+}
+
+.fields nz-input-number {
+  width: 80px;
+}
+
+/* Wide enough for the "Không bắt buộc" placeholder. */
+.fields nz-input-number.optional-level {
+  width: 130px;
+}
+
+/* Takes the rest of the row, so the chosen lessons stay on one line as long as there is room. */
+.lesson-field {
+  flex: 1 1 220px;
+  min-width: 200px;
+  max-width: 420px;
+}
+
+/* The photos under the fields, or, where the section is wide enough, the fields at their own width on the left and
+   the photos taking the rest of the row. */
+.form-section {
+  container-type: inline-size;
+}
+
+.lesson-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px 24px;
+}
+
+/* The fields keep one line there: a wrapping row is only as wide as its widest field, which would leave the rest to
+   the photos and wrap the fields under each other. */
+@container (min-width: 760px) {
+  .lesson-body {
+    display: grid;
+    grid-template-columns: minmax(min-content, 3fr) minmax(220px, 2fr);
+    align-items: start;
+  }
+
+  .fields {
+    flex-wrap: nowrap;
+  }
+
+  .lesson-field {
+    min-width: 160px;
+  }
+}
+
+.photos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* The photos' label, whether they are needed, and the button that removes them all. */
+.photos-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  min-height: 20px;
+}
+
+.export-hint {
+  color: var(--qt-text-muted);
+}
+
+.clear-images {
+  margin-left: auto;
+}
+
 .drop-zone {
   padding: 12px;
-  border: 3px dashed var(--qt-border);
+  border: 2px dashed var(--qt-border);
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(255, 240, 245, 0.8), rgba(240, 245, 255, 0.8));
-  transition: all 0.3s ease;
+  background: var(--qt-gradient-soft);
+  transition: border-color var(--qt-transition), box-shadow var(--qt-transition), min-height var(--qt-transition);
   cursor: pointer;
   outline: none;
-  min-height: 88px;
+  min-height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
 }
 
-.drop-zone:focus {
+/* The course's book makes photos optional: the zone stays, as high as the fields beside it. */
+.drop-zone.optional {
+  min-height: 32px;
+  padding: 2px 12px;
+}
+
+.drop-zone:focus-visible,
+.drop-zone.drag-over {
   border-color: var(--qt-focus);
-  box-shadow: 0 0 15px rgba(136, 170, 255, 0.6), inset 0 0 10px rgba(136, 170, 255, 0.2);
-  background: linear-gradient(135deg, rgba(255, 230, 245, 1), rgba(230, 245, 255, 1));
+  box-shadow: var(--qt-focus-shadow);
 }
 
 .drop-zone.drag-over {
-  border-color: var(--qt-focus);
-  background: linear-gradient(135deg, rgba(255, 200, 230, 0.95), rgba(200, 230, 255, 0.95));
-  box-shadow: 0 0 20px rgba(136, 170, 255, 0.7), inset 0 0 15px rgba(136, 170, 255, 0.3);
-  transform: scale(1.01);
+  border-style: solid;
 }
 
-/* The icon beside the two lines of text, to keep the zone low. */
 .drop-zone-content {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
 }
 
 .drop-zone-icon {
-  font-size: 36px;
+  font-size: 30px;
   color: var(--qt-border);
-  opacity: 0.8;
-  transition: all 0.3s ease;
+  transition: transform var(--qt-transition), color var(--qt-transition);
+}
+
+.drop-zone.optional .drop-zone-icon {
+  font-size: 18px;
 }
 
 /* Grown with a transform, not font-size, so hovering does not change the page height. */
 .drop-zone:hover .drop-zone-icon,
-.drop-zone:focus .drop-zone-icon,
+.drop-zone:focus-visible .drop-zone-icon,
 .drop-zone.drag-over .drop-zone-icon {
-  transform: scale(1.17);
+  transform: scale(1.15);
   color: var(--qt-focus);
-  opacity: 1;
 }
 
 .drop-zone-text {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--qt-text);
-}
-
-.drop-zone-subtext {
-  margin: 0;
   font-size: 14px;
-  color: var(--qt-text-muted);
+  color: var(--qt-text);
 }
 
 .file-link {
@@ -127,7 +256,6 @@
   text-decoration: none;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
   border-bottom: 2px solid transparent;
 }
 
@@ -136,10 +264,9 @@
   border-bottom-color: var(--qt-focus);
 }
 
-.file-link:focus {
+.file-link:focus-visible {
   outline: 2px solid var(--qt-focus);
   outline-offset: 2px;
-  border-bottom-color: var(--qt-focus);
 }
 
 .images-list {
@@ -147,11 +274,9 @@
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 12px;
   width: 100%;
-  max-height: 200px;
+  max-height: 220px;
   overflow-y: auto;
-  padding: 12px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.5);
+  padding: 10px;
 }
 
 /* Thumbnail beside the name and size, so a row of images keeps the zone low. */
@@ -162,14 +287,8 @@
   padding: 8px;
   border-radius: 8px;
   background: white;
-  border: 1px solid rgba(255, 150, 170, 0.2);
-  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 150, 170, 0.25);
   position: relative;
-}
-
-.image-item:hover {
-  box-shadow: 0 4px 12px rgba(255, 150, 170, 0.2);
-  border-color: rgba(255, 150, 170, 0.4);
 }
 
 .image-preview {
@@ -177,7 +296,7 @@
   width: 56px;
   height: 56px;
   border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(255, 150, 170, 0.2);
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -185,10 +304,9 @@
 }
 
 .preview-img {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border-radius: 6px;
 }
 
 .image-info {
@@ -204,13 +322,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  width: 100%;
 }
 
 .image-size {
   margin: 2px 0 0 0;
   font-size: 11px;
-  color: #999;
+  color: var(--qt-text-muted);
 }
 
 /* The last cell of the list: opens the file picker, the only way to it once there are images. */
@@ -225,7 +342,7 @@
   color: var(--qt-border);
   font-size: 28px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: border-color var(--qt-transition), color var(--qt-transition);
 }
 
 .add-image-tile:hover,
@@ -247,184 +364,183 @@
   font-size: 10px;
 }
 
-/* Pushed to the right end of the mode row; wraps under the mode when the row is too narrow. */
-.form-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-left: auto;
-}
-
-.creative-selection {
-  display: flex;
-  justify-content: start;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 12px 16px;
-  width: 100%;
-}
-
-.creative-selection .field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.creative-selection .field-row {
-  display: flex;
-  align-items: center;
+/* One tile per platform: its icon beside its name and what it makes. The chosen one wears the app's gradient,
+   as a border and on its icon. */
+.platforms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 8px;
 }
 
-.creative-selection .field-label {
-  white-space: nowrap;
-  font-weight: bold;
-}
-
-/* Grows with the chosen course's name, so a long one ("Ôn tập từ vựng lớp 10") is not cut. */
-.creative-selection .course-type-select {
-  width: max-content;
-  min-width: 150px;
-  max-width: 100%;
-}
-
-/* Takes whatever is left of the row, so choosing "Khác" keeps Cấp/Bài on the same line when they fit. */
-.creative-selection .course-name-field {
-  flex: 1 1 160px;
-  min-width: 160px;
-}
-
-.creative-selection .course-name-input {
-  width: 100%;
-}
-
-.creative-selection nz-input-number {
-  width: 80px;
-}
-
-/* Grows with the chosen lessons up to the max width, then the tags wrap onto more lines. */
-.creative-selection .lesson-select {
-  width: max-content;
-  min-width: 200px;
-  max-width: min(320px, 100%);
-}
-
-/* Wide enough for the "Không bắt buộc" placeholder. */
-.creative-selection nz-input-number.optional-level {
-  width: 130px;
-}
-
-.intelligence-selection {
-  display: flex;
+.platform-tile {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
   align-items: center;
-  flex-wrap: wrap;
-  width: 100%;
-  gap: 12px;
+  padding: 8px 12px;
+  border: 2px solid rgba(255, 153, 204, 0.45);
+  border-radius: var(--qt-radius-lg);
+  background: #fff;
+  cursor: pointer;
+  transition: border-color var(--qt-transition), box-shadow var(--qt-transition), transform var(--qt-transition);
 }
 
-.ai-selection > label,
-.intelligence-selection > label {
-  font-weight: bold;
+.platform-tile:hover {
+  border-color: var(--qt-focus);
 }
 
-.intelligence-warning {
-  color: #fa8c16;
+/* The chosen platform is filled like the primary button, white on the gradient. */
+.platform-tile.chosen {
+  border-color: transparent;
+  background: var(--qt-gradient);
+  color: #fff;
+  box-shadow: var(--qt-lift-shadow);
+  transform: translateY(-2px);
 }
 
-/* Template picker and intelligence share a row; flex-start keeps the picker's error message from
-   shifting the radio buttons. */
-.output-selection {
-  display: flex;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 12px 16px;
-  width: 100%;
+.platform-tile:has(.platform-radio:focus-visible) {
+  outline: 2px solid var(--qt-focus);
+  outline-offset: 2px;
 }
 
-.output-selection .field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+/* Invisible but covering the tile, so a click anywhere on it picks the platform and the radio keeps the focus. */
+.platform-radio {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
-.output-selection .field-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.platform-icon {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 18px;
+  color: var(--qt-pink);
+  background: var(--qt-gradient-soft);
+  transition: background var(--qt-transition), color var(--qt-transition);
 }
 
-.output-selection .field-label {
-  white-space: nowrap;
-  font-weight: bold;
+.platform-logo {
+  grid-row: span 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  object-fit: contain;
 }
 
-.output-selection .export-type-select {
-  width: max-content;
-  min-width: 200px;
-  max-width: 100%;
+/* On a white backing, so the icon and the platforms' own logo colours read on the gradient. */
+.platform-tile.chosen .platform-icon,
+.platform-tile.chosen .platform-logo {
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
-/* The Game choices under the platform row: the games, the question count and what they make. */
+.platform-tile.chosen .platform-logo {
+  padding: 2px;
+}
+
+.platform-name {
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.platform-output {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--qt-text-muted);
+}
+
+.platform-tile.chosen .platform-output {
+  color: #fff;
+}
+
+/* The Game choices under the platforms: one line with the games' label and the question count, then the games. */
 .gesture-options {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  width: 100%;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 180, 210, 0.4);
+  container-type: inline-size;
 }
 
-.gesture-options .field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.gesture-options .field-row {
+.gesture-head {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 12px;
 }
 
-.gesture-options .field-label {
-  white-space: nowrap;
-  font-weight: bold;
-}
-
-.gesture-options nz-input-number {
-  width: 80px;
-}
-
-/* One card per game, three a row (two rows of three), or two on a phone, where a third would be under 120px. */
-.gesture-options .games {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(max(120px, calc((100% - 20px) / 3)), 1fr));
-  gap: 10px;
-  margin-top: 4px;
-}
-
-/* A line under the choices. */
-.export-hint {
-  color: var(--qt-text-muted);
-}
-
-.output-selection .intelligence-selection {
-  width: auto;
-  flex: 1 1 auto;
-  min-height: 32px;
-}
-
-.ai-selection {
+.questions-per-stage {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  width: 100%;
-  gap: 12px;
+  gap: 4px 8px;
+  margin-left: auto;
 }
 
-.form-actions button {
-  min-width: 150px;
+.questions-per-stage nz-input-number {
+  width: 64px;
+}
+
+/* One card per game: all six in a row where they fit (a laptop's screen), else three a row, or two on a phone,
+   where a third would be under 120px. */
+.gesture-options .games {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(max(120px, calc((100% - 20px) / 3)), 1fr));
+  gap: 8px;
+}
+
+@container (min-width: 820px) {
+  .gesture-options .games {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/* At the screen's foot while the form is longer than the screen, at the form's end otherwise. */
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 8px 16px;
+}
+
+.intelligence {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.intelligence-warning {
+  color: #fa8c16;
+}
+
+.submit-button {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  min-width: 200px;
+  margin-left: auto;
+}
+
+@media (max-width: 599px) {
+  .form-section {
+    padding: 14px;
+  }
+
+  .submit-button {
+    width: 100%;
+  }
 }
