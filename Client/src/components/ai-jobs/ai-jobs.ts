@@ -40,6 +40,7 @@ import { FileExportService } from '../../services/file-export.service';
 import { WaygroundExtensionService } from '../../services/wayground-extension.service';
 import { RadicalsPageService } from '../../services/radicals-page.service';
 import { AssignDialog } from '../assignments/assign-dialog/assign-dialog';
+import { NzTooltipDirective } from 'ng-zorro-antd/tooltip';
 
 const PAGE_SIZE = 10;
 
@@ -79,6 +80,7 @@ interface ResultTable {
     NzDropdownModule,
     NzMenuModule,
     AssignDialog,
+    NzTooltipDirective,
   ],
   templateUrl: './ai-jobs.html',
   changeDetection: ChangeDetectionStrategy.Eager,
