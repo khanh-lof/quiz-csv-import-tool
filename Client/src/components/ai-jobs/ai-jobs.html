@@ -75,7 +75,7 @@
       @for (job of jobsTable.data; track job.id) {
         <tr>
           <td class="job-title">{{ job.title }}</td>
-          <td><nz-tag>{{ languageTag(job.language) }}</nz-tag></td>
+          <td><nz-tag [nzColor]="languageColor(job.language)">{{ languageTag(job.language) }}</nz-tag></td>
           <td>{{ modeLabel(job) }}</td>
           <td>{{ lessonLabel(job) }}</td>
           <td>{{ job.exportType === null ? '–' : platformName(job.exportType) }}</td>

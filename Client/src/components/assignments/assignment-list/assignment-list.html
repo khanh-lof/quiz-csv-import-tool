@@ -44,7 +44,7 @@
               <nz-tag class="label-tag">{{ assignment.label }}</nz-tag>
             }
           </td>
-          <td><nz-tag>{{ languageTag(assignment.language) }}</nz-tag></td>
+          <td><nz-tag [nzColor]="languageColor(assignment.language)">{{ languageTag(assignment.language) }}</nz-tag></td>
           <td>
             <nz-tag [nzColor]="isOpen(assignment) ? 'green' : undefined">{{ statusText(assignment) }}</nz-tag>
           </td>

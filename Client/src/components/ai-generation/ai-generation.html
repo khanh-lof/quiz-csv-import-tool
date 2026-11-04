@@ -11,11 +11,23 @@
       }
     </nz-radio-group>
     <kt-quiz-usage-guide>
-      <p><b>{{ language.formattedGuide }}</b>: cần ít nhất 1 ảnh.</p>
+      <ol>
+        <li>Chọn khoá học, bài (tối đa 5 bài một quiz) và nền tảng rồi gửi.</li>
+        <li>Kết quả ở <b>AI › Lịch sử</b>.</li>
+        <li>Ở đó: <b>Tải file</b> để nhập vào Gimkit, Blooket, Wayground; Game thì <b>Chơi ngay</b> hoặc
+          <b>Giao bài</b>.
+        </li>
+      </ol>
+      <p><b>Ảnh</b>: không cần khi có sẵn sách; khoá khác nên thêm ảnh bài.
+        <b>{{ language.formattedGuide }}</b> cần ít nhất 1 ảnh.</p>
       <p><b>Giao bài</b>: gửi link cho học sinh, xem bảng xếp hạng ở <b>Bài đã giao</b>.</p>
-      <p>Tiện ích Wayground: <a (click)="downloadExtension($event)" href="/api/extension">tải về</a>,
-        <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
-           target="_blank">cách cài</a>.</p>
+      @if (offers(ExportType.Radicals)) {
+        <p><b>Ghép bộ thủ</b>: <b>Sửa</b> để chỉnh pinyin, nghĩa do AI viết.</p>
+      }
+      <p><b>Lỗi</b>: <b>Tạo lại</b> ở AI › Lịch sử.</p>
+      <p><b>Tiện ích Wayground</b> (tự nhập và publish): <a (click)="downloadExtension($event)" href="/api/extension">tải
+        về</a>, <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
+                   target="_blank">cách cài</a>.</p>
     </kt-quiz-usage-guide>
   </div>
   <nz-content>

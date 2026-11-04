@@ -61,6 +61,7 @@ const CLOCK_TICK_MS = 30_000;
 })
 export class AssignmentList implements OnInit {
   protected readonly pageSize = PAGE_SIZE;
+  protected readonly languageColor = (language: QuizLanguage): string => languageSpec(language).tagColor;
   protected readonly languageTag = (language: QuizLanguage): string => {
     const spec = languageSpec(language);
     return `${spec.tag} ${spec.label}`;

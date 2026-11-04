@@ -163,6 +163,10 @@ export class AiJobs implements OnInit {
     this.lessonNumber.set(null);
   }
 
+  protected languageColor(language: QuizLanguage | null): string {
+    return languageSpec(language).tagColor;
+  }
+
   protected languageTag(language: QuizLanguage | null): string {
     const spec = languageSpec(language);
     return `${spec.tag} ${spec.label}`;

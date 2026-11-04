@@ -1,7 +1,12 @@
 <!-- The guide is a popup opened from a button, so the table keeps the full width. -->
 <nz-layout class="quiz-layout">
   <kt-quiz-usage-guide>
-    <p>Cần ít nhất {{ minRows }} câu; dòng trống bị bỏ qua.</p>
+    <ol>
+      <li>Nhập câu hỏi và đáp án, hoặc mở từ <b>AI › Lịch sử</b> (<b>Mở trong bảng</b>).</li>
+      <li>Chọn nền tảng rồi tải file.</li>
+    </ol>
+    <p>Cần ít nhất {{ minRows }} câu, không trùng nhau; dòng trống bị bỏ qua.</p>
+    <p><b>Trắc nghiệm</b>: đáp án sai lấy từ đáp án của các câu khác.</p>
     <p>Wayground: có thể dùng <b>Tiện ích tự publish</b> (@if (loggedIn) {<a
       (click)="downloadExtension($event)" href="/api/extension">tải về</a>, }<a
       href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"

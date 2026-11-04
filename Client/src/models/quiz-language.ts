@@ -18,6 +18,8 @@ export interface LanguageSpec {
   label: string;
   // Shown before the label on the page's switch, so the chosen language reads at a glance.
   tag: string;
+  // The nz-tag preset colour of the language's tag in the tables.
+  tagColor: string;
   // The courses of the language, listed before "Khác" (a course typed in by hand), which every language has.
   // Mirrors courseLanguages on the server: a course listed under the wrong language is refused there.
   courses: readonly CourseOption[];
@@ -33,6 +35,7 @@ export const LANGUAGES: readonly LanguageSpec[] = [
     value: QuizLanguage.Chinese,
     label: 'Tiếng Trung',
     tag: '中',
+    tagColor: 'red',
     courses: [
       { value: CourseType.Hsk, label: 'HSK' },
       { value: CourseType.Yct, label: 'YCT' }
@@ -45,6 +48,7 @@ export const LANGUAGES: readonly LanguageSpec[] = [
     value: QuizLanguage.English,
     label: 'Tiếng Anh',
     tag: 'EN',
+    tagColor: 'blue',
     courses: [
       { value: CourseType.VocabReview10, label: 'Ôn tập từ vựng lớp 10' }
     ],
