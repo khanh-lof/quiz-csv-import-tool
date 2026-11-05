@@ -71,6 +71,13 @@ func (m *MongoJobs) Progress(ctx context.Context, username, id string, rows int)
 	return err
 }
 
+func (m *MongoJobs) Heartbeat(ctx context.Context, username, id string) error {
+	_, err := m.jobs.UpdateOne(ctx,
+		bson.M{"_id": id, "username": username, "status": JobRunning},
+		bson.M{"$set": bson.M{"heartbeatAt": m.now().UTC()}})
+	return err
+}
+
 // finish only touches a job that is still running, so a job expired as abandoned is not revived by a
 // late answer, and a finished one is never overwritten.
 func (m *MongoJobs) finish(ctx context.Context, username, id string, set bson.M) error {
@@ -128,7 +135,10 @@ func (m *MongoJobs) ExpireRunning(ctx context.Context, username string, before t
 	for {
 		var job Job
 		err := m.jobs.FindOneAndUpdate(ctx,
-			bson.M{"username": username, "status": JobRunning, "createdAt": bson.M{"$lt": before}},
+			bson.M{"username": username, "status": JobRunning, "$or": bson.A{
+				bson.M{"heartbeatAt": bson.M{"$lt": before}},
+				bson.M{"heartbeatAt": bson.M{"$exists": false}, "createdAt": bson.M{"$lt": before}},
+			}},
 			bson.M{"$set": bson.M{
 				"status": JobFailed, "errorStatus": ExpiredJobStatus, "errorCode": ExpiredJobCode, "errorMessage": message,
 				"finishedAt": m.now().UTC(),

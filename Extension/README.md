@@ -61,7 +61,7 @@ Khi có bản mới, tải lại ZIP như ở bước 1 và chép đè thư mụ
 ## Gặp lỗi?
 
 - **Không chọn được "Tiện ích tự publish"** (nút bị mờ), hoặc **không thấy tab Wayground mở ra**:
-  kiểm tra tiện ích đang bật trong `chrome://extensions`, rồi tải lại trang QuizTool (F5). Tiện ích chỉ chạy với QuizTool mở ở https://kt-quiz-csv-import-tool.vercel.app.
+  kiểm tra tiện ích đang bật trong `chrome://extensions`, rồi tải lại trang QuizTool (F5). Tiện ích chỉ chạy với QuizTool mở ở địa chỉ web của QuizTool.
 - **Chrome báo "Disable developer mode extensions"** khi mở trình duyệt: bấm **Cancel** (Huỷ) để giữ
   tiện ích.
 - **Khung báo màu đỏ liên tục**: có thể Wayground vừa đổi giao diện. Vẫn làm bằng tay được như

@@ -54,6 +54,10 @@ same origin as the web client (the refresh cookie is `SameSite=Strict`).
 On Vercel, the API deploys together with the client as the `server` service of the root
 `vercel.json` (Go preset, `cmd/server`). Set the env vars above in the Vercel project.
 
+The creative jobs at High intelligence run on `cmd/ai-server`, the free Render web service of the root
+`render.yaml`, when the Vercel project's `HIGH_INTELLIGENCE_SERVER_URL` names it. It needs the same
+`MONGODB_URI`, `JWT_SECRET` and LLM settings, serves nothing but those jobs, and has no LLM time limit.
+
 Elsewhere, build the image from `Dockerfile` (static binary on distroless, listens on `PORT`, default 8080 in
 the image) and run it anywhere containers run, behind a reverse proxy that serves the client on the
 same origin. The refresh cookie is `Secure`, so it must be served over HTTPS in production.

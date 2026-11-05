@@ -846,6 +846,10 @@ func TestCreativeSystemPromptTellsTheTimeLimit(t *testing.T) {
 	if strings.Contains(unlimited, "TIME LIMIT") || !strings.Contains(unlimited, "outside the CSV.\n\n## OUTPUT FORMAT") {
 		t.Error("without a deadline there is no TIME LIMIT section")
 	}
+	if !strings.Contains(limited, "The whole answer has a time limit, so keep searches few") ||
+		strings.Contains(unlimited, "time limit") || !strings.Contains(unlimited, "Every search makes the answer slower, so keep searches few") {
+		t.Error("the search guidance mentions a time limit only when there is one")
+	}
 	req := buildCreativeRequest("m", 280*time.Second, nil, Options{ExportType: GimKit, CourseType: Hsk, LessonNumbers: []int{1}})
 	if req.Instructions != limited {
 		t.Error("the request sends the prompt with its time limit")
