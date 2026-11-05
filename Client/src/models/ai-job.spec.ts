@@ -23,6 +23,7 @@ function job(overrides: Partial<AiJob>): AiJob {
     retryUntil: null,
     csv: '',
     errorStatus: 0,
+    errorCode: '',
     errorMessage: '',
     createdAt: '2026-10-13T00:00:00Z',
     finishedAt: null,
@@ -283,7 +284,21 @@ describe('failedJobMessage', () => {
     expect(failedJobMessage(failed)).toContain('đủ từ');
   });
 
-  it('words a timeout and a bad gateway, and never shows the server text', () => {
+  it('words each error code, and never shows the server text', () => {
+    const failed = (errorCode: string, errorStatus = 502) =>
+      failedJobMessage(job({ status: 'failed', errorStatus, errorCode, errorMessage: 'AI generation failed.' }));
+    expect(failed('truncated')).toBe('Đề quá dài. Giảm số câu hoặc số bài.');
+    expect(failed('provider_config')).toBe('AI tạm ngưng. Báo quản trị viên.');
+    expect(failed('overloaded')).toBe('AI đang quá tải. Thử lại sau ít phút.');
+    expect(failed('bad_output')).toBe('Kết quả lỗi. Gửi lại.');
+    expect(failed('filtered')).toBe('Nội dung bị chặn. Đổi ảnh hoặc bài.');
+    expect(failed('timeout', 504)).toContain('Quá lâu');
+    expect(failed('interrupted', 504)).toBe('Bị gián đoạn. Gửi lại.');
+    expect(failed('nothing_to_play', 422)).toContain('đủ từ');
+    expect(failed('failed')).toBe('Thử lại sau ít phút.');
+  });
+
+  it('words the jobs from before the error codes by their status', () => {
     expect(failedJobMessage(job({ status: 'failed', errorStatus: 504, errorMessage: 'AI generation timed out.' }))).toContain('Quá lâu');
     expect(failedJobMessage(job({ status: 'failed', errorStatus: 502, errorMessage: 'AI generation failed.' }))).toBe('Thử lại sau ít phút.');
     expect(failedJobMessage(job({ status: 'failed', errorStatus: 0, errorMessage: 'Something else.' }))).toBe('Không rõ lỗi.');

@@ -74,11 +74,11 @@ func withSyllables(word radicals.Word) radicals.Word {
 // ReviseRadicals builds it again with the teacher's corrections. It asks the model at most twice: once for the
 // words that the textbook does not give in full, once for the meanings of characters and the names of components
 // that the curated pools lack. The rest is package radicals' work.
-func (c *Client) generateRadicals(ctx context.Context, images []Image, opts Options) (Result, error) {
-	model := c.modelFor(opts)
+func (c *Client) generateRadicals(ctx context.Context, images []Image, opts Options, usage *Usage) (Result, error) {
+	model := usage.Model
 	lessons := gatherRadicalsLessons(opts)
 	if slices.ContainsFunc(lessons, needsModel) {
-		text, err := c.respond(ctx, buildRadicalsVocabularyRequest(model, images, opts, lessons))
+		text, err := c.respond(ctx, buildRadicalsVocabularyRequest(model, images, opts, lessons), usage)
 		if err != nil {
 			return Result{}, err
 		}
@@ -99,7 +99,7 @@ func (c *Client) generateRadicals(ctx context.Context, images []Image, opts Opti
 		return Result{}, err
 	}
 	if needs := draft.Needs(); len(needs.Words)+len(needs.Chars)+len(needs.Components) > 0 {
-		text, err := c.respond(ctx, buildRadicalsDetailsRequest(model, needs))
+		text, err := c.respond(ctx, buildRadicalsDetailsRequest(model, needs), usage)
 		if err != nil {
 			return Result{}, err
 		}
@@ -467,7 +467,7 @@ func decodeJSONAnswer(text string, v any) error {
 		text = text[start : end+1]
 	}
 	if err := json.Unmarshal([]byte(text), v); err != nil {
-		return errors.Join(errors.New("the model's answer is not the JSON asked for"), err)
+		return &badOutputError{errors.Join(errors.New("the model's answer is not the JSON asked for"), err)}
 	}
 	return nil
 }

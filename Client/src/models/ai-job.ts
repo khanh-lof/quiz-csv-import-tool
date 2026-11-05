@@ -7,7 +7,8 @@ import { QuizLanguage } from './quiz-language';
 export type AiJobStatus = 'running' | 'done' | 'failed';
 
 // One AI generation as the server stores it (GET /api/csv/jobs). `csv` is the model's raw answer, empty
-// until the job is done; `errorStatus` is the HTTP status a failure used to be answered with (502, 504).
+// until the job is done; `errorStatus` is the HTTP status a failure used to be answered with (502, 504), and
+// `errorCode` why it failed (see `failedJobMessage`), empty on jobs from before the server kept it.
 export interface AiJob {
   id: string;
   status: AiJobStatus;
@@ -28,6 +29,7 @@ export interface AiJob {
   lessonNumbers: number[] | null;
   csv: string;
   errorStatus: number;
+  errorCode: string;
   errorMessage: string;
   createdAt: string;
   finishedAt: string | null;
@@ -37,9 +39,25 @@ export interface AiJob {
   retryUntil: string | null;
 }
 
-// What a failed job says to the user. A "Ghép bộ thủ" job whose lessons were too short fails with 422, whose
-// server message is English, as are the other server messages, so none of them is shown as written.
+// What a failed job says to the user, by the server's error code (csvgen's Failure* codes and the handler's own).
+// The server messages are English, so none of them is shown as written. Jobs from before the codes fall back on
+// the status.
+const FAILED_JOB_MESSAGES: Record<string, string> = {
+  timeout: 'Quá lâu. Gửi lại hoặc giảm số ảnh.',
+  interrupted: 'Bị gián đoạn. Gửi lại.',
+  truncated: 'Đề quá dài. Giảm số câu hoặc số bài.',
+  filtered: 'Nội dung bị chặn. Đổi ảnh hoặc bài.',
+  overloaded: 'AI đang quá tải. Thử lại sau ít phút.',
+  bad_output: 'Kết quả lỗi. Gửi lại.',
+  provider_config: 'AI tạm ngưng. Báo quản trị viên.',
+  nothing_to_play: 'Không bài nào đủ từ. Chọn bài khác.',
+};
+
 export function failedJobMessage(job: AiJob): string {
+  const byCode = FAILED_JOB_MESSAGES[job.errorCode];
+  if (byCode) {
+    return byCode;
+  }
   switch (job.errorStatus) {
     case 422:
       return 'Không bài nào đủ từ. Chọn bài khác.';

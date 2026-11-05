@@ -189,36 +189,56 @@ func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, 
 		ctx, cancel = context.WithTimeout(ctx, s.LLMTimeout)
 		defer cancel()
 	}
+	started := time.Now()
 	result, err := s.Generator.Generate(ctx, images, job.Creative, opts)
+	usage := jobUsage(result.Usage, time.Since(started))
+	logAttrs := []any{"user", job.Username, "job", job.ID, "images", len(images), "model", usage.Model, "calls", usage.Calls,
+		"durationMs", usage.DurationMs, "inputTokens", usage.InputTokens, "cachedTokens", usage.CachedTokens,
+		"outputTokens", usage.OutputTokens}
 
-	switch {
-	case err == nil:
+	if err == nil {
+		s.Logger.Info("CSV generation done", logAttrs...)
 		s.recordJob(r, func(ctx context.Context) error {
-			return s.Jobs.Complete(ctx, job.Username, job.ID, result.CSV, result.Source)
+			return s.Jobs.Complete(ctx, job.Username, job.ID, result.CSV, result.Source, usage)
 		}, job)
 		return
-	case errors.Is(err, radicals.ErrNothingToPlay):
-		// Not the model's fault, nor the network's: the lessons had too few words that can lose a component.
-		s.recordJob(r, func(ctx context.Context) error {
-			return s.Jobs.Fail(ctx, job.Username, job.ID, http.StatusUnprocessableEntity, err.Error())
-		}, job)
-	case errors.Is(ctx.Err(), context.DeadlineExceeded):
-		s.Logger.Warn("CSV generation timed out", "user", job.Username, "images", len(images), "timeout", s.LLMTimeout)
-		s.recordJob(r, func(ctx context.Context) error {
-			return s.Jobs.Fail(ctx, job.Username, job.ID, http.StatusGatewayTimeout, "AI generation timed out.")
-		}, job)
-	default:
-		s.Logger.Error("CSV generation failed", "user", job.Username, "error", err)
-		s.recordJob(r, func(ctx context.Context) error {
-			return s.Jobs.Fail(ctx, job.Username, job.ID, http.StatusBadGateway, "AI generation failed.")
-		}, job)
 	}
+	failure := generationFailure(ctx, err)
+	s.Logger.Warn("CSV generation failed", append(logAttrs, "code", failure.Code, "error", err)...)
+	s.recordJob(r, func(ctx context.Context) error {
+		return s.Jobs.Fail(ctx, job.Username, job.ID, failure, usage)
+	}, job)
 	// A failed generation produced nothing, so it gives the call back: the user resubmits and must not
 	// run into the rate limit doing so. Its images are kept for a while, so "Tạo lại" need not upload them.
 	s.refundAICall(r, job.Username, job.RoundStart)
 	if len(images) > 0 {
 		now := s.now()
 		s.retryImages.keep(job.ID, job.Username, images, now, now.Add(retryImagesTTL))
+	}
+}
+
+// Failure codes of the handler's own, beside csvgen's Failure* codes and store.ExpiredJobCode.
+const (
+	failureTimeout       = "timeout"
+	failureNothingToPlay = "nothing_to_play"
+)
+
+// generationFailure is how a job whose generation returned err failed, ctx being the generation's.
+func generationFailure(ctx context.Context, err error) store.JobFailure {
+	switch {
+	case errors.Is(err, radicals.ErrNothingToPlay):
+		// Not the model's fault, nor the network's: the lessons had too few words that can lose a component.
+		return store.JobFailure{Status: http.StatusUnprocessableEntity, Code: failureNothingToPlay, Message: err.Error()}
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		return store.JobFailure{Status: http.StatusGatewayTimeout, Code: failureTimeout, Message: "AI generation timed out."}
+	}
+	return store.JobFailure{Status: http.StatusBadGateway, Code: csvgen.FailureCode(err), Message: "AI generation failed."}
+}
+
+func jobUsage(usage csvgen.Usage, took time.Duration) store.JobUsage {
+	return store.JobUsage{
+		Model: usage.Model, Calls: usage.Calls, InputTokens: usage.InputTokens, CachedTokens: usage.CachedTokens,
+		OutputTokens: usage.OutputTokens, DurationMs: took.Milliseconds(),
 	}
 }
 
@@ -249,6 +269,7 @@ type jobView struct {
 	LessonNumbers []int      `json:"lessonNumbers"`
 	CSV           string     `json:"csv"`
 	ErrorStatus   int        `json:"errorStatus"`
+	ErrorCode     string     `json:"errorCode"`
 	ErrorMessage  string     `json:"errorMessage"`
 	CreatedAt     time.Time  `json:"createdAt"`
 	FinishedAt    *time.Time `json:"finishedAt"`
@@ -299,7 +320,7 @@ func (s *Server) newJobView(j *store.Job) jobView {
 		ID: j.ID, Status: string(j.Status), Title: j.Title, Creative: j.Creative, Language: j.Language, ExportType: j.ExportType,
 		Intelligence: j.Intelligence, ImageCount: j.ImageCount, CourseType: j.CourseType, CourseName: j.CourseName,
 		HskStandard: j.HskStandard, Level: j.Level, LessonNumbers: j.LessonNumbers, CSV: j.CSV,
-		ErrorStatus: j.ErrorStatus, ErrorMessage: j.ErrorMessage, CreatedAt: j.CreatedAt, FinishedAt: j.FinishedAt,
+		ErrorStatus: j.ErrorStatus, ErrorCode: j.ErrorCode, ErrorMessage: j.ErrorMessage, CreatedAt: j.CreatedAt, FinishedAt: j.FinishedAt,
 		Retryable: retryable, RetryUntil: retryUntil,
 	}
 }

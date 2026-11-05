@@ -44,7 +44,7 @@ describe('RadicalsPlay', () => {
     return {
       id: 'j1', status: 'done', title: 'Bài 3', creative: true, language: 0, exportType: ExportType.Radicals, intelligence: 1,
       imageCount: 0, courseType: null, courseName: '', hskStandard: null, level: null, lessonNumbers: [3],
-      csv: JSON.stringify({ version: 1, review }), errorStatus: 0, errorMessage: '', createdAt: '2026-11-02T00:00:00Z',
+      csv: JSON.stringify({ version: 1, review }), errorStatus: 0, errorCode: '', errorMessage: '', createdAt: '2026-11-02T00:00:00Z',
       finishedAt: '2026-11-02T00:01:00Z', retryable: false, retryUntil: null,
     };
   }

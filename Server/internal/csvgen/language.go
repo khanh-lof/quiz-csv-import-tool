@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"text/template"
+	"time"
 )
 
 // Language is the language a quiz teaches. Sent by ordinal; keep in the same order as
@@ -75,8 +76,9 @@ var languagePromptFiles embed.FS
 
 // languagePrompt is everything the requests send that depends on the language.
 type languagePrompt struct {
-	simpleSystem      string
-	creativeSystem    string
+	simpleSystem string
+	// creativeSystem is filled per call by creativeSystemPrompt, since its TIME LIMIT comes from the config.
+	creativeSystem    *template.Template
 	gestureQuiz       *template.Template
 	gestureStageRules [GestureStageCount]string
 }
@@ -100,10 +102,13 @@ func loadLanguagePrompts() [languageCount]languagePrompt {
 		}
 		prompts[l] = languagePrompt{
 			simpleSystem:      file("simple_system.txt"),
-			creativeSystem:    renderCreativeSystem(creative, file("creative.txt"), spec),
+			creativeSystem:    withBlocks(creative, file("creative.txt")),
 			gestureQuiz:       withBlocks(gesture, file("gesture_quiz.txt")),
 			gestureStageRules: splitGestureStageRules(file("gesture_quiz_stages.txt")),
 		}
+		// Fill it once now, with a time limit so the TIME LIMIT section is checked too, so a broken prompt
+		// panics at start-up rather than on the first request.
+		executePrompt(prompts[l].creativeSystem, creativeSystemData(spec, time.Minute))
 	}
 	return prompts
 }
@@ -113,11 +118,18 @@ func withBlocks(shared *template.Template, blocks string) *template.Template {
 	return template.Must(template.Must(shared.Clone()).Parse(blocks))
 }
 
-func renderCreativeSystem(shared *template.Template, blocks string, spec languageSpec) string {
-	return executePrompt(withBlocks(shared, blocks), map[string]any{
-		"Lang":         spec.name,
-		"ALang":        spec.article + " " + spec.name,
-		"ALangCapital": strings.ToUpper(spec.article[:1]) + spec.article[1:] + " " + spec.name,
-		"Forms":        spec.forms,
-	})
+// creativeSystemPrompt is the creative system prompt for a language. timeLimit is the deadline the server gives
+// one generation call (LLM_TIMEOUT_SECONDS); zero leaves out the TIME LIMIT section.
+func creativeSystemPrompt(language Language, timeLimit time.Duration) string {
+	return executePrompt(languagePrompts[language].creativeSystem, creativeSystemData(languageSpecs[language], timeLimit))
+}
+
+func creativeSystemData(spec languageSpec, timeLimit time.Duration) map[string]any {
+	return map[string]any{
+		"Lang":             spec.name,
+		"ALang":            spec.article + " " + spec.name,
+		"ALangCapital":     strings.ToUpper(spec.article[:1]) + spec.article[1:] + " " + spec.name,
+		"Forms":            spec.forms,
+		"TimeLimitSeconds": int(timeLimit / time.Second),
+	}
 }

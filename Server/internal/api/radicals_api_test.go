@@ -34,7 +34,7 @@ func TestRetryRadicalsJobSendsTheSameRequestAgain(t *testing.T) {
 	env.gen.err = radicals.ErrNothingToPlay
 	env.upload(t, upload{token: token, query: radicalsQuery})
 	failed := env.onlyJob(t, "alice")
-	if failed.Status != store.JobFailed || failed.ErrorStatus != http.StatusUnprocessableEntity ||
+	if failed.Status != store.JobFailed || failed.ErrorStatus != http.StatusUnprocessableEntity || failed.ErrorCode != "nothing_to_play" ||
 		failed.ErrorMessage != radicals.ErrNothingToPlay.Error() {
 		t.Fatalf("failed job %+v", failed)
 	}

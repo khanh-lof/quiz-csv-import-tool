@@ -77,7 +77,7 @@ func run(logger *slog.Logger) error {
 	if missing := cfg.LLM.Missing(); len(missing) > 0 {
 		logger.Warn("CSV generation disabled, missing settings: " + strings.Join(missing, ", "))
 	} else {
-		generator = csvgen.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.IntelligenceModels, logger)
+		generator = csvgen.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.IntelligenceModels, cfg.LLM.Timeout, logger)
 	}
 
 	jwt := auth.NewJWT(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, cfg.AccessTokenTTL)
