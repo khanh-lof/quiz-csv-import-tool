@@ -23,9 +23,6 @@ type Client struct {
 	// intelligenceModels are the creative-mode models for "Độ thông minh" 1..IntelligenceLevels.
 	// Empty means every level uses model.
 	intelligenceModels []string
-	// timeLimit is the deadline the caller gives one call (LLM_TIMEOUT_SECONDS), told to the model in the
-	// creative prompt. The caller's context still enforces it.
-	timeLimit time.Duration
 	// baseBackoff is the first retry delay, doubled per attempt; tests shrink it.
 	baseBackoff time.Duration
 	// stallTimeout is how long a streamed answer may stay silent (see stallTimeout); tests shrink it.
@@ -33,16 +30,15 @@ type Client struct {
 	logger       *slog.Logger
 }
 
-func NewClient(baseURL, apiKey, model string, intelligenceModels []string, timeLimit time.Duration, logger *slog.Logger) *Client {
+func NewClient(baseURL, apiKey, model string, intelligenceModels []string, logger *slog.Logger) *Client {
 	return &Client{
-		// No client-level timeout: the caller's context carries the deadline (LLM_TIMEOUT_SECONDS),
-		// so a timeout surfaces as context.DeadlineExceeded rather than an opaque transport error.
+		// No overall timeout: a generation takes as long as the model needs, and a stream that goes silent is
+		// given up by the stall watchdog instead.
 		http:               &http.Client{},
 		baseURL:            strings.TrimRight(baseURL, "/"),
 		apiKey:             apiKey,
 		model:              model,
 		intelligenceModels: intelligenceModels,
-		timeLimit:          timeLimit,
 		baseBackoff:        defaultBaseBackoff,
 		stallTimeout:       stallTimeout,
 		logger:             logger,
@@ -136,7 +132,7 @@ func (c *Client) generate(ctx context.Context, images []Image, creative bool, op
 		err     error
 	)
 	if creative {
-		content, err = c.respond(ctx, buildCreativeRequest(usage.Model, c.timeLimit, images, opts), usage, onRows)
+		content, err = c.respond(ctx, buildCreativeRequest(usage.Model, images, opts), usage, onRows)
 	} else {
 		content, err = c.complete(ctx, buildSimpleRequest(usage.Model, images, opts.Language), usage, onRows)
 	}

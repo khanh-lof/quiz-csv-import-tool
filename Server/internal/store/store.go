@@ -1,5 +1,7 @@
-// Package store persists QuizTool users. The only document type is User: credentials, active
-// refresh tokens and AI rate-limit state all live in one document keyed by username.
+// Package store persists QuizTool's users, AI jobs, assignments and login attempts in PostgreSQL (the
+// Postgres* types) or in memory for tests (the Memory* types). The bson tags are only read by
+// cmd/migrate-mongo, which copies the data of the MongoDB the server used before; the json tags name the
+// fields of the values kept as JSONB.
 package store
 
 import (
@@ -12,24 +14,22 @@ var (
 	// ErrNotFound and ErrDuplicate are shared by every store: users, jobs, assignments and players.
 	ErrNotFound  = errors.New("not found")
 	ErrDuplicate = errors.New("already exists")
-	// ErrConflict means a read-modify-write kept losing to concurrent writers.
-	ErrConflict = errors.New("too many concurrent updates")
 )
 
 // RefreshToken is one device's active session. Only a hash of the token is stored, so reading the
 // database does not hand out sessions.
 type RefreshToken struct {
-	Hash      string    `bson:"tokenHash"`
-	ExpiresAt time.Time `bson:"expiresAt"`
-	CreatedAt time.Time `bson:"createdAt"`
+	Hash      string    `bson:"tokenHash" json:"tokenHash"`
+	ExpiresAt time.Time `bson:"expiresAt" json:"expiresAt"`
+	CreatedAt time.Time `bson:"createdAt" json:"createdAt"`
 }
 
 // SpentRefreshToken remembers a token that was rotated away, so presenting it again can be
 // recognised as reuse (a sign it was stolen) rather than an unknown token.
 type SpentRefreshToken struct {
-	Hash      string    `bson:"tokenHash"`
-	SpentAt   time.Time `bson:"spentAt"`
-	ExpiresAt time.Time `bson:"expiresAt"`
+	Hash      string    `bson:"tokenHash" json:"tokenHash"`
+	SpentAt   time.Time `bson:"spentAt" json:"spentAt"`
+	ExpiresAt time.Time `bson:"expiresAt" json:"expiresAt"`
 }
 
 // Sessions is a user's refresh-token state, read and written as a unit by UpdateSessions.
@@ -50,20 +50,19 @@ type User struct {
 	AICallCountInRound int        `bson:"aiCallCountInRound"`
 	StartRoundTime     *time.Time `bson:"startRoundTime,omitempty"`
 
-	// Version guards session read-modify-writes (optimistic concurrency).
+	// Version counts the session writes.
 	Version int64 `bson:"version"`
 }
 
-// Users is implemented by Mongo (production) and Memory (tests).
+// Users is implemented by PostgresUsers (production) and Memory (tests).
 type Users interface {
 	FindByUsername(ctx context.Context, username string) (*User, error)
 	// FindByRefreshTokenHash finds the user holding hash as an active or a spent refresh token.
 	FindByRefreshTokenHash(ctx context.Context, hash string) (*User, error)
 	Create(ctx context.Context, user *User) error
 
-	// UpdateSessions applies mutate to the user's current sessions and stores the result,
-	// re-reading and retrying when another writer got there first, so concurrent logins or
-	// refreshes cannot drop or double-spend each other's tokens. mutate may run more than once and
+	// UpdateSessions applies mutate to the user's current sessions and stores the result, one writer at
+	// a time, so concurrent logins or refreshes cannot drop or double-spend each other's tokens. mutate
 	// returns false to skip the write.
 	UpdateSessions(ctx context.Context, username string, mutate func(s *Sessions) bool) error
 
@@ -78,5 +77,3 @@ type Users interface {
 	// once a newer round has replaced that one.
 	RefundAICall(ctx context.Context, username string, roundStart time.Time) error
 }
-
-const maxUpdateAttempts = 5

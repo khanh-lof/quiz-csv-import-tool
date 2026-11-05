@@ -25,11 +25,11 @@ const (
 	// maxJobsPerUser is how many finished jobs a user keeps; older ones are pruned when a new one starts.
 	maxJobsPerUser = 30
 	maxTitleRunes  = 100
-	// abandonedGrace is how long past the LLM deadline a job may still be running before it counts as
-	// abandoned (its process died), which leaves room for the final database write.
-	abandonedGrace = time.Minute
-	// abandonedWithoutTimeout applies when no LLM timeout is configured.
-	abandonedWithoutTimeout = 15 * time.Minute
+	// jobHeartbeatInterval is how often the handler working on a job records that it still is, and
+	// abandonedAfter how long a running job may go without that before listJobs takes its process for dead
+	// (a restart or a deploy). A generation itself has no time limit.
+	jobHeartbeatInterval = 30 * time.Second
+	abandonedAfter       = 3 * time.Minute
 )
 
 // createJob handles POST /api/csv/jobs: a multipart upload of zero or more images, rate-limited per
@@ -184,13 +184,10 @@ func (s *Server) startJob(w http.ResponseWriter, r *http.Request, username strin
 // model call.
 func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, opts csvgen.Options) {
 	ctx := context.WithoutCancel(r.Context())
-	if s.LLMTimeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, s.LLMTimeout)
-		defer cancel()
-	}
+	stopHeartbeat := s.keepJobAlive(r, job)
 	started := time.Now()
 	result, err := s.Generator.GenerateWithProgress(ctx, images, job.Creative, opts, s.jobProgress(r, job))
+	stopHeartbeat()
 	usage := jobUsage(result.Usage, time.Since(started))
 	logAttrs := []any{"user", job.Username, "job", job.ID, "images", len(images), "model", usage.Model, "calls", usage.Calls,
 		"durationMs", usage.DurationMs, "inputTokens", usage.InputTokens, "cachedTokens", usage.CachedTokens,
@@ -203,7 +200,7 @@ func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, 
 		}, job)
 		return
 	}
-	failure := generationFailure(ctx, err)
+	failure := generationFailure(err)
 	s.Logger.Warn("CSV generation failed", append(logAttrs, "code", failure.Code, "error", err)...)
 	s.recordJob(r, func(ctx context.Context) error {
 		return s.Jobs.Fail(ctx, job.Username, job.ID, failure, usage)
@@ -217,22 +214,48 @@ func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, 
 	}
 }
 
-// Failure codes of the handler's own, beside csvgen's Failure* codes and store.ExpiredJobCode.
-const (
-	failureTimeout       = "timeout"
-	failureNothingToPlay = "nothing_to_play"
-)
+// failureNothingToPlay is the handler's own failure code, beside csvgen's Failure* codes and store.ExpiredJobCode.
+const failureNothingToPlay = "nothing_to_play"
 
-// generationFailure is how a job whose generation returned err failed, ctx being the generation's.
-func generationFailure(ctx context.Context, err error) store.JobFailure {
-	switch {
-	case errors.Is(err, radicals.ErrNothingToPlay):
+// generationFailure is how a job whose generation returned err failed.
+func generationFailure(err error) store.JobFailure {
+	if errors.Is(err, radicals.ErrNothingToPlay) {
 		// Not the model's fault, nor the network's: the lessons had too few words that can lose a component.
 		return store.JobFailure{Status: http.StatusUnprocessableEntity, Code: failureNothingToPlay, Message: err.Error()}
-	case errors.Is(ctx.Err(), context.DeadlineExceeded):
-		return store.JobFailure{Status: http.StatusGatewayTimeout, Code: failureTimeout, Message: "AI generation timed out."}
 	}
 	return store.JobFailure{Status: http.StatusBadGateway, Code: csvgen.FailureCode(err), Message: "AI generation failed."}
+}
+
+// keepJobAlive records the job's heartbeat every heartbeat interval until the returned stop is called, so
+// listJobs can tell a job whose process died from one that just takes long. A failed write only risks the
+// job being taken for abandoned once abandonedAfter has passed without one.
+func (s *Server) keepJobAlive(r *http.Request, job *store.Job) (stop func()) {
+	every := s.heartbeatEvery
+	if every <= 0 {
+		every = jobHeartbeatInterval
+	}
+	done, finished := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(finished)
+		ticker := time.NewTicker(every)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 5*time.Second)
+				if err := s.Jobs.Heartbeat(ctx, job.Username, job.ID); err != nil {
+					s.Logger.Warn("recording job heartbeat failed", "user", job.Username, "job", job.ID, "error", err)
+				}
+				cancel()
+			}
+		}
+	}()
+	return func() {
+		close(done)
+		<-finished
+	}
 }
 
 func jobUsage(usage csvgen.Usage, took time.Duration) store.JobUsage {
@@ -262,7 +285,7 @@ func (s *Server) jobProgress(r *http.Request, job *store.Job) func(rows int) {
 	}
 }
 
-// recordJob writes a job's outcome with its own deadline, since the generation's may be used up.
+// recordJob writes a job's outcome with a deadline of its own, detached from the request.
 func (s *Server) recordJob(r *http.Request, write func(context.Context) error, job *store.Job) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 10*time.Second)
 	defer cancel()
@@ -307,13 +330,9 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A job still running long after its deadline lost the process that was working on it; fail it
-	// and give the call back, or the client would poll it forever.
-	patience := abandonedWithoutTimeout
-	if s.LLMTimeout > 0 {
-		patience = s.LLMTimeout + abandonedGrace
-	}
-	expired, err := s.Jobs.ExpireRunning(r.Context(), username, time.Now().Add(-patience), "AI generation was interrupted.")
+	// A running job whose heartbeat stopped lost the process that was working on it; fail it and give the
+	// call back, or the client would poll it forever.
+	expired, err := s.Jobs.ExpireRunning(r.Context(), username, time.Now().Add(-abandonedAfter), "AI generation was interrupted.")
 	if err != nil {
 		s.Logger.Warn("expiring abandoned jobs failed", "user", username, "error", err)
 	}

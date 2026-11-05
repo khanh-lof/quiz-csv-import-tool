@@ -38,8 +38,6 @@ type Server struct {
 	// LoginMaxAttempts password checks are allowed per username in each LoginWindow.
 	LoginMaxAttempts int
 	LoginWindow      time.Duration
-	// LLMTimeout bounds each Generator call; zero means no limit.
-	LLMTimeout time.Duration
 
 	// StageSeconds is how many seconds a question of each Game stage (1 to 6, in order) lasts in the standard
 	// time mode, from the server's own configuration (GAME_STAGE_SECONDS). A shared quiz is timed here and
@@ -55,6 +53,9 @@ type Server struct {
 
 	// retryImages keeps the images of failed jobs for a while, so "Tạo lại" need not upload them again.
 	retryImages retryImages
+	// heartbeatEvery is how often a running job's heartbeat is recorded; zero means jobHeartbeatInterval.
+	// Tests shrink it.
+	heartbeatEvery time.Duration
 }
 
 func (s *Server) now() time.Time {

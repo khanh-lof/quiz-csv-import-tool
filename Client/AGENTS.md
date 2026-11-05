@@ -38,9 +38,10 @@ There is no e2e test setup and no lint script configured in `package.json`.
 ### Backend URL
 
 There are no environment files: every HTTP service calls the API by relative URL (`/api/...`),
-because the API is always on the SPA's own origin. In production the root `vercel.json` routes
-`/api/*` to the Go service of the same deployment (the client's build command, output dir and SPA
-fallback live in its `client` service); locally `ng serve` proxies `/api` to
+because the API is always on the SPA's own origin. In production the client is the Render static site of the
+root `render.yaml` (its build command and publish directory), and its two rewrite rules, set in the Render
+dashboard so the API's URL stays out of the repo, send `/api/*` to the Go web service and every other path to
+`index.html`; locally `ng serve` proxies `/api` to
 `http://localhost:7071` via `proxy.conf.json` (the `proxyConfig` option in `angular.json`).
 
 ### Auth flow (access token in memory, refresh token in cookie)

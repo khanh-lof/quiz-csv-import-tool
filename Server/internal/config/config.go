@@ -18,17 +18,8 @@ type Config struct {
 	// Port the HTTP server listens on. The client's dev environment expects 7071.
 	Port string
 
-	MongoURI        string
-	MongoDatabase   string
-	MongoCollection string
-	// MongoJobsCollection holds the AI generation jobs.
-	MongoJobsCollection string
-	// MongoAssignmentsCollection holds the quizzes teachers handed to students ("Giao bài"), and
-	// MongoPlayersCollection the students who joined them with their results.
-	MongoAssignmentsCollection string
-	MongoPlayersCollection     string
-	// MongoLoginAttemptsCollection holds the login attempts counted per username.
-	MongoLoginAttemptsCollection string
+	// DatabaseURL is the PostgreSQL connection string (DATABASE_URL), a postgres:// URL or a key=value DSN.
+	DatabaseURL string
 
 	JWTSecret       []byte
 	JWTIssuer       string // defaults to "quiztool"; always validated
@@ -66,9 +57,6 @@ type LLMConfig struct {
 	// (LLM_INTELLIGENCE_MODELS, comma-separated). Optional; when set it must list exactly
 	// csvgen.IntelligenceLevels models.
 	IntelligenceModels []string
-	// Timeout bounds one generation call. Its default stays under Vercel's 300 s function limit so
-	// the handler can still answer a clean 504 instead of the platform killing the request.
-	Timeout time.Duration
 }
 
 func (c LLMConfig) Missing() []string {
@@ -107,15 +95,7 @@ func FromEnv() (Config, error) {
 	cfg := Config{
 		Port: envOr("PORT", "7071"),
 
-		MongoURI:            os.Getenv("MONGODB_URI"),
-		MongoDatabase:       envOr("MONGODB_DATABASE", "QuizDb"),
-		MongoCollection:     envOr("MONGODB_USERS_COLLECTION", "Users"),
-		MongoJobsCollection: envOr("MONGODB_JOBS_COLLECTION", "Jobs"),
-
-		MongoAssignmentsCollection: envOr("MONGODB_ASSIGNMENTS_COLLECTION", "Assignments"),
-		MongoPlayersCollection:     envOr("MONGODB_PLAYERS_COLLECTION", "AssignmentPlayers"),
-
-		MongoLoginAttemptsCollection: envOr("MONGODB_LOGIN_ATTEMPTS_COLLECTION", "LoginAttempts"),
+		DatabaseURL: strings.TrimSpace(os.Getenv("DATABASE_URL")),
 
 		JWTSecret:               []byte(os.Getenv("JWT_SECRET")),
 		JWTIssuer:               envOr("JWT_ISSUER", "quiztool"),
@@ -131,7 +111,6 @@ func FromEnv() (Config, error) {
 			BaseURL:            strings.TrimRight(os.Getenv("OPENAI_BASE_URL"), "/"),
 			Model:              os.Getenv("LLM_MODEL"),
 			IntelligenceModels: splitList(os.Getenv("LLM_INTELLIGENCE_MODELS")),
-			Timeout:            time.Duration(intVar("LLM_TIMEOUT_SECONDS", 280)) * time.Second,
 		},
 
 		AICallsPerRound: intVar("CALL_COUNT_ACCEPTED_IN_A_ROUND", 2),
@@ -141,17 +120,14 @@ func FromEnv() (Config, error) {
 		LoginWindow:      time.Duration(intVar("LOGIN_WINDOW_MINUTES", 15)) * time.Minute,
 	}
 
-	if cfg.MongoURI == "" {
-		errs = append(errs, errors.New("MONGODB_URI is required"))
+	if cfg.DatabaseURL == "" {
+		errs = append(errs, errors.New("DATABASE_URL is required"))
 	}
 	if len(cfg.JWTSecret) == 0 {
 		errs = append(errs, errors.New("JWT_SECRET is required"))
 	} else if len(cfg.JWTSecret) < minJWTSecretBytes {
 		// RFC 7518 §3.2: an HS256 key must be at least as long as the hash output.
 		errs = append(errs, fmt.Errorf("JWT_SECRET must be at least %d bytes for HS256, got %d", minJWTSecretBytes, len(cfg.JWTSecret)))
-	}
-	if cfg.LLM.Timeout <= 0 {
-		errs = append(errs, errors.New("LLM_TIMEOUT_SECONDS must be positive"))
 	}
 	if n := len(cfg.LLM.IntelligenceModels); n != 0 && n != csvgen.IntelligenceLevels {
 		errs = append(errs, fmt.Errorf("LLM_INTELLIGENCE_MODELS must list %d models, got %d", csvgen.IntelligenceLevels, n))

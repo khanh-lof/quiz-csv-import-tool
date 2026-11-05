@@ -23,10 +23,8 @@ import (
 // completion that finished with insufficient_system_resource or aborted, a response whose status is
 // failed, or a body of nothing but the blank lines. Those are retried too (interruptedError).
 //
-// All attempts share the caller's deadline (LLM_TIMEOUT_SECONDS, under Vercel's function limit), so
-// retrying never keeps the function alive longer; a retry is skipped when too little time is left
-// for it to finish. A call that used up the whole deadline is not retried: the client does not
-// re-send either, so the user is told and submits again.
+// There is no deadline over the attempts: a generation takes as long as the model needs, and a stream that
+// goes silent is given up as interrupted by the stall watchdog, then retried like the rest.
 const (
 	maxAttempts = 5
 	// defaultBaseBackoff is the first wait, doubled per retry up to maxBackoff (before jitter): an
@@ -36,9 +34,6 @@ const (
 	// maxRetryAfter is the longest Retry-After worth waiting for inside one request; a longer one
 	// (e.g. a monthly limit) fails the call.
 	maxRetryAfter = 30 * time.Second
-	// minAttemptBudget is the least time left before the deadline worth starting another attempt
-	// with: a generation takes tens of seconds, so a shorter attempt would only time out.
-	minAttemptBudget = 30 * time.Second
 )
 
 // StatusError is a non-2xx answer from the LLM provider.
@@ -70,8 +65,8 @@ type interruptedError struct{ reason string }
 
 func (e *interruptedError) Error() string { return "LLM generation interrupted: " + e.reason }
 
-// withRetry runs attempt until it succeeds, fails for good, runs out of attempts, or the next try
-// would not fit before ctx's deadline. It returns the last attempt's error.
+// withRetry runs attempt until it succeeds, fails for good, runs out of attempts, or ctx is cancelled. It
+// returns the last attempt's error.
 func (c *Client) withRetry(ctx context.Context, path string, attempt func() (string, error)) (string, error) {
 	for n := 0; ; n++ {
 		content, err := attempt()
@@ -80,9 +75,6 @@ func (c *Client) withRetry(ctx context.Context, path string, attempt func() (str
 		}
 		wait, retryable := c.retryDelay(err, n)
 		if !retryable {
-			return "", err
-		}
-		if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) < wait+minAttemptBudget {
 			return "", err
 		}
 		c.logger.Warn("retrying LLM call", "path", path, "attempt", n+2, "wait", wait, "error", err)

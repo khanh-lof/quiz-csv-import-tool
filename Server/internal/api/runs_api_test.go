@@ -1279,7 +1279,7 @@ func TestAnUpdateThatFailsIsAnInternalErrorOrAForbiddenPlayer(t *testing.T) {
 		"start":  func() *httptest.ResponseRecorder { return c.startRun(token, 1) },
 		"answer": func() *httptest.ResponseRecorder { return c.answer(token, run.RunID, 1, 0) },
 	}
-	for _, err := range []error{errBroken, store.ErrConflict} {
+	for _, err := range []error{errBroken, context.DeadlineExceeded} {
 		c.srv.Assignments = updateFailing{c.assignments, err}
 		for name, request := range requests {
 			if rec := request(); rec.Code != http.StatusInternalServerError || rec.Body.Len() != 0 {
