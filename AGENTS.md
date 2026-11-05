@@ -26,6 +26,15 @@ the Go mux still sees `/api/...` — and everything else to `client`. The Vercel
 Directory must be the repo root, and the server's env vars (`MONGODB_URI`, `JWT_SECRET`, …) are set
 in the same project.
 
+One kind of request does not run on Vercel: a creative AI job at High intelligence ("Độ thông minh" Cao), which
+can take longer than a Vercel function may run (300 s). The Vercel server forwards it, server side, to a second Go
+server, `Server/cmd/ai-server`, a free Render web service defined in the root `render.yaml`: it serves only starting
+and retrying such jobs (`api.Server.HighIntelligenceHandler`, 400 for any other job) and the health check, runs
+them with no time limit, and writes them to the same MongoDB, so the client follows them through the Vercel
+server's job list like any other. The Vercel project's `HIGH_INTELLIGENCE_SERVER_URL` names the Render service's
+URL (kept out of this public repo); unset, High jobs run on Vercel like the rest, which is also how local
+development runs. Both servers must share `MONGODB_URI`, `JWT_SECRET` and the AI rate-limit settings.
+
 Each project has its own `AGENTS.md` with the detail for that side — read
 [Client/AGENTS.md](Client/AGENTS.md), [Server/AGENTS.md](Server/AGENTS.md) or
 [Extension/AGENTS.md](Extension/AGENTS.md) before working inside that directory. This file covers only
@@ -101,7 +110,8 @@ no configurable backend URL:
 Three things make the wiring non-obvious:
 
 - **Same-origin everywhere, no CORS.** On Vercel the SPA and API are services of one deployment
-  (every preview included); locally the `ng serve` proxy puts them on one origin too. The server
+  (every preview included); locally the `ng serve` proxy puts them on one origin too. The browser never calls
+  the High intelligence server on Render: the Vercel server forwards those jobs to it. The server
   therefore has no CORS handling, and the refresh token is an `HttpOnly; Secure; SameSite=Strict`
   cookie (`Secure` is accepted on `http://localhost`). Serving the SPA and API from different
   origins is not supported: the browser would block the calls and never send the cookie, breaking
@@ -188,9 +198,13 @@ Consequences to keep in mind when changing anything here:
 - A job outlives the connection that started it only if the host keeps the process alive after the
   client leaves. The handler flushes its `202` early with `Connection: close` and goes on working;
   where the platform buffers the response until the handler ends (Vercel's behaviour for a Go
-  service is unverified), the client just gets the `202` late and polling still shows the job. A job
-  still `running` well past the LLM deadline (its process died) is failed as "interrupted" and its
-  call refunded the next time its owner lists jobs.
+  service is unverified), the client just gets the `202` late and polling still shows the job. While it works
+  the handler records a heartbeat on the job every 30 s; a job still `running` with no heartbeat for 3 minutes
+  (its process died, or Vercel cut its function off) is failed as "interrupted" and its call refunded the next
+  time its owner lists jobs. The heartbeat, not a deadline, is what tells: a High intelligence job on Render
+  has none, yet is listed by the Vercel server. Render puts its free instance to sleep after 15 minutes
+  without a request, so `cmd/ai-server` requests its own public URL (`RENDER_EXTERNAL_URL`) every 5 minutes
+  while a job runs.
 - Export output format is per-platform: GimKit, Blooket and Game download as `.csv`, Wayground is
   converted to `.xlsx` via `xlsx` before download (`FileExportService.download`).
 
@@ -284,11 +298,11 @@ is `WaygroundExtensionService`:
   ignores request ids it didn't send. On a failed result it downloads the file it kept for that
   request, so the user can finish the import by hand.
 
-The message shapes and the QuizTool origins the
-extension listens on (`Extension/manifest.json`: production `https://kt-quiz-csv-import-tool.vercel.app`
-and `http://localhost:4200`; Vercel preview URLs are not included) are hand-kept in step on both
-sides. Quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in
-`Extension/selectors.js`).
+The message shapes are hand-kept in step on both sides. The QuizTool origins the extension listens on are
+`http://localhost:4200` in `Extension/manifest.json`, plus the production URL, which is not in the repo: packing
+the zip (`extension.Pack`) adds the server's `APP_ORIGIN` (the Vercel URL, set in the Vercel project) to the bridge
+script's `matches`, and refuses a value that is not an `http(s)://host` origin. Vercel preview URLs are not
+included. Quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in `Extension/selectors.js`).
 
 Logged-in users download the extension from the web app: `GET api/extension` (authenticated like
 `csv/jobs`) answers the zip of `Extension/` (without `AGENTS.md`, under a `QuizTool-Extension/` folder), and
@@ -650,7 +664,9 @@ two sides guard against both:
   refuses the upload itself.
 - The server bounds each LLM call with `LLM_TIMEOUT_SECONDS` (default 280, under Vercel's limit); hitting
   it fails the job with `504 AI generation timed out.` and refunds the call. The upload itself is a
-  separate, short request, so only the generation can hit the time limit.
+  separate, short request, so only the generation can hit the time limit. A High intelligence job forwarded to
+  the Render server has no time limit (its system prompt has no TIME LIMIT section either); the forwarding
+  waits up to 2 minutes for that server's `202`, enough to wake a sleeping free instance.
 - `AiGeneration.showGenerationError` maps 413 (or the client's own refusal) to a message asking the user to
   send fewer images; a failed job is announced by `AiJobService` with `failedJobMessage`, which words it by the
   job's `errorCode` (e.g. `timeout`, `truncated`, `overloaded`, `provider_config`; see Server/AGENTS.md).
@@ -675,7 +691,8 @@ body, DeepSeek's keep-alive blank lines only, counts as interrupted). An answer 
 (`finish_reason` `length`/`content_filter`, a response `incomplete`) fails the job without a retry,
 like the other statuses (400/401/402/403/404/413/422). All attempts share the `LLM_TIMEOUT_SECONDS`
 deadline, and a retry is skipped when less than 30 s would be left, so this never pushes past Vercel's
-limit (one invocation cannot outlive 300 s).
+limit (one invocation cannot outlive 300 s). On the High intelligence server there is no deadline over the
+attempts.
 
 The client submits each generation once (`AiCsvService` has no retry): a job that used the whole deadline
 fails as `504`, and the user sends it again with **"Tạo lại"** on the failed job in the history table, or from
@@ -691,5 +708,7 @@ retry would be taken (`retryable`) and, for a job with images, until when (`retr
 time, survives a reload, and is disabled once it is past. A job without images has no deadline. The images live in
 one process only: a restart, or a request that reaches another instance of the server (on Vercel an instance can
 be stopped or replaced at any time), finds none, and the job then reads as not retryable; the user submits again
-from the AI page. Only a failed *upload* (status 0, before the job exists) needs the user's retry for a connection
+from the AI page. A failed High intelligence job is retried on the Render server (the Vercel server forwards the
+retry), but its images are kept there, out of the Vercel server's sight, so one with images reads as not
+retryable; one without images can be retried. Only a failed *upload* (status 0, before the job exists) needs the user's retry for a connection
 reason; once the server answers `202`, a dropped connection no longer matters.

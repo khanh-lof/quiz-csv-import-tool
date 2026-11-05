@@ -137,13 +137,40 @@ func testJobs(t *testing.T, jobs Jobs) {
 		t.Fatalf("Revise changed a failed job: %+v", j)
 	}
 
-	// ExpireRunning fails only running jobs older than the cutoff.
+	// A heartbeat is recorded on the owner's running job only.
+	if err := jobs.Create(ctx, newJob("beating", "alice", 10*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if err := jobs.Heartbeat(ctx, "bob", "beating"); err != nil {
+		t.Fatal(err)
+	}
+	if j, _ := jobs.Get(ctx, "alice", "beating"); j.HeartbeatAt != nil {
+		t.Fatalf("another user's heartbeat was recorded: %+v", j)
+	}
+	if err := jobs.Heartbeat(ctx, "alice", "beating"); err != nil {
+		t.Fatal(err)
+	}
+	if j, _ := jobs.Get(ctx, "alice", "beating"); j.HeartbeatAt == nil || j.HeartbeatAt.Before(base.Add(-time.Second)) {
+		t.Fatalf("heartbeat of a running job: %+v", j)
+	}
+	if err := jobs.Heartbeat(ctx, "alice", "mid"); err != nil {
+		t.Fatal(err)
+	}
+	if j, _ := jobs.Get(ctx, "alice", "mid"); j.HeartbeatAt != nil {
+		t.Fatalf("heartbeat of a finished job: %+v", j)
+	}
+
+	// ExpireRunning fails only running jobs whose last sign of life, the heartbeat or else the creation, is
+	// older than the cutoff.
 	expired, err := jobs.ExpireRunning(ctx, "alice", base.Add(-30*time.Second), "interrupted")
 	if err != nil || len(expired) != 1 || expired[0].ID != "old" || expired[0].Status != JobFailed || expired[0].ErrorCode != ExpiredJobCode {
 		t.Fatalf("ExpireRunning: %+v %v", expired, err)
 	}
 	if expired, _ = jobs.ExpireRunning(ctx, "alice", base.Add(-30*time.Second), "interrupted"); len(expired) != 0 {
 		t.Fatalf("second ExpireRunning: %+v", expired)
+	}
+	if err := jobs.Delete(ctx, "alice", "beating"); err != nil {
+		t.Fatal(err)
 	}
 	// A late answer does not revive an expired job.
 	if err := jobs.Complete(ctx, "alice", "old", "late", "", JobUsage{}); err != nil {
