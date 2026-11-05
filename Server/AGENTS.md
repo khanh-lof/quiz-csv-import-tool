@@ -396,11 +396,14 @@ cookie.
     illustrations and is never used to look the lesson up.
 - `post` retries transient failures of the LLM provider (DeepSeek): 429, 500, 502/503/504, transport
   errors, and generations interrupted inside a 200 (`interruptedError`: chat `finish_reason`
-  `insufficient_system_resource`/`aborted`, a response with `status` `failed`, a body of only the
+  `insufficient_system_resource`/`aborted`, a response with `status` `failed`, a stream `error` event, a
+  stream that ends early or stalls for `stallTimeout` (90 s) once started, a plain body of only the
   keep-alive blank lines), up to 5 attempts within the caller's deadline; this is the only retry layer
   (the client does not re-send) — see `retry.go` and [../AGENTS.md](../AGENTS.md#retrying-ai-requests).
-  Because an interruption shows only in the body, the parsing (`parseCompletion`, `parseResponse`) runs
-  inside each attempt. Non-2xx answers become `*StatusError` (status, `error.code`, `Retry-After`); each
+  Both endpoints are called with `stream: true` (`stream.go`: `streamCompletion`, `streamResponse`); a
+  `text/event-stream` answer is read event by event, anything else whole (`parseCompletion`,
+  `parseResponse`), in each attempt. `GenerateWithProgress` reports the CSV rows written so far
+  (`rowCounter`), which `runJob` stores on the job (`Jobs.Progress`, throttled to every 3 s). Non-2xx answers become `*StatusError` (status, `error.code`, `Retry-After`); each
   attempt's `x-request-id` is logged.
 - `ExtractCSVContent` strips code fences / leading prose the model sometimes adds.
 - The creative mode uses the Responses API because Wayground requests carry the `web_search` tool:

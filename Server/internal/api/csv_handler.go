@@ -190,7 +190,7 @@ func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, 
 		defer cancel()
 	}
 	started := time.Now()
-	result, err := s.Generator.Generate(ctx, images, job.Creative, opts)
+	result, err := s.Generator.GenerateWithProgress(ctx, images, job.Creative, opts, s.jobProgress(r, job))
 	usage := jobUsage(result.Usage, time.Since(started))
 	logAttrs := []any{"user", job.Username, "job", job.ID, "images", len(images), "model", usage.Model, "calls", usage.Calls,
 		"durationMs", usage.DurationMs, "inputTokens", usage.InputTokens, "cachedTokens", usage.CachedTokens,
@@ -242,6 +242,26 @@ func jobUsage(usage csvgen.Usage, took time.Duration) store.JobUsage {
 	}
 }
 
+// progressInterval is the least time between two writes of a running job's progress: about the client's polling.
+const progressInterval = 3 * time.Second
+
+// jobProgress returns the callback that records the rows the model has written on the job, at most once per
+// progressInterval. A failed write only costs the progress shown.
+func (s *Server) jobProgress(r *http.Request, job *store.Job) func(rows int) {
+	var lastWrite time.Time
+	return func(rows int) {
+		if time.Since(lastWrite) < progressInterval {
+			return
+		}
+		lastWrite = time.Now()
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 3*time.Second)
+		defer cancel()
+		if err := s.Jobs.Progress(ctx, job.Username, job.ID, rows); err != nil {
+			s.Logger.Warn("recording job progress failed", "user", job.Username, "job", job.ID, "error", err)
+		}
+	}
+}
+
 // recordJob writes a job's outcome with its own deadline, since the generation's may be used up.
 func (s *Server) recordJob(r *http.Request, write func(context.Context) error, job *store.Job) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 10*time.Second)
@@ -268,6 +288,7 @@ type jobView struct {
 	Level         *int       `json:"level"`
 	LessonNumbers []int      `json:"lessonNumbers"`
 	CSV           string     `json:"csv"`
+	ProgressRows  int        `json:"progressRows"`
 	ErrorStatus   int        `json:"errorStatus"`
 	ErrorCode     string     `json:"errorCode"`
 	ErrorMessage  string     `json:"errorMessage"`
@@ -319,7 +340,7 @@ func (s *Server) newJobView(j *store.Job) jobView {
 	return jobView{
 		ID: j.ID, Status: string(j.Status), Title: j.Title, Creative: j.Creative, Language: j.Language, ExportType: j.ExportType,
 		Intelligence: j.Intelligence, ImageCount: j.ImageCount, CourseType: j.CourseType, CourseName: j.CourseName,
-		HskStandard: j.HskStandard, Level: j.Level, LessonNumbers: j.LessonNumbers, CSV: j.CSV,
+		HskStandard: j.HskStandard, Level: j.Level, LessonNumbers: j.LessonNumbers, CSV: j.CSV, ProgressRows: j.ProgressRows,
 		ErrorStatus: j.ErrorStatus, ErrorCode: j.ErrorCode, ErrorMessage: j.ErrorMessage, CreatedAt: j.CreatedAt, FinishedAt: j.FinishedAt,
 		Retryable: retryable, RetryUntil: retryUntil,
 	}

@@ -654,6 +654,8 @@ two sides guard against both:
 - `AiGeneration.showGenerationError` maps 413 (or the client's own refusal) to a message asking the user to
   send fewer images; a failed job is announced by `AiJobService` with `failedJobMessage`, which words it by the
   job's `errorCode` (e.g. `timeout`, `truncated`, `overloaded`, `provider_config`; see Server/AGENTS.md).
+- While a job runs, the server writes the CSV rows the model has written so far on it (`progressRows`, at
+  most every 3 s, starting over on a retry), and the history table shows "Đang chạy · 12 dòng".
 - Each LLM attempt is logged in one line (model, attempt, duration, status, request id, tokens); the response
   body only when the attempt failed, cut to 2 KB. A job's totals are stored on it as `usage`.
 
@@ -663,10 +665,13 @@ All retrying is on the server, inside the one request (`csvgen/retry.go`), follo
 codes (https://api-docs.deepseek.com/quick_start/error_codes): 429 (rate or concurrency limit), 500,
 503 (overloaded), 502/504 from the proxy in front of it, and transport errors are retried up to 5
 attempts with exponential backoff (2 s doubling to 20 s, plus up to half again of jitter), honouring
-`Retry-After`. DeepSeek keeps a waiting request alive with blank lines, which commits it to 200 before
-the generation starts, so a failure during the generation arrives inside a 200 and is retried too: a
-chat completion whose `finish_reason` is `insufficient_system_resource` or `aborted`, a response whose
-`status` is `failed`, or a body of nothing but blank lines. An answer the model itself cut short
+`Retry-After`. The calls stream (`stream: true`, `csvgen/stream.go`), so the 200 comes before the
+generation, and a failure during it arrives inside the 200 and is retried too: a chat completion whose
+`finish_reason` is `insufficient_system_resource` or `aborted`, a response whose `status` is `failed`, an
+`error` event, a stream that ends before its final event, or a stream that stalls: once the model has
+started, 90 s without an event gives the attempt up (before that, DeepSeek's keep-alives hold it, since the
+request is still queued). A provider that ignores `stream` answers plain JSON, read as before (an empty
+body, DeepSeek's keep-alive blank lines only, counts as interrupted). An answer the model itself cut short
 (`finish_reason` `length`/`content_filter`, a response `incomplete`) fails the job without a retry,
 like the other statuses (400/401/402/403/404/413/422). All attempts share the `LLM_TIMEOUT_SECONDS`
 deadline, and a retry is skipped when less than 30 s would be left, so this never pushes past Vercel's

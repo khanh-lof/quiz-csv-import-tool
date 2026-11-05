@@ -78,7 +78,7 @@ func (c *Client) generateRadicals(ctx context.Context, images []Image, opts Opti
 	model := usage.Model
 	lessons := gatherRadicalsLessons(opts)
 	if slices.ContainsFunc(lessons, needsModel) {
-		text, err := c.respond(ctx, buildRadicalsVocabularyRequest(model, images, opts, lessons), usage)
+		text, err := c.respond(ctx, buildRadicalsVocabularyRequest(model, images, opts, lessons), usage, nil)
 		if err != nil {
 			return Result{}, err
 		}
@@ -99,7 +99,7 @@ func (c *Client) generateRadicals(ctx context.Context, images []Image, opts Opti
 		return Result{}, err
 	}
 	if needs := draft.Needs(); len(needs.Words)+len(needs.Chars)+len(needs.Components) > 0 {
-		text, err := c.respond(ctx, buildRadicalsDetailsRequest(model, needs), usage)
+		text, err := c.respond(ctx, buildRadicalsDetailsRequest(model, needs), usage, nil)
 		if err != nil {
 			return Result{}, err
 		}

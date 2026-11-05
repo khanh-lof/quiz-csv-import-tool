@@ -30,10 +30,16 @@ type Image struct {
 }
 
 type chatRequest struct {
-	Model               string        `json:"model"`
-	Messages            []chatMessage `json:"messages"`
-	MaxCompletionTokens int           `json:"max_completion_tokens"`
-	ReasoningEffort     string        `json:"reasoning_effort,omitempty"`
+	Model               string         `json:"model"`
+	Messages            []chatMessage  `json:"messages"`
+	MaxCompletionTokens int            `json:"max_completion_tokens"`
+	ReasoningEffort     string         `json:"reasoning_effort,omitempty"`
+	Stream              bool           `json:"stream,omitempty"`
+	StreamOptions       *streamOptions `json:"stream_options,omitempty"`
+}
+
+type streamOptions struct {
+	IncludeUsage bool `json:"include_usage"`
 }
 
 type chatMessage struct {
@@ -59,6 +65,7 @@ type responsesRequest struct {
 	Input           []responsesInput `json:"input"`
 	MaxOutputTokens int              `json:"max_output_tokens"`
 	Tools           []responsesTool  `json:"tools,omitempty"`
+	Stream          bool             `json:"stream,omitempty"`
 }
 
 type responsesInput struct {

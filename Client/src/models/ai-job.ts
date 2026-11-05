@@ -28,6 +28,8 @@ export interface AiJob {
   level: number | null;
   lessonNumbers: number[] | null;
   csv: string;
+  // How many rows the model had written when the server last heard, while the job runs; 0 before the first.
+  progressRows: number;
   errorStatus: number;
   errorCode: string;
   errorMessage: string;
