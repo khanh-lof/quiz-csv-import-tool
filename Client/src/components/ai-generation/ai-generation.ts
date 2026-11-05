@@ -3,15 +3,13 @@ import {
   Component,
   DestroyRef,
   HostListener,
-  signal,
-  TemplateRef,
-  viewChild
+  signal
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
-import { Router, RouterLink } from '@angular/router';
-import { NzNotificationComponent, NzNotificationService } from 'ng-zorro-antd/notification';
+import { Router } from '@angular/router';
+import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiCsvService } from '../../services/ai-csv.service';
 import { notifyAiRefusal } from '../../services/ai-refusal';
 import { httpFailure } from '../../models/http-failure';
@@ -138,8 +136,7 @@ type LanguageChoices =Pick<ReturnType<FormGroup<AiGenerationForm>['getRawValue']
     NzSelectComponent,
     NzInputDirective,
     NzSpinComponent,
-    NzTooltipDirective,
-    RouterLink
+    NzTooltipDirective
   ],
   templateUrl: './ai-generation.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -163,7 +160,6 @@ export class AiGeneration {
   protected readonly questionsPerStageMin = QUESTIONS_PER_STAGE_MIN;
   protected readonly questionsPerStageMax = QUESTIONS_PER_STAGE_MAX;
   protected readonly maxLessons = MAX_LESSONS;
-  private readonly jobSentContent = viewChild.required<TemplateRef<{ $implicit: NzNotificationComponent, data: unknown }>>('jobSentContent');
   // One card per game, easiest first.
   protected readonly stages = STAGES;
 
@@ -449,7 +445,7 @@ export class AiGeneration {
         // From here the server works on its own: the page may be left or closed, and the history tab
         // follows the job.
         this.clearAllImages();
-        this.notificationService.info('Đã gửi yêu cầu', this.jobSentContent());
+        this.aiJobService.notifySent();
         // The first polls can come before the job is visible, so keep polling a little longer than usual.
         this.aiJobService.watch(NEW_JOB_IDLE_POLLS);
       },
