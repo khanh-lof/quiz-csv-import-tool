@@ -14,8 +14,8 @@ services:
     buildCommand: go build -trimpath -ldflags="-s -w" -o bin/ai-server ./cmd/ai-server
     startCommand: ./bin/ai-server
     healthCheckPath: /healthz
-    # On a deploy the old instance gets SIGTERM and finishes the AI jobs it is running before it stops.
-    maxShutdownDelaySeconds: 300
+    # No maxShutdownDelaySeconds: a free instance cannot set it, so Render stops it 30 s after SIGTERM. A deploy
+    # cuts off the AI jobs still running then; they are failed as interrupted and their calls given back.
     buildFilter:
       paths:
         - Server/**
