@@ -52,6 +52,16 @@ func (m *MemoryJobs) Fail(_ context.Context, username, id string, failure JobFai
 	})
 }
 
+func (m *MemoryJobs) Progress(_ context.Context, username, id string, rows int) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if j, ok := m.jobs[id]; ok && j.Username == username && j.Status == JobRunning {
+		j.ProgressRows = rows
+		m.jobs[id] = j
+	}
+	return nil
+}
+
 func (m *MemoryJobs) finish(username, id string, apply func(*Job)) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

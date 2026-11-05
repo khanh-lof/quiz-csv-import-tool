@@ -64,6 +64,13 @@ func (m *MongoJobs) Fail(ctx context.Context, username, id string, failure JobFa
 	})
 }
 
+func (m *MongoJobs) Progress(ctx context.Context, username, id string, rows int) error {
+	_, err := m.jobs.UpdateOne(ctx,
+		bson.M{"_id": id, "username": username, "status": JobRunning},
+		bson.M{"$set": bson.M{"progressRows": rows}})
+	return err
+}
+
 // finish only touches a job that is still running, so a job expired as abandoned is not revived by a
 // late answer, and a finished one is never overwritten.
 func (m *MongoJobs) finish(ctx context.Context, username, id string, set bson.M) error {

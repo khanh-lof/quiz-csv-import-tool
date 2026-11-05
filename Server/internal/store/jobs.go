@@ -45,6 +45,9 @@ type Job struct {
 	GestureStages     []int `bson:"gestureStages,omitempty"`
 	QuestionsPerStage *int  `bson:"questionsPerStage,omitempty"`
 
+	// ProgressRows is how many rows of the CSV the model had written when last told, while the job runs; it is
+	// left as it was when the job finishes.
+	ProgressRows int `bson:"progressRows,omitempty"`
 	// CSV is the model's answer; for a Radicals job it is the exercise's JSON (radicals.Exercise).
 	CSV string `bson:"csv"`
 	// Source is, for a Radicals job, what csvgen builds the exercise from (JSON), kept so the teacher's corrections
@@ -91,6 +94,8 @@ type Jobs interface {
 	Complete(ctx context.Context, username, id, csv, source string, usage JobUsage) error
 	// Revise replaces the answer and the source of a done job; ErrNotFound when the user has no done job by that id.
 	Revise(ctx context.Context, username, id, csv, source string) error
+	// Progress records how many rows a running job has written so far. Finished jobs are left alone.
+	Progress(ctx context.Context, username, id string, rows int) error
 	// Fail marks a running job as failed. Finished jobs are left alone.
 	Fail(ctx context.Context, username, id string, failure JobFailure, usage JobUsage) error
 	// Get returns one job; ErrNotFound when the user has no such job, which includes another user's.

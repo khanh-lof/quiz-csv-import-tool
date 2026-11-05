@@ -93,6 +93,7 @@ function gestureJob(overrides: Partial<AiJob> = {}): AiJob {
     csv: DEMO_QUIZ_CSV,
     errorStatus: 0,
     errorCode: '',
+    progressRows: 0,
     errorMessage: '',
     createdAt: '2026-10-13T00:00:00Z',
     finishedAt: null, ...overrides,

@@ -66,6 +66,16 @@ func testJobs(t *testing.T, jobs Jobs) {
 	}
 
 	// Complete and Fail finish a running job once, and only for its owner.
+	// Progress is recorded on the owner's running job only.
+	if err := jobs.Progress(ctx, "bob", "new", 9); err != nil {
+		t.Fatal(err)
+	}
+	if err := jobs.Progress(ctx, "alice", "new", 3); err != nil {
+		t.Fatal(err)
+	}
+	if j, _ := jobs.Get(ctx, "alice", "new"); j.ProgressRows != 3 {
+		t.Fatalf("progress of a running job: %+v", j)
+	}
 	if err := jobs.Complete(ctx, "bob", "new", "stolen", "", JobUsage{}); err != nil {
 		t.Fatal(err)
 	}

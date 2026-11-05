@@ -28,7 +28,9 @@ type Client struct {
 	timeLimit time.Duration
 	// baseBackoff is the first retry delay, doubled per attempt; tests shrink it.
 	baseBackoff time.Duration
-	logger      *slog.Logger
+	// stallTimeout is how long a streamed answer may stay silent (see stallTimeout); tests shrink it.
+	stallTimeout time.Duration
+	logger       *slog.Logger
 }
 
 func NewClient(baseURL, apiKey, model string, intelligenceModels []string, timeLimit time.Duration, logger *slog.Logger) *Client {
@@ -42,6 +44,7 @@ func NewClient(baseURL, apiKey, model string, intelligenceModels []string, timeL
 		intelligenceModels: intelligenceModels,
 		timeLimit:          timeLimit,
 		baseBackoff:        defaultBaseBackoff,
+		stallTimeout:       stallTimeout,
 		logger:             logger,
 	}
 }
@@ -109,16 +112,22 @@ func (t tokenUsage) cached() int {
 // simple mode stays on /chat/completions. A Radicals exercise is not a CSV: Generate returns its JSON
 // (see generateRadicals).
 func (c *Client) Generate(ctx context.Context, images []Image, creative bool, opts Options) (Result, error) {
+	return c.GenerateWithProgress(ctx, images, creative, opts, nil)
+}
+
+// GenerateWithProgress is Generate that also reports, through onRows when it is not nil, how many rows of the CSV
+// the model has written so far; a retry starts again from 0. A Radicals exercise reports none.
+func (c *Client) GenerateWithProgress(ctx context.Context, images []Image, creative bool, opts Options, onRows func(rows int)) (Result, error) {
 	usage := &Usage{Model: c.model}
 	if creative {
 		usage.Model = c.modelFor(opts)
 	}
-	result, err := c.generate(ctx, images, creative, opts, usage)
+	result, err := c.generate(ctx, images, creative, opts, usage, onRows)
 	result.Usage = *usage
 	return result, err
 }
 
-func (c *Client) generate(ctx context.Context, images []Image, creative bool, opts Options, usage *Usage) (Result, error) {
+func (c *Client) generate(ctx context.Context, images []Image, creative bool, opts Options, usage *Usage, onRows func(int)) (Result, error) {
 	if creative && opts.ExportType == Radicals {
 		return c.generateRadicals(ctx, images, opts, usage)
 	}
@@ -127,9 +136,9 @@ func (c *Client) generate(ctx context.Context, images []Image, creative bool, op
 		err     error
 	)
 	if creative {
-		content, err = c.respond(ctx, buildCreativeRequest(usage.Model, c.timeLimit, images, opts), usage)
+		content, err = c.respond(ctx, buildCreativeRequest(usage.Model, c.timeLimit, images, opts), usage, onRows)
 	} else {
-		content, err = c.complete(ctx, buildSimpleRequest(usage.Model, images, opts.Language), usage)
+		content, err = c.complete(ctx, buildSimpleRequest(usage.Model, images, opts.Language), usage, onRows)
 	}
 	if err != nil {
 		return Result{}, err
@@ -137,40 +146,58 @@ func (c *Client) generate(ctx context.Context, images []Image, creative bool, op
 	return Result{CSV: ExtractCSVContent(content)}, nil
 }
 
-// post sends req as JSON to path and returns the model's text, read by parse from the body of a 2xx
-// response. It retries transient failures, including a generation interrupted inside a 2xx response
-// (see withRetry), which is why parse runs in each attempt. Every attempt is counted in usage and logged in one
-// line, with the body only when the attempt failed, or at Debug.
-func (c *Client) post(ctx context.Context, path string, req any, parse func([]byte) (string, tokenUsage, error), usage *Usage) (string, error) {
+// answerFormat reads the 2xx answer of one endpoint, whole (parse) or streamed (stream).
+type answerFormat struct {
+	parse  func([]byte) (string, tokenUsage, error)
+	stream func(body io.Reader, seen func(real bool), rows *rowCounter) (string, tokenUsage, error)
+}
+
+var (
+	completionFormat = answerFormat{parse: parseCompletion, stream: streamCompletion}
+	responseFormat   = answerFormat{parse: parseResponse, stream: streamResponse}
+)
+
+// post sends req as JSON to path and returns the model's text. It retries transient failures, including a
+// generation interrupted or stalled inside a 2xx answer (see withRetry), which is why the answer is read in each
+// attempt. Every attempt is counted in usage and logged in one line, with the start of the body only when the
+// attempt failed, or at Debug.
+func (c *Client) post(ctx context.Context, path string, req any, format answerFormat, usage *Usage, onRows func(int)) (string, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return "", err
 	}
+	reported := false
 	return c.withRetry(ctx, path, func() (string, error) {
 		usage.Calls++
+		var rows *rowCounter
+		if onRows != nil {
+			if reported {
+				onRows(0)
+			}
+			rows = &rowCounter{report: func(n int) {
+				reported = true
+				onRows(n)
+			}}
+		}
 		started := time.Now()
-		reply, err := c.postOnce(ctx, path, body)
+		text, tokens, reply, err := c.postOnce(ctx, path, body, format, rows)
+		usage.add(tokens)
 		attrs := []any{"path", path, "model", usage.Model, "attempt", usage.Calls, "durationMs", time.Since(started).Milliseconds()}
 		if reply != nil {
 			// x-request-id identifies this attempt to the provider's support.
-			attrs = append(attrs, "status", reply.status, "requestId", reply.requestID, "bytes", len(reply.body))
+			attrs = append(attrs, "status", reply.status, "requestId", reply.requestID, "streamed", reply.streamed,
+				"bytes", reply.bytes)
 		}
+		attrs = append(attrs, "inputTokens", tokens.input(), "cachedTokens", tokens.cached(), "outputTokens", tokens.output())
 		if err != nil {
 			if reply != nil {
-				attrs = append(attrs, "body", bodyForLog(reply.body))
+				attrs = append(attrs, "body", reply.bodyForLog())
 			}
 			c.logger.Warn("LLM call failed", append(attrs, "error", err)...)
 			return "", err
 		}
-		text, tokens, err := parse(reply.body)
-		usage.add(tokens)
-		attrs = append(attrs, "inputTokens", tokens.input(), "cachedTokens", tokens.cached(), "outputTokens", tokens.output())
-		if err != nil {
-			c.logger.Warn("LLM call failed", append(attrs, "error", err, "body", bodyForLog(reply.body))...)
-			return "", err
-		}
 		c.logger.Info("LLM call", attrs...)
-		c.logger.Debug("LLM answer", "path", path, "body", bodyForLog(reply.body))
+		c.logger.Debug("LLM answer", "path", path, "body", reply.bodyForLog())
 		return text, nil
 	})
 }
@@ -179,61 +206,103 @@ func (c *Client) post(ctx context.Context, path string, req any, parse func([]by
 // an answer, not a whole quiz, which is user content and can be hundreds of KB.
 const maxLoggedBody = 2048
 
-func bodyForLog(body []byte) string {
-	if len(body) <= maxLoggedBody {
-		return string(body)
-	}
-	return string(body[:maxLoggedBody]) + "…"
-}
-
-// llmReply is one HTTP answer from the provider.
+// llmReply is what one HTTP answer from the provider was, for the log: its first maxLoggedBody bytes only.
 type llmReply struct {
 	status    int
 	requestID string
-	body      []byte
+	streamed  bool
+	bytes     int
+	head      []byte
 }
 
-// postOnce returns the reply along with the error of a non-2xx or empty answer, so the caller can log it.
-func (c *Client) postOnce(ctx context.Context, path string, body []byte) (*llmReply, error) {
+func (r *llmReply) bodyForLog() string {
+	if r.bytes > len(r.head) {
+		return string(r.head) + "…"
+	}
+	return string(r.head)
+}
+
+// headRecorder passes a body through, counting its bytes and keeping its start in reply.
+type headRecorder struct {
+	body  io.Reader
+	reply *llmReply
+}
+
+func (h *headRecorder) Read(p []byte) (int, error) {
+	n, err := h.body.Read(p)
+	h.reply.bytes += n
+	if room := maxLoggedBody - len(h.reply.head); room > 0 {
+		h.reply.head = append(h.reply.head, p[:min(n, room)]...)
+	}
+	return n, err
+}
+
+// postOnce makes one attempt and reads its answer: the model's text and the tokens billed, and the reply for the
+// log whenever there was one. A streamed answer that goes silent for stallTimeout is given up as interrupted, so
+// the retry can try again while time is left.
+func (c *Client) postOnce(ctx context.Context, path string, body []byte, format answerFormat, rows *rowCounter) (string, tokenUsage, *llmReply, error) {
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(body))
 	if err != nil {
-		return nil, err
+		return "", tokenUsage{}, nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
 	resp, err := c.http.Do(httpReq)
 	if err != nil {
-		return nil, &transportError{err}
+		return "", tokenUsage{}, nil, &transportError{err}
 	}
 	defer resp.Body.Close()
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, &transportError{fmt.Errorf("reading LLM response: %w", err)}
+	reply := &llmReply{
+		status: resp.StatusCode, requestID: resp.Header.Get("X-Request-Id"), streamed: isEventStream(resp.Header.Get("Content-Type")),
 	}
-	reply := &llmReply{status: resp.StatusCode, requestID: resp.Header.Get("X-Request-Id"), body: respBody}
+	recorder := &headRecorder{body: resp.Body, reply: reply}
+
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		respBody, err := io.ReadAll(recorder)
+		if err != nil {
+			return "", tokenUsage{}, reply, &transportError{fmt.Errorf("reading LLM response: %w", err)}
+		}
 		var envelope struct {
 			Error struct {
 				Code string `json:"code"`
 			} `json:"error"`
 		}
 		_ = json.Unmarshal(respBody, &envelope)
-		return reply, &StatusError{
+		return "", tokenUsage{}, reply, &StatusError{
 			Status:     resp.StatusCode,
 			Code:       envelope.Error.Code,
 			RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After")),
 		}
 	}
+
+	if reply.streamed {
+		watchdog := newStallWatchdog(c.stallTimeout, func() { cancel(errStalled) })
+		defer watchdog.stop()
+		text, tokens, err := format.stream(recorder, watchdog.seen, rows)
+		if err != nil && errors.Is(context.Cause(ctx), errStalled) {
+			err = &interruptedError{errStalled.Error()}
+		}
+		return text, tokens, reply, err
+	}
+
+	respBody, err := io.ReadAll(recorder)
+	if err != nil {
+		return "", tokenUsage{}, reply, &transportError{fmt.Errorf("reading LLM response: %w", err)}
+	}
 	if len(bytes.TrimSpace(respBody)) == 0 {
 		// Only the keep-alive blank lines came: the connection closed before the answer.
-		return reply, &interruptedError{"empty response"}
+		return "", tokenUsage{}, reply, &interruptedError{"empty response"}
 	}
-	return reply, nil
+	text, tokens, err := format.parse(respBody)
+	return text, tokens, reply, err
 }
 
-func (c *Client) complete(ctx context.Context, req chatRequest, usage *Usage) (string, error) {
-	return c.post(ctx, "/chat/completions", req, parseCompletion, usage)
+func (c *Client) complete(ctx context.Context, req chatRequest, usage *Usage, onRows func(int)) (string, error) {
+	req.Stream, req.StreamOptions = true, &streamOptions{IncludeUsage: true}
+	return c.post(ctx, "/chat/completions", req, completionFormat, usage, onRows)
 }
 
 func parseCompletion(respBody []byte) (string, tokenUsage, error) {
@@ -254,22 +323,29 @@ func parseCompletion(respBody []byte) (string, tokenUsage, error) {
 		return "", tokens, &badOutputError{errors.New("LLM response has no choices")}
 	}
 	choice := completion.Choices[0]
-	switch choice.FinishReason {
-	case "insufficient_system_resource", "aborted":
-		return "", tokens, &interruptedError{choice.FinishReason}
-	case "length", "content_filter":
-		// The rows are cut off; answering with them would import a broken quiz.
-		return "", tokens, &incompleteError{choice.FinishReason}
-	}
 	content := ""
 	if msg := choice.Message.Content; msg != nil {
 		content = *msg
 	}
-	return content, tokens, nil
+	content, err := completionOutcome(content, choice.FinishReason)
+	return content, tokens, err
 }
 
-func (c *Client) respond(ctx context.Context, req responsesRequest, usage *Usage) (string, error) {
-	return c.post(ctx, "/responses", req, parseResponse, usage)
+// completionOutcome is the answer of a chat completion that finished for finish.
+func completionOutcome(content, finish string) (string, error) {
+	switch finish {
+	case "insufficient_system_resource", "aborted":
+		return "", &interruptedError{finish}
+	case "length", "content_filter":
+		// The rows are cut off; answering with them would import a broken quiz.
+		return "", &incompleteError{finish}
+	}
+	return content, nil
+}
+
+func (c *Client) respond(ctx context.Context, req responsesRequest, usage *Usage, onRows func(int)) (string, error) {
+	req.Stream = true
+	return c.post(ctx, "/responses", req, responseFormat, usage, onRows)
 }
 
 func parseResponse(respBody []byte) (string, tokenUsage, error) {

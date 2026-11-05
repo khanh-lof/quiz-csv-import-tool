@@ -14,7 +14,7 @@ import (
 
 // Generator produces quiz CSV from lesson images; implemented by *csvgen.Client.
 type Generator interface {
-	Generate(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (csvgen.Result, error)
+	GenerateWithProgress(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options, onRows func(rows int)) (csvgen.Result, error)
 }
 
 type Server struct {

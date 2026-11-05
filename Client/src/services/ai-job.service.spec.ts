@@ -29,6 +29,7 @@ function job(id: string, status: AiJob['status'], overrides: Partial<AiJob> = {}
     csv: '',
     errorStatus: 0,
     errorCode: '',
+    progressRows: 0,
     errorMessage: '',
     createdAt: '2026-10-13T00:00:00Z',
     finishedAt: null, ...overrides,
