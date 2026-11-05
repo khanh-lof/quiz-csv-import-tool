@@ -21,7 +21,7 @@ func generatedRadicals(t *testing.T) Result {
 	vocabulary = strings.Replace(vocabulary, `"meaning":"giảng"}`, `"meaning":"giảng","uncertain":true}`, 1)
 	vocabulary = strings.Replace(vocabulary, `]}]}`, `,{"hanzi":"好人","pinyin":"xian","meaning":"người tốt"}]}]}`, 1)
 	llm, _ := fakeRadicalsModel(t, vocabulary)
-	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
 	result, err := c.Generate(context.Background(), nil, true, Options{
 		ExportType: Radicals, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{1},
 	})

@@ -97,12 +97,12 @@ func minTime(a, b time.Time) time.Time {
 
 // StageResult is a player's best finished run of one stage, and how many runs of it they started.
 type StageResult struct {
-	Correct  int  `bson:"correct"`
-	Total    int  `bson:"total"`
-	Attempts int  `bson:"attempts"`
-	Passed   bool `bson:"passed"`
+	Correct  int  `bson:"correct" json:"correct"`
+	Total    int  `bson:"total" json:"total"`
+	Attempts int  `bson:"attempts" json:"attempts"`
+	Passed   bool `bson:"passed" json:"passed"`
 	// BestAt is when the best score was reached, or the pass made: the leaderboard breaks ties by it.
-	BestAt time.Time `bson:"bestAt"`
+	BestAt time.Time `bson:"bestAt" json:"bestAt"`
 }
 
 // Player is one student of one assignment. The browser keeps the token; only its hash is stored, as
@@ -142,27 +142,27 @@ func (p *Player) RunsStarted(stage string) int {
 // asked, how each was shown and, once answered, how it went. It holds no answer text; the right answer is
 // found in the assignment's quiz by each question's Item.
 type Run struct {
-	ID         string        `bson:"id"`
-	Stage      string        `bson:"stage"` // "1" to "6", like Assignment.StageCounts
-	StartedAt  time.Time     `bson:"startedAt"`
-	FinishedAt *time.Time    `bson:"finishedAt,omitempty"`
-	Questions  []RunQuestion `bson:"questions"` // in the order asked
+	ID         string        `bson:"id" json:"id"`
+	Stage      string        `bson:"stage" json:"stage"` // "1" to "6", like Assignment.StageCounts
+	StartedAt  time.Time     `bson:"startedAt" json:"startedAt"`
+	FinishedAt *time.Time    `bson:"finishedAt,omitempty" json:"finishedAt,omitempty"`
+	Questions  []RunQuestion `bson:"questions" json:"questions"` // in the order asked
 }
 
 // RunQuestion is one question of a Run.
 type RunQuestion struct {
 	// Item is the index of the question in its stage's list of parsed questions (CSV order).
-	Item int `bson:"item"`
+	Item int `bson:"item" json:"item"`
 	// Options are the answers as shown: stage 1 always "Đúng" then "Sai", stages 2 to 5 shuffled.
-	Options []string `bson:"options,omitempty"`
+	Options []string `bson:"options,omitempty" json:"options,omitempty"`
 	// Chunks are the pieces of a stage 6 sentence, shuffled to an order that is not the answer.
-	Chunks []string `bson:"chunks,omitempty"`
+	Chunks []string `bson:"chunks,omitempty" json:"chunks,omitempty"`
 	// ServedAt is when the question was handed to the player, which is when its clock started; nil for
 	// one not asked yet. AnsweredAt is when its answer was judged; nil while it is open.
-	ServedAt   *time.Time `bson:"servedAt,omitempty"`
-	AnsweredAt *time.Time `bson:"answeredAt,omitempty"`
-	Correct    bool       `bson:"correct"`
-	TimedOut   bool       `bson:"timedOut"`
+	ServedAt   *time.Time `bson:"servedAt,omitempty" json:"servedAt,omitempty"`
+	AnsweredAt *time.Time `bson:"answeredAt,omitempty" json:"answeredAt,omitempty"`
+	Correct    bool       `bson:"correct" json:"correct"`
+	TimedOut   bool       `bson:"timedOut" json:"timedOut"`
 }
 
 // TimeChange says what to do with one time of an assignment in an update.
@@ -184,7 +184,7 @@ func (u AssignmentUpdate) isEmpty() bool {
 	return u.Label == nil && u.ShowPinyin == nil && !u.ClosesAt.Set && !u.ClosedAt.Set
 }
 
-// Assignments is implemented by MongoAssignments (production) and MemoryAssignments (tests). The
+// Assignments is implemented by PostgresAssignments (production) and MemoryAssignments (tests). The
 // teacher-side methods take the owner's username, so a user can never read or change another's
 // assignments; the student-side ones (GetByCode and the player methods) work from the public code or
 // the player's own token, and the handlers decide what a student may see.
@@ -217,9 +217,9 @@ type Assignments interface {
 	// ErrNotFound if none.
 	PlayerByToken(ctx context.Context, assignmentID, tokenHash string) (*Player, error)
 	// UpdatePlayer reads the player, calls change on a copy of it and writes back what change did to its
-	// results (Stages), Started, Run and LastPlayedAt, only if no other write got there first; it
-	// re-reads and retries when one did, like Users.UpdateSessions, and fails with ErrConflict if that
-	// keeps happening. change may therefore run more than once, must not call the store, and sees
+	// results (Stages), Started, Run and LastPlayedAt, holding off every other UpdatePlayer of that player
+	// in between, so two requests of one player at the same moment (two tabs, a double tap, an answer
+	// racing the next question) cannot overwrite each other's run. change must not call the store, and sees
 	// non-nil Stages and Started. When it returns an error nothing is written and that error comes back
 	// unchanged, so a handler can use its own sentinels and capture the fresh player in a closure.
 	// ErrNotFound when the assignment has no such player. It returns the player as written.
@@ -258,7 +258,7 @@ func MergeRun(p *Player, stage string, correct, total int, passed bool, now time
 	p.Stages[stage] = r
 }
 
-// storedTime is a time the way it comes back from MongoDB, which keeps UTC milliseconds. Both
+// storedTime is a time in UTC milliseconds, the precision the data copied from MongoDB has. Both
 // implementations store times through it, so a value reads back identical from either.
 func storedTime(t time.Time) time.Time {
 	return t.UTC().Truncate(time.Millisecond)

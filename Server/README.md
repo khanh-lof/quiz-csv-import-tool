@@ -2,12 +2,13 @@
 
 A Go HTTP API that turns photos of Chinese vocabulary into a quiz. Users log in with a JWT-based
 auth flow, upload one or more images, and an LLM vision call converts the vocabulary into a CSV of
-questions and answers. Users, sessions and the per-user AI rate limit are stored in MongoDB.
+questions and answers. Users, sessions, AI jobs, assignments and the per-user AI rate limit are stored in
+PostgreSQL.
 
 ## Requirements
 
 - Go 1.27+
-- MongoDB (local, Docker, or a hosted cluster such as Atlas)
+- PostgreSQL 13+ (local, Docker/Podman, or hosted such as Render Postgres)
 - An OpenAI-compatible chat-completions endpoint for CSV generation (optional locally — the rest of
   the API works without it)
 
@@ -15,8 +16,8 @@ questions and answers. Users, sessions and the per-user AI rate limit are stored
 
 ```bash
 cp .env.example .env        # then fill in JWT_SECRET, ADMIN_API_KEY, LLM settings
-docker compose up -d mongo  # or point MONGODB_URI at your own MongoDB
-go run ./cmd/server         # http://localhost:7071
+docker compose up -d postgres  # or point DATABASE_URL at your own PostgreSQL
+go run ./cmd/server           # http://localhost:7071; creates the tables on start
 ```
 
 Or run everything in containers: `docker compose up --build`.
@@ -46,13 +47,15 @@ curl -X POST http://localhost:7071/api/users \
 ## Configuration
 
 All configuration is via environment variables; `.env.example` lists every one with its default.
-`MONGODB_URI` and `JWT_SECRET` are required. The API has no CORS support: it must be served from the
+`DATABASE_URL` and `JWT_SECRET` are required. The API has no CORS support: it must be served from the
 same origin as the web client (the refresh cookie is `SameSite=Strict`).
 
 ## Deployment
 
-On Vercel, the API deploys together with the client as the `server` service of the root
-`vercel.json` (Go preset, `cmd/server`). Set the env vars above in the Vercel project.
+On Render, the API is the Go web service of the root `render.yaml` Blueprint, next to the client's static
+site (which rewrites `/api/*` to it, by a rule set in the dashboard) and the PostgreSQL database.
+`DATABASE_URL` and `JWT_SECRET` come from the Blueprint; set `APP_ORIGIN` (the static site's URL), the LLM
+settings and `ADMIN_API_KEY` when Render asks for them.
 
 Elsewhere, build the image from `Dockerfile` (static binary on distroless, listens on `PORT`, default 8080 in
 the image) and run it anywhere containers run, behind a reverse proxy that serves the client on the
@@ -64,15 +67,26 @@ Export the old container as a JSON array (e.g. `SELECT * FROM c` in Cosmos Data 
 results), then:
 
 ```bash
-MONGODB_URI=... go run ./cmd/import-users users.json
+DATABASE_URL=... go run ./cmd/import-users users.json
 ```
 
 Password hashes are compatible, so users keep their passwords. Sessions are not migrated; everyone
 logs in again.
 
+## Moving the data from MongoDB
+
+The server used MongoDB before. `cmd/migrate-mongo` copies users (with their sessions), AI jobs,
+assignments and players into PostgreSQL; stop the old deployment first, then:
+
+```bash
+MONGODB_URI=mongodb+srv://... DATABASE_URL=postgres://... go run ./cmd/migrate-mongo
+```
+
+Rows already in PostgreSQL are skipped, so it can be run again after a failure.
+
 ## Tests
 
 ```bash
 go test ./...
-MONGODB_TEST_URI=mongodb://localhost:27017 go test ./internal/store/   # MongoDB integration tests
+POSTGRES_TEST_URL=postgres://quiz:quiz@localhost:5432/quiz go test ./internal/store/   # PostgreSQL integration tests
 ```

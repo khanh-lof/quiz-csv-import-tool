@@ -13,18 +13,22 @@ missing component, see [Ghép bộ thủ](#ghép-bộ-thủ-the-radicals-exercis
 and independently deployed projects, plus an optional browser extension:
 
 - `Client/` — Angular 22 SPA (standalone components, ng-zorro-antd).
-- `Server/` — Go (`net/http`) API with MongoDB persistence. Runs as a standalone binary / Docker
+- `Server/` — Go (`net/http`) API with PostgreSQL persistence. Runs as a standalone binary / Docker
   image (`Server/Dockerfile`).
 - `Extension/` — Chrome extension (plain JS, loaded unpacked, not deployed) that imports and
   publishes the Wayground `.xlsx` in the user's own Wayground tab. See [Extension/AGENTS.md](Extension/AGENTS.md).
 
-Both deploy together as one Vercel project via [Vercel Services](https://vercel.com/docs/services),
-configured in the root `vercel.json`: the `client` service (Angular preset, SPA fallback to
-`index.html`) and the `server` service (Go preset, which runs `Server/cmd/server` listening on
-`PORT`). Top-level rewrites send `/api/*` and `/healthz` to `server` — with the path unchanged, so
-the Go mux still sees `/api/...` — and everything else to `client`. The Vercel project's Root
-Directory must be the repo root, and the server's env vars (`MONGODB_URI`, `JWT_SECRET`, …) are set
-in the same project.
+Both deploy to Render from the root `render.yaml` Blueprint: the client as a **static site**
+(`kt-quiz-ai-tool`, built in `Client/`, published from `Client/dist/quiz-tool/browser`), the server as a
+Go **web service** (`kt-quiz-ai-tool-api`, which builds and runs `Server/cmd/server` listening on `PORT`,
+health check `/healthz`), and a **PostgreSQL** database (`kt-quiz-db`) whose internal URL the Blueprint hands the
+server as `DATABASE_URL`. The static site's first rewrite rule sends `/api/*` to the web service's public URL — with
+the path unchanged, so the Go mux still sees `/api/...` — and the second sends every other path to `index.html`
+(the SPA fallback). The production URLs are kept out of this public repo: the two rules are added by hand under
+the static site's Redirects/Rewrites in the dashboard (a Blueprint sync keeps rules `render.yaml` does not list),
+and the site's own URL reaches the server as `APP_ORIGIN`. The server's secret env vars (`APP_ORIGIN`,
+`OPENAI_API_KEY`, `ADMIN_API_KEY`, …) are `sync: false`, so Render asks for them when the Blueprint is created;
+`JWT_SECRET` is generated. The services' `buildFilter`s deploy each only when its own folders change.
 
 Each project has its own `AGENTS.md` with the detail for that side — read
 [Client/AGENTS.md](Client/AGENTS.md), [Server/AGENTS.md](Server/AGENTS.md) or
@@ -47,22 +51,24 @@ npm run build    # ng build (production)
 Server (run from `Server/`):
 ```bash
 go test ./...
-go run ./cmd/server   # http://localhost:7071; needs MongoDB and a .env (see Server/.env.example)
+go run ./cmd/server   # http://localhost:7071; needs PostgreSQL and a .env (see Server/.env.example)
 ```
 
 Running the full app locally means starting both: the SPA on 4200 and the API on 7071. `ng serve`
 proxies `/api` to 7071 (`Client/proxy.conf.json`), so the browser only ever talks to 4200.
 
-**Local MongoDB (Podman).** The server needs MongoDB at `MONGODB_URI` (`mongodb://localhost:27017` in `Server/.env`).
-Run it as a Podman container named `quiz-mongo` (image `mongo:8`, port 27017, data in the container's volume):
+**Local PostgreSQL (Podman).** The server needs PostgreSQL at `DATABASE_URL`
+(`postgres://quiz:quiz@localhost:5432/quiz?sslmode=disable` in `Server/.env`) and creates its tables on start.
+Run it as a Podman container named `quiz-postgres` (image `postgres:17`, port 5432, data in a named volume):
 ```bash
-podman ps -a --filter name=quiz-mongo        # check it first
-podman start quiz-mongo                      # if it exists but is stopped
-podman run -d --name quiz-mongo -p 27017:27017 -v quiz-mongo-data:/data/db mongo:8   # first time only
-podman stop quiz-mongo                       # when done; the data stays
+podman ps -a --filter name=quiz-postgres     # check it first
+podman start quiz-postgres                   # if it exists but is stopped
+podman run -d --name quiz-postgres -e POSTGRES_USER=quiz -e POSTGRES_PASSWORD=quiz -e POSTGRES_DB=quiz -p 5432:5432 -v quiz-postgres-data:/var/lib/postgresql/data postgres:17   # first time only
+podman exec -it quiz-postgres psql -U quiz -d quiz   # a SQL shell
+podman stop quiz-postgres                    # when done; the data stays
 ```
-`podman compose up -d mongo` in `Server/` does the same through `compose.yaml`. If Podman's machine is not running,
-`podman machine start` first. Leave a container that was already running as it was found.
+`podman compose up -d postgres` in `Server/` does the same through `compose.yaml`. If Podman's machine is not
+running, `podman machine start` first. Leave a container that was already running as it was found.
 
 **Verifying a UI change.** Start both with `preview_start` (`quiz-tool-client`, `quiz-tool-server` in
 `.claude/launch.json`), never with a shell command, and open `http://localhost:4200/<page>` in the Browser pane.
@@ -100,8 +106,9 @@ no configurable backend URL:
 
 Three things make the wiring non-obvious:
 
-- **Same-origin everywhere, no CORS.** On Vercel the SPA and API are services of one deployment
-  (every preview included); locally the `ng serve` proxy puts them on one origin too. The server
+- **Same-origin everywhere, no CORS.** On Render the static site rewrites `/api/*` to the web service, so the
+  browser only ever talks to the static site's origin; locally the `ng serve` proxy puts them on one origin too.
+  The web service's own `onrender.com` URL also answers, but the SPA never calls it. The server
   therefore has no CORS handling, and the refresh token is an `HttpOnly; Secure; SameSite=Strict`
   cookie (`Secure` is accepted on `http://localhost`). Serving the SPA and API from different
   origins is not supported: the browser would block the calls and never send the cookie, breaking
@@ -123,7 +130,7 @@ Three things make the wiring non-obvious:
 This is the one feature that only makes sense by reading both sides. The AI generation page
 (`AiGeneration`, route `/ai`) offers `AIGenerationMode.Formatted` and `AIGenerationMode.Auto`, and they take
 completely different paths through the system. First, what they share — **AI generation is a job**: `POST csv/jobs`
-validates the request, stores a job in MongoDB (`store.Job`, collection `Jobs`, newest 30 kept per user),
+validates the request, stores a job in PostgreSQL (`store.Job`, table `jobs`, newest 30 kept per user),
 answers `202 {"id"}` and keeps working in the same handler, detached from the client's connection, until
 the model has answered and the result is saved on the job. The client does not wait for the result: the
 `AiGeneration` page shows a "Đã gửi yêu cầu" notice, and the history table on its own page, "AI › Lịch sử" in the side menu (`/ai-history`, `AiJobs`), shows
@@ -185,12 +192,12 @@ Consequences to keep in mind when changing anything here:
   on the server describing the same columns to the LLM, and the enum entry on both sides. `GestureQuiz`
   bends the first one: its builder only prepends the header (the "columns" are the ones the game's own
   parser reads), and it throws if the vocabulary table ever asks it to build rows.
-- A job outlives the connection that started it only if the host keeps the process alive after the
-  client leaves. The handler flushes its `202` early with `Connection: close` and goes on working;
-  where the platform buffers the response until the handler ends (Vercel's behaviour for a Go
-  service is unverified), the client just gets the `202` late and polling still shows the job. A job
-  still `running` well past the LLM deadline (its process died) is failed as "interrupted" and its
-  call refunded the next time its owner lists jobs.
+- A job outlives the connection that started it because the server is a long-lived process (a Render web
+  service, not a function). The handler flushes its `202` early with `Connection: close` and goes on working,
+  as long as the model needs: a generation has no time limit. While it works it records a heartbeat on the job
+  every 30 s; a job still `running` with no heartbeat for 3 minutes (its process died) is failed as
+  "interrupted" and its call refunded the next time its owner lists jobs. On a deploy the old instance waits
+  for its running jobs before it stops (up to Render's `maxShutdownDelaySeconds`, 300 s).
 - Export output format is per-platform: GimKit, Blooket and Game download as `.csv`, Wayground is
   converted to `.xlsx` via `xlsx` before download (`FileExportService.download`).
 
@@ -284,20 +291,19 @@ is `WaygroundExtensionService`:
   ignores request ids it didn't send. On a failed result it downloads the file it kept for that
   request, so the user can finish the import by hand.
 
-The message shapes and the QuizTool origins the
-extension listens on (`Extension/manifest.json`: production `https://kt-quiz-csv-import-tool.vercel.app`
-and `http://localhost:4200`; Vercel preview URLs are not included) are hand-kept in step on both
-sides. Quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in
-`Extension/selectors.js`).
+The message shapes are hand-kept in step on both sides. The QuizTool origins the extension listens on are
+`http://localhost:4200` in `Extension/manifest.json`, plus the production URL, which is not in the repo: packing
+the zip (`extension.Pack`) adds the server's `APP_ORIGIN` (the static site's URL, or a custom domain) to the bridge
+script's `matches`, and refuses a value that is not an `http(s)://host` origin. Quizzes are published publicly with
+fixed settings (`PUBLISH_SETTINGS` in `Extension/selectors.js`).
 
 Logged-in users download the extension from the web app: `GET api/extension` (authenticated like
 `csv/jobs`) answers the zip of `Extension/` (without `AGENTS.md`, under a `QuizTool-Extension/` folder), and
 the usage guides of the AI and table pages fetch it with the token (`WaygroundExtensionService.downloadExtension`;
-the table, open to anonymous users, shows the link only when logged in). The Go build cannot reach outside
-`Server/`, so the zip is never committed: the server service's `buildCommand` in `vercel.json` runs `go generate
-./internal/extension` (with `GOOS`/`GOARCH` cleared, so the generator runs on the build machine) and then the
-`go build` to `$VERCEL_OUTPUT_FILE` itself, since a Go service's `buildCommand` replaces Vercel's own build. The
-generator packs `../Extension` into `Server/internal/extension/packed/` (gitignored), and the
+the table, open to anonymous users, shows the link only when logged in). Go's `embed` cannot reach outside
+`Server/`, so the zip is never committed: the web service's `buildCommand` in `render.yaml` runs `go generate
+./internal/extension` before the `go build`, and the service has no `rootDir`, so the build has the whole repo.
+The generator packs `../Extension` into `Server/internal/extension/packed/` (gitignored), and the
 binary embeds it. A build without it (`go run ./cmd/server`, the Docker image) packs `../Extension` from disk
 on the first download, or answers 404 `Extension not available.` when the folder is not there.
 
@@ -630,7 +636,7 @@ model only answers what needs language knowledge, and `Server/internal/radicals`
 ## Rate limiting
 
 AI calls are capped per user (`CALL_COUNT_ACCEPTED_IN_A_ROUND` per `ROUND_MINUTES`), with the counter
-stored on the user's MongoDB document. The client has no matching UI state — it discovers the limit
+stored on the user's row in PostgreSQL. The client has no matching UI state — it discovers the limit
 only as a `403` with a plain-text body from `POST csv/jobs`, which
 `AiGeneration.showGenerationError` turns into a "Hết lượt dùng AI" notification (a `403` with an
 empty body is the role check instead, shown as "Không có quyền"). A job whose generation fails (recorded as
@@ -640,20 +646,19 @@ Login is limited separately, per username (`LOGIN_MAX_ATTEMPTS` per `LOGIN_WINDO
 [Server/AGENTS.md](Server/AGENTS.md)): beyond it `auth/login` answers `429` with `Retry-After`, which the login
 page shows as the minutes to wait.
 
-## Upload size and LLM timeout (Vercel limits)
-
-Vercel functions reject request bodies over 4.5 MB (413) and stop after 300 s by default (504). The
-two sides guard against both:
+## Upload size and long AI jobs
 
 - The client shrinks images before upload (`ImageCompressionService.compressForUpload`): JPEG,
   longest side 2048 px, stepping down in size/quality until the batch fits a 4 MB budget, else it
-  refuses the upload itself.
-- The server bounds each LLM call with `LLM_TIMEOUT_SECONDS` (default 280, under Vercel's limit); hitting
-  it fails the job with `504 AI generation timed out.` and refunds the call. The upload itself is a
-  separate, short request, so only the generation can hit the time limit.
+  refuses the upload itself. The server refuses bodies over 50 MB (`maxUploadBytes`, 413).
+- A generation has no time limit, on either side: the upload is a short request answered `202`, and the job
+  runs in the server's process until the model is done (see the heartbeat under
+  [the two AI generation modes](#the-two-ai-generation-modes)). No API request waits for the model, so the
+  proxy in front of the API (the static site's rewrite) never holds one open for long.
 - `AiGeneration.showGenerationError` maps 413 (or the client's own refusal) to a message asking the user to
   send fewer images; a failed job is announced by `AiJobService` with `failedJobMessage`, which words it by the
-  job's `errorCode` (e.g. `timeout`, `truncated`, `overloaded`, `provider_config`; see Server/AGENTS.md).
+  job's `errorCode` (e.g. `truncated`, `overloaded`, `provider_config`, `interrupted`; `timeout` only on jobs
+  from when a generation had a deadline; see Server/AGENTS.md).
 - While a job runs, the server writes the CSV rows the model has written so far on it (`progressRows`, at
   most every 3 s, starting over on a retry), and the history table shows "Đang chạy · 12 dòng".
 - Each LLM attempt is logged in one line (model, attempt, duration, status, request id, tokens); the response
@@ -673,12 +678,11 @@ started, 90 s without an event gives the attempt up (before that, DeepSeek's kee
 request is still queued). A provider that ignores `stream` answers plain JSON, read as before (an empty
 body, DeepSeek's keep-alive blank lines only, counts as interrupted). An answer the model itself cut short
 (`finish_reason` `length`/`content_filter`, a response `incomplete`) fails the job without a retry,
-like the other statuses (400/401/402/403/404/413/422). All attempts share the `LLM_TIMEOUT_SECONDS`
-deadline, and a retry is skipped when less than 30 s would be left, so this never pushes past Vercel's
-limit (one invocation cannot outlive 300 s).
+like the other statuses (400/401/402/403/404/413/422). There is no deadline over the attempts: the stall
+watchdog is what gives up on a silent stream.
 
-The client submits each generation once (`AiCsvService` has no retry): a job that used the whole deadline
-fails as `504`, and the user sends it again with **"Tạo lại"** on the failed job in the history table, or from
+The client submits each generation once (`AiCsvService` has no retry): a failed job is sent again by the user
+with **"Tạo lại"** on the failed job in the history table, or from
 the page. "Tạo lại" (`AiJobService.retry`) is `POST csv/jobs/{id}/retry` (`retryJob`): the server starts a new job
 with the request the failed one was made from (`retryOptions`: title, mode, platform, intelligence, the lesson and,
 for a Game, its games and question count) and its images, and deletes the failed one, which the new one replaces.
@@ -689,7 +693,7 @@ the server's memory (`retryImages`, `Server/internal/api/retry_images.go`) for *
 (`retryImagesTTL`); deleting or retrying the job drops them. `GET csv/jobs` tells the client, per job, whether a
 retry would be taken (`retryable`) and, for a job with images, until when (`retryUntil`): the menu item shows that
 time, survives a reload, and is disabled once it is past. A job without images has no deadline. The images live in
-one process only: a restart, or a request that reaches another instance of the server (on Vercel an instance can
-be stopped or replaced at any time), finds none, and the job then reads as not retryable; the user submits again
-from the AI page. Only a failed *upload* (status 0, before the job exists) needs the user's retry for a connection
+one process only: a restart or a deploy, or a request that reaches another instance of the server (should the
+web service ever be scaled to several), finds none, and the job then reads as not retryable; the user submits
+again from the AI page. Only a failed *upload* (status 0, before the job exists) needs the user's retry for a connection
 reason; once the server answers `202`, a dropped connection no longer matters.

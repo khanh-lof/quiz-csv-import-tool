@@ -7,7 +7,7 @@ import (
 )
 
 func TestFromEnvJWTSettings(t *testing.T) {
-	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("DATABASE_URL", "postgres://localhost/quiz")
 	t.Setenv("JWT_ISSUER", "")
 	t.Setenv("JWT_AUDIENCE", "")
 
@@ -26,33 +26,23 @@ func TestFromEnvJWTSettings(t *testing.T) {
 	}
 }
 
-func TestFromEnvAssignmentCollections(t *testing.T) {
-	t.Setenv("MONGODB_URI", "mongodb://localhost")
+func TestFromEnvDatabaseURL(t *testing.T) {
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
-	t.Setenv("MONGODB_ASSIGNMENTS_COLLECTION", "")
-	t.Setenv("MONGODB_PLAYERS_COLLECTION", "")
 
+	t.Setenv("DATABASE_URL", "  ")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "DATABASE_URL is required") {
+		t.Fatalf("missing database URL: %v", err)
+	}
+
+	t.Setenv("DATABASE_URL", " postgres://quiz@db:5432/quiz ")
 	cfg, err := FromEnv()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.MongoAssignmentsCollection != "Assignments" || cfg.MongoPlayersCollection != "AssignmentPlayers" {
-		t.Fatalf("defaults: %q %q", cfg.MongoAssignmentsCollection, cfg.MongoPlayersCollection)
-	}
-
-	t.Setenv("MONGODB_ASSIGNMENTS_COLLECTION", " Classes ")
-	t.Setenv("MONGODB_PLAYERS_COLLECTION", "Students")
-	cfg, err = FromEnv()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.MongoAssignmentsCollection != "Classes" || cfg.MongoPlayersCollection != "Students" {
-		t.Fatalf("overrides: %q %q", cfg.MongoAssignmentsCollection, cfg.MongoPlayersCollection)
+	if err != nil || cfg.DatabaseURL != "postgres://quiz@db:5432/quiz" {
+		t.Fatalf("database URL %q, %v", cfg.DatabaseURL, err)
 	}
 }
 
 func TestFromEnvGameStageSeconds(t *testing.T) {
-	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("DATABASE_URL", "postgres://localhost/quiz")
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
 
 	// Unset, empty and blank all mean the default table.

@@ -50,7 +50,7 @@ func TestGenerateReportsUsageOverAllAttempts(t *testing.T) {
 			`"output":[{"type":"message","content":[{"type":"output_text","text":"a,b"}]}]}`)
 	}))
 	t.Cleanup(llm.Close)
-	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
 	c.baseBackoff = time.Millisecond
 
 	result, err := c.Generate(context.Background(), nil, true, Options{})
@@ -66,7 +66,7 @@ func TestGenerateReportsUsageOfAFailureAndItsCode(t *testing.T) {
 			`"usage":{"prompt_tokens":50,"completion_tokens":8000,"prompt_cache_hit_tokens":30}}`)
 	}))
 	t.Cleanup(llm.Close)
-	c := NewClient(llm.URL, "key", "simple", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "simple", nil, slog.New(slog.DiscardHandler))
 
 	result, err := c.Generate(context.Background(), nil, false, Options{})
 	want := Usage{Model: "simple", Calls: 1, InputTokens: 50, CachedTokens: 30, OutputTokens: 8000}

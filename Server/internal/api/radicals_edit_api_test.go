@@ -70,7 +70,7 @@ func radicalsModel(t *testing.T) (*httptest.Server, *atomic.Int32) {
 func radicalsJobOf(t *testing.T, env *testEnv, token string) (*store.Job, *atomic.Int32) {
 	t.Helper()
 	llm, calls := radicalsModel(t)
-	env.srv.Generator = csvgen.NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
+	env.srv.Generator = csvgen.NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
 	if rec := env.upload(t, upload{token: token, query: radicalsQuery}); rec.Code != http.StatusAccepted {
 		t.Fatalf("create: %d %q", rec.Code, rec.Body)
 	}

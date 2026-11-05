@@ -2,75 +2,28 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"fmt"
 	"maps"
-	"os"
 	"slices"
 	"sync"
 	"testing"
 	"time"
-
-	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-// The same contract runs against both implementations; the Mongo one is skipped unless
-// MONGODB_TEST_URI is set, like the other integration tests.
+// The same contract runs against both implementations; the Postgres one is skipped unless
+// POSTGRES_TEST_URL is set, like the other integration tests.
 func TestMemoryAssignments(t *testing.T) { testAssignments(t, NewMemoryAssignments()) }
 
-func newTestMongoAssignments(t *testing.T) (*MongoAssignments, *mongo.Database) {
-	t.Helper()
-	uri := os.Getenv("MONGODB_TEST_URI")
-	if uri == "" {
-		t.Skip("MONGODB_TEST_URI not set")
-	}
-	client, err := mongo.Connect(options.Client().ApplyURI(uri))
-	if err != nil {
-		t.Fatal(err)
-	}
-	db := client.Database(fmt.Sprintf("quiztool_test_%d", time.Now().UnixNano()))
-	t.Cleanup(func() {
-		_ = db.Drop(context.Background())
-		_ = client.Disconnect(context.Background())
-	})
-	a := NewMongoAssignments(db.Collection("Assignments"), db.Collection("AssignmentPlayers"))
-	if err := a.EnsureIndexes(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	return a, db
+func TestPostgresAssignments(t *testing.T) {
+	testAssignments(t, NewPostgresAssignments(newTestPool(t)))
 }
 
-func TestMongoAssignments(t *testing.T) {
-	a, _ := newTestMongoAssignments(t)
-	testAssignments(t, a)
-}
-
-// Without EnsureIndexes (the server never calls it) a taken code or name must still be refused.
-func TestMongoAssignmentsWithoutIndexes(t *testing.T) {
-	_, db := newTestMongoAssignments(t)
-	ctx := context.Background()
-	a := NewMongoAssignments(db.Collection("NoIndexAssignments"), db.Collection("NoIndexPlayers"))
-	now := time.Now()
-	if err := a.Create(ctx, &Assignment{ID: "a1", Code: "CODE", Username: "alice", CreatedAt: now}); err != nil {
-		t.Fatal(err)
-	}
-	if err := a.Create(ctx, &Assignment{ID: "a2", Code: "CODE", Username: "alice", CreatedAt: now}); !errors.Is(err, ErrDuplicate) {
-		t.Fatalf("duplicate code: %v", err)
-	}
-	if err := a.CreatePlayer(ctx, &Player{ID: "p1", AssignmentID: "a1", Name: "Lan", NameKey: "lan", JoinedAt: now}); err != nil {
-		t.Fatal(err)
-	}
-	if err := a.CreatePlayer(ctx, &Player{ID: "p2", AssignmentID: "a1", Name: "LAN", NameKey: "lan", JoinedAt: now}); !errors.Is(err, ErrDuplicate) {
-		t.Fatalf("duplicate name: %v", err)
-	}
-}
-
-// The stored documents are what the field names in the tags promise: camelCase, optional times
-// absent rather than null, empty collections as {} and [].
-func TestMongoAssignmentDocuments(t *testing.T) {
-	a, db := newTestMongoAssignments(t)
+// The stored rows are what the schema and the json tags promise: optional values NULL rather than empty, the
+// run and the started counts under camelCase keys, and an avatar change that leaves the version alone.
+func TestPostgresAssignmentRows(t *testing.T) {
+	pool := newTestPool(t)
+	a := NewPostgresAssignments(pool)
 	ctx := context.Background()
 	now := time.Now()
 	if err := a.Create(ctx, &Assignment{ID: "a1", Code: "CODE", Username: "alice", JobID: "j", Title: "T", TimeMode: "extra", CreatedAt: now}); err != nil {
@@ -80,64 +33,46 @@ func TestMongoAssignmentDocuments(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var raw bson.M
-	if err := db.Collection("Assignments").FindOne(ctx, bson.M{"_id": "a1"}).Decode(&raw); err != nil {
+	var stageCounts string
+	var closesAt, closedAt *time.Time
+	var passPercents *string
+	if err := pool.QueryRow(ctx, `SELECT stage_counts::text, pass_percents::text, closes_at, closed_at FROM assignments WHERE id = 'a1'`).
+		Scan(&stageCounts, &passPercents, &closesAt, &closedAt); err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{"code", "username", "jobId", "title", "label", "csv", "timeMode", "stageCounts", "createdAt"} {
-		if _, ok := raw[field]; !ok {
-			t.Errorf("stored assignment lacks %q: %v", field, raw)
-		}
-	}
-	// An assignment that shows its board stores no hideBoard, like one from before the setting.
-	for _, field := range []string{"closesAt", "closedAt", "hideBoard"} {
-		if _, ok := raw[field]; ok {
-			t.Errorf("stored assignment has an unset %q: %v", field, raw)
-		}
+	if stageCounts != "{}" || passPercents != nil || closesAt != nil || closedAt != nil {
+		t.Errorf("stored assignment: stageCounts %s, passPercents %v, closesAt %v, closedAt %v", stageCounts, passPercents, closesAt, closedAt)
 	}
 
-	raw = nil
-	if err := db.Collection("AssignmentPlayers").FindOne(ctx, bson.M{"_id": "p1"}).Decode(&raw); err != nil {
-		t.Fatal(err)
+	type playerRow struct {
+		stages       string
+		started, run map[string]any
+		avatar       string
+		version      int
+		lastPlayedAt *time.Time
 	}
-	for _, field := range []string{"assignmentId", "name", "nameKey", "tokenHash", "joinedAt", "stages", "version"} {
-		if _, ok := raw[field]; !ok {
-			t.Errorf("stored player lacks %q: %v", field, raw)
+	readPlayer := func() playerRow {
+		t.Helper()
+		var row playerRow
+		if err := pool.QueryRow(ctx, `SELECT stages::text, started, run, avatar, version, last_played_at FROM assignment_players WHERE id = 'p1'`).
+			Scan(&row.stages, &row.started, &row.run, &row.avatar, &row.version, &row.lastPlayedAt); err != nil {
+			t.Fatal(err)
 		}
+		return row
 	}
-	if _, ok := raw["lastPlayedAt"]; ok {
-		t.Errorf("stored player has an unset lastPlayedAt: %v", raw)
-	}
-	if _, ok := raw["runIds"]; ok {
-		t.Errorf("stored player has the run ids of the removed results route: %v", raw)
-	}
-	// A player who has started no run has no started count and no run, like one from before runs.
-	for _, field := range []string{"started", "run"} {
-		if _, ok := raw[field]; ok {
-			t.Errorf("stored player has an unset %q: %v", field, raw)
-		}
-	}
-	// A player who picked no avatar has no field for it, like a player from before avatars.
-	if _, ok := raw["avatar"]; ok {
-		t.Errorf("stored player has an unset avatar: %v", raw)
+	// A player who has started no run has no started counts, no run and no avatar, like one from before them.
+	if row := readPlayer(); row.stages != "{}" || row.started != nil || row.run != nil || row.avatar != "" || row.version != 0 || row.lastPlayedAt != nil {
+		t.Errorf("stored player %+v", row)
 	}
 
 	if err := a.SetPlayerAvatar(ctx, "a1", "p1", "panda"); err != nil {
 		t.Fatal(err)
 	}
-	raw = nil
-	if err := db.Collection("AssignmentPlayers").FindOne(ctx, bson.M{"_id": "p1"}).Decode(&raw); err != nil {
-		t.Fatal(err)
-	}
-	if raw["avatar"] != "panda" {
-		t.Errorf("stored avatar = %#v", raw["avatar"])
-	}
-	// Setting it is a write of that one field: the version UpdatePlayer guards stays where it was.
-	if got := fmt.Sprint(raw["version"]); got != "0" {
-		t.Errorf("version = %#v after setting the avatar", raw["version"])
+	// Setting it is a write of that one column: the version UpdatePlayer counts stays where it was.
+	if row := readPlayer(); row.avatar != "panda" || row.version != 0 {
+		t.Errorf("after setting the avatar: %+v", row)
 	}
 
-	// A run is stored under the field names the tags promise, and an update moves the version by one.
 	served := now.Add(time.Second)
 	if _, err := a.UpdatePlayer(ctx, "a1", "p1", func(p *Player) error {
 		p.Started["2"] = 1
@@ -149,53 +84,34 @@ func TestMongoAssignmentDocuments(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	raw = nil
-	if err := db.Collection("AssignmentPlayers").FindOne(ctx, bson.M{"_id": "p1"}).Decode(&raw); err != nil {
+	row := readPlayer()
+	if row.version != 1 || row.started["2"] != float64(1) {
+		t.Errorf("after an update: %+v", row)
+	}
+	keys := func(m map[string]any) []string { return slices.Sorted(maps.Keys(m)) }
+	if got, want := keys(row.run), []string{"id", "questions", "stage", "startedAt"}; !slices.Equal(got, want) {
+		t.Errorf("stored run keys %v, want %v", got, want)
+	}
+	raw, _ := json.Marshal(row.run["questions"])
+	var questions []map[string]any
+	_ = json.Unmarshal(raw, &questions)
+	if len(questions) != 2 {
+		t.Fatalf("questions = %v", row.run["questions"])
+	}
+	if got, want := keys(questions[0]), []string{"correct", "item", "options", "servedAt", "timedOut"}; !slices.Equal(got, want) {
+		t.Errorf("first question keys %v, want %v", got, want)
+	}
+	if got, want := keys(questions[1]), []string{"chunks", "correct", "item", "timedOut"}; !slices.Equal(got, want) {
+		t.Errorf("second question keys %v, want %v", got, want)
+	}
+
+	// Deleting the assignment deletes its players.
+	if err := a.Delete(ctx, "alice", "a1"); err != nil {
 		t.Fatal(err)
 	}
-	if got := fmt.Sprint(raw["version"]); got != "1" {
-		t.Errorf("version = %#v after an update", raw["version"])
-	}
-	// Nested documents decode as bson.D or bson.M depending on the driver's defaults; look at either.
-	asDoc := func(v any) bson.M {
-		data, err := bson.Marshal(v)
-		if err != nil {
-			return nil
-		}
-		var doc bson.M
-		_ = bson.Unmarshal(data, &doc)
-		return doc
-	}
-	if started := asDoc(raw["started"]); fmt.Sprint(started["2"]) != "1" {
-		t.Errorf("started = %#v", raw["started"])
-	}
-	run := asDoc(raw["run"])
-	if run == nil {
-		t.Fatalf("run = %#v", raw["run"])
-	}
-	for _, field := range []string{"id", "stage", "startedAt", "questions"} {
-		if _, ok := run[field]; !ok {
-			t.Errorf("stored run lacks %q: %v", field, run)
-		}
-	}
-	if _, ok := run["finishedAt"]; ok {
-		t.Errorf("stored run has an unset finishedAt: %v", run)
-	}
-	questions, _ := run["questions"].(bson.A)
-	if len(questions) != 2 {
-		t.Fatalf("questions = %#v", run["questions"])
-	}
-	first := asDoc(questions[0])
-	for _, field := range []string{"item", "options", "servedAt", "correct", "timedOut"} {
-		if _, ok := first[field]; !ok {
-			t.Errorf("stored question lacks %q: %v", field, first)
-		}
-	}
-	second := asDoc(questions[1])
-	for _, field := range []string{"options", "servedAt", "answeredAt"} {
-		if _, ok := second[field]; ok {
-			t.Errorf("stored question has an unset %q: %v", field, second)
-		}
+	var players int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM assignment_players`).Scan(&players); err != nil || players != 0 {
+		t.Errorf("players left after deleting the assignment: %d %v", players, err)
 	}
 }
 

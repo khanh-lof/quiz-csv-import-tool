@@ -2,13 +2,8 @@ package store
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"testing"
 	"time"
-
-	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 func TestMemoryLoginAttempts(t *testing.T) {
@@ -18,24 +13,8 @@ func TestMemoryLoginAttempts(t *testing.T) {
 	testLoginAttempts(t, m, func() time.Time { return clock }, func(d time.Duration) { clock = clock.Add(d) })
 }
 
-func TestMongoLoginAttempts(t *testing.T) {
-	uri := os.Getenv("MONGODB_TEST_URI")
-	if uri == "" {
-		t.Skip("MONGODB_TEST_URI not set")
-	}
-	client, err := mongo.Connect(options.Client().ApplyURI(uri))
-	if err != nil {
-		t.Fatal(err)
-	}
-	db := client.Database(fmt.Sprintf("quiztool_test_%d", time.Now().UnixNano()))
-	t.Cleanup(func() {
-		_ = db.Drop(context.Background())
-		_ = client.Disconnect(context.Background())
-	})
-	m := NewMongoLoginAttempts(db.Collection("LoginAttempts"))
-	if err := m.EnsureIndexes(context.Background()); err != nil {
-		t.Fatal(err)
-	}
+func TestPostgresLoginAttempts(t *testing.T) {
+	m := NewPostgresLoginAttempts(newTestPool(t))
 	clock := time.Now().UTC().Truncate(time.Millisecond)
 	m.now = func() time.Time { return clock }
 	testLoginAttempts(t, m, func() time.Time { return clock }, func(d time.Duration) { clock = clock.Add(d) })

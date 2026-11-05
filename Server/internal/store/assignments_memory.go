@@ -174,7 +174,7 @@ func (m *MemoryAssignments) ListPlayers(_ context.Context, assignmentID string) 
 	for _, p := range m.players {
 		if p.AssignmentID == assignmentID {
 			p = p.stored()
-			p.Run = nil // as in Mongo, where the projection leaves it out
+			p.Run = nil // as in Postgres, where the query leaves it out
 			out = append(out, p)
 		}
 	}
@@ -196,9 +196,9 @@ func (m *MemoryAssignments) PlayerByToken(_ context.Context, assignmentID, token
 	return nil, ErrNotFound
 }
 
-// UpdatePlayer runs change under the mutex, so no other write can get in between the read and the write
-// and the version check Mongo needs is not needed here. Like Mongo it writes back only the four fields the
-// interface promises, so what change does to anything else (the avatar, the name) is not kept.
+// UpdatePlayer runs change under the mutex, so no other write can get in between the read and the write.
+// Like Postgres it writes back only the four fields the interface promises, so what change does to anything
+// else (the avatar, the name) is not kept.
 func (m *MemoryAssignments) UpdatePlayer(_ context.Context, assignmentID, playerID string, change func(p *Player) error) (*Player, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

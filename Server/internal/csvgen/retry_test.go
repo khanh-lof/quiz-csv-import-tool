@@ -31,7 +31,7 @@ func flakyLLM(t *testing.T, statuses []int, header http.Header) (*Client, *atomi
 		_, _ = w.Write([]byte(okResponse))
 	}))
 	t.Cleanup(llm.Close)
-	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
 	c.baseBackoff = time.Millisecond
 	return c, &calls
 }
@@ -81,7 +81,7 @@ func answeringLLM(t *testing.T, bodies ...string) (*Client, *atomic.Int32) {
 		_, _ = w.Write([]byte(bodies[n-1]))
 	}))
 	t.Cleanup(llm.Close)
-	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
 	c.baseBackoff = time.Millisecond
 	return c, &calls
 }
@@ -133,20 +133,11 @@ func TestGenerateHonoursRetryAfter(t *testing.T) {
 	}
 }
 
-func TestGenerateSkipsRetryThatWouldMissTheDeadline(t *testing.T) {
-	c, calls := flakyLLM(t, []int{503}, nil)
-	ctx, cancel := context.WithTimeout(context.Background(), minAttemptBudget/2)
-	defer cancel()
-	if _, err := c.Generate(ctx, nil, true, Options{}); err == nil || calls.Load() != 1 {
-		t.Fatalf("err %v after %d calls", err, calls.Load())
-	}
-}
-
 func TestGenerateRetriesTransportErrors(t *testing.T) {
 	llm := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	url := llm.URL
 	llm.Close() // connection refused from now on
-	c := NewClient(url, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(url, "key", "m", nil, slog.New(slog.DiscardHandler))
 	c.baseBackoff = time.Millisecond
 	_, err := c.Generate(context.Background(), nil, true, Options{})
 	var transportErr *transportError

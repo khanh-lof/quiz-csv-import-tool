@@ -1,24 +1,28 @@
-# Local stack: MongoDB plus the API on http://localhost:7071.
+# Local stack: PostgreSQL plus the API on http://localhost:7071.
 #   docker compose up --build        (or: podman compose up --build)
-# Settings other than the MongoDB URI come from .env (copy .env.example).
+# Settings other than the database URL come from .env (copy .env.example).
 services:
-  mongo:
-    image: mongo:8
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: quiz
+      POSTGRES_PASSWORD: quiz
+      POSTGRES_DB: quiz
     ports:
-      - "27017:27017"
+      - "5432:5432"
     volumes:
-      - mongo-data:/data/db
+      - postgres-data:/var/lib/postgresql/data
 
   api:
     build: .
     env_file: .env
     environment:
       PORT: "7071"
-      MONGODB_URI: mongodb://mongo:27017
+      DATABASE_URL: postgres://quiz:quiz@postgres:5432/quiz?sslmode=disable
     ports:
       - "7071:7071"
     depends_on:
-      - mongo
+      - postgres
 
 volumes:
-  mongo-data:
+  postgres-data:
