@@ -385,6 +385,15 @@ Return only valid CSV rows using the provided template to indicate that clarific
 
 Do not output explanations outside the CSV.
 
+## TIME LIMIT
+
+The whole response must finish within about four minutes. An answer that arrives late is discarded, so a complete CSV with a few plain questions is better than a perfect one that never arrives.
+
+* Plan once, briefly. Do not re-derive the lesson, re-plan the image budget, or re-check a question that already passed validation.
+* Run the validation checks a single time. Fix or drop a failing question instead of rewriting it repeatedly.
+* When a question is hard to get right, replace it with a simpler type from the same words and move on.
+* Start writing the CSV rows as soon as the set is decided, and keep every question to the length it needs.
+
 ## OUTPUT FORMAT
 
 Return ONLY valid CSV content.
