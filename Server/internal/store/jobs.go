@@ -63,15 +63,13 @@ type Job struct {
 	Usage *JobUsage `bson:"usage,omitempty"`
 
 	// RoundStart is the rate-limit round the job was counted in, so an abandoned job can be refunded.
-	RoundStart time.Time `bson:"roundStart"`
-	CreatedAt  time.Time `bson:"createdAt"`
-	// HeartbeatAt is when the process working on a running job last said it still is; nil until it first does.
-	HeartbeatAt *time.Time `bson:"heartbeatAt,omitempty"`
-	FinishedAt  *time.Time `bson:"finishedAt,omitempty"`
+	RoundStart time.Time  `bson:"roundStart"`
+	CreatedAt  time.Time  `bson:"createdAt"`
+	FinishedAt *time.Time `bson:"finishedAt,omitempty"`
 }
 
 // JobFailure is how a job failed. Code is the stable reason the client words the failure by: one of csvgen's
-// Failure* codes, "nothing_to_play", or ExpiredJobCode ("timeout" on jobs from when a generation had a deadline).
+// Failure* codes, "timeout", "nothing_to_play", or ExpiredJobCode.
 type JobFailure struct {
 	Status  int
 	Code    string
@@ -98,8 +96,6 @@ type Jobs interface {
 	Revise(ctx context.Context, username, id, csv, source string) error
 	// Progress records how many rows a running job has written so far. Finished jobs are left alone.
 	Progress(ctx context.Context, username, id string, rows int) error
-	// Heartbeat records that a running job is still being worked on. Finished jobs are left alone.
-	Heartbeat(ctx context.Context, username, id string) error
 	// Fail marks a running job as failed. Finished jobs are left alone.
 	Fail(ctx context.Context, username, id string, failure JobFailure, usage JobUsage) error
 	// Get returns one job; ErrNotFound when the user has no such job, which includes another user's.
@@ -108,16 +104,15 @@ type Jobs interface {
 	List(ctx context.Context, username string, limit int) ([]Job, error)
 	// Delete removes one job; ErrNotFound when the user has no such job.
 	Delete(ctx context.Context, username, id string) error
-	// ExpireRunning fails, with ExpiredJobStatus, the user's running jobs whose last heartbeat (or, before
-	// the first one, their creation) is before the cutoff, which only happens when the process handling
-	// them died, and returns the ones it failed.
+	// ExpireRunning fails the user's jobs that have been running since before the cutoff, which only
+	// happens when the process handling them died, with ExpiredJobStatus, and returns the ones it failed.
 	ExpireRunning(ctx context.Context, username string, before time.Time, message string) ([]Job, error)
 	// Prune deletes all but the user's newest keep jobs.
 	Prune(ctx context.Context, username string, keep int) error
 }
 
 // ExpiredJobStatus and ExpiredJobCode are the error status and code of a job ExpireRunning failed: a gateway
-// timeout, interrupted since the process working on it died.
+// timeout, like a generation that ran out of time, but interrupted, since the process working on it died.
 const (
 	ExpiredJobStatus = 504
 	ExpiredJobCode   = "interrupted"

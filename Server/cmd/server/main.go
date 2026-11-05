@@ -99,10 +99,6 @@ func run(logger *slog.Logger) error {
 		StageSeconds:     cfg.GameStageSeconds,
 		Logger:           logger,
 	}
-	if cfg.HighIntelligenceServer != nil {
-		srv.HighIntelligenceProxy = api.NewHighIntelligenceProxy(cfg.HighIntelligenceServer, logger)
-		logger.Info("High intelligence jobs go to their own server", "host", cfg.HighIntelligenceServer.Host)
-	}
 
 	httpServer := &http.Server{
 		Addr:              net.JoinHostPort("", cfg.Port),

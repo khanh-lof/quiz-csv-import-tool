@@ -25,24 +25,18 @@ const (
 	// maxJobsPerUser is how many finished jobs a user keeps; older ones are pruned when a new one starts.
 	maxJobsPerUser = 30
 	maxTitleRunes  = 100
-	// jobHeartbeatInterval is how often the handler working on a job records that it still is, and
-	// abandonedAfter how long a running job may go without that before listJobs takes its process for dead
-	// (a crash, a deploy, or a Vercel function cut off at its limit). It does not depend on LLMTimeout: a job
-	// of the High intelligence server has no deadline, yet is listed by the main server.
-	jobHeartbeatInterval = 30 * time.Second
-	abandonedAfter       = 3 * time.Minute
+	// abandonedGrace is how long past the LLM deadline a job may still be running before it counts as
+	// abandoned (its process died), which leaves room for the final database write.
+	abandonedGrace = time.Minute
+	// abandonedWithoutTimeout applies when no LLM timeout is configured.
+	abandonedWithoutTimeout = 15 * time.Minute
 )
 
 // createJob handles POST /api/csv/jobs: a multipart upload of zero or more images, rate-limited per
 // user. It validates the request, stores a running job, answers 202 with the job's id right away and
 // keeps working in this same handler until the model has answered, then stores the result. The
-// client follows the job through listJobs, so it need not stay connected. A creative job at High
-// intelligence goes to HighIntelligenceProxy instead, when there is one.
+// client follows the job through listJobs, so it need not stay connected.
 func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
-	if s.HighIntelligenceProxy != nil && isHighIntelligence(r.URL.Query()) {
-		s.HighIntelligenceProxy.ServeHTTP(w, r)
-		return
-	}
 	user, ok := s.jobOwner(w, r)
 	if !ok {
 		return
@@ -82,14 +76,8 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 
 // retryJob handles POST /api/csv/jobs/{id}/retry ("Tạo lại"): a failed job's request sent again as a new
 // job, which replaces the failed one. The images come from retryImages, so a job sent with images can be
-// retried only while they are kept. Rate-limited and answered like createJob, and a job at High intelligence
-// goes to HighIntelligenceProxy like there.
+// retried only while they are kept. Rate-limited and answered like createJob.
 func (s *Server) retryJob(w http.ResponseWriter, r *http.Request) {
-	s.retry(w, r, false)
-}
-
-// retry is retryJob; onlyHigh refuses every job but one at High intelligence, as the High intelligence server does.
-func (s *Server) retry(w http.ResponseWriter, r *http.Request, onlyHigh bool) {
 	if !s.jobStoreReady(w, r) {
 		return
 	}
@@ -108,16 +96,6 @@ func (s *Server) retry(w http.ResponseWriter, r *http.Request, onlyHigh bool) {
 	opts, ok := retryOptions(failed)
 	if !ok {
 		writeText(w, http.StatusConflict, "Job cannot be retried.")
-		return
-	}
-	high := isHighIntelligenceJob(failed, opts)
-	if onlyHigh && !high {
-		writeText(w, http.StatusBadRequest, notHighIntelligence)
-		return
-	}
-	// The images of a failed High intelligence job were kept by the server that ran it.
-	if high && s.HighIntelligenceProxy != nil {
-		s.HighIntelligenceProxy.ServeHTTP(w, r)
 		return
 	}
 	var images []csvgen.Image
@@ -211,10 +189,8 @@ func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, 
 		ctx, cancel = context.WithTimeout(ctx, s.LLMTimeout)
 		defer cancel()
 	}
-	stopHeartbeat := s.keepJobAlive(r, job)
 	started := time.Now()
 	result, err := s.Generator.GenerateWithProgress(ctx, images, job.Creative, opts, s.jobProgress(r, job))
-	stopHeartbeat()
 	usage := jobUsage(result.Usage, time.Since(started))
 	logAttrs := []any{"user", job.Username, "job", job.ID, "images", len(images), "model", usage.Model, "calls", usage.Calls,
 		"durationMs", usage.DurationMs, "inputTokens", usage.InputTokens, "cachedTokens", usage.CachedTokens,
@@ -257,38 +233,6 @@ func generationFailure(ctx context.Context, err error) store.JobFailure {
 		return store.JobFailure{Status: http.StatusGatewayTimeout, Code: failureTimeout, Message: "AI generation timed out."}
 	}
 	return store.JobFailure{Status: http.StatusBadGateway, Code: csvgen.FailureCode(err), Message: "AI generation failed."}
-}
-
-// keepJobAlive records the job's heartbeat every heartbeat interval until the returned stop is called, so
-// listJobs can tell a job whose process died from one that just takes long. A failed write only risks the
-// job being taken for abandoned once abandonedAfter has passed without one.
-func (s *Server) keepJobAlive(r *http.Request, job *store.Job) (stop func()) {
-	every := s.heartbeatEvery
-	if every <= 0 {
-		every = jobHeartbeatInterval
-	}
-	done, finished := make(chan struct{}), make(chan struct{})
-	go func() {
-		defer close(finished)
-		ticker := time.NewTicker(every)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-done:
-				return
-			case <-ticker.C:
-				ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 5*time.Second)
-				if err := s.Jobs.Heartbeat(ctx, job.Username, job.ID); err != nil {
-					s.Logger.Warn("recording job heartbeat failed", "user", job.Username, "job", job.ID, "error", err)
-				}
-				cancel()
-			}
-		}
-	}()
-	return func() {
-		close(done)
-		<-finished
-	}
 }
 
 func jobUsage(usage csvgen.Usage, took time.Duration) store.JobUsage {
@@ -363,9 +307,13 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A running job whose heartbeat stopped lost the process that was working on it; fail it and give the
-	// call back, or the client would poll it forever.
-	expired, err := s.Jobs.ExpireRunning(r.Context(), username, time.Now().Add(-abandonedAfter), "AI generation was interrupted.")
+	// A job still running long after its deadline lost the process that was working on it; fail it
+	// and give the call back, or the client would poll it forever.
+	patience := abandonedWithoutTimeout
+	if s.LLMTimeout > 0 {
+		patience = s.LLMTimeout + abandonedGrace
+	}
+	expired, err := s.Jobs.ExpireRunning(r.Context(), username, time.Now().Add(-patience), "AI generation was interrupted.")
 	if err != nil {
 		s.Logger.Warn("expiring abandoned jobs failed", "user", username, "error", err)
 	}

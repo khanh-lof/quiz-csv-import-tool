@@ -4,7 +4,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"slices"
 	"strconv"
@@ -43,9 +42,6 @@ type Config struct {
 	AdminAPIKey string
 
 	LLM LLMConfig
-	// HighIntelligenceServer is the base URL of the server that runs the creative jobs at High intelligence
-	// (HIGH_INTELLIGENCE_SERVER_URL, cmd/ai-server); nil runs them on this server, under LLM.Timeout.
-	HighIntelligenceServer *url.URL
 
 	AICallsPerRound int
 	RoundDuration   time.Duration
@@ -165,9 +161,6 @@ func FromEnv() (Config, error) {
 		errs = append(errs, err)
 	}
 	cfg.GameStageSeconds = seconds
-	if cfg.HighIntelligenceServer, err = parseServerURL(os.Getenv("HIGH_INTELLIGENCE_SERVER_URL")); err != nil {
-		errs = append(errs, err)
-	}
 	if cfg.LoginMaxAttempts < 1 {
 		errs = append(errs, errors.New("LOGIN_MAX_ATTEMPTS must be at least 1"))
 	}
@@ -178,20 +171,6 @@ func FromEnv() (Config, error) {
 		errs = append(errs, errors.New("MAX_REFRESH_TOKENS_PER_USER must be at least 1"))
 	}
 	return cfg, errors.Join(errs...)
-}
-
-// parseServerURL reads HIGH_INTELLIGENCE_SERVER_URL: empty, or an http(s) base URL with nothing after the path.
-func parseServerURL(raw string) (*url.URL, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil, nil
-	}
-	u, err := url.Parse(strings.TrimRight(raw, "/"))
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.RawQuery != "" ||
-		u.Fragment != "" || u.User != nil {
-		return nil, fmt.Errorf("HIGH_INTELLIGENCE_SERVER_URL must be an http(s) URL such as https://ai.example.com, got %q", raw)
-	}
-	return u, nil
 }
 
 func envOr(key, def string) string {
