@@ -7,7 +7,7 @@ import (
 )
 
 func TestFromEnvJWTSettings(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://localhost/quiz")
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
 	t.Setenv("JWT_ISSUER", "")
 	t.Setenv("JWT_AUDIENCE", "")
 
@@ -26,23 +26,53 @@ func TestFromEnvJWTSettings(t *testing.T) {
 	}
 }
 
-func TestFromEnvDatabaseURL(t *testing.T) {
+func TestFromEnvAssignmentCollections(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+	t.Setenv("MONGODB_ASSIGNMENTS_COLLECTION", "")
+	t.Setenv("MONGODB_PLAYERS_COLLECTION", "")
 
-	t.Setenv("DATABASE_URL", "  ")
-	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "DATABASE_URL is required") {
-		t.Fatalf("missing database URL: %v", err)
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MongoAssignmentsCollection != "Assignments" || cfg.MongoPlayersCollection != "AssignmentPlayers" {
+		t.Fatalf("defaults: %q %q", cfg.MongoAssignmentsCollection, cfg.MongoPlayersCollection)
 	}
 
-	t.Setenv("DATABASE_URL", " postgres://quiz@db:5432/quiz ")
-	cfg, err := FromEnv()
-	if err != nil || cfg.DatabaseURL != "postgres://quiz@db:5432/quiz" {
-		t.Fatalf("database URL %q, %v", cfg.DatabaseURL, err)
+	t.Setenv("MONGODB_ASSIGNMENTS_COLLECTION", " Classes ")
+	t.Setenv("MONGODB_PLAYERS_COLLECTION", "Students")
+	cfg, err = FromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MongoAssignmentsCollection != "Classes" || cfg.MongoPlayersCollection != "Students" {
+		t.Fatalf("overrides: %q %q", cfg.MongoAssignmentsCollection, cfg.MongoPlayersCollection)
+	}
+}
+
+func TestFromEnvHighIntelligenceServer(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+
+	t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", " ")
+	if cfg, err := FromEnv(); err != nil || cfg.HighIntelligenceServer != nil {
+		t.Fatalf("unset: %v %v", cfg.HighIntelligenceServer, err)
+	}
+	t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", " https://ai.example.com/ ")
+	if cfg, err := FromEnv(); err != nil || cfg.HighIntelligenceServer.String() != "https://ai.example.com" {
+		t.Fatalf("set: %v %v", cfg.HighIntelligenceServer, err)
+	}
+	for _, bad := range []string{"ai.example.com", "ftp://ai.example.com", "https://ai.example.com/?x=1", "https://u:p@ai.example.com"} {
+		t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", bad)
+		if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "HIGH_INTELLIGENCE_SERVER_URL") {
+			t.Errorf("%q: %v", bad, err)
+		}
 	}
 }
 
 func TestFromEnvGameStageSeconds(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://localhost/quiz")
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
 
 	// Unset, empty and blank all mean the default table.

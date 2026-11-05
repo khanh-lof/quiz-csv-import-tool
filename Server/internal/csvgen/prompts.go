@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 )
 
 var (
@@ -106,7 +107,7 @@ func buildSimpleRequest(model string, images []Image, language Language) chatReq
 // buildCreativeRequest asks for ready-to-import rows, without a header, laid out for the target
 // platform; the client prepends the header and downloads the file directly (or, for GestureQuiz,
 // plays it itself).
-func buildCreativeRequest(model string, images []Image, opts Options) responsesRequest {
+func buildCreativeRequest(model string, timeLimit time.Duration, images []Image, opts Options) responsesRequest {
 	several := len(opts.LessonNumbers) > 1
 	intro := "Convert the images to CSV using the required format."
 	if len(images) == 0 {
@@ -143,7 +144,7 @@ func buildCreativeRequest(model string, images []Image, opts Options) responsesR
 	// no effort levels, so each runs at its own default.
 	req := responsesRequest{
 		Model:           model,
-		Instructions:    creativeSystemPrompt(opts.Language),
+		Instructions:    creativeSystemPrompt(opts.Language, timeLimit),
 		Input:           []responsesInput{{Role: "user", Content: content}},
 		MaxOutputTokens: maxOutputTokens,
 	}

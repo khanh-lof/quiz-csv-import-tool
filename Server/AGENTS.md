@@ -4,31 +4,29 @@ This file provides guidance to AI when working with code in this repository.
 
 ## What this is
 
-A Go (`net/http`) HTTP API backed by PostgreSQL. It issues JWTs for login, and uses an LLM vision call
+A Go (`net/http`) HTTP API backed by MongoDB. It issues JWTs for login, and uses an LLM vision call
 to convert uploaded images of Chinese vocabulary into a quiz CSV, gated by JWT auth and a per-user
-rate limit stored in the database. It runs as a single long-lived standalone binary: the `Dockerfile` image, or
-the Go web service of the root `render.yaml` Blueprint, which builds `cmd/server` and runs it with `PORT` set —
-the code has no Render-specific parts.
+rate limit stored in MongoDB. It runs as a single standalone binary: the `Dockerfile` image, or the `server`
+service of the root `vercel.json`, where Vercel's Go preset builds `cmd/server` and runs it on
+Fluid compute with `PORT` set — the code has no Vercel-specific parts. A second binary, `cmd/ai-server`, runs
+only the creative jobs at High intelligence on Render (root `render.yaml`), where a request may run longer than
+a Vercel function; see [../AGENTS.md](../AGENTS.md#what-this-is).
 
 Module `quiz-csv-import-tool/server`, laid out as:
 
-- `cmd/server` — entry point: reads config, connects to PostgreSQL and creates the missing tables
-  (`store.Migrate`), wires everything, graceful shutdown (it waits up to `shutdownGrace`, 290 s, for running
-  handlers, AI jobs included, under Render's `maxShutdownDelaySeconds` of 300).
+- `cmd/server` — entry point: reads config, connects to MongoDB, wires everything, graceful shutdown.
+- `cmd/ai-server` — the High intelligence AI server: the same config, MongoDB stores and JWT checks, serving
+  only `api.Server.HighIntelligenceHandler` (start and retry a creative job at High intelligence, 400 for any
+  other job, and `/healthz`), with no LLM time limit. It refuses to start without the LLM settings, waits up to
+  `shutdownGrace` (290 s, under Render's `maxShutdownDelaySeconds` of 300) for running jobs on shutdown, and
+  while any job runs requests its own public URL (`RENDER_EXTERNAL_URL`) every 5 minutes so Render's free
+  instance does not go to sleep under it.
 - `cmd/import-users` — one-off tool importing users exported from the old Cosmos DB container.
-- `cmd/migrate-mongo` — one-off tool copying the data of the MongoDB the server used before into PostgreSQL
-  (users with their sessions, jobs, assignments, players; rows already there are skipped). It is the only reader
-  of the store types' `bson` tags and the only user of the MongoDB driver; delete all three once the data is moved.
 - `internal/config` — env-var configuration (`FromEnv`) and a small `.env` loader for local dev.
 - `internal/api` — routing (`Server.Handler`) and all handlers.
 - `internal/auth` — JWT issue/parse, PBKDF2 password hashing, and `Service` (login/refresh/logout).
-- `internal/store` — the `User` type, the `Users` interface, `PostgresUsers` (production) and `Memory`
-  (tests) implementations; the same pair for `Jobs`, for `Assignments` ("Giao bài", with its students) and for
-  `LoginAttempts`. The tables are in `schema.sql` (embedded, applied by `Migrate` on every start, so every
-  statement is `IF NOT EXISTS`; a change to an existing table needs its own idempotent `ALTER`). Nested values
-  (refresh tokens, a player's results, started counts and run, a job's usage, an assignment's stage counts and
-  pass percents) are JSONB under the store types' `json` tags. `OpenPostgres` reads every `timestamptz` back in
-  UTC, as the memory stores keep them.
+- `internal/store` — the `User` document, the `Users` interface, `Mongo` (production) and `Memory`
+  (tests) implementations; the same pair for `Jobs` and for `Assignments` ("Giao bài", with its students).
 - `internal/csvgen` — creative-mode option parsing, the two system prompts and the per-platform
   templates (all embedded from `prompts/*.txt`), the embedded lesson documents of four textbooks
   (`textbooks/`), and the OpenAI-compatible client
@@ -58,34 +56,45 @@ Module `quiz-csv-import-tool/server`, laid out as:
 ```bash
 go build ./...
 go vet ./...
-go test ./...                                    # PostgreSQL integration tests (users, jobs, assignments, logins) are skipped…
-POSTGRES_TEST_URL=postgres://quiz:quiz@localhost:5432/quiz go test ./internal/store/   # …unless this is set (a throwaway schema per test)
+go test ./...                                    # Mongo integration tests (users, jobs, assignments) are skipped…
+MONGODB_TEST_URI=mongodb://localhost:27017 go test ./internal/store/   # …unless this is set
 go run ./cmd/server                              # http://localhost:7071 (reads .env if present)
-docker compose up --build                        # PostgreSQL + API on 7071
+docker compose up --build                        # MongoDB + API on 7071
 ```
 
 ### Configuration
 
 All settings are env vars (see `.env.example`; `go run` also reads `.env`, real env vars win).
-`DATABASE_URL` and `JWT_SECRET` (at least 32 bytes) are required — the server refuses to start
+`MONGODB_URI` and `JWT_SECRET` (at least 32 bytes) are required — the server refuses to start
 without them.
 
-- `PORT` (default 7071 — the client's `ng serve` proxy points there; Render sets it)
-- `DATABASE_URL` — the PostgreSQL connection string (a `postgres://` URL or a key=value DSN); on Render the
-  Blueprint sets it to the database's internal URL
+- `PORT` (default 7071 — the client's `ng serve` proxy points there)
+- `MONGODB_URI`, `MONGODB_DATABASE` (default `QuizDb`), `MONGODB_COLLECTION` (default `Users`),
+  `MONGODB_JOBS_COLLECTION` (default `Jobs`, the AI generation jobs),
+  `MONGODB_ASSIGNMENTS_COLLECTION` (default `Assignments`) and `MONGODB_PLAYERS_COLLECTION` (default
+  `AssignmentPlayers`): the quizzes teachers handed to students, and the students who joined them with their results,
+  `MONGODB_LOGIN_ATTEMPTS_COLLECTION` (default `LoginAttempts`): the login attempts counted per username
 - `JWT_SECRET` (≥ 32 bytes, RFC 7518 §3.2 for HS256), `JWT_ISSUER` (default `quiztool`),
   `JWT_AUDIENCE` (default `quiztool-api`) — issuer and audience are always set and validated
 - `JWT_ACCESS_TOKEN_EXPIRES_MINUTES` (15), `JWT_REFRESH_TOKEN_EXPIRES_DAYS` (30),
   `MAX_REFRESH_TOKENS_PER_USER` (5 — oldest session evicted beyond this)
 - `ADMIN_API_KEY` — required in the `X-Admin-Key` header by `POST /api/users`; empty rejects every call
-- `APP_ORIGIN` — QuizTool's public URL (the static site's), added to the origins the downloadable Wayground
-  extension runs on when its zip is packed (`go generate` at build time, or the first download); empty leaves
-  only `http://localhost:4200`, and a value that is not an `http(s)://host` origin fails the pack
+- `APP_ORIGIN` — QuizTool's public URL, added to the origins the downloadable Wayground extension runs on
+  when its zip is packed (`go generate` at build time, or the first download); empty leaves only
+  `http://localhost:4200`, and a value that is not an `http(s)://host` origin fails the pack
+- `HIGH_INTELLIGENCE_SERVER_URL` — the base URL of `cmd/ai-server`; when set, `createJob` and `retryJob` hand a
+  creative job at High intelligence to it (`HighIntelligenceProxy`, path, query, body and token unchanged, up to
+  2 minutes for its `202`, 502 `The High intelligence AI server is unavailable.` when it cannot be reached).
+  Empty runs those jobs here. The AI server ignores it
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LLM_MODEL` — if any is missing the server still starts, but
   CSV generation answers 500. `LLM_MODEL` serves the formatted mode (sent with `reasoning_effort: low`)
 - `LLM_INTELLIGENCE_MODELS` — optional, exactly 2 comma-separated models: the creative-mode model for
   the client's "Độ thông minh" Thấp / Cao (`intelligence` query param 1 or 2, default 1).
   Empty means both use `LLM_MODEL`
+- `LLM_TIMEOUT_SECONDS` (280) — per-call LLM deadline of `cmd/server`; kept under Vercel's 300 s function limit
+  so the handler answers 504 itself. The HTTP server's write timeout is derived from it, and the creative
+  system prompt's TIME LIMIT section tells the model this number (`{{.TimeLimitSeconds}}`). `cmd/ai-server`
+  has no deadline: its prompt has no TIME LIMIT section, and its search guidance does not mention one
 - `CALL_COUNT_ACCEPTED_IN_A_ROUND` (2), `ROUND_MINUTES` (1) — AI-call rate limit per user
 - `LOGIN_MAX_ATTEMPTS` (5), `LOGIN_WINDOW_MINUTES` (15) — login limit per username, see Auth below
 - `GAME_STAGE_SECONDS` (`12,12,15,15,20,45`) — the seconds per question of the Game's stages 1–6, in order, for
@@ -109,15 +118,16 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   `429 Too many login attempts` with `Retry-After` (seconds to the window's end) and checks no password. An
   attempt is counted before the password is checked, so concurrent attempts cannot slip past together; a
   successful login clears the count. Unknown usernames are counted alike, so the limit does not reveal which
-  exist. The count is `store.LoginAttempts` (`PostgresLoginAttempts`, one row per SHA-256 of the typed
-  username, so a password typed into the username field is never stored, counted in one upsert, with the ended
-  windows of other keys deleted on each attempt; `MemoryLoginAttempts` in tests), shared by every instance. The limit also lets anyone lock a user out for one window by typing
+  exist. The count is `store.LoginAttempts` (`MongoLoginAttempts`, one document per SHA-256 of the typed
+  username, so a password typed into the username field is never stored; `MemoryLoginAttempts` in tests),
+  shared by every instance. Its `EnsureIndexes` (a TTL index on `expiresAt` that deletes ended windows) is,
+  like the others, not called on start. The limit also lets anyone lock a user out for one window by typing
   wrong passwords under their name; there is no per-IP limit.
 - **Users** (`auth_handlers.go`): `users`, admin-only via `X-Admin-Key` (replaces the Azure Functions
   admin key), enforced by the `requireAdminKey` middleware. 409 if the user exists.
 - **Extension** (`extension_handler.go`): `GET extension`, behind the same `authenticate` + `requireRole` as the
   CSV jobs, answers the Wayground extension's zip from `internal/extension` (embedded when `go generate
-  ./internal/extension` ran before the build, as the API's `buildCommand` in `render.yaml` does; otherwise packed from
+  ./internal/extension` ran before the build, as the Vercel `buildCommand` does; otherwise packed from
   `../Extension` on first use), or 404 `Extension not available.`. See [../AGENTS.md](../AGENTS.md#the-wayground-browser-extension).
 - **CSV jobs** (`csv_handler.go`): `POST csv/jobs`, `GET csv/jobs`, `DELETE csv/jobs/{id}`,
   `POST csv/jobs/{id}/retry`, `GET csv/jobs/{id}/page` (the page of a finished Radicals job, `text/html`, drawn
@@ -142,9 +152,11 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   errors are still answered synchronously with the plain-text bodies below. `title` (query, capped at
   100 runes) names the job. `listJobs` returns the user's jobs newest first (JSON `{"jobs": [...]}`,
   the CSV included, and `retryable`/`retryUntil` from `retryState`) after failing as abandoned any running job
-  whose heartbeat is older than `abandonedAfter` (3 min; and refunding its call). While `runJob` works, `keepJobAlive`
-  records the job's heartbeat (`Jobs.Heartbeat`) every `jobHeartbeatInterval` (30 s), so a job of any length stays
-  running and only one whose process died (a crash, or a deploy past the shutdown grace) is failed. Both modes take an optional `language` (`csvgen.ParseLanguage`, see
+  whose heartbeat is older than `abandonedAfter` (3 min; and refunding its call). While `runJob` works,
+  `keepJobAlive` records the job's heartbeat (`Jobs.Heartbeat`) every `jobHeartbeatInterval` (30 s), so only a job
+  whose process died is failed, whichever server ran it and however long it takes. A creative job at High
+  intelligence goes to `HighIntelligenceProxy` before any of this when one is set (`isHighIntelligence`, from the
+  query; `retryJob` decides from the failed job, before looking for its images). Both modes take an optional `language` (`csvgen.ParseLanguage`, see
   [Chinese and English](../AGENTS.md#chinese-and-english)), which picks the prompts and is kept on the job.
   `isCreative=true` switches to the creative prompt and requires `exportType`,
   `courseType` (one of the language's courses), `lessonNumbers`, plus `level` (HSK/YCT) or `courseName` (`Other`), and for GestureQuiz the
@@ -155,11 +167,11 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   parameter.`, more than `MaxLessons` (5) is 400 `At most 5 lessons per quiz.`, and for a textbook with embedded
   lessons (below) each must be at most its lesson count: 400 `Lesson must be 1 to <M> for <title>.`, e.g.
   `Lesson must be 1 to 15 for 《新HSK教程2》.` Images are optional only in
-  creative mode. The LLM call has no time limit; an LLM failure fails the job with `errorStatus` 502. The job also
-  gets an `errorCode`, the reason the client words its message by: `nothing_to_play` (handler, 422), `interrupted`
-  (`store.ExpiredJobCode`, 504), or `csvgen.FailureCode`'s `truncated`, `filtered`, `provider_config`, `overloaded`,
-  `bad_output`, `failed`; `timeout` is only on jobs from when a generation had a deadline. These codes are a
-  contract with `Client/src/models/ai-job.ts`: never rename one. Either
+  creative mode. The LLM call runs under `LLM_TIMEOUT_SECONDS`; hitting it fails the job with
+  `errorStatus` 504 ("AI generation timed out."), other LLM failures with 502. The job also gets an
+  `errorCode`, the reason the client words its message by: `timeout`, `nothing_to_play` (handler), `interrupted`
+  (`store.ExpiredJobCode`), or `csvgen.FailureCode`'s `truncated`, `filtered`, `provider_config`, `overloaded`,
+  `bad_output`, `failed`. These codes are a contract with `Client/src/models/ai-job.ts`: never rename one. Either
   failure refunds the rate-limit slot (`RefundAICall`) so the user can resubmit without losing quota. See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
 - **Assignments** (`assignment_handlers.go`, the teacher's side of "Giao bài"): `POST assignments`,
   `GET assignments`, `GET`/`PATCH`/`DELETE assignments/{id}` and `DELETE assignments/{id}/players/{playerId}`,
@@ -185,7 +197,7 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   `Cache-Control: no-store`, as the client polls the detail. `patchAssignment` reads the body as a map of raw
   values, so an absent key (leave it) differs from `null` (clear `closesAt`; a `null` label, `closed` or
   `showPinyin` is a 400 `Invalid payload`, as is a `showPinyin` that is not a JSON boolean); `showPinyin` is
-  stored in the `show_pinyin` column, the store's `AssignmentUpdate.ShowPinyin`; `closed: true` closes now unless it was already closed by hand (the first moment is
+  stored as `showPinyin: true` or removed (`$unset`), the store's `AssignmentUpdate.ShowPinyin`; `closed: true` closes now unless it was already closed by hand (the first moment is
   kept, so the result grace does not slide), and `closed: false` is refused (400 `Invalid closing time.`) if the
   closing time that would remain, the old one or the one in the same request, is not in the future.
   `deleteAssignmentPlayer` loads the assignment first only to check the caller owns it, since the store's
@@ -299,8 +311,9 @@ follow the same rule: the client matches some of their bodies as strings (`TEACH
 [../AGENTS.md](../AGENTS.md#giao-bài-assignments).
 
 Tests of "Giao bài": `store/assignments_test.go` runs one contract (`testAssignments`) against both stores
-(`TestMemoryAssignments`; `TestPostgresAssignments` only when `POSTGRES_TEST_URL` is set, in a throwaway schema,
-with `TestPostgresAssignmentRows` for the stored columns and JSON keys) beside unit tests of `OpenAt`, `EffectiveClose`, `AcceptsResultsAt`, `UpdatePlayer`
+(`TestMemoryAssignments`; `TestMongoAssignments` only when `MONGODB_TEST_URI` is set, in a throwaway database,
+with `TestMongoAssignmentsWithoutIndexes` and `TestMongoAssignmentDocuments` for uniqueness without indexes and
+the stored field names) beside unit tests of `OpenAt`, `EffectiveClose`, `AcceptsResultsAt`, `UpdatePlayer`
 (concurrent writers, an error that writes nothing, the fields it writes) and `MergeRun`;
 `jobs_test.go` covers `Jobs.Get`. `api/assignments_api_test.go` drives the HTTP handlers over the memory stores
 with a `testClock` (`env.clock.Advance`) as `Server.Now`: the whole flow (create, share, join, play, leaderboard,
@@ -314,10 +327,10 @@ right, wrong, null and late answers (at the limit plus the grace, the `extra` an
 grace after a close, racing duplicates and store failures.
 `gesturequiz/quiz_test.go` ports the client's parser spec.
 `api/leaderboard_test.go` tests `buildLeaderboard` and `newStudentBoard` as plain Go, `api/avatars_test.go`
-pins the avatar ids, and `config/config_test.go` the settings.
+pins the avatar ids, and `config/config_test.go` the new collection settings.
 
-There is no CORS handling: the API is only ever called from the SPA's own origin (the static site's `/api/*`
-rewrite on Render in production, the `ng serve` proxy locally), which is also why the refresh cookie can be
+There is no CORS handling: the API is only ever called from the SPA's own origin (Vercel Services in
+production, the `ng serve` proxy locally), which is also why the refresh cookie can be
 `SameSite=Strict`. Putting the SPA on another origin would need CORS back and a `SameSite=None`
 cookie.
 
@@ -405,7 +418,7 @@ cookie.
   errors, and generations interrupted inside a 200 (`interruptedError`: chat `finish_reason`
   `insufficient_system_resource`/`aborted`, a response with `status` `failed`, a stream `error` event, a
   stream that ends early or stalls for `stallTimeout` (90 s) once started, a plain body of only the
-  keep-alive blank lines), up to 5 attempts with no deadline over them; this is the only retry layer
+  keep-alive blank lines), up to 5 attempts within the caller's deadline; this is the only retry layer
   (the client does not re-send) — see `retry.go` and [../AGENTS.md](../AGENTS.md#retrying-ai-requests).
   Both endpoints are called with `stream: true` (`stream.go`: `streamCompletion`, `streamResponse`); a
   `text/event-stream` answer is read event by event, anything else whole (`parseCompletion`,
@@ -424,8 +437,8 @@ cookie.
   `content_filter`, fails the call rather than returning cut-off rows. The `OPENAI_BASE_URL` provider
   must support `/responses` with `web_search`, and requires `max_output_tokens` to be set.
 
-Jobs (`internal/store/jobs*.go`): `store.Jobs` is implemented by `PostgresJobs` (table `jobs`) and `MemoryJobs`
-(tests), and every method is scoped to a username. A `Job`
+Jobs (`internal/store/jobs*.go`): `store.Jobs` is implemented by `MongoJobs` (collection
+`MONGODB_JOBS_COLLECTION`) and `MemoryJobs` (tests), and every method is scoped to a username. A `Job`
 holds the request's metadata (title, mode, export type ordinal, intelligence, image count — never the
 images — and, for a creative job, the lesson: course type ordinal, course name, HSK standard, level and
 lesson numbers (`lessonNumbers`), which `listJobs` returns so the client can filter by them, and for a GestureQuiz job its
@@ -433,84 +446,95 @@ lesson numbers (`lessonNumbers`), which `listJobs` returns so the client can fil
 `usage` (model, calls including retries, input/cached/output tokens, duration; stored for the admin, never sent
 to the client), the rate-limit `roundStart` (for refunds), `heartbeatAt` (see `listJobs` above) and timestamps.
 `Complete`/`Fail`/`Progress`/`Heartbeat` only touch a job that is still `running`, so an expired job is never
-revived by a late answer; `Prune` never deletes a running job. `Revise(username, id, csv, source)` replaces the
-result of a `done` job only (`ErrNotFound` otherwise). `List` leaves the `source` out (the query does not select
-it), since the history never needs it. `Get(username, id)` returns one job, `ErrNotFound` for another user's too
-(`createAssignment` is its caller). `ExpireRunning` fails the running jobs whose `coalesce(heartbeat_at,
-created_at)` is before the cutoff.
+revived by a late answer; `Prune` never deletes a running job. `ExpireRunning` fails the running jobs whose
+`heartbeatAt` (or, before the first heartbeat, `createdAt`) is before the cutoff.
+`Revise(username, id, csv, source)` replaces the result of a `done` job only (`ErrNotFound` otherwise). `List` leaves
+the `source` out (Mongo projects it away), since the history never needs it.
+`Get(username, id)` returns one job, `ErrNotFound` for another user's too (`createAssignment` is its caller).
+`MongoJobs.EnsureIndexes` (username + createdAt) is, like the users' one, not called on start.
 
-Assignments (`internal/store/assignments*.go`): `store.Assignments` is implemented by `PostgresAssignments` and
-`MemoryAssignments` (tests), over two tables. An `Assignment` (table `assignments`, `id` a random hex id) is the
-snapshot of a job: owner `username`, `jobId`,
-`title`, the raw `csv`, `label`, `timeMode` (`standard`/`extra`/`unlimited`), `stageLock` (`sequential`/`open`; empty on old rows, read as `sequential` by `stageLockOf`), `passPercents` (stage → percent; stages or whole map missing read as 70 by `passPercentOf`), `maxAttempts` (nil = unlimited), `hideBoard` (true when the teacher hid the students' board; false on old rows, so they show it; the API sends it as `showBoard`), `stageCounts` (stage → number of
+Assignments (`internal/store/assignments*.go`): `store.Assignments` is implemented by `MongoAssignments` and
+`MemoryAssignments` (tests), and holds two kinds of document. An `Assignment` (collection
+`MONGODB_ASSIGNMENTS_COLLECTION`, `_id` a random hex id) is the snapshot of a job: owner `username`, `jobId`,
+`title`, the raw `csv`, `label`, `timeMode` (`standard`/`extra`/`unlimited`), `stageLock` (`sequential`/`open`; empty on old documents, read as `sequential` by `stageLockOf`), `passPercents` (stage → percent; stages or whole map missing read as 70 by `passPercentOf`), `maxAttempts` (nil = unlimited), `hideBoard` (true when the teacher hid the students' board; left out when false, so old documents show it; the API sends it as `showBoard`), `stageCounts` (stage → number of
 questions), `createdAt`, the public `code`, and two optional times, `closesAt` (scheduled) and `closedAt` (by
-hand), NULL when unset. It is copied rather than referenced so deleting a job, or the
+hand), left out of the document when unset. It is copied rather than referenced so deleting a job, or the
 newest-30 prune, cannot break a live link. `OpenAt(now)` is "`closedAt` unset and `closesAt` unset or ahead";
 `EffectiveClose` is the earlier of the two, and `AcceptsResultsAt(now)` is open, or no later than the effective
-close plus `ResultGrace` (5 minutes). A `Player` (table `assignment_players`) is a student of one
-assignment: `assignmentId`, `name`, `avatar` (the id of the avatar the student picked; empty for none, which is
-also how a player from before avatars reads), `nameKey` (the lower-cased name, unique within the
+close plus `ResultGrace` (5 minutes). A `Player` (collection `MONGODB_PLAYERS_COLLECTION`) is a student of one
+assignment: `assignmentId`, `name`, `avatar` (the id of the avatar the student picked; left out of the document when
+empty, which is also how a player from before avatars reads), `nameKey` (the lower-cased name, unique within the
 assignment), `tokenHash` (never the token), `joinedAt`, `lastPlayedAt`, `stages` (the best finished run of each stage:
 `correct`, `total`, `attempts`, `passed`, `bestAt`), `started` (stage → runs started, which is what the replay
-limit counts; NULL while empty), `run` (JSONB, the latest `Run`, active or finished: its `id`, `stage`, `startedAt`,
+limit counts; left out while empty), `run` (the latest `Run`, active or finished: its `id`, `stage`, `startedAt`,
 `finishedAt` and the `questions` in the order asked, each with the `item` it is in the stage's parsed list, the
 `options` or `chunks` as shown, `servedAt`, `answeredAt`, `correct` and `timedOut`; no answer text, which is
-looked up in the quiz by `item`) and a `version`. `stages` and `started` are JSONB too. Players are rows of their
-own, not a list on the assignment, so many students finishing a stage at the same moment write different
-rows. The interface's teacher-side methods (`Get`, `List`, `Count`, `Update`, `Delete`) take the owner's
+looked up in the quiz by `item`) and a `version`. Documents from before runs may still hold a `runIds` array,
+which nothing reads. Players are a collection of their own,
+not an array on the assignment, so many students finishing a stage at the same moment write different
+documents. The interface's teacher-side methods (`Get`, `List`, `Count`, `Update`, `Delete`) take the owner's
 username, so another user's assignment is `ErrNotFound`; `GetByCode` and the player methods (`CreatePlayer`,
 `CountPlayers`, `ListPlayers`, `PlayerByToken`, `UpdatePlayer`, `SetPlayerAvatar`, `DeletePlayer`) work from the public code or the
-token and leave authorization to the handlers. `List` leaves the CSV out, and `ListPlayers` the `run` (the
-query does not select it; the leaderboard never needs it); `Delete` removes the players too (`ON DELETE CASCADE`,
-and only for the owner's assignment); `Update` takes an `AssignmentUpdate` where each time is a
-`TimeChange{Set, Value}` (not set: unchanged; set with a nil value: cleared, i.e. NULL).
+token and leave authorization to the handlers. `List` leaves the CSV out, and `ListPlayers` the `run` (Mongo
+projects it out; the leaderboard never needs it); `Delete` removes the players too
+(in Mongo only after the assignment itself went, so deleting someone else's cannot wipe its players); `Update`
+takes an `AssignmentUpdate` where each time is a `TimeChange{Set, Value}` (not set: unchanged; set with a nil
+value: cleared, i.e. `$unset`).
 
 - `UpdatePlayer(ctx, assignmentID, playerID, change)` is the one read-modify-write of a player's play: it reads
   the player, calls `change` on a copy (with non-nil `Stages` and `Started`), and writes back `stages`,
-  `started`, `run` and `lastPlayedAt` only, bumping `version`. Postgres does it in one transaction holding the
-  row (`SELECT … FOR UPDATE`), so two requests of one student at the same moment (two tabs, a double tap, an
-  answer racing the next question) wait for each other instead of overwriting each other. The memory store does
-  it under its mutex. An error from `change` writes nothing and comes back unchanged, which is how the run
-  handlers refuse on fresh data.
+  `started`, `run` and `lastPlayedAt` only. Mongo does it like `UpdateSessions`: write only where `version` is
+  unchanged (`$inc`), `$unset` a field that came out empty, retry up to 5 times, else `ErrConflict`; this keeps
+  two requests of one student at the same moment (two tabs, a double tap, an answer racing the next question)
+  from overwriting each other. The memory store does it under its mutex. `change` may run more than once, and
+  an error from it writes nothing and comes back unchanged, which is how the run handlers refuse on fresh data.
 - `MergeRun` folds a finished run into `stages`, the same on both stores: the stage's `correct` rises only if
   the run beat it (`bestAt` moves then), a pass once made stays (and sets `bestAt` when it first happens), and
   `attempts` becomes the runs started (`max` with what it was, for players from before `started`).
 - `SetPlayerAvatar` replaces the avatar and nothing else, `ErrNotFound` when that player is not in that
-  assignment. Postgres writes the one column and leaves `version` alone: `UpdatePlayer` writes only `stages`,
-  `started`, `run` and `last_played_at`, so the two writes touch different columns and cannot undo each other.
+  assignment. Mongo does it as one `UpdateOne` with `$set: {avatar}` and no version bump: `UpdatePlayer` `$set`s
+  only `stages`, `started`, `run` and `lastPlayedAt`, so the two writes touch different fields and cannot undo each other.
   The store keeps whatever avatar it is given; the API validates against `avatarIDs`.
-- Times are stored as UTC milliseconds (`storedTime`), the precision of the data copied from MongoDB, and both
-  implementations copy and normalize through `Assignment.stored()`/`Player.stored()`, so a value reads back the
-  same from either. `MemoryAssignments.Now` exists for parity with the other memory stores but no method reads
-  it: `UpdatePlayer`'s `change` takes its time from the caller.
-- Uniqueness of the code and of a name within an assignment is the schema's (`code UNIQUE`,
-  `UNIQUE (assignment_id, name_key)`); a clash is `ErrDuplicate`. The indexes (`schema.sql`) back `List`/`Count`
-  (`username, created_at DESC`), `PlayerByToken` (`assignment_id, token_hash`, not unique, tokens being 256 random
-  bits) and `ListPlayers` (`assignment_id, joined_at, id`).
+- Times are stored as UTC milliseconds (`storedTime`), the precision MongoDB keeps, and both implementations
+  copy and normalize through `Assignment.stored()`/`Player.stored()`, so a value reads back the same from
+  either (and empty maps and slices are stored as `{}` and `[]`, not `null`). `MemoryAssignments.Now` exists for
+  parity with the other memory stores but no method reads it: `UpdatePlayer`'s `change` takes its time from the caller.
+- Uniqueness of the code and of a name within an assignment is **checked before inserting** (`Create`,
+  `CreatePlayer`), so it holds even where no index was ever created (`TestMongoAssignmentsWithoutIndexes`); the
+  unique indexes only close the race between two simultaneous inserts. `MongoAssignments.EnsureIndexes` defines,
+  on the assignments collection, unique `code` and `{username, createdAt: -1}` (`List`, `Count`), and on the
+  players collection unique `{assignmentId, nameKey}` and `{assignmentId, tokenHash}` (`PlayerByToken`; this one
+  is not unique, tokens being 256 random bits). Like the users' and jobs' ones, **the server does not call
+  `EnsureIndexes`** (it would slow every serverless cold start) and nothing else does either: create the four
+  indexes once by hand, or from a one-off that calls it. Without them the lookups by code, by owner and by
+  token scan their collection, which is fine for a classroom's volumes but not for ever.
 
-Data model (`internal/store`): one `users` row per user, keyed by `username`, holding `password_hash`, `roles`
-(`text[]`), `created_at`, `refresh_tokens` (JSONB: `tokenHash`, `expiresAt`, `createdAt`), `spent_refresh_tokens`
-(JSONB: `tokenHash`, `spentAt`, `expiresAt`), `ai_call_count_in_round`, `start_round_time` and `version`.
+Data model (`internal/store`): one `User` document per user in one collection, `_id` = username,
+holding `passwordHash`, `roles`, `createdAt`, `refreshTokens` (`tokenHash`, `expiresAt`,
+`createdAt`), `spentRefreshTokens` (`tokenHash`, `spentAt`, `expiresAt`), `aiCallCountInRound`,
+`startRoundTime`, and `version`.
 
 - Refresh tokens are opaque 512-bit random strings; only their SHA-256 (`tokenHash`, base64url) is
   stored, so a database leak hands out no sessions. `auth.Service` hashes; the store only sees hashes.
 - Session changes go through `UpdateSessions` (active + spent tokens as one `store.Sessions`):
-  one transaction holds the user's row (`SELECT … FOR UPDATE`), applies the mutation and writes back, bumping
-  `version`. This keeps concurrent logins from dropping each other's tokens, and — because
+  read, apply the mutation, write back only if `version` is unchanged (`$inc` on success), retry up
+  to 5 times. This keeps concurrent logins from dropping each other's tokens, and — because
   `Refresh` checks the token inside the mutation — two concurrent refreshes with one token cannot
-  both succeed. The token policy (prune expired, cap,
+  both succeed. Documents without `version` count as 0. The token policy (prune expired, cap,
   rotate, reuse detection) lives in `auth.Service`, not the store.
 - Reuse detection: a rotated token moves to `spentRefreshTokens` (last 50 kept, each until its
   original expiry). Presenting a spent token within 30 s of its rotation is a benign race (two tabs
   refreshing at once) and just gets 401; later, it clears every active session of the user
   (`auth.ErrRefreshTokenReused`, logged as a warning) and still answers `401 Invalid refresh token`.
   `logout-all` only accepts an active token.
-- `TryConsumeAICall` enforces the rate limit atomically in one conditional `UPDATE … RETURNING` (increment
+- `TryConsumeAICall` enforces the rate limit atomically with two conditional updates (increment
   within a running round under the limit, else start a new round) instead of read-then-write. It
-  returns the round's start; `RefundAICall` decrements only while `start_round_time` still equals it,
+  returns the round's start; `RefundAICall` decrements only while `startRoundTime` still equals it,
   so a refund arriving after a new round began cannot eat into that round.
-- `FindByRefreshTokenHash` matches with JSONB containment (`@>`) on either token list, backed by a GIN
-  `jsonb_path_ops` index on each.
+- `EnsureIndexes` creates the `refreshTokens.tokenHash` and `spentRefreshTokens.tokenHash` indexes
+  used by `FindByRefreshTokenHash`. The server
+  does not call it (it would slow every serverless cold start); `cmd/import-users` does, or create
+  the index once by hand. Without it, refresh lookups scan the collection — fine for few users.
 
 Password hashes are `iterations.base64(salt).base64(key)` with PBKDF2-HMAC-SHA256 — the same format
 the .NET version wrote, so users imported with `cmd/import-users` keep their passwords. Login with

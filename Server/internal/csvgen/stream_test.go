@@ -25,7 +25,7 @@ func sseServer(t *testing.T, write func(n int, w *sseWriter, r *http.Request)) (
 		write(n, &sseWriter{w: w}, r)
 	}))
 	t.Cleanup(llm.Close)
-	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
 	c.baseBackoff = time.Millisecond
 	return c, &calls
 }

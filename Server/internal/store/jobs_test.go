@@ -3,15 +3,39 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"testing"
 	"time"
+
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-// The same contract runs against both implementations; the Postgres one is skipped unless
-// POSTGRES_TEST_URL is set, like the other integration tests.
+// The same contract runs against both implementations; the Mongo one is skipped unless
+// MONGODB_TEST_URI is set, like the other integration tests.
 func TestMemoryJobs(t *testing.T) { testJobs(t, NewMemoryJobs()) }
 
-func TestPostgresJobs(t *testing.T) { testJobs(t, NewPostgresJobs(newTestPool(t))) }
+func TestMongoJobs(t *testing.T) {
+	uri := os.Getenv("MONGODB_TEST_URI")
+	if uri == "" {
+		t.Skip("MONGODB_TEST_URI not set")
+	}
+	client, err := mongo.Connect(options.Client().ApplyURI(uri))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := client.Database(fmt.Sprintf("quiztool_test_%d", time.Now().UnixNano()))
+	t.Cleanup(func() {
+		_ = db.Drop(context.Background())
+		_ = client.Disconnect(context.Background())
+	})
+	jobs := NewMongoJobs(db.Collection("Jobs"))
+	if err := jobs.EnsureIndexes(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	testJobs(t, jobs)
+}
 
 func testJobs(t *testing.T, jobs Jobs) {
 	ctx := context.Background()

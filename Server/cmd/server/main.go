@@ -14,6 +14,9 @@ import (
 	"syscall"
 	"time"
 
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
+
 	"quiz-csv-import-tool/server/internal/api"
 	"quiz-csv-import-tool/server/internal/auth"
 	"quiz-csv-import-tool/server/internal/config"
@@ -28,10 +31,6 @@ func main() {
 		os.Exit(1)
 	}
 }
-
-// shutdownGrace is how long a stopping server waits for running handlers, a little under Render's
-// maxShutdownDelaySeconds of 300.
-const shutdownGrace = 290 * time.Second
 
 func run(logger *slog.Logger) error {
 	// The lesson documents are embedded and checked when csvgen loads; a broken one must stop the server here,
@@ -50,17 +49,26 @@ func run(logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	startupCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	pool, err := store.OpenPostgres(startupCtx, cfg.DatabaseURL)
+	client, err := mongo.Connect(options.Client().ApplyURI(cfg.MongoURI))
 	if err != nil {
-		return fmt.Errorf("connecting to PostgreSQL: %w", err)
+		return fmt.Errorf("connecting to MongoDB: %w", err)
 	}
-	defer pool.Close()
-	if err := store.Migrate(startupCtx, pool); err != nil {
-		return fmt.Errorf("creating the database tables: %w", err)
+	defer func() {
+		disconnectCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = client.Disconnect(disconnectCtx)
+	}()
+
+	startupCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	if err := client.Ping(startupCtx, nil); err != nil {
+		return fmt.Errorf("pinging MongoDB: %w", err)
 	}
-	users := store.NewPostgresUsers(pool)
+	db := client.Database(cfg.MongoDatabase)
+	users := store.NewMongo(db.Collection(cfg.MongoCollection))
+	jobs := store.NewMongoJobs(db.Collection(cfg.MongoJobsCollection))
+	assignments := store.NewMongoAssignments(
+		db.Collection(cfg.MongoAssignmentsCollection), db.Collection(cfg.MongoPlayersCollection))
 
 	if cfg.AdminAPIKey == "" {
 		logger.Warn("ADMIN_API_KEY is not set; POST /api/users rejects every request")
@@ -69,15 +77,15 @@ func run(logger *slog.Logger) error {
 	if missing := cfg.LLM.Missing(); len(missing) > 0 {
 		logger.Warn("CSV generation disabled, missing settings: " + strings.Join(missing, ", "))
 	} else {
-		generator = csvgen.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.IntelligenceModels, logger)
+		generator = csvgen.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.IntelligenceModels, cfg.LLM.Timeout, logger)
 	}
 
 	jwt := auth.NewJWT(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, cfg.AccessTokenTTL)
 	srv := &api.Server{
 		Users:            users,
-		Jobs:             store.NewPostgresJobs(pool),
-		Assignments:      store.NewPostgresAssignments(pool),
-		LoginAttempts:    store.NewPostgresLoginAttempts(pool),
+		Jobs:             jobs,
+		Assignments:      assignments,
+		LoginAttempts:    store.NewMongoLoginAttempts(db.Collection(cfg.MongoLoginAttemptsCollection)),
 		Auth:             auth.NewService(users, jwt, cfg.RefreshTokenTTL, cfg.MaxRefreshTokensPerUser),
 		JWT:              jwt,
 		Generator:        generator,
@@ -87,8 +95,13 @@ func run(logger *slog.Logger) error {
 		RoundDuration:    cfg.RoundDuration,
 		LoginMaxAttempts: cfg.LoginMaxAttempts,
 		LoginWindow:      cfg.LoginWindow,
+		LLMTimeout:       cfg.LLM.Timeout,
 		StageSeconds:     cfg.GameStageSeconds,
 		Logger:           logger,
+	}
+	if cfg.HighIntelligenceServer != nil {
+		srv.HighIntelligenceProxy = api.NewHighIntelligenceProxy(cfg.HighIntelligenceServer, logger)
+		logger.Info("High intelligence jobs go to their own server", "host", cfg.HighIntelligenceServer.Host)
 	}
 
 	httpServer := &http.Server{
@@ -96,8 +109,8 @@ func run(logger *slog.Logger) error {
 		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       2 * time.Minute,
-		// Bounds writing a response; a job's handler goes on generating after its 202 is written, unaffected.
-		WriteTimeout: 2 * time.Minute,
+		// Must outlast the LLM call so its timeout can still be answered.
+		WriteTimeout: cfg.LLM.Timeout + time.Minute,
 		IdleTimeout:  2 * time.Minute,
 	}
 
@@ -112,13 +125,8 @@ func run(logger *slog.Logger) error {
 		return err
 	case <-ctx.Done():
 	}
-	// A second signal kills the process at once.
-	stop()
-	// Shutdown waits for the handlers still running, which includes AI jobs still generating, so a deploy
-	// lets them finish. Render kills the process maxShutdownDelaySeconds (render.yaml) after SIGTERM; a job
-	// cut off then is failed as interrupted once its heartbeat is missed.
 	logger.Info("shutting down")
-	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), shutdownGrace)
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancelShutdown()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err

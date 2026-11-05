@@ -592,8 +592,23 @@ func TestCreateJobFailureDoesNotUseQuota(t *testing.T) {
 	}
 }
 
-// A generation has no time limit: it runs as long as the model takes, recording a heartbeat meanwhile so
-// listJobs does not take it for abandoned.
+func TestCreateJobTimeout(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	env.gen.release = make(chan struct{}) // never closed: the call outlasts its deadline
+	env.srv.LLMTimeout = 10 * time.Millisecond
+	if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusAccepted {
+		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
+	}
+	job := env.onlyJob(t, "alice")
+	if job.Status != store.JobFailed || job.ErrorStatus != http.StatusGatewayTimeout || job.ErrorCode != "timeout" ||
+		job.ErrorMessage != "AI generation timed out." {
+		t.Fatalf("job %+v", job)
+	}
+}
+
+// Without LLMTimeout (the High intelligence server) a generation runs as long as the model takes, recording a
+// heartbeat meanwhile so listJobs does not take it for abandoned.
 func TestLongJobKeepsAHeartbeat(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")

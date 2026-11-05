@@ -75,6 +75,9 @@ const IntelligenceLevels = 2
 // DefaultIntelligence is used when the client sends none; it matches the GUI default (Thấp).
 const DefaultIntelligence = 1
 
+// HighIntelligence is "Cao", the level whose jobs may run on a server of their own (api.HighIntelligenceProxy).
+const HighIntelligence = 2
+
 // GestureStageCount is how many games (stages) a Game can have. A stage's number, 1 to
 // GestureStageCount, is the identity of its game in the CSV, so it never changes when a quiz leaves
 // other stages out. Keep in step with STAGES in Client/src/game/stages.ts.

@@ -255,7 +255,7 @@ Take the ID only from a photo page URL that appeared in your search results, and
 
 #### Searching efficiently
 
-Every search makes the answer slower, so keep searches few and targeted:
+{{if .TimeLimitSeconds}}The whole answer has a time limit{{else}}Every search makes the answer slower{{end}}, so keep searches few and targeted:
 
 * One search per picture, restricted to Pexels photo pages, for example: site:pexels.com/photo red apple
 * A single search result page usually lists several matching photos. When two questions need similar pictures, such as two different fruits or two family members, take them from the same results where possible.
@@ -384,6 +384,16 @@ Missing images are NOT unclear input. When a LESSON MATERIAL message is provided
 Return only valid CSV rows using the provided template to indicate that clarification is required.
 
 Do not output explanations outside the CSV.
+{{- if .TimeLimitSeconds}}
+
+## TIME LIMIT
+
+The server stops waiting after {{.TimeLimitSeconds}} seconds and discards a late answer. That budget covers your thinking, every web search and the CSV itself, so leave about a minute to spare. Think efficiently, not less: keep the full question count, the image coverage target and the vocabulary coverage.
+
+* Build the plan once and do not re-derive it. Check each question once against VALIDATION BEFORE OUTPUT, and fix or replace a failing one with a simpler type on the same word.
+* Do not restart or rewrite the whole set. Follow the search limits in the searching guidance above.
+* Once validated, write the CSV straight away.
+{{- end}}
 
 ## OUTPUT FORMAT
 

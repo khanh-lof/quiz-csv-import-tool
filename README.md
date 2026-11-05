@@ -11,7 +11,7 @@ format.
 | Directory | What it is |
 |---|---|
 | [`Client/`](Client/) | Angular 20 single-page app (ng-zorro-antd) |
-| [`Server/`](Server/) | Go API: auth, per-user AI rate limit, LLM-backed CSV generation, PostgreSQL persistence ([README](Server/README.md)) |
+| [`Server/`](Server/) | Go API: auth, per-user AI rate limit, LLM-backed CSV generation, MongoDB persistence ([README](Server/README.md)) |
 | [`Extension/`](Extension/) | Optional Chrome/Edge extension that imports and publishes the Wayground quiz in your logged-in Wayground tab and returns its share link ([install guide, in Vietnamese](Extension/README.md)) |
 
 The client and server are built independently; there is no shared code. The API contract between them
@@ -35,7 +35,7 @@ is described in [AGENTS.md](AGENTS.md).
 
 ## Running locally
 
-Requirements: Node.js 20.19+, Go 1.27+, PostgreSQL 13+, and an OpenAI-compatible chat-completions endpoint
+Requirements: Node.js 20.19+, Go 1.27+, MongoDB, and an OpenAI-compatible chat-completions endpoint
 (only needed for AI generation).
 
 1. **Server** (http://localhost:7071):
@@ -43,8 +43,8 @@ Requirements: Node.js 20.19+, Go 1.27+, PostgreSQL 13+, and an OpenAI-compatible
    ```bash
    cd Server
    cp .env.example .env        # set JWT_SECRET, ADMIN_API_KEY, OPENAI_API_KEY, ...
-   docker compose up -d postgres  # or point DATABASE_URL at your own PostgreSQL
-   go run ./cmd/server            # creates the tables on start
+   docker compose up -d mongo  # or point MONGODB_URI at your own MongoDB
+   go run ./cmd/server
    ```
 
 2. **Create a user** (needs `ADMIN_API_KEY` from `.env`):
@@ -73,17 +73,22 @@ cd Server && go test ./...
 
 ## Deployment
 
-Everything deploys to Render from the root [`render.yaml`](render.yaml) Blueprint: the Angular client as a
-static site, the Go API as a web service and a PostgreSQL database. The static site rewrites `/api/*` to the
-API, so the browser sees one origin (no CORS, `SameSite=Strict` cookie). The production URLs are not in the repo:
+Both halves deploy together as one Vercel project using
+[Vercel Services](https://vercel.com/docs/services), configured in the root [`vercel.json`](vercel.json):
+`/api/*` and `/healthz` go to the Go `server` service, everything else to the Angular `client` service.
+Set the Vercel project's Root Directory to the repository root and add the server's environment
+variables (see [`Server/.env.example`](Server/.env.example)) to the project, `APP_ORIGIN` being the
+project's own URL.
 
-1. In the Render dashboard choose **New → Blueprint**, pick this repository, and fill in the API's secret settings
-   when asked (see [`Server/.env.example`](Server/.env.example)). Set `APP_ORIGIN` to the static site's URL.
-2. Under the static site's **Redirects/Rewrites**, add two rules in this order: rewrite `/api/*` to
-   `<API URL>/api/*`, then rewrite `/*` to `/index.html`.
+Creative AI jobs at High intelligence ("Cao") can run longer than a Vercel function may, so they run on a
+second, AI-only Go server (`Server/cmd/ai-server`) on Render's free plan, which the Vercel server forwards them to:
 
-To bring the data over from the MongoDB used before, run `cmd/migrate-mongo` once (see
-[`Server/README.md`](Server/README.md#moving-the-data-from-mongodb)).
+1. In the Render dashboard choose **New → Blueprint**, pick this repository ([`render.yaml`](render.yaml)), and enter
+   the same `MONGODB_URI`, `JWT_SECRET` and LLM settings as the Vercel project.
+2. In the Vercel project, set `HIGH_INTELLIGENCE_SERVER_URL` to the Render service's URL and redeploy.
+
+Without step 2 every job runs on Vercel. The free Render service sleeps after 15 minutes without requests; the
+first High job after that waits about a minute for it to wake.
 
 The server can also run anywhere as a container ([`Server/Dockerfile`](Server/Dockerfile)), behind a
 reverse proxy that serves the client on the same origin over HTTPS.
@@ -91,5 +96,5 @@ reverse proxy that serves the client on the same origin over HTTPS.
 ## Contributing
 
 [AGENTS.md](AGENTS.md) explains how the pieces fit together (the client/server contract, the two AI
-modes, rate limiting, retries, upload size and long AI jobs). Each project also has its own `AGENTS.md` with the
+modes, rate limiting, retries and Vercel limits). Each project also has its own `AGENTS.md` with the
 details for that side.

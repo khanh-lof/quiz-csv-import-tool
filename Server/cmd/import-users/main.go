@@ -1,13 +1,13 @@
-// Command import-users copies users exported from the old Cosmos DB container into PostgreSQL.
+// Command import-users copies users exported from the old Cosmos DB container into MongoDB.
 //
 // Export the container as a JSON array (e.g. run `SELECT * FROM c` in Cosmos Data Explorer and
 // save the results), then:
 //
-//	DATABASE_URL=... go run ./cmd/import-users users.json
+//	MONGODB_URI=... go run ./cmd/import-users users.json
 //
 // Username, password hash, roles and creation date are imported; password hashes use the same
 // format, so existing passwords keep working. Refresh tokens and rate-limit state are dropped
-// (everyone logs in again). Users that already exist in the database are skipped.
+// (everyone logs in again). Users that already exist in MongoDB are skipped.
 package main
 
 import (
@@ -18,6 +18,9 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"quiz-csv-import-tool/server/internal/config"
 	"quiz-csv-import-tool/server/internal/store"
@@ -54,23 +57,23 @@ func run() error {
 	if err := config.LoadDotEnv(".env"); err != nil {
 		return err
 	}
-	// Only the database setting matters here; other missing settings are not an error.
+	// Only the MongoDB settings matter here; other missing settings are not an error.
 	cfg, _ := config.FromEnv()
-	if cfg.DatabaseURL == "" {
-		return errors.New("DATABASE_URL is required")
+	if cfg.MongoURI == "" {
+		return errors.New("MONGODB_URI is required")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	pool, err := store.OpenPostgres(ctx, cfg.DatabaseURL)
+	client, err := mongo.Connect(options.Client().ApplyURI(cfg.MongoURI))
 	if err != nil {
 		return err
 	}
-	defer pool.Close()
-	if err := store.Migrate(ctx, pool); err != nil {
+	defer func() { _ = client.Disconnect(context.Background()) }()
+	users := store.NewMongo(client.Database(cfg.MongoDatabase).Collection(cfg.MongoCollection))
+	if err := users.EnsureIndexes(ctx); err != nil {
 		return err
 	}
-	users := store.NewPostgresUsers(pool)
 
 	var imported, skipped int
 	for _, d := range docs {
