@@ -18,7 +18,9 @@ Module `quiz-csv-import-tool/server`, laid out as:
 - `cmd/ai-server` — the High intelligence AI server: the same config, MongoDB stores and JWT checks, serving
   only `api.Server.HighIntelligenceHandler` (start and retry a creative job at High intelligence, 400 for any
   other job, and `/healthz`), with no LLM time limit. It refuses to start without the LLM settings, waits up to
-  `shutdownGrace` (290 s, under Render's `maxShutdownDelaySeconds` of 300) for running jobs on shutdown, and
+  `shutdownGrace` (25 s, under the 30 s Render leaves a free instance after SIGTERM; `maxShutdownDelaySeconds`
+  needs a paid one) for running jobs on shutdown, so a deploy cuts off a longer job, which is then failed as
+  interrupted, and
   while any job runs requests its own public URL (`RENDER_EXTERNAL_URL`) every 5 minutes so Render's free
   instance does not go to sleep under it.
 - `cmd/import-users` — one-off tool importing users exported from the old Cosmos DB container.

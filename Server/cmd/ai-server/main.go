@@ -36,9 +36,10 @@ func main() {
 }
 
 const (
-	// shutdownGrace is how long a stopping server waits for running jobs, a little under Render's
-	// maxShutdownDelaySeconds of 300.
-	shutdownGrace = 290 * time.Second
+	// shutdownGrace is how long a stopping server waits for running jobs: a little under the 30 s Render leaves a
+	// free instance between SIGTERM and killing it (maxShutdownDelaySeconds, which could make that 300, needs a
+	// paid instance).
+	shutdownGrace = 25 * time.Second
 	// keepAwakeEvery is how often a busy server requests its own public URL: well inside the 15 minutes
 	// without inbound requests after which Render puts a free instance to sleep.
 	keepAwakeEvery = 5 * time.Minute
@@ -118,13 +119,18 @@ func run(logger *slog.Logger) error {
 	}
 	// A second signal kills the process at once.
 	stop()
-	// Shutdown waits for the handlers still running, which are the AI jobs still generating, so a deploy lets
-	// them finish. Render kills the process maxShutdownDelaySeconds (render.yaml) after SIGTERM; a job cut off
-	// then is failed as interrupted by the main server once its heartbeat is missed.
+	// Shutdown waits for the handlers still running, which are the AI jobs still generating, so a job about to
+	// finish still can. A longer one is cut off when the process ends, and failed as interrupted by the main
+	// server once its heartbeat is missed.
 	logger.Info("shutting down")
 	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), shutdownGrace)
 	defer cancelShutdown()
-	if err := httpServer.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	err = httpServer.Shutdown(shutdownCtx)
+	if errors.Is(err, context.DeadlineExceeded) {
+		logger.Warn("stopping with AI jobs still running; they will be failed as interrupted")
+		return nil
+	}
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
