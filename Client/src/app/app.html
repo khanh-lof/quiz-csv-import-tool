@@ -1,1 +1,4 @@
 <router-outlet/>
+<ng-template #historyLinkContent let-notification let-data="data">
+  {{ data.lead }} <a (click)="notification.close()" routerLink="/ai-history">AI › Lịch sử</a>.
+</ng-template>
