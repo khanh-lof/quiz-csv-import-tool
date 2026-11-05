@@ -255,7 +255,7 @@ Take the ID only from a photo page URL that appeared in your search results, and
 
 #### Searching efficiently
 
-{{if .TimeLimitSeconds}}The whole answer has a time limit{{else}}Every search makes the answer slower{{end}}, so keep searches few and targeted:
+The whole answer has a time limit, so keep searches few and targeted:
 
 * One search per picture, restricted to Pexels photo pages, for example: site:pexels.com/photo red apple
 * A single search result page usually lists several matching photos. When two questions need similar pictures, such as two different fruits or two family members, take them from the same results where possible.

@@ -27,8 +27,8 @@ type fakeGenerator struct {
 	creative bool
 	opts     csvgen.Options
 	err      error
-	// release, when set, makes Generate wait until it is closed, like a long LLM call.
-	release chan struct{}
+	// block makes Generate wait for the context to end, like a stalled LLM call.
+	block bool
 	// result is the CSV Generate answers, empty meaning "a,b", and source the source it answers with it.
 	result, source string
 	// usage is what Generate reports, whether or not it fails.
@@ -43,12 +43,9 @@ func (g *fakeGenerator) GenerateWithProgress(ctx context.Context, images []csvge
 	for _, n := range g.rows {
 		onRows(n)
 	}
-	if g.release != nil {
-		select {
-		case <-g.release:
-		case <-ctx.Done():
-			return csvgen.Result{}, ctx.Err()
-		}
+	if g.block {
+		<-ctx.Done()
+		return csvgen.Result{}, ctx.Err()
 	}
 	if g.result != "" {
 		return csvgen.Result{CSV: g.result, Source: g.source, Usage: g.usage}, g.err
@@ -595,7 +592,7 @@ func TestCreateJobFailureDoesNotUseQuota(t *testing.T) {
 func TestCreateJobTimeout(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
-	env.gen.release = make(chan struct{}) // never closed: the call outlasts its deadline
+	env.gen.block = true
 	env.srv.LLMTimeout = 10 * time.Millisecond
 	if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusAccepted {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
@@ -604,45 +601,6 @@ func TestCreateJobTimeout(t *testing.T) {
 	if job.Status != store.JobFailed || job.ErrorStatus != http.StatusGatewayTimeout || job.ErrorCode != "timeout" ||
 		job.ErrorMessage != "AI generation timed out." {
 		t.Fatalf("job %+v", job)
-	}
-}
-
-// Without LLMTimeout (the High intelligence server) a generation runs as long as the model takes, recording a
-// heartbeat meanwhile so listJobs does not take it for abandoned.
-func TestLongJobKeepsAHeartbeat(t *testing.T) {
-	env := newEnv(t)
-	token, _ := env.login(t, "alice", "pw")
-	env.gen.release = make(chan struct{})
-	env.srv.heartbeatEvery = 5 * time.Millisecond
-
-	uploaded := make(chan *httptest.ResponseRecorder)
-	go func() { uploaded <- env.upload(t, upload{token: token, files: 1}) }()
-
-	var job store.Job
-	for deadline := time.Now().Add(5 * time.Second); ; {
-		if jobs, _ := env.jobs.List(context.Background(), "alice", 10); len(jobs) == 1 && jobs[0].HeartbeatAt != nil {
-			job = jobs[0]
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("no heartbeat recorded while the job runs")
-		}
-		time.Sleep(time.Millisecond)
-	}
-	if job.Status != store.JobRunning {
-		t.Fatalf("job %+v", job)
-	}
-	// The listing leaves a job with a fresh heartbeat running.
-	if listed := env.listJobs(t, token); listed[0]["status"] != "running" {
-		t.Fatalf("listed job: %v", listed[0])
-	}
-
-	close(env.gen.release)
-	if rec := <-uploaded; rec.Code != http.StatusAccepted {
-		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
-	}
-	if done := env.onlyJob(t, "alice"); done.Status != store.JobDone {
-		t.Fatalf("job %+v", done)
 	}
 }
 
@@ -747,27 +705,24 @@ func TestListJobsExpiresAbandonedJobs(t *testing.T) {
 	token, _ := env.login(t, "alice", "pw")
 	now := time.Now()
 	env.users.Now = func() time.Time { return now }
+	env.srv.LLMTimeout = time.Minute
 	env.upload(t, upload{token: token, files: 1}) // consumes one of the two calls in the round
 	roundStart := now.UTC()
 
-	// A job whose process died: no heartbeat for longer than abandonedAfter.
-	stale := time.Now().Add(-abandonedAfter - time.Minute)
+	// A job whose process died: still running well past the LLM deadline.
 	err := env.jobs.Create(context.Background(), &store.Job{
 		ID: "stuck", Username: "alice", Status: store.JobRunning, Title: "stuck",
-		RoundStart: roundStart, CreatedAt: time.Now().Add(-time.Hour), HeartbeatAt: &stale,
+		RoundStart: roundStart, CreatedAt: time.Now().Add(-10 * time.Minute),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A recent one is left alone, and so is an old one whose heartbeat is fresh: a generation may take long.
-	beat := time.Now()
-	for _, job := range []*store.Job{
-		{ID: "fresh", Username: "alice", Status: store.JobRunning, Title: "fresh", CreatedAt: time.Now()},
-		{ID: "long", Username: "alice", Status: store.JobRunning, Title: "long", CreatedAt: time.Now().Add(-time.Hour), HeartbeatAt: &beat},
-	} {
-		if err := env.jobs.Create(context.Background(), job); err != nil {
-			t.Fatal(err)
-		}
+	// A recent one is left alone.
+	err = env.jobs.Create(context.Background(), &store.Job{
+		ID: "fresh", Username: "alice", Status: store.JobRunning, Title: "fresh", CreatedAt: time.Now(),
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	byTitle := map[string]map[string]any{}
@@ -775,7 +730,7 @@ func TestListJobsExpiresAbandonedJobs(t *testing.T) {
 		byTitle[j["title"].(string)] = j
 	}
 	if byTitle["stuck"]["status"] != "failed" || byTitle["stuck"]["errorMessage"] != "AI generation was interrupted." ||
-		byTitle["fresh"]["status"] != "running" || byTitle["long"]["status"] != "running" {
+		byTitle["fresh"]["status"] != "running" {
 		t.Fatalf("jobs: %v", byTitle)
 	}
 	// Its call was given back: the round counted the upload above once, and the refund takes it to zero.
