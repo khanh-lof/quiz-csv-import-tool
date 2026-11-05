@@ -4,6 +4,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"slices"
 	"strconv"
@@ -18,8 +19,17 @@ type Config struct {
 	// Port the HTTP server listens on. The client's dev environment expects 7071.
 	Port string
 
-	// DatabaseURL is the PostgreSQL connection string (DATABASE_URL), a postgres:// URL or a key=value DSN.
-	DatabaseURL string
+	MongoURI        string
+	MongoDatabase   string
+	MongoCollection string
+	// MongoJobsCollection holds the AI generation jobs.
+	MongoJobsCollection string
+	// MongoAssignmentsCollection holds the quizzes teachers handed to students ("Giao bài"), and
+	// MongoPlayersCollection the students who joined them with their results.
+	MongoAssignmentsCollection string
+	MongoPlayersCollection     string
+	// MongoLoginAttemptsCollection holds the login attempts counted per username.
+	MongoLoginAttemptsCollection string
 
 	JWTSecret       []byte
 	JWTIssuer       string // defaults to "quiztool"; always validated
@@ -33,6 +43,9 @@ type Config struct {
 	AdminAPIKey string
 
 	LLM LLMConfig
+	// HighIntelligenceServer is the base URL of the server that runs the creative jobs at High intelligence
+	// (HIGH_INTELLIGENCE_SERVER_URL, cmd/ai-server); nil runs them on this server, under LLM.Timeout.
+	HighIntelligenceServer *url.URL
 
 	AICallsPerRound int
 	RoundDuration   time.Duration
@@ -57,6 +70,9 @@ type LLMConfig struct {
 	// (LLM_INTELLIGENCE_MODELS, comma-separated). Optional; when set it must list exactly
 	// csvgen.IntelligenceLevels models.
 	IntelligenceModels []string
+	// Timeout bounds one generation call. Its default stays under Vercel's 300 s function limit so
+	// the handler can still answer a clean 504 instead of the platform killing the request.
+	Timeout time.Duration
 }
 
 func (c LLMConfig) Missing() []string {
@@ -95,7 +111,15 @@ func FromEnv() (Config, error) {
 	cfg := Config{
 		Port: envOr("PORT", "7071"),
 
-		DatabaseURL: strings.TrimSpace(os.Getenv("DATABASE_URL")),
+		MongoURI:            os.Getenv("MONGODB_URI"),
+		MongoDatabase:       envOr("MONGODB_DATABASE", "QuizDb"),
+		MongoCollection:     envOr("MONGODB_USERS_COLLECTION", "Users"),
+		MongoJobsCollection: envOr("MONGODB_JOBS_COLLECTION", "Jobs"),
+
+		MongoAssignmentsCollection: envOr("MONGODB_ASSIGNMENTS_COLLECTION", "Assignments"),
+		MongoPlayersCollection:     envOr("MONGODB_PLAYERS_COLLECTION", "AssignmentPlayers"),
+
+		MongoLoginAttemptsCollection: envOr("MONGODB_LOGIN_ATTEMPTS_COLLECTION", "LoginAttempts"),
 
 		JWTSecret:               []byte(os.Getenv("JWT_SECRET")),
 		JWTIssuer:               envOr("JWT_ISSUER", "quiztool"),
@@ -111,6 +135,7 @@ func FromEnv() (Config, error) {
 			BaseURL:            strings.TrimRight(os.Getenv("OPENAI_BASE_URL"), "/"),
 			Model:              os.Getenv("LLM_MODEL"),
 			IntelligenceModels: splitList(os.Getenv("LLM_INTELLIGENCE_MODELS")),
+			Timeout:            time.Duration(intVar("LLM_TIMEOUT_SECONDS", 280)) * time.Second,
 		},
 
 		AICallsPerRound: intVar("CALL_COUNT_ACCEPTED_IN_A_ROUND", 2),
@@ -120,14 +145,17 @@ func FromEnv() (Config, error) {
 		LoginWindow:      time.Duration(intVar("LOGIN_WINDOW_MINUTES", 15)) * time.Minute,
 	}
 
-	if cfg.DatabaseURL == "" {
-		errs = append(errs, errors.New("DATABASE_URL is required"))
+	if cfg.MongoURI == "" {
+		errs = append(errs, errors.New("MONGODB_URI is required"))
 	}
 	if len(cfg.JWTSecret) == 0 {
 		errs = append(errs, errors.New("JWT_SECRET is required"))
 	} else if len(cfg.JWTSecret) < minJWTSecretBytes {
 		// RFC 7518 §3.2: an HS256 key must be at least as long as the hash output.
 		errs = append(errs, fmt.Errorf("JWT_SECRET must be at least %d bytes for HS256, got %d", minJWTSecretBytes, len(cfg.JWTSecret)))
+	}
+	if cfg.LLM.Timeout <= 0 {
+		errs = append(errs, errors.New("LLM_TIMEOUT_SECONDS must be positive"))
 	}
 	if n := len(cfg.LLM.IntelligenceModels); n != 0 && n != csvgen.IntelligenceLevels {
 		errs = append(errs, fmt.Errorf("LLM_INTELLIGENCE_MODELS must list %d models, got %d", csvgen.IntelligenceLevels, n))
@@ -137,6 +165,9 @@ func FromEnv() (Config, error) {
 		errs = append(errs, err)
 	}
 	cfg.GameStageSeconds = seconds
+	if cfg.HighIntelligenceServer, err = parseServerURL(os.Getenv("HIGH_INTELLIGENCE_SERVER_URL")); err != nil {
+		errs = append(errs, err)
+	}
 	if cfg.LoginMaxAttempts < 1 {
 		errs = append(errs, errors.New("LOGIN_MAX_ATTEMPTS must be at least 1"))
 	}
@@ -147,6 +178,20 @@ func FromEnv() (Config, error) {
 		errs = append(errs, errors.New("MAX_REFRESH_TOKENS_PER_USER must be at least 1"))
 	}
 	return cfg, errors.Join(errs...)
+}
+
+// parseServerURL reads HIGH_INTELLIGENCE_SERVER_URL: empty, or an http(s) base URL with nothing after the path.
+func parseServerURL(raw string) (*url.URL, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	u, err := url.Parse(strings.TrimRight(raw, "/"))
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.RawQuery != "" ||
+		u.Fragment != "" || u.User != nil {
+		return nil, fmt.Errorf("HIGH_INTELLIGENCE_SERVER_URL must be an http(s) URL such as https://ai.example.com, got %q", raw)
+	}
+	return u, nil
 }
 
 func envOr(key, def string) string {

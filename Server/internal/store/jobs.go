@@ -80,15 +80,15 @@ type JobFailure struct {
 
 // JobUsage is the model a generation asked and, over all its attempts, the calls made and the tokens billed.
 type JobUsage struct {
-	Model        string `bson:"model" json:"model"`
-	Calls        int    `bson:"calls" json:"calls"`
-	InputTokens  int    `bson:"inputTokens" json:"inputTokens"`
-	CachedTokens int    `bson:"cachedTokens" json:"cachedTokens"`
-	OutputTokens int    `bson:"outputTokens" json:"outputTokens"`
-	DurationMs   int64  `bson:"durationMs" json:"durationMs"`
+	Model        string `bson:"model"`
+	Calls        int    `bson:"calls"`
+	InputTokens  int    `bson:"inputTokens"`
+	CachedTokens int    `bson:"cachedTokens"`
+	OutputTokens int    `bson:"outputTokens"`
+	DurationMs   int64  `bson:"durationMs"`
 }
 
-// Jobs is implemented by PostgresJobs (production) and MemoryJobs (tests). Every method is scoped to
+// Jobs is implemented by MongoJobs (production) and MemoryJobs (tests). Every method is scoped to
 // one user, so a user can never read or change another's jobs.
 type Jobs interface {
 	Create(ctx context.Context, job *Job) error

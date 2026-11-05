@@ -218,7 +218,7 @@ func fakeRadicalsModel(t *testing.T, vocabulary string) (*httptest.Server, *[]st
 func TestGenerateRadicalsFromTextbook(t *testing.T) {
 	llm, calls := fakeRadicalsModel(t, `{"lessons":[]}`)
 	level := 1
-	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
 	result, err := c.Generate(context.Background(), nil, true, Options{
 		ExportType: Radicals, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumbers: []int{5, 6},
 	})
@@ -259,7 +259,7 @@ const modelVocabulary = `{"lessons":[{"number":1,"titleZh":"","titleVi":"","word
 
 func TestGenerateRadicalsFromModel(t *testing.T) {
 	llm, calls := fakeRadicalsModel(t, modelVocabulary)
-	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
 	result, err := c.Generate(context.Background(), nil, true, Options{
 		ExportType: Radicals, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{1},
 	})
@@ -280,7 +280,7 @@ func TestGenerateRadicalsFromModel(t *testing.T) {
 
 func TestGenerateRadicalsWithTooFewWords(t *testing.T) {
 	llm, _ := fakeRadicalsModel(t, `{"lessons":[]}`)
-	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
 	_, err := c.Generate(context.Background(), nil, true, Options{
 		ExportType: Radicals, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{1},
 	})

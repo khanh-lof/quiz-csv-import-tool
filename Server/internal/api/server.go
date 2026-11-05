@@ -38,6 +38,12 @@ type Server struct {
 	// LoginMaxAttempts password checks are allowed per username in each LoginWindow.
 	LoginMaxAttempts int
 	LoginWindow      time.Duration
+	// LLMTimeout bounds each Generator call; zero means no limit.
+	LLMTimeout time.Duration
+	// HighIntelligenceProxy, when set, takes the creative jobs at High intelligence ("Cao") instead of this
+	// server: createJob and retryJob hand such a request to it untouched, and the AI server behind it
+	// (HighIntelligenceHandler) runs the job, writing it to the same job store. Nil runs them here.
+	HighIntelligenceProxy http.Handler
 
 	// StageSeconds is how many seconds a question of each Game stage (1 to 6, in order) lasts in the standard
 	// time mode, from the server's own configuration (GAME_STAGE_SECONDS). A shared quiz is timed here and
@@ -72,9 +78,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/auth/logout", s.logout)
 	mux.HandleFunc("POST /api/auth/logout-all", s.logoutAll)
 	mux.Handle("POST /api/users", s.requireAdminKey(http.HandlerFunc(s.createUser)))
-	csvRoute := func(h http.HandlerFunc) http.Handler {
-		return s.authenticate(requireRole(auth.RoleUser, auth.RoleAdmin)(h))
-	}
+	csvRoute := s.userRoute
 	mux.Handle("POST /api/csv/jobs", csvRoute(s.createJob))
 	mux.Handle("GET /api/csv/jobs", csvRoute(s.listJobs))
 	mux.Handle("DELETE /api/csv/jobs/{id}", csvRoute(s.deleteJob))
@@ -99,10 +103,17 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/share/{code}/runs/{runId}/answers", s.answerQuestion)
 	mux.HandleFunc("PATCH /api/share/{code}/player", s.updateSharedPlayer)
 	mux.HandleFunc("GET /api/share/{code}/leaderboard", s.sharedLeaderboard)
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		writeText(w, http.StatusOK, "ok")
-	})
+	mux.HandleFunc("GET /healthz", healthz)
 	return s.logRequests(mux)
+}
+
+// userRoute lets h answer logged-in users (and admins) only.
+func (s *Server) userRoute(h http.HandlerFunc) http.Handler {
+	return s.authenticate(requireRole(auth.RoleUser, auth.RoleAdmin)(h))
+}
+
+func healthz(w http.ResponseWriter, _ *http.Request) {
+	writeText(w, http.StatusOK, "ok")
 }
 
 func (s *Server) logRequests(next http.Handler) http.Handler {

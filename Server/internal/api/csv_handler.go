@@ -27,7 +27,8 @@ const (
 	maxTitleRunes  = 100
 	// jobHeartbeatInterval is how often the handler working on a job records that it still is, and
 	// abandonedAfter how long a running job may go without that before listJobs takes its process for dead
-	// (a restart or a deploy). A generation itself has no time limit.
+	// (a crash, a deploy, or a Vercel function cut off at its limit). It does not depend on LLMTimeout: a job
+	// of the High intelligence server has no deadline, yet is listed by the main server.
 	jobHeartbeatInterval = 30 * time.Second
 	abandonedAfter       = 3 * time.Minute
 )
@@ -35,8 +36,13 @@ const (
 // createJob handles POST /api/csv/jobs: a multipart upload of zero or more images, rate-limited per
 // user. It validates the request, stores a running job, answers 202 with the job's id right away and
 // keeps working in this same handler until the model has answered, then stores the result. The
-// client follows the job through listJobs, so it need not stay connected.
+// client follows the job through listJobs, so it need not stay connected. A creative job at High
+// intelligence goes to HighIntelligenceProxy instead, when there is one.
 func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
+	if s.HighIntelligenceProxy != nil && isHighIntelligence(r.URL.Query()) {
+		s.HighIntelligenceProxy.ServeHTTP(w, r)
+		return
+	}
 	user, ok := s.jobOwner(w, r)
 	if !ok {
 		return
@@ -76,8 +82,14 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 
 // retryJob handles POST /api/csv/jobs/{id}/retry ("Tạo lại"): a failed job's request sent again as a new
 // job, which replaces the failed one. The images come from retryImages, so a job sent with images can be
-// retried only while they are kept. Rate-limited and answered like createJob.
+// retried only while they are kept. Rate-limited and answered like createJob, and a job at High intelligence
+// goes to HighIntelligenceProxy like there.
 func (s *Server) retryJob(w http.ResponseWriter, r *http.Request) {
+	s.retry(w, r, false)
+}
+
+// retry is retryJob; onlyHigh refuses every job but one at High intelligence, as the High intelligence server does.
+func (s *Server) retry(w http.ResponseWriter, r *http.Request, onlyHigh bool) {
 	if !s.jobStoreReady(w, r) {
 		return
 	}
@@ -96,6 +108,16 @@ func (s *Server) retryJob(w http.ResponseWriter, r *http.Request) {
 	opts, ok := retryOptions(failed)
 	if !ok {
 		writeText(w, http.StatusConflict, "Job cannot be retried.")
+		return
+	}
+	high := isHighIntelligenceJob(failed, opts)
+	if onlyHigh && !high {
+		writeText(w, http.StatusBadRequest, notHighIntelligence)
+		return
+	}
+	// The images of a failed High intelligence job were kept by the server that ran it.
+	if high && s.HighIntelligenceProxy != nil {
+		s.HighIntelligenceProxy.ServeHTTP(w, r)
 		return
 	}
 	var images []csvgen.Image
@@ -184,6 +206,11 @@ func (s *Server) startJob(w http.ResponseWriter, r *http.Request, username strin
 // model call.
 func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, opts csvgen.Options) {
 	ctx := context.WithoutCancel(r.Context())
+	if s.LLMTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, s.LLMTimeout)
+		defer cancel()
+	}
 	stopHeartbeat := s.keepJobAlive(r, job)
 	started := time.Now()
 	result, err := s.Generator.GenerateWithProgress(ctx, images, job.Creative, opts, s.jobProgress(r, job))
@@ -200,7 +227,7 @@ func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, 
 		}, job)
 		return
 	}
-	failure := generationFailure(err)
+	failure := generationFailure(ctx, err)
 	s.Logger.Warn("CSV generation failed", append(logAttrs, "code", failure.Code, "error", err)...)
 	s.recordJob(r, func(ctx context.Context) error {
 		return s.Jobs.Fail(ctx, job.Username, job.ID, failure, usage)
@@ -214,14 +241,20 @@ func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, 
 	}
 }
 
-// failureNothingToPlay is the handler's own failure code, beside csvgen's Failure* codes and store.ExpiredJobCode.
-const failureNothingToPlay = "nothing_to_play"
+// Failure codes of the handler's own, beside csvgen's Failure* codes and store.ExpiredJobCode.
+const (
+	failureTimeout       = "timeout"
+	failureNothingToPlay = "nothing_to_play"
+)
 
-// generationFailure is how a job whose generation returned err failed.
-func generationFailure(err error) store.JobFailure {
-	if errors.Is(err, radicals.ErrNothingToPlay) {
+// generationFailure is how a job whose generation returned err failed, ctx being the generation's.
+func generationFailure(ctx context.Context, err error) store.JobFailure {
+	switch {
+	case errors.Is(err, radicals.ErrNothingToPlay):
 		// Not the model's fault, nor the network's: the lessons had too few words that can lose a component.
 		return store.JobFailure{Status: http.StatusUnprocessableEntity, Code: failureNothingToPlay, Message: err.Error()}
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		return store.JobFailure{Status: http.StatusGatewayTimeout, Code: failureTimeout, Message: "AI generation timed out."}
 	}
 	return store.JobFailure{Status: http.StatusBadGateway, Code: csvgen.FailureCode(err), Message: "AI generation failed."}
 }
@@ -285,7 +318,7 @@ func (s *Server) jobProgress(r *http.Request, job *store.Job) func(rows int) {
 	}
 }
 
-// recordJob writes a job's outcome with a deadline of its own, detached from the request.
+// recordJob writes a job's outcome with its own deadline, since the generation's may be used up.
 func (s *Server) recordJob(r *http.Request, write func(context.Context) error, job *store.Job) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 10*time.Second)
 	defer cancel()

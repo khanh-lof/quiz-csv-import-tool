@@ -160,8 +160,8 @@ func (s *Server) writeSession(w http.ResponseWriter, session auth.Session) {
 		MaxAge:   int(s.RefreshTokenTTL.Seconds()),
 		HttpOnly: true,
 		Secure:   true,
-		// Strict: the SPA and the API share one origin (the static site's /api rewrite on Render, the
-		// ng serve proxy locally), so the cookie never has to travel cross-site.
+		// Strict: the SPA and the API share one origin (Vercel in production, the ng serve proxy
+		// locally), so the cookie never has to travel cross-site.
 		SameSite: http.SameSiteStrictMode,
 	})
 	writeJSON(w, http.StatusOK, map[string]string{"accessToken": session.AccessToken})

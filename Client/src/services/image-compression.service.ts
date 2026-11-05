@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 
-// Keeps an upload small and quick on a classroom connection; the server refuses bodies above 50 MB with a
-// 413. The budget leaves headroom for the multipart framing around the files.
+// Vercel rejects function request bodies above 4.5 MB with a 413; keep headroom for the multipart
+// framing around the files.
 const UPLOAD_BUDGET_BYTES = 4 * 1024 * 1024;
 
 // Tried in order until the whole batch fits the budget. The first step keeps Chinese characters

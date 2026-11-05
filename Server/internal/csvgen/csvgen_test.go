@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseCreativeOptions(t *testing.T) {
@@ -230,7 +231,7 @@ func textsOf(t *testing.T, req responsesRequest) []string {
 
 func TestBuildCreativeRequest(t *testing.T) {
 	level, lesson := 2, 5
-	req := buildCreativeRequest("m", nil, Options{ExportType: Wayground, CourseType: Yct, Level: &level, LessonNumbers: []int{lesson}})
+	req := buildCreativeRequest("m", 0, nil, Options{ExportType: Wayground, CourseType: Yct, Level: &level, LessonNumbers: []int{lesson}})
 	if req.Model != "m" || req.MaxOutputTokens != 64000 || req.Input[0].Role != "user" ||
 		len(req.Tools) != 1 || req.Tools[0].Type != "web_search" {
 		t.Fatalf("unexpected request %+v", req)
@@ -253,7 +254,7 @@ func TestBuildCreativeRequest(t *testing.T) {
 		t.Fatalf("unexpected text parts %q", texts)
 	}
 
-	withImage := buildCreativeRequest("m", []Image{{ContentType: "image/png", Data: []byte{1, 2}}},
+	withImage := buildCreativeRequest("m", 0, []Image{{ContentType: "image/png", Data: []byte{1, 2}}},
 		Options{ExportType: GimKit, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{lesson}})
 	texts = textsOf(t, withImage)
 	if texts[0] != "Convert the images to CSV using the required format." ||
@@ -271,7 +272,7 @@ func TestBuildCreativeRequest(t *testing.T) {
 
 	// GestureQuiz has no image column either, so it gets no search tool and the plain token budget;
 	// its stage rules arrive as the template message right after the columns.
-	gesture := buildCreativeRequest("m", nil, Options{ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson}})
+	gesture := buildCreativeRequest("m", 0, nil, Options{ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson}})
 	if gesture.Tools != nil || gesture.MaxOutputTokens != 32000 {
 		t.Fatalf("unexpected request %+v", gesture)
 	}
@@ -302,7 +303,7 @@ var stageRuleStarts = [GestureStageCount]struct{ start, sentence string }{
 func gestureMessage(t *testing.T, stages []int, questions int) string {
 	t.Helper()
 	level, lesson := 1, 1
-	req := buildCreativeRequest("m", nil, Options{
+	req := buildCreativeRequest("m", 0, nil, Options{
 		ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson},
 		GestureStages: stages, QuestionsPerStage: questions,
 	})
@@ -483,7 +484,7 @@ func TestGestureQuizTokenBudget(t *testing.T) {
 	}
 	level, lesson := 1, 1
 	for _, tt := range tests {
-		req := buildCreativeRequest("m", nil, Options{
+		req := buildCreativeRequest("m", 0, nil, Options{
 			ExportType: GestureQuiz, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson},
 			GestureStages: tt.stages, QuestionsPerStage: tt.questions,
 		})
@@ -492,7 +493,7 @@ func TestGestureQuizTokenBudget(t *testing.T) {
 		}
 	}
 	// The other platforms are untouched by the gesture settings.
-	other := buildCreativeRequest("m", nil, Options{ExportType: GimKit, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson},
+	other := buildCreativeRequest("m", 0, nil, Options{ExportType: GimKit, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson},
 		GestureStages: AllGestureStages(), QuestionsPerStage: 10})
 	if other.MaxOutputTokens != 32000 {
 		t.Errorf("GimKit got %d output tokens", other.MaxOutputTokens)
@@ -511,7 +512,7 @@ func TestGenerateCallsChatCompletions(t *testing.T) {
 	}))
 	defer llm.Close()
 
-	c := NewClient(llm.URL+"/v1/", "key", "gpt-x", nil, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL+"/v1/", "key", "gpt-x", nil, 0, slog.New(slog.DiscardHandler))
 	result, err := c.Generate(context.Background(), []Image{{ContentType: "image/jpeg", Data: []byte("img")}}, false, Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -539,7 +540,7 @@ func TestGenerateCreativeCallsResponses(t *testing.T) {
 	defer llm.Close()
 
 	level, lesson := 1, 1
-	c := NewClient(llm.URL+"/v1", "key", "gpt-x", nil, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL+"/v1", "key", "gpt-x", nil, 0, slog.New(slog.DiscardHandler))
 	result, err := c.Generate(context.Background(), nil, true, Options{ExportType: Wayground, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson}})
 	if err != nil {
 		t.Fatal(err)
@@ -557,7 +558,7 @@ func TestGenerateFailsOnIncompleteResponse(t *testing.T) {
 		_, _ = io.WriteString(w, `{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"output":[{"type":"message","content":[{"type":"output_text","text":"a,b"}]}]}`)
 	}))
 	defer llm.Close()
-	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
 	if _, err := c.Generate(context.Background(), nil, true, Options{}); err == nil || !strings.Contains(err.Error(), "max_output_tokens") {
 		t.Fatalf("want incomplete error, got %v", err)
 	}
@@ -568,7 +569,7 @@ func TestGenerateFailsOnErrorStatus(t *testing.T) {
 		http.Error(w, "nope", http.StatusBadRequest)
 	}))
 	defer llm.Close()
-	c := NewClient(llm.URL, "key", "m", nil, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
 	if _, err := c.Generate(context.Background(), nil, true, Options{}); err == nil {
 		t.Fatal("want error on non-2xx status")
 	}
@@ -576,13 +577,13 @@ func TestGenerateFailsOnErrorStatus(t *testing.T) {
 
 func TestModelForIntelligence(t *testing.T) {
 	models := []string{"m1", "m2"}
-	c := NewClient("http://x", "key", "base", models, slog.New(slog.DiscardHandler))
+	c := NewClient("http://x", "key", "base", models, 0, slog.New(slog.DiscardHandler))
 	for level, want := range map[int]string{1: "m1", 2: "m2", 0: "m1", 3: "m1"} {
 		if got := c.modelFor(Options{Intelligence: level}); got != want {
 			t.Errorf("intelligence %d: want %q, got %q", level, want, got)
 		}
 	}
-	if got := NewClient("http://x", "key", "base", nil, slog.New(slog.DiscardHandler)).modelFor(Options{Intelligence: 2}); got != "base" {
+	if got := NewClient("http://x", "key", "base", nil, 0, slog.New(slog.DiscardHandler)).modelFor(Options{Intelligence: 2}); got != "base" {
 		t.Errorf("without intelligence models want the base model, got %q", got)
 	}
 }
@@ -648,7 +649,7 @@ func TestVocabularyReviewAsksForAnEasyQuiz(t *testing.T) {
 	level := 2
 	hsk := Options{ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumbers: []int{2}}
 	hasGuidance := func(opts Options) bool {
-		return slices.ContainsFunc(textsOf(t, buildCreativeRequest("m", nil, opts)), func(text string) bool {
+		return slices.ContainsFunc(textsOf(t, buildCreativeRequest("m", 0, nil, opts)), func(text string) bool {
 			return strings.HasPrefix(text, "Keep the quiz easy")
 		})
 	}
@@ -670,7 +671,7 @@ func TestBuildCreativeRequestWithLessonMaterial(t *testing.T) {
 	}
 
 	// Without images the material is the lesson: it follows the course, level and lesson number.
-	req := buildCreativeRequest("m", nil, opts)
+	req := buildCreativeRequest("m", 0, nil, opts)
 	texts := textsOf(t, req)
 	want := []string{
 		"Follow the LESSON SOURCE section: the LESSON MATERIAL message below is the lesson, taken from the textbook. Generate the CSV using the required format.",
@@ -688,7 +689,7 @@ func TestBuildCreativeRequestWithLessonMaterial(t *testing.T) {
 	}
 
 	// With images the material comes before them, and they only narrow it down.
-	withImage := buildCreativeRequest("m", []Image{{ContentType: "image/png", Data: []byte{1, 2}}}, opts)
+	withImage := buildCreativeRequest("m", 0, []Image{{ContentType: "image/png", Data: []byte{1, 2}}}, opts)
 	texts = textsOf(t, withImage)
 	if texts[0] != "The LESSON MATERIAL message below is the lesson, taken from the textbook; the images show the part of it to focus on. Generate the CSV using the required format." ||
 		texts[len(texts)-1] != material || len(texts) != len(want) {
@@ -701,11 +702,11 @@ func TestBuildCreativeRequestWithLessonMaterial(t *testing.T) {
 
 	// The token budgets do not depend on the material.
 	opts.ExportType = Wayground
-	if wayground := buildCreativeRequest("m", nil, opts); wayground.MaxOutputTokens != 64000 || len(wayground.Tools) != 1 {
+	if wayground := buildCreativeRequest("m", 0, nil, opts); wayground.MaxOutputTokens != 64000 || len(wayground.Tools) != 1 {
 		t.Errorf("unexpected Wayground request %+v", wayground)
 	}
 	opts.ExportType = GestureQuiz
-	if gesture := buildCreativeRequest("m", nil, opts); gesture.MaxOutputTokens != 32000 || gesture.Tools != nil {
+	if gesture := buildCreativeRequest("m", 0, nil, opts); gesture.MaxOutputTokens != 32000 || gesture.Tools != nil {
 		t.Errorf("unexpected gesture request %+v", gesture)
 	}
 }
@@ -749,12 +750,12 @@ func TestBuildCreativeRequestForSeveralLessons(t *testing.T) {
 	noBook := Options{ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk2, Level: &hsk2Level, LessonNumbers: lessons}
 	rest := append(exportTypeMessages(noBook), "Course: "+noBook.CourseDisplayName(), "Level: 4", lessonLine)
 	want := append([]string{"No image is provided. Follow the LESSON SOURCE section: identify the textbook for the course and level below, recall the new words of each of those lessons, and generate one CSV that covers all of them, using the required format."}, rest...)
-	if texts := textsOf(t, buildCreativeRequest("m", nil, noBook)); !slices.Equal(texts, want) {
+	if texts := textsOf(t, buildCreativeRequest("m", 0, nil, noBook)); !slices.Equal(texts, want) {
 		t.Errorf("no images, no textbook:\n%q\nwant\n%q", texts, want)
 	}
 	// With images and no textbook the images are the lessons, whatever their number.
 	want = append([]string{"Convert the images to CSV using the required format."}, rest...)
-	if texts := textsOf(t, buildCreativeRequest("m", images, noBook)); !slices.Equal(texts, want) {
+	if texts := textsOf(t, buildCreativeRequest("m", 0, images, noBook)); !slices.Equal(texts, want) {
 		t.Errorf("images, no textbook:\n%q\nwant\n%q", texts, want)
 	}
 
@@ -767,11 +768,11 @@ func TestBuildCreativeRequestForSeveralLessons(t *testing.T) {
 	}
 	rest = append(exportTypeMessages(opts), "Course: 《新HSK教程2》 (New HSK Course 2), the HSK 3.0 level 2 textbook", "Level: 2", lessonLine, material)
 	want = append([]string{"Follow the LESSON SOURCE section: the LESSON MATERIAL message below holds the lessons, taken from the textbook. Generate one CSV that covers all of them, using the required format."}, rest...)
-	if texts := textsOf(t, buildCreativeRequest("m", nil, opts)); !slices.Equal(texts, want) {
+	if texts := textsOf(t, buildCreativeRequest("m", 0, nil, opts)); !slices.Equal(texts, want) {
 		t.Errorf("textbook, no images:\n%q\nwant\n%q", texts, want)
 	}
 	want = append([]string{"The LESSON MATERIAL message below holds the lessons, taken from the textbook; the images show the part of them to focus on. Generate one CSV that covers all of them, using the required format."}, rest...)
-	withImages := buildCreativeRequest("m", images, opts)
+	withImages := buildCreativeRequest("m", 0, images, opts)
 	if texts := textsOf(t, withImages); !slices.Equal(texts, want) {
 		t.Errorf("textbook, images:\n%q\nwant\n%q", texts, want)
 	}
@@ -780,7 +781,7 @@ func TestBuildCreativeRequestForSeveralLessons(t *testing.T) {
 	}
 	// A lesson the book lacks leaves no material, and the request reads as one without a textbook.
 	opts.LessonNumbers = []int{3, 16}
-	if texts := textsOf(t, buildCreativeRequest("m", nil, opts)); strings.Contains(strings.Join(texts, "\n"), "LESSON MATERIAL: ") {
+	if texts := textsOf(t, buildCreativeRequest("m", 0, nil, opts)); strings.Contains(strings.Join(texts, "\n"), "LESSON MATERIAL: ") {
 		t.Errorf("material for a lesson the book does not have: %q", texts)
 	}
 }
@@ -798,12 +799,12 @@ func TestBuildCreativeRequestWithoutLessonMaterial(t *testing.T) {
 	for _, opts := range tests {
 		for _, images := range [][]Image{nil, {{ContentType: "image/png", Data: []byte{1}}}} {
 			useLibrary(t, nil)
-			before, err := json.Marshal(buildCreativeRequest("m", images, opts))
+			before, err := json.Marshal(buildCreativeRequest("m", 0, images, opts))
 			if err != nil {
 				t.Fatal(err)
 			}
 			useFixtureLibrary(t)
-			after, err := json.Marshal(buildCreativeRequest("m", images, opts))
+			after, err := json.Marshal(buildCreativeRequest("m", 0, images, opts))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -815,7 +816,7 @@ func TestBuildCreativeRequestWithoutLessonMaterial(t *testing.T) {
 }
 
 func TestCreativeSystemPromptHasTheMaterialCase(t *testing.T) {
-	prompt := creativeSystemPrompt(Chinese)
+	prompt := creativeSystemPrompt(Chinese, 0)
 	for _, want := range []string{
 		"### When a LESSON MATERIAL message is provided",
 		"### When only images are provided",
@@ -833,24 +834,31 @@ func TestCreativeSystemPromptHasTheMaterialCase(t *testing.T) {
 	}
 }
 
-// The server sets no deadline on a generation, so the prompt does not hurry the model.
-func TestCreativeSystemPromptHasNoTimeLimit(t *testing.T) {
-	for _, language := range []Language{Chinese, English} {
-		prompt := creativeSystemPrompt(language)
-		if strings.Contains(prompt, "TIME LIMIT") || strings.Contains(prompt, "time limit") ||
-			!strings.Contains(prompt, "outside the CSV.\n\n## OUTPUT FORMAT") {
-			t.Errorf("language %d: the prompt mentions a time limit or lost its blank line", language)
-		}
-		req := buildCreativeRequest("m", nil, Options{Language: language, ExportType: GimKit, CourseType: Other, CourseName: "x", LessonNumbers: []int{1}})
-		if req.Instructions != prompt {
-			t.Errorf("language %d: the request does not send the prompt", language)
-		}
+func TestCreativeSystemPromptTellsTheTimeLimit(t *testing.T) {
+	limited := creativeSystemPrompt(Chinese, 280*time.Second)
+	if !strings.Contains(limited, "## TIME LIMIT") || !strings.Contains(limited, "stops waiting after 280 seconds") {
+		t.Error("the prompt tells the model the server's deadline")
+	}
+	if !strings.Contains(limited, "write the CSV straight away.\n\n## OUTPUT FORMAT") {
+		t.Error("the TIME LIMIT section keeps its blank lines")
+	}
+	unlimited := creativeSystemPrompt(Chinese, 0)
+	if strings.Contains(unlimited, "TIME LIMIT") || !strings.Contains(unlimited, "outside the CSV.\n\n## OUTPUT FORMAT") {
+		t.Error("without a deadline there is no TIME LIMIT section")
+	}
+	if !strings.Contains(limited, "The whole answer has a time limit, so keep searches few") ||
+		strings.Contains(unlimited, "time limit") || !strings.Contains(unlimited, "Every search makes the answer slower, so keep searches few") {
+		t.Error("the search guidance mentions a time limit only when there is one")
+	}
+	req := buildCreativeRequest("m", 280*time.Second, nil, Options{ExportType: GimKit, CourseType: Hsk, LessonNumbers: []int{1}})
+	if req.Instructions != limited {
+		t.Error("the request sends the prompt with its time limit")
 	}
 }
 
 func TestPromptsByLanguage(t *testing.T) {
 	chinese, english := languagePrompts[Chinese], languagePrompts[English]
-	chineseCreative, englishCreative := creativeSystemPrompt(Chinese), creativeSystemPrompt(English)
+	chineseCreative, englishCreative := creativeSystemPrompt(Chinese, 0), creativeSystemPrompt(English, 0)
 	if !strings.HasPrefix(chineseCreative, "You are an expert Chinese-language teacher") ||
 		!strings.HasPrefix(englishCreative, "You are an expert English-language teacher") {
 		t.Error("each language has its own teacher")
@@ -880,7 +888,7 @@ func TestPromptsByLanguage(t *testing.T) {
 	if strings.Contains(message, "tone marks") || strings.Contains(message, "{{") {
 		t.Error("the English Game message has Chinese rules")
 	}
-	req := buildCreativeRequest("m", nil, opts)
+	req := buildCreativeRequest("m", 0, nil, opts)
 	if req.Instructions != englishCreative {
 		t.Error("an English request sends the English system prompt")
 	}
