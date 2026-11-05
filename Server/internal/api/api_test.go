@@ -31,6 +31,8 @@ type fakeGenerator struct {
 	block bool
 	// result is the CSV Generate answers, empty meaning "a,b", and source the source it answers with it.
 	result, source string
+	// usage is what Generate reports, whether or not it fails.
+	usage csvgen.Usage
 }
 
 func (g *fakeGenerator) Generate(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (csvgen.Result, error) {
@@ -41,9 +43,9 @@ func (g *fakeGenerator) Generate(ctx context.Context, images []csvgen.Image, cre
 		return csvgen.Result{}, ctx.Err()
 	}
 	if g.result != "" {
-		return csvgen.Result{CSV: g.result, Source: g.source}, g.err
+		return csvgen.Result{CSV: g.result, Source: g.source, Usage: g.usage}, g.err
 	}
-	return csvgen.Result{CSV: "a,b"}, g.err
+	return csvgen.Result{CSV: "a,b", Usage: g.usage}, g.err
 }
 
 // testClockStart is where newEnv's clock begins; tests build closing times from it.
@@ -541,14 +543,19 @@ func TestCreateJobRateLimit(t *testing.T) {
 func TestCreateJobUpstreamFailure(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
-	env.gen.err = errors.New("boom")
-	// The failure is not the request's: it is recorded on the job.
+	env.gen.err = &csvgen.StatusError{Status: http.StatusPaymentRequired}
+	env.gen.usage = csvgen.Usage{Model: "m", Calls: 1}
+	// The failure is not the request's: it is recorded on the job, with why and what it cost.
 	if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusAccepted {
 		t.Fatalf("got %d", rec.Code)
 	}
 	job := env.onlyJob(t, "alice")
-	if job.Status != store.JobFailed || job.ErrorStatus != http.StatusBadGateway || job.ErrorMessage != "AI generation failed." || job.CSV != "" {
+	if job.Status != store.JobFailed || job.ErrorStatus != http.StatusBadGateway || job.ErrorCode != csvgen.FailureProviderConfig ||
+		job.ErrorMessage != "AI generation failed." || job.CSV != "" || job.Usage == nil || job.Usage.Model != "m" || job.Usage.Calls != 1 {
 		t.Fatalf("job %+v", job)
+	}
+	if listed := env.listJobs(t, token); listed[0]["errorCode"] != csvgen.FailureProviderConfig || listed[0]["usage"] != nil {
+		t.Fatalf("listed job: %v", listed[0])
 	}
 
 	env.srv.Generator = nil
@@ -586,7 +593,8 @@ func TestCreateJobTimeout(t *testing.T) {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
 	}
 	job := env.onlyJob(t, "alice")
-	if job.Status != store.JobFailed || job.ErrorStatus != http.StatusGatewayTimeout || job.ErrorMessage != "AI generation timed out." {
+	if job.Status != store.JobFailed || job.ErrorStatus != http.StatusGatewayTimeout || job.ErrorCode != "timeout" ||
+		job.ErrorMessage != "AI generation timed out." {
 		t.Fatalf("job %+v", job)
 	}
 }

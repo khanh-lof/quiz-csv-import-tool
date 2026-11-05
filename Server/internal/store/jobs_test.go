@@ -66,16 +66,16 @@ func testJobs(t *testing.T, jobs Jobs) {
 	}
 
 	// Complete and Fail finish a running job once, and only for its owner.
-	if err := jobs.Complete(ctx, "bob", "new", "stolen", ""); err != nil {
+	if err := jobs.Complete(ctx, "bob", "new", "stolen", "", JobUsage{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := jobs.Complete(ctx, "alice", "new", "a,b", `{"source":1}`); err != nil {
+	if err := jobs.Complete(ctx, "alice", "new", "a,b", `{"source":1}`, JobUsage{Model: "m", Calls: 2, OutputTokens: 7}); err != nil {
 		t.Fatal(err)
 	}
-	if err := jobs.Fail(ctx, "alice", "new", 502, "late failure"); err != nil { // already done: ignored
+	if err := jobs.Fail(ctx, "alice", "new", JobFailure{Status: 502, Code: "failed", Message: "late failure"}, JobUsage{}); err != nil { // already done: ignored
 		t.Fatal(err)
 	}
-	if err := jobs.Fail(ctx, "alice", "mid", 504, "timed out"); err != nil {
+	if err := jobs.Fail(ctx, "alice", "mid", JobFailure{Status: 504, Code: "timeout", Message: "timed out"}, JobUsage{}); err != nil {
 		t.Fatal(err)
 	}
 	byID := map[string]Job{}
@@ -84,10 +84,12 @@ func testJobs(t *testing.T, jobs Jobs) {
 		byID[j.ID] = j
 	}
 	// The list leaves the source out; Get has it.
-	if j := byID["new"]; j.Status != JobDone || j.CSV != "a,b" || j.Source != "" || j.ErrorStatus != 0 || j.FinishedAt == nil {
+	if j := byID["new"]; j.Status != JobDone || j.CSV != "a,b" || j.Source != "" || j.ErrorStatus != 0 || j.FinishedAt == nil ||
+		j.Usage == nil || *j.Usage != (JobUsage{Model: "m", Calls: 2, OutputTokens: 7}) {
 		t.Fatalf("completed job: %+v", j)
 	}
-	if j := byID["mid"]; j.Status != JobFailed || j.ErrorStatus != 504 || j.ErrorMessage != "timed out" || j.FinishedAt == nil {
+	if j := byID["mid"]; j.Status != JobFailed || j.ErrorStatus != 504 || j.ErrorCode != "timeout" || j.ErrorMessage != "timed out" ||
+		j.FinishedAt == nil {
 		t.Fatalf("failed job: %+v", j)
 	}
 
@@ -127,14 +129,14 @@ func testJobs(t *testing.T, jobs Jobs) {
 
 	// ExpireRunning fails only running jobs older than the cutoff.
 	expired, err := jobs.ExpireRunning(ctx, "alice", base.Add(-30*time.Second), "interrupted")
-	if err != nil || len(expired) != 1 || expired[0].ID != "old" || expired[0].Status != JobFailed {
+	if err != nil || len(expired) != 1 || expired[0].ID != "old" || expired[0].Status != JobFailed || expired[0].ErrorCode != ExpiredJobCode {
 		t.Fatalf("ExpireRunning: %+v %v", expired, err)
 	}
 	if expired, _ = jobs.ExpireRunning(ctx, "alice", base.Add(-30*time.Second), "interrupted"); len(expired) != 0 {
 		t.Fatalf("second ExpireRunning: %+v", expired)
 	}
 	// A late answer does not revive an expired job.
-	if err := jobs.Complete(ctx, "alice", "old", "late", ""); err != nil {
+	if err := jobs.Complete(ctx, "alice", "old", "late", "", JobUsage{}); err != nil {
 		t.Fatal(err)
 	}
 	list, _ = jobs.List(ctx, "alice", 10)

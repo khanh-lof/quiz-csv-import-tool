@@ -652,7 +652,10 @@ two sides guard against both:
   it fails the job with `504 AI generation timed out.` and refunds the call. The upload itself is a
   separate, short request, so only the generation can hit the time limit.
 - `AiGeneration.showGenerationError` maps 413 (or the client's own refusal) to a message asking the user to
-  send fewer images; a 504 job is announced by `AiJobService` with the same advice.
+  send fewer images; a failed job is announced by `AiJobService` with `failedJobMessage`, which words it by the
+  job's `errorCode` (e.g. `timeout`, `truncated`, `overloaded`, `provider_config`; see Server/AGENTS.md).
+- Each LLM attempt is logged in one line (model, attempt, duration, status, request id, tokens); the response
+  body only when the attempt failed, cut to 2 KB. A job's totals are stored on it as `usage`.
 
 ## Retrying AI requests
 

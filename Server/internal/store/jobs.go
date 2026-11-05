@@ -51,8 +51,13 @@ type Job struct {
 	// can rebuild it without the model. Empty on the other platforms. List leaves it out.
 	Source string `bson:"source,omitempty"`
 	// ErrorStatus is the HTTP status the failure used to be answered with (502, 504), zero otherwise.
-	ErrorStatus  int    `bson:"errorStatus"`
+	ErrorStatus int `bson:"errorStatus"`
+	// ErrorCode says why the job failed (see JobFailure.Code); absent on jobs from before it was stored.
+	ErrorCode    string `bson:"errorCode,omitempty"`
 	ErrorMessage string `bson:"errorMessage"`
+	// Usage is what the generation cost, for the admin; absent on jobs from before it was stored and on jobs
+	// that ExpireRunning failed.
+	Usage *JobUsage `bson:"usage,omitempty"`
 
 	// RoundStart is the rate-limit round the job was counted in, so an abandoned job can be refunded.
 	RoundStart time.Time  `bson:"roundStart"`
@@ -60,16 +65,34 @@ type Job struct {
 	FinishedAt *time.Time `bson:"finishedAt,omitempty"`
 }
 
+// JobFailure is how a job failed. Code is the stable reason the client words the failure by: one of csvgen's
+// Failure* codes, "timeout", "nothing_to_play", or ExpiredJobCode.
+type JobFailure struct {
+	Status  int
+	Code    string
+	Message string
+}
+
+// JobUsage is the model a generation asked and, over all its attempts, the calls made and the tokens billed.
+type JobUsage struct {
+	Model        string `bson:"model"`
+	Calls        int    `bson:"calls"`
+	InputTokens  int    `bson:"inputTokens"`
+	CachedTokens int    `bson:"cachedTokens"`
+	OutputTokens int    `bson:"outputTokens"`
+	DurationMs   int64  `bson:"durationMs"`
+}
+
 // Jobs is implemented by MongoJobs (production) and MemoryJobs (tests). Every method is scoped to
 // one user, so a user can never read or change another's jobs.
 type Jobs interface {
 	Create(ctx context.Context, job *Job) error
 	// Complete stores the answer of a running job, and the source of a Radicals one. Finished jobs are left alone.
-	Complete(ctx context.Context, username, id, csv, source string) error
+	Complete(ctx context.Context, username, id, csv, source string, usage JobUsage) error
 	// Revise replaces the answer and the source of a done job; ErrNotFound when the user has no done job by that id.
 	Revise(ctx context.Context, username, id, csv, source string) error
 	// Fail marks a running job as failed. Finished jobs are left alone.
-	Fail(ctx context.Context, username, id string, errorStatus int, message string) error
+	Fail(ctx context.Context, username, id string, failure JobFailure, usage JobUsage) error
 	// Get returns one job; ErrNotFound when the user has no such job, which includes another user's.
 	Get(ctx context.Context, username, id string) (*Job, error)
 	// List returns the user's newest jobs first, at most limit of them, without their Source.
@@ -83,6 +106,9 @@ type Jobs interface {
 	Prune(ctx context.Context, username string, keep int) error
 }
 
-// ExpiredJobStatus is the error status of a job ExpireRunning failed: a gateway timeout, like a generation
-// that ran out of time.
-const ExpiredJobStatus = 504
+// ExpiredJobStatus and ExpiredJobCode are the error status and code of a job ExpireRunning failed: a gateway
+// timeout, like a generation that ran out of time, but interrupted, since the process working on it died.
+const (
+	ExpiredJobStatus = 504
+	ExpiredJobCode   = "interrupted"
+)

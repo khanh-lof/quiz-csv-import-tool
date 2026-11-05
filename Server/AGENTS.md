@@ -77,7 +77,8 @@ without them.
   the client's "Độ thông minh" Thấp / Cao (`intelligence` query param 1 or 2, default 1).
   Empty means both use `LLM_MODEL`
 - `LLM_TIMEOUT_SECONDS` (280) — per-call LLM deadline; kept under Vercel's 300 s function limit so
-  the handler answers 504 itself. The HTTP server's write timeout is derived from it
+  the handler answers 504 itself. The HTTP server's write timeout is derived from it, and the creative
+  system prompt's TIME LIMIT section tells the model this number (`{{.TimeLimitSeconds}}`)
 - `CALL_COUNT_ACCEPTED_IN_A_ROUND` (2), `ROUND_MINUTES` (1) — AI-call rate limit per user
 - `LOGIN_MAX_ATTEMPTS` (5), `LOGIN_WINDOW_MINUTES` (15) — login limit per username, see Auth below
 - `GAME_STAGE_SECONDS` (`12,12,15,15,20,45`) — the seconds per question of the Game's stages 1–6, in order, for
@@ -147,8 +148,11 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   lessons (below) each must be at most its lesson count: 400 `Lesson must be 1 to <M> for <title>.`, e.g.
   `Lesson must be 1 to 15 for 《新HSK教程2》.` Images are optional only in
   creative mode. The LLM call runs under `LLM_TIMEOUT_SECONDS`; hitting it fails the job with
-  `errorStatus` 504 ("AI generation timed out."), other LLM failures with 502. Either failure refunds the
-  rate-limit slot (`RefundAICall`) so the user can resubmit without losing quota. See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
+  `errorStatus` 504 ("AI generation timed out."), other LLM failures with 502. The job also gets an
+  `errorCode`, the reason the client words its message by: `timeout`, `nothing_to_play` (handler), `interrupted`
+  (`store.ExpiredJobCode`), or `csvgen.FailureCode`'s `truncated`, `filtered`, `provider_config`, `overloaded`,
+  `bad_output`, `failed`. These codes are a contract with `Client/src/models/ai-job.ts`: never rename one. Either
+  failure refunds the rate-limit slot (`RefundAICall`) so the user can resubmit without losing quota. See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
 - **Assignments** (`assignment_handlers.go`, the teacher's side of "Giao bài"): `POST assignments`,
   `GET assignments`, `GET`/`PATCH`/`DELETE assignments/{id}` and `DELETE assignments/{id}/players/{playerId}`,
   wrapped like the csv routes (`csvRoute`, i.e. `authenticate` + `requireRole`). Every lookup is scoped to the
@@ -415,8 +419,9 @@ Jobs (`internal/store/jobs*.go`): `store.Jobs` is implemented by `MongoJobs` (co
 holds the request's metadata (title, mode, export type ordinal, intelligence, image count — never the
 images — and, for a creative job, the lesson: course type ordinal, course name, HSK standard, level and
 lesson numbers (`lessonNumbers`), which `listJobs` returns so the client can filter by them, and for a GestureQuiz job its
-`gestureStages` and `questionsPerStage`, kept so `retryJob` can ask for the same quiz again), `status` (`running`/`done`/`failed`), the raw model `csv`, for a Radicals job its `source` (what csvgen rebuilds the exercise from), `errorStatus`/`errorMessage`, the
-rate-limit `roundStart` (for refunds) and timestamps. `Complete`/`Fail` only touch a job that is still
+`gestureStages` and `questionsPerStage`, kept so `retryJob` can ask for the same quiz again), `status` (`running`/`done`/`failed`), the raw model `csv`, for a Radicals job its `source` (what csvgen rebuilds the exercise from), `errorStatus`/`errorCode`/`errorMessage`,
+`usage` (model, calls including retries, input/cached/output tokens, duration; stored for the admin, never sent
+to the client), the rate-limit `roundStart` (for refunds) and timestamps. `Complete`/`Fail` only touch a job that is still
 `running`, so an expired job is never revived by a late answer; `Prune` never deletes a running job.
 `Revise(username, id, csv, source)` replaces the result of a `done` job only (`ErrNotFound` otherwise). `List` leaves
 the `source` out (Mongo projects it away), since the history never needs it.

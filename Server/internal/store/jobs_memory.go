@@ -28,9 +28,9 @@ func (m *MemoryJobs) Create(_ context.Context, job *Job) error {
 	return nil
 }
 
-func (m *MemoryJobs) Complete(_ context.Context, username, id, csv, source string) error {
+func (m *MemoryJobs) Complete(_ context.Context, username, id, csv, source string, usage JobUsage) error {
 	return m.finish(username, id, func(j *Job) {
-		j.Status, j.CSV, j.Source = JobDone, csv, source
+		j.Status, j.CSV, j.Source, j.Usage = JobDone, csv, source, &usage
 	})
 }
 
@@ -46,9 +46,9 @@ func (m *MemoryJobs) Revise(_ context.Context, username, id, csv, source string)
 	return nil
 }
 
-func (m *MemoryJobs) Fail(_ context.Context, username, id string, errorStatus int, message string) error {
+func (m *MemoryJobs) Fail(_ context.Context, username, id string, failure JobFailure, usage JobUsage) error {
 	return m.finish(username, id, func(j *Job) {
-		j.Status, j.ErrorStatus, j.ErrorMessage = JobFailed, errorStatus, message
+		j.Status, j.ErrorStatus, j.ErrorCode, j.ErrorMessage, j.Usage = JobFailed, failure.Status, failure.Code, failure.Message, &usage
 	})
 }
 
@@ -115,7 +115,7 @@ func (m *MemoryJobs) ExpireRunning(_ context.Context, username string, before ti
 	now := m.Now().UTC()
 	for id, j := range m.jobs {
 		if j.Username == username && j.Status == JobRunning && j.CreatedAt.Before(before) {
-			j.Status, j.ErrorStatus, j.ErrorMessage, j.FinishedAt = JobFailed, ExpiredJobStatus, message, &now
+			j.Status, j.ErrorStatus, j.ErrorCode, j.ErrorMessage, j.FinishedAt = JobFailed, ExpiredJobStatus, ExpiredJobCode, message, &now
 			m.jobs[id] = j
 			expired = append(expired, j)
 		}

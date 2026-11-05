@@ -37,8 +37,8 @@ func (m *MongoJobs) Create(ctx context.Context, job *Job) error {
 	return err
 }
 
-func (m *MongoJobs) Complete(ctx context.Context, username, id, csv, source string) error {
-	set := bson.M{"status": JobDone, "csv": csv}
+func (m *MongoJobs) Complete(ctx context.Context, username, id, csv, source string, usage JobUsage) error {
+	set := bson.M{"status": JobDone, "csv": csv, "usage": usage}
 	if source != "" {
 		set["source"] = source
 	}
@@ -58,8 +58,10 @@ func (m *MongoJobs) Revise(ctx context.Context, username, id, csv, source string
 	return nil
 }
 
-func (m *MongoJobs) Fail(ctx context.Context, username, id string, errorStatus int, message string) error {
-	return m.finish(ctx, username, id, bson.M{"status": JobFailed, "errorStatus": errorStatus, "errorMessage": message})
+func (m *MongoJobs) Fail(ctx context.Context, username, id string, failure JobFailure, usage JobUsage) error {
+	return m.finish(ctx, username, id, bson.M{
+		"status": JobFailed, "errorStatus": failure.Status, "errorCode": failure.Code, "errorMessage": failure.Message, "usage": usage,
+	})
 }
 
 // finish only touches a job that is still running, so a job expired as abandoned is not revived by a
@@ -121,7 +123,8 @@ func (m *MongoJobs) ExpireRunning(ctx context.Context, username string, before t
 		err := m.jobs.FindOneAndUpdate(ctx,
 			bson.M{"username": username, "status": JobRunning, "createdAt": bson.M{"$lt": before}},
 			bson.M{"$set": bson.M{
-				"status": JobFailed, "errorStatus": ExpiredJobStatus, "errorMessage": message, "finishedAt": m.now().UTC(),
+				"status": JobFailed, "errorStatus": ExpiredJobStatus, "errorCode": ExpiredJobCode, "errorMessage": message,
+				"finishedAt": m.now().UTC(),
 			}},
 			options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&job)
 		if errors.Is(err, mongo.ErrNoDocuments) {

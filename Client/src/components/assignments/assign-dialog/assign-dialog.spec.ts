@@ -30,6 +30,7 @@ function job(overrides: Partial<AiJob> = {}): AiJob {
     retryUntil: null,
     csv: DEMO_QUIZ_CSV,
     errorStatus: 0,
+    errorCode: '',
     errorMessage: '',
     createdAt: '2026-10-13T00:00:00Z',
     finishedAt: '2026-10-13T00:01:00Z', ...overrides,
