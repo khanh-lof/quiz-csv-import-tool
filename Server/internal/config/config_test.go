@@ -71,6 +71,24 @@ func TestFromEnvHighIntelligenceServer(t *testing.T) {
 	}
 }
 
+func TestFromEnvCloudinaryURL(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+
+	t.Setenv("CLOUDINARY_URL", "")
+	if cfg, err := FromEnv(); err != nil || cfg.CloudinaryURL != "" {
+		t.Fatalf("unset: %q %v", cfg.CloudinaryURL, err)
+	}
+	t.Setenv("CLOUDINARY_URL", " cloudinary://123:abc@demo ")
+	if cfg, err := FromEnv(); err != nil || cfg.CloudinaryURL != "cloudinary://123:abc@demo" {
+		t.Fatalf("set: %q %v", cfg.CloudinaryURL, err)
+	}
+	t.Setenv("CLOUDINARY_URL", "https://demo")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "CLOUDINARY_URL") {
+		t.Fatalf("malformed: %v", err)
+	}
+}
+
 func TestFromEnvGameStageSeconds(t *testing.T) {
 	t.Setenv("MONGODB_URI", "mongodb://localhost")
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))

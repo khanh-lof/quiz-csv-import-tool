@@ -14,7 +14,10 @@ import (
 
 // The same contract runs against both implementations; the Mongo one is skipped unless
 // MONGODB_TEST_URI is set, like the other integration tests.
-func TestMemoryJobs(t *testing.T) { testJobs(t, NewMemoryJobs()) }
+func TestMemoryJobs(t *testing.T) {
+	testJobs(t, NewMemoryJobs())
+	testJobImagesAndResumes(t, NewMemoryJobs())
+}
 
 func TestMongoJobs(t *testing.T) {
 	uri := os.Getenv("MONGODB_TEST_URI")
@@ -30,11 +33,17 @@ func TestMongoJobs(t *testing.T) {
 		_ = db.Drop(context.Background())
 		_ = client.Disconnect(context.Background())
 	})
-	jobs := NewMongoJobs(db.Collection("Jobs"))
-	if err := jobs.EnsureIndexes(context.Background()); err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"Jobs", "ResumedJobs"} {
+		jobs := NewMongoJobs(db.Collection(name))
+		if err := jobs.EnsureIndexes(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if name == "Jobs" {
+			testJobs(t, jobs)
+		} else {
+			testJobImagesAndResumes(t, jobs)
+		}
 	}
-	testJobs(t, jobs)
 }
 
 func testJobs(t *testing.T, jobs Jobs) {
@@ -162,11 +171,11 @@ func testJobs(t *testing.T, jobs Jobs) {
 
 	// ExpireRunning fails only running jobs whose last sign of life, the heartbeat or else the creation, is
 	// older than the cutoff.
-	expired, err := jobs.ExpireRunning(ctx, "alice", base.Add(-30*time.Second), "interrupted")
+	expired, err := jobs.ExpireRunning(ctx, "alice", ExpiryCutoffs{Before: base.Add(-30 * time.Second)}, "interrupted")
 	if err != nil || len(expired) != 1 || expired[0].ID != "old" || expired[0].Status != JobFailed || expired[0].ErrorCode != ExpiredJobCode {
 		t.Fatalf("ExpireRunning: %+v %v", expired, err)
 	}
-	if expired, _ = jobs.ExpireRunning(ctx, "alice", base.Add(-30*time.Second), "interrupted"); len(expired) != 0 {
+	if expired, _ = jobs.ExpireRunning(ctx, "alice", ExpiryCutoffs{Before: base.Add(-30 * time.Second)}, "interrupted"); len(expired) != 0 {
 		t.Fatalf("second ExpireRunning: %+v", expired)
 	}
 	if err := jobs.Delete(ctx, "alice", "beating"); err != nil {
@@ -211,5 +220,105 @@ func testJobs(t *testing.T, jobs Jobs) {
 	}
 	if _, err := jobs.Get(ctx, "alice", "new"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("Get after Delete: %v", err)
+	}
+}
+
+// testJobImagesAndResumes runs on a store of its own: ClaimInterrupted looks at every user's jobs.
+func testJobImagesAndResumes(t *testing.T, jobs Jobs) {
+	ctx := context.Background()
+	base := time.Now().UTC().Truncate(time.Millisecond)
+	job := func(id, username string, intelligence int, age time.Duration, resumes int) *Job {
+		return &Job{ID: id, Username: username, Status: JobRunning, Title: id, Creative: true, Intelligence: intelligence,
+			ImageCount: 1, CreatedAt: base.Add(-age), Resumes: resumes, ProgressRows: 7}
+	}
+
+	// SetImages records the images on the owner's job only, whatever its status.
+	if err := jobs.Create(ctx, job("pic", "carol", 1, 0, 0)); err != nil {
+		t.Fatal(err)
+	}
+	images := []JobImage{{URL: "https://img/1", PublicID: "quiztool-jobs/1", ContentType: "image/jpeg"}}
+	if err := jobs.SetImages(ctx, "dave", "pic", images, base); err != nil {
+		t.Fatal(err)
+	}
+	if j, _ := jobs.Get(ctx, "carol", "pic"); j.Images != nil || j.ImagesStoredAt != nil {
+		t.Fatalf("another user's SetImages was recorded: %+v", j)
+	}
+	_ = jobs.Fail(ctx, "carol", "pic", JobFailure{Status: 502, Code: "failed"}, JobUsage{})
+	if err := jobs.SetImages(ctx, "carol", "pic", images, base); err != nil {
+		t.Fatal(err)
+	}
+	if j, _ := jobs.Get(ctx, "carol", "pic"); len(j.Images) != 1 || j.Images[0] != images[0] || !j.ImagesStoredAt.Equal(base) {
+		t.Fatalf("images of a failed job: %+v", j)
+	}
+	if err := jobs.SetImages(ctx, "carol", "missing", images, base); err != nil {
+		t.Fatalf("SetImages of a missing job: %v", err)
+	}
+
+	// A job some server may still resume waits longer before it is taken for abandoned; one resumed too often
+	// does not.
+	for _, j := range []*Job{
+		job("low-stale", "carol", 1, 10*time.Minute, 0),
+		job("high-stale", "carol", 2, 5*time.Minute, 0),
+		job("high-dead", "carol", 2, 15*time.Minute, 0),
+		job("high-exhausted", "carol", 2, 5*time.Minute, 2),
+	} {
+		if err := jobs.Create(ctx, j); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cutoffs := ExpiryCutoffs{Before: base.Add(-3 * time.Minute), ResumableIntelligence: 2, MaxResumes: 2, ResumableBefore: base.Add(-10 * time.Minute)}
+	expired, err := jobs.ExpireRunning(ctx, "carol", cutoffs, "interrupted")
+	got := map[string]bool{}
+	for _, j := range expired {
+		got[j.ID] = true
+	}
+	if err != nil || len(expired) != 3 || !got["low-stale"] || !got["high-dead"] || !got["high-exhausted"] {
+		t.Fatalf("ExpireRunning with a resumable cutoff: %v %v", got, err)
+	}
+	if err := jobs.Delete(ctx, "carol", "high-stale"); err != nil {
+		t.Fatal(err)
+	}
+
+	// ClaimInterrupted takes over each stale running job at the intelligence that may still be resumed, once.
+	for _, j := range []*Job{
+		job("resume-me", "dave", 2, 5*time.Minute, 0),
+		job("resume-again", "erin", 2, 5*time.Minute, 1),
+		job("resumed-enough", "dave", 2, 5*time.Minute, 2),
+		job("fresh", "dave", 2, 0, 0),
+		job("low", "dave", 1, 5*time.Minute, 0),
+	} {
+		if err := jobs.Create(ctx, j); err != nil {
+			t.Fatal(err)
+		}
+	}
+	done := job("done", "dave", 2, 5*time.Minute, 0)
+	if err := jobs.Create(ctx, done); err != nil {
+		t.Fatal(err)
+	}
+	_ = jobs.Complete(ctx, "dave", "done", "a,b", "", JobUsage{})
+
+	claimed := map[string]Job{}
+	for range 5 {
+		j, err := jobs.ClaimInterrupted(ctx, 2, base.Add(-90*time.Second), 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if j == nil {
+			break
+		}
+		claimed[j.ID] = *j
+	}
+	if len(claimed) != 2 {
+		t.Fatalf("claimed %v", claimed)
+	}
+	for id, resumes := range map[string]int{"resume-me": 1, "resume-again": 2} {
+		j, ok := claimed[id]
+		if !ok || j.Resumes != resumes || j.ProgressRows != 0 || j.HeartbeatAt == nil || j.HeartbeatAt.Before(base.Add(-time.Second)) {
+			t.Fatalf("claimed %s: %+v", id, j)
+		}
+	}
+	// Claimed, it shows a fresh heartbeat, so nobody takes it for abandoned.
+	if expired, _ := jobs.ExpireRunning(ctx, "dave", ExpiryCutoffs{Before: base.Add(-time.Minute)}, "interrupted"); len(expired) != 2 {
+		t.Fatalf("expired after the claims: %+v", expired)
 	}
 }

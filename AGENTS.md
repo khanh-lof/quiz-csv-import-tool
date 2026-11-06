@@ -35,6 +35,11 @@ server's job list like any other. The Vercel project's `HIGH_INTELLIGENCE_SERVER
 URL (kept out of this public repo); unset, High jobs run on Vercel like the rest, which is also how local
 development runs. Both servers must share `MONGODB_URI`, `JWT_SECRET` and the AI rate-limit settings.
 
+**Free tier only.** This project is for personal use, so no hosting cost is accepted: every hosted service (Vercel,
+Render, MongoDB, Cloudinary, and any added later) must run on its free tier. Never propose or configure a paid plan,
+add-on or instance, and set the plan explicitly where a platform would otherwise default to a paid one (`plan: free`
+in `render.yaml`).
+
 Each project has its own `AGENTS.md` with the detail for that side — read
 [Client/AGENTS.md](Client/AGENTS.md), [Server/AGENTS.md](Server/AGENTS.md) or
 [Extension/AGENTS.md](Extension/AGENTS.md) before working inside that directory. This file covers only
@@ -205,6 +210,14 @@ Consequences to keep in mind when changing anything here:
   has none, yet is listed by the Vercel server. Render puts its free instance to sleep after 15 minutes
   without a request, so `cmd/ai-server` requests its own public URL (`RENDER_EXTERNAL_URL`) every 5 minutes
   while a job runs.
+- Render may still stop that server mid-job (it restarts a free instance at will, and a deploy cuts off what
+  still runs 30 s in), so a High intelligence job is **resumed** rather than failed: `cmd/ai-server` looks every
+  minute while it is up, starting at boot, for High intelligence jobs with no heartbeat for 90 s
+  (`Jobs.ClaimInterrupted`, `api.Server.ClaimInterruptedJob`) and runs each again from the start, the same job
+  with the options and kept images it was made with, its AI call still counted (`ResumeJob`), at most twice per
+  job. Meanwhile the Vercel server gives such a job 10 minutes before failing it (`store.ExpiryCutoffs`), and
+  when its job list shows one waiting it requests the Render server's health check (at most once a minute) to
+  wake it. The client sees the job keep running, its progress starting over.
 - Export output format is per-platform: GimKit, Blooket and Game download as `.csv`, Wayground is
   converted to `.xlsx` via `xlsx` before download (`FileExportService.download`).
 
@@ -701,14 +714,17 @@ with the request the failed one was made from (`retryOptions`: title, mode, plat
 for a Game, its games and question count) and its images, and deletes the failed one, which the new one replaces.
 It uses a call of the rate limit like any submission. The refusals, in order: 404 `Job not found`, 409 `Job has not
 failed.`, 409 `Job cannot be retried.` (a job from before the server kept its lesson or its games), 410 `Images
-expired.`, then the rate limit's 403. The database never holds images, so `runJob` keeps a failed job's images in
-the server's memory (`retryImages`, `Server/internal/api/retry_images.go`) for **one hour** from the failure
-(`retryImagesTTL`); deleting or retrying the job drops them. `GET csv/jobs` tells the client, per job, whether a
-retry would be taken (`retryable`) and, for a job with images, until when (`retryUntil`): the menu item shows that
-time, survives a reload, and is disabled once it is past. A job without images has no deadline. The images live in
-one process only: a restart, or a request that reaches another instance of the server (on Vercel an instance can
-be stopped or replaced at any time), finds none, and the job then reads as not retryable; the user submits again
-from the AI page. A failed High intelligence job is retried on the Render server (the Vercel server forwards the
-retry), but its images are kept there, out of the Vercel server's sight, so one with images reads as not
-retryable; one without images can be retried. Only a failed *upload* (status 0, before the job exists) needs the user's retry for a connection
-reason; once the server answers `202`, a dropped connection no longer matters.
+expired.`, then the rate limit's 403. The database never holds images: while a job runs, `runJob` stores its images
+in Cloudinary (`Server/internal/imagestore`, `CLOUDINARY_URL`, public assets under random IDs prefixed
+`quiztool-jobs/`) and records their URLs on the job (`Job.Images`, `ImagesStoredAt`), before the outcome, so a failed
+job reads as retryable as soon as it reads as failed. They can be sent again for **30 days** (`imagesKeptFor`), by
+any server and any instance of it; a retry's job takes the same images over and keeps the same deadline. Cloudinary
+has no expiry of its own, so storing images also deletes, at most once a day per process, the ones stored more
+than 31 days ago (`DeleteStoredBefore`). Deleting a job does not delete its images: they go with the rest. `GET
+csv/jobs` tells the client, per job, whether a retry would be taken (`retryable`) and, for a job with images, until
+when (`retryUntil`): the menu item shows that day, survives a reload, and is disabled once it is past. A job without
+images has no deadline. Without `CLOUDINARY_URL`, or when storing the images failed, a job with images reads as not
+retryable, and the user submits again from the AI page. A failed High intelligence job is retried on the Render
+server (the Vercel server forwards the retry), which fetches the images from Cloudinary like Vercel would. Only a
+failed *upload* (status 0, before the job exists) needs the user's retry for a connection reason; once the server
+answers `202`, a dropped connection no longer matters.

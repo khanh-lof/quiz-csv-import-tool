@@ -23,7 +23,12 @@ const (
 
 // remoteServer stands in for the High intelligence server behind HighIntelligenceProxy: it records what reached
 // it and answers like a started job.
-type remoteServer struct{ requests, authorizations []string }
+type remoteServer struct {
+	requests, authorizations []string
+	wakes                    int
+}
+
+func (s *remoteServer) Wake(context.Context) { s.wakes++ }
 
 func (s *remoteServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.requests = append(s.requests, r.Method+" "+r.URL.RequestURI())
