@@ -8,6 +8,7 @@ import {
   linkedSignal,
 } from '@angular/core';
 
+import { MessagePipe } from '../../../../i18n/messages';
 import { GameAudio } from '../../../../game/game-audio';
 import { OptionGameBase, QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
 import { VisionService } from '../../../../game/vision.service';
@@ -31,6 +32,7 @@ import {
 @Component({
   selector: 'kt-quiz-finger-count-game',
   standalone: true,
+  imports: [MessagePipe],
   providers: [{
     provide: StageGameBase,
     useExisting: forwardRef(() => FingerCountGame)

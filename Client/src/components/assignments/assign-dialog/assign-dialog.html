@@ -1,12 +1,12 @@
 <!-- While the request is out the dialog cannot be dismissed, or its answer would land in a closed dialog. -->
 <nz-modal (nzOnCancel)="open.set(false)" (nzVisibleChange)="open.set($event)" [nzClosable]="!sending()"
           [nzFooter]="null" [nzKeyboard]="!sending()" [nzMaskClosable]="!sending()"
-          [nzVisible]="open()" nzTitle="Giao bài cho học sinh" nzWidth="min(560px, 95vw)">
+          [nzVisible]="open()" [nzTitle]="'assignments.assignDialog.title' | msg" nzWidth="min(560px, 95vw)">
   <ng-container *nzModalContent>
     @if (assignment(); as made) {
       <p class="done-text">
         <nz-icon class="done-icon" nzTheme="fill" nzType="check-circle"/>
-        Đã giao bài.
+        {{ 'assignments.assignDialog.done' | msg }}
       </p>
       <kt-quiz-share-link [code]="made.code" [qrSize]="200"/>
       <div class="actions">
@@ -24,26 +24,26 @@
       <div class="quiz-info">
         <div class="quiz-title">{{ job()?.title }}</div>
         @if (questions() > 0) {
-          <div class="muted">{{ questions() }} câu · {{ quiz()!.stages.size }} màn</div>
+          <div class="muted">{{ 'assignments.assignDialog.summary' | msg: {questions: questions(), stages: quiz()!.stages.size} }}</div>
           @if (quiz()!.skipped > 0) {
-            <div class="muted">Bỏ qua {{ quiz()!.skipped }} dòng không hợp lệ.</div>
+            <div class="muted">{{ 'assignments.assignDialog.skipped' | msg: {count: quiz()!.skipped} }}</div>
           }
         }
       </div>
       @if (questions() === 0) {
-        <p class="error" role="alert">Không có câu hỏi hợp lệ để giao.</p>
+        <p class="error" role="alert">{{ 'assignments.assignDialog.noQuestions' | msg }}</p>
       }
 
       <div class="field">
         <label class="field-label" for="assign-label">
-          Lớp / nhóm <span class="muted">(không bắt buộc)</span>
+          Lớp / nhóm <span class="muted">{{ 'assignments.assignDialog.optional' | msg }}</span>
         </label>
         <input (keydown.enter)="submit()" (ngModelChange)="label.set($event ?? '')" [attr.maxlength]="maxLabelLength" [ngModel]="label()"
                id="assign-label" nz-input/>
       </div>
 
       <div class="field">
-        <span class="field-label">Hẹn giờ đóng</span>
+        <span class="field-label">{{ 'assignments.action.scheduleClose' | msg }}</span>
         <kt-quiz-deadline-picker [(value)]="deadline"/>
       </div>
 
@@ -52,7 +52,7 @@
         <nz-radio-group (ngModelChange)="timeMode.set($event)" [ngModel]="timeMode()" aria-labelledby="assign-time-mode"
                         class="radios">
           @for (mode of timeModes; track mode.value) {
-            <label [nzValue]="mode.value" nz-radio>{{ mode.label }}</label>
+            <label [nzValue]="mode.value" nz-radio>{{ mode.key | msg }}</label>
           }
         </nz-radio-group>
       </div>
@@ -62,7 +62,7 @@
         <nz-radio-group (ngModelChange)="stageLock.set($event)" [ngModel]="stageLock()" aria-labelledby="assign-stage-lock"
                         class="radios">
           @for (lock of stageLocks; track lock.value) {
-            <label [nzValue]="lock.value" nz-radio>{{ lock.label }}</label>
+            <label [nzValue]="lock.value" nz-radio>{{ lock.key | msg }}</label>
           }
         </nz-radio-group>
       </div>
@@ -72,12 +72,13 @@
           <span class="field-label" id="assign-attempts">Giới hạn số lần chơi mỗi màn</span>
           <div aria-labelledby="assign-attempts" class="attempts-row" role="group">
             <nz-switch (ngModelChange)="limitAttempts.set($event)" [ngModel]="limitAttempts()"
-                       nzCheckedChildren="Giới hạn" nzUnCheckedChildren="Không"/>
+                       [nzCheckedChildren]="'assignments.assignDialog.attemptsLimited' | msg"
+                       [nzUnCheckedChildren]="'assignments.assignDialog.attemptsUnlimited' | msg"/>
             @if (limitAttempts()) {
               <nz-input-number (ngModelChange)="attemptsInput.set($event)" [ngModel]="attemptsInput()"
                                [nzMax]="maxAttemptsLimit" [nzMin]="minAttemptsLimit"
                                [nzPrecision]="0" [nzStep]="1" nzId="assign-attempts-count"></nz-input-number>
-              <span class="muted">lần mỗi màn</span>
+              <span class="muted">{{ 'assignments.assignDialog.attemptsUnit' | msg }}</span>
             }
           </div>
         </div>
@@ -97,7 +98,7 @@
                                  [nzMax]="maxPercent" [nzMin]="minPercent" [nzParser]="parsePercent"
                                  [nzPlaceHolder]="defaultPercent + '%'" [nzPrecision]="0"
                                  [nzStep]="5"></nz-input-number>
-                <span class="muted pass-need">cần đúng {{ row.mark }}/{{ row.count }} câu</span>
+                <span class="muted pass-need">{{ 'assignments.assignDialog.passNeed' | msg: {mark: row.mark, count: row.count} }}</span>
               </div>
             }
           </div>
@@ -108,7 +109,8 @@
         <span class="field-label" id="assign-show-board">Học sinh xem bảng xếp hạng</span>
         <div aria-labelledby="assign-show-board" class="attempts-row" role="group">
           <nz-switch (ngModelChange)="showBoard.set($event)" [ngModel]="showBoard()"
-                     nzCheckedChildren="Bật" nzUnCheckedChildren="Tắt"/>
+                     [nzCheckedChildren]="'common.switchOn' | msg"
+                     [nzUnCheckedChildren]="'common.switchOff' | msg"/>
         </div>
       </div>
 
@@ -117,7 +119,8 @@
           <span class="field-label" id="assign-show-pinyin">Hiện pinyin</span>
           <div aria-labelledby="assign-show-pinyin" class="attempts-row" role="group">
             <nz-switch (ngModelChange)="showPinyin.set($event)" [ngModel]="showPinyin()"
-                       nzCheckedChildren="Bật" nzUnCheckedChildren="Tắt"/>
+                       [nzCheckedChildren]="'common.switchOn' | msg"
+                     [nzUnCheckedChildren]="'common.switchOff' | msg"/>
           </div>
         </div>
       }

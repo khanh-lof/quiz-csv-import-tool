@@ -1,0 +1,21 @@
+export const common = {
+  tryAgain: 'Thử lại.',
+  required: 'Nhập thiếu nàaa',
+  language: 'Ngôn ngữ',
+  status: 'Trạng thái',
+  search: 'Tìm kiếm',
+  checkNetwork: 'Kiểm tra mạng rồi thử lại.',
+  noResults: 'Không có kết quả.',
+  noData: 'Không có dữ liệu',
+  extensionMissing: 'Chưa cài tiện ích QuizTool',
+  creatingOnWayground: 'Đang tạo quiz trên Wayground…',
+  waygroundLinkHint: 'Xong sẽ báo link ở đây.',
+  notFound: 'Không tìm thấy bài này.',
+  jobFailed: 'Lần tạo này bị lỗi.',
+  cancel: 'Hủy',
+  save: 'Lưu',
+  offline: 'Mất kết nối. Thử lại.',
+  switchOn: 'Bật',
+  switchOff: 'Tắt',
+  leaderboardTitle: 'Bảng xếp hạng'
+};

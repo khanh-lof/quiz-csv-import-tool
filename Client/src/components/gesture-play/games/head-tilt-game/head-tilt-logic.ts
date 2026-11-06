@@ -1,3 +1,4 @@
+import type { MessageKey } from '../../../../i18n/messages';
 import type { TiltSide } from '../../../../game/gestures';
 import { clamp, headSignal, TiltGate } from '../../../../game/gestures';
 import type { FaceFrame } from '../../../../game/stage-game';
@@ -70,7 +71,7 @@ export class ChargeCue {
 export interface HeadTiltStep {
   // No single usable face this frame; `problem` says why in words.
   invalid: boolean;
-  problem: string | null;
+  problem: MessageKey | null;
   // The head is not near the middle yet, so no choice counts.
   waiting: boolean;
   // It has been waiting for RECALIBRATE_AFTER_MS: the neutral pose should be measured again.
@@ -164,12 +165,12 @@ export class HeadTiltReader {
 }
 
 // What the hint under the meter says: only a problem, or the cue to come back to the middle.
-export function tiltHint(step: HeadTiltStep): string {
+export function tiltHint(step: HeadTiltStep): MessageKey | '' {
   if (step.problem) {
     return step.problem;
   }
   if (step.waiting) {
-    return 'Đưa đầu về giữa';
+    return 'play.tilt.backToCenter';
   }
   return '';
 }

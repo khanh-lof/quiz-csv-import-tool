@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { stageDef } from '../../../game/stages';
+import type { MessageKey } from '../../../i18n/messages';
+import { MessagePipe } from '../../../i18n/messages';
 
 // A question the player got wrong or ran out of time on, with what they should have answered.
 export interface MissedQuestion {
@@ -32,8 +34,8 @@ export interface StageRunResult {
 // last answer, so the result is only shown once it is kept: there is nothing in between to wait for.
 export type SaveState = 'saved';
 
-const SAVE_TEXT: Record<SaveState, string> = {
-  saved: 'Đã lưu kết quả cho thầy cô ✓',
+const SAVE_KEY: Record<SaveState, MessageKey> = {
+  saved: 'play.result.saved',
 };
 
 // The screen after a stage: the verdict against the pass mark, the questions to learn from, and where
@@ -41,7 +43,7 @@ const SAVE_TEXT: Record<SaveState, string> = {
 // left (`attemptsLeft` 0) cannot be replayed.
 @Component({
   selector: 'kt-quiz-gesture-stage-result',
-  imports: [NzButtonComponent, NzIconDirective],
+  imports: [NzButtonComponent, NzIconDirective, MessagePipe],
   templateUrl: './stage-result.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './stage-result.css'
@@ -57,8 +59,8 @@ export class GestureStageResult {
   readonly toMap = output<void>();
 
   protected readonly def = computed(() => stageDef(this.result().stage));
-  protected readonly saveText = computed(() => {
+  protected readonly saveKey = computed<MessageKey | ''>(() => {
     const state = this.saveState();
-    return state ? SAVE_TEXT[state] : '';
+    return state ? SAVE_KEY[state] : '';
   });
 }

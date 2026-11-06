@@ -1,27 +1,27 @@
 <section aria-label="Lịch sử tạo bằng AI" class="qt-panel jobs">
 
   <div class="jobs-filters">
-    <input (ngModelChange)="search.set($event ?? '')" [ngModel]="search()" aria-label="Tìm kiếm" class="search-input"
-           nz-input placeholder="Tìm kiếm" type="search"/>
+    <input (ngModelChange)="search.set($event ?? '')" [ngModel]="search()" [attr.aria-label]="'common.search' | msg" class="search-input"
+           nz-input [placeholder]="'common.search' | msg" type="search"/>
     <nz-select (ngModelChange)="status.set($event ?? null)" [ngModel]="status()" class="filter-select" nzAllowClear
-               nzPlaceHolder="Trạng thái">
+               [nzPlaceHolder]="'common.status' | msg">
       <nz-option nzLabel="Đang chạy" nzValue="running"></nz-option>
       <nz-option nzLabel="Xong" nzValue="done"></nz-option>
       <nz-option nzLabel="Lỗi" nzValue="failed"></nz-option>
     </nz-select>
     <nz-select (ngModelChange)="creative.set($event ?? null)" [ngModel]="creative()" class="filter-select" nzAllowClear
-               nzPlaceHolder="Chế độ">
+               [nzPlaceHolder]="'ai.label.mode' | msg">
       <nz-option [nzValue]="true" nzLabel="AI tự nghĩ câu hỏi"></nz-option>
       <nz-option [nzValue]="false" nzLabel="Hỏi từ"></nz-option>
     </nz-select>
     <nz-select (ngModelChange)="setLanguage($event ?? null)" [ngModel]="language()" class="filter-select" nzAllowClear
-               nzPlaceHolder="Ngôn ngữ">
+               [nzPlaceHolder]="'common.language' | msg">
       @for (option of languages; track option.value) {
         <nz-option [nzValue]="option.value" [nzLabel]="languageTagText(option.value)"></nz-option>
       }
     </nz-select>
     <nz-select (ngModelChange)="exportType.set($event ?? null)" [ngModel]="exportType()" class="filter-select" nzAllowClear
-               nzPlaceHolder="Nền tảng">
+               [nzPlaceHolder]="'ai.label.platform' | msg">
       <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
       <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
       <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
@@ -29,7 +29,7 @@
       <nz-option [nzValue]="ExportType.Radicals" nzLabel="Ghép bộ thủ"></nz-option>
     </nz-select>
     <nz-select (ngModelChange)="setCourseType($event ?? null)" [ngModel]="courseType()" class="filter-select" nzAllowClear [nzDropdownMatchSelectWidth]="false"
-               nzPlaceHolder="Giáo trình">
+               [nzPlaceHolder]="'ai.label.course' | msg">
       @for (course of courseOptions(); track course.value) {
         <nz-option [nzValue]="course.value" [nzLabel]="course.label"></nz-option>
       }
@@ -43,10 +43,10 @@
       </nz-select>
     }
     <nz-input-number (ngModelChange)="level.set($event ?? null)" [ngModel]="level()" [nzMax]="maxLevel" [nzMin]="1" [nzPrecision]="0"
-                     [nzStep]="1" aria-label="Lọc theo cấp" class="filter-number" nzPlaceHolder="Cấp"/>
+                     [nzStep]="1" aria-label="Lọc theo cấp" class="filter-number" [nzPlaceHolder]="'ai.label.level' | msg"/>
     <nz-input-number (ngModelChange)="lessonNumber.set($event ?? null)" [ngModel]="lessonNumber()" [nzMax]="100" [nzMin]="1" [nzPrecision]="0"
                      [nzStep]="1" aria-label="Lọc theo bài" class="filter-number"
-                     nzPlaceHolder="Bài"/>
+                     [nzPlaceHolder]="'ai.label.lesson' | msg"/>
     @if (isFiltering()) {
       <button (click)="clearFilters()" nz-button nzType="default" type="button">
         <nz-icon nzTheme="outline" nzType="close"/>
@@ -55,18 +55,18 @@
     }
   </div>
 
-  <nz-table #jobsTable [nzData]="filtered()" [nzLoading]="!loaded()" [nzNoResult]="isFiltering() ? 'Không có kết quả.' : 'Chưa có lần tạo nào.'" [nzPageSize]="pageSize"
+  <nz-table #jobsTable [nzData]="filtered()" [nzLoading]="!loaded()" [nzNoResult]="(isFiltering() ? 'common.noResults' : 'ai.history.empty') | msg" [nzPageSize]="pageSize"
             [nzShowPagination]="filtered().length > pageSize" class="jobs-table"
             nzSize="small">
     <thead>
     <tr>
       <th>Tiêu đề</th>
-      <th>Ngôn ngữ</th>
-      <th>Chế độ</th>
+      <th>{{ 'common.language' | msg }}</th>
+      <th>{{ 'ai.label.mode' | msg }}</th>
       <th>Bài học</th>
-      <th>Nền tảng</th>
+      <th>{{ 'ai.label.platform' | msg }}</th>
       <th>Lúc gửi</th>
-      <th>Trạng thái</th>
+      <th>{{ 'common.status' | msg }}</th>
       <th class="actions-col"></th>
     </tr>
     </thead>
@@ -144,7 +144,7 @@
                              download above is the only way, and the title says why. -->
                         <li (click)="exportJob(job, true)" [nzDisabled]="!extensionInstalled"
                             nz-tooltip
-                            [nzTooltipTitle]="extensionInstalled ? '' : 'Chưa cài tiện ích QuizTool'"
+                            [nzTooltipTitle]="extensionInstalled ? '' : ('common.extensionMissing' | msg)"
                             nz-menu-item>
                           <nz-icon nzTheme="outline" nzType="cloud-upload"/>
                           Tiện ích tự publish
@@ -191,7 +191,7 @@
           <p class="job-error">{{ failedJobMessage(job) }}</p>
         } @else if (viewTable(); as result) {
           @if (result.rows.length === 0) {
-            <p>Không có dữ liệu.</p>
+            <p>{{ 'ai.history.noData' | msg }}</p>
           } @else {
             <nz-table #resultTable [nzData]="result.rows" [nzFrontPagination]="false" [nzScroll]="{ x: 'max-content', y: '60vh' }"
                       [nzShowPagination]="false"

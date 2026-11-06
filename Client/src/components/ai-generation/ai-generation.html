@@ -5,13 +5,13 @@
        they head the page on the left, the guide on the right. -->
   <div class="page-toolbar">
     <div class="page-choices">
-      <nz-radio-group [formControl]="formGroup.controls.language" aria-label="Ngôn ngữ" class="language-switch"
+      <nz-radio-group [formControl]="formGroup.controls.language" [attr.aria-label]="'common.language' | msg" class="language-switch"
                       nzButtonStyle="solid" nzSize="large">
         @for (option of languages; track option.value) {
           <label [nzValue]="option.value" nz-radio-button><span class="language-tag">{{ option.tag }}</span>{{ option.label }}</label>
         }
       </nz-radio-group>
-      <nz-radio-group [formControl]="formGroup.controls.AIMode" aria-label="Chế độ" nzButtonStyle="solid"
+      <nz-radio-group [formControl]="formGroup.controls.AIMode" [attr.aria-label]="'ai.label.mode' | msg" nzButtonStyle="solid"
                       nzSize="large">
         <label [nzValue]="AIGenerationMode.Auto" nz-radio-button>AI tự nghĩ câu hỏi</label>
         <label [nzValue]="AIGenerationMode.Formatted" nz-radio-button>{{ language.formattedLabel }}</label>
@@ -52,10 +52,10 @@
             <!-- Each .field stacks its label, its control and its error message. -->
             <div class="fields">
               <div class="field">
-                <label class="field-label" for="courseType">Giáo trình</label>
+                <label class="field-label" for="courseType">{{ 'ai.label.course' | msg }}</label>
                 <div class="field-row">
                   <nz-select [formControl]="formGroup.controls.courseType" class="course-type-select"
-                             [nzDropdownMatchSelectWidth]="false" nzId="courseType" nzPlaceHolder="Chọn giáo trình">
+                             [nzDropdownMatchSelectWidth]="false" nzId="courseType" [nzPlaceHolder]="'ai.form.pickCourse' | msg">
                     @for (course of language.courses; track course.value) {
                       <nz-option [nzValue]="course.value" [nzLabel]="course.label"></nz-option>
                     }
@@ -71,46 +71,46 @@
                   }
                 </div>
                 <ng-container
-                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.courseType}"/>
+                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('common.required' | msg), $implicit: formGroup.controls.courseType}"/>
               </div>
               @if (formGroup.controls.courseType.value === CourseType.Other) {
                 <div class="field course-name-field">
                   <label class="field-label" for="courseName">Tên giáo trình</label>
                   <input [formControl]="formGroup.controls.courseName" class="course-name-input" id="courseName"
-                         nz-input/>
+                         maxlength="100" nz-input/>
                   <ng-container
-                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.courseName}"/>
+                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('common.required' | msg), $implicit: formGroup.controls.courseName}"/>
                 </div>
               }
               @if (courseHasLevels(formGroup.controls.courseType.value)) {
                 <div class="field">
-                  <label class="field-label" for="level">Cấp</label>
+                  <label class="field-label" for="level">{{ 'ai.label.level' | msg }}</label>
                   <nz-input-number [class.optional-level]="formGroup.controls.courseType.value === CourseType.Other"
                                    [formControl]="formGroup.controls.level" [nzMax]="maxLevel" [nzMin]="1"
-                                   [nzPlaceHolder]="formGroup.controls.courseType.value === CourseType.Other ? 'Không bắt buộc' : ''"
+                                   [nzPlaceHolder]="formGroup.controls.courseType.value === CourseType.Other ? ('ai.form.optional' | msg) : ''"
                                    [nzPrecision]="0"
                                    [nzStep]="1"
                                    nzId="level"></nz-input-number>
                   <ng-container
-                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.level}"/>
+                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('common.required' | msg), $implicit: formGroup.controls.level}"/>
                   <ng-container
-                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: 'HSK 2.0 chỉ có cấp 1–6', $implicit: formGroup.controls.level}"/>
+                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: ('ai.form.hsk2MaxLevel' | msg), $implicit: formGroup.controls.level}"/>
                 </div>
               }
               <div class="field lesson-field">
                 <label class="field-label" for="lessonNumbers">{{ lessonUnit }}</label>
                 <nz-select [formControl]="formGroup.controls.lessonNumbers" [nzMaxMultipleCount]="maxLessons"
-                           [nzPlaceHolder]="'Chọn ' + lessonUnit.toLowerCase()" class="lesson-select"
+                           [nzPlaceHolder]="'ai.form.pickLesson' | msg: { unit: lessonUnit.toLowerCase() }" class="lesson-select"
                            nzId="lessonNumbers" nzMode="multiple">
                   @for (lesson of lessonOptions; track lesson) {
                     <nz-option [nzLabel]="lessonOptionLabel(lesson)" [nzValue]="lesson"></nz-option>
                   }
                 </nz-select>
                 <ng-container
-                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.lessonNumbers}"/>
+                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('common.required' | msg), $implicit: formGroup.controls.lessonNumbers}"/>
                 @if (textbook; as book) {
                   <ng-container
-                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: book.title + ' chỉ có ' + lessonUnit.toLowerCase() + ' 1–' + book.lessons, $implicit: formGroup.controls.lessonNumbers}"/>
+                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: ('ai.form.lessonMax' | msg: { title: book.title, unit: lessonUnit.toLowerCase(), max: book.lessons }), $implicit: formGroup.controls.lessonNumbers}"/>
                 }
               </div>
             </div>
@@ -168,11 +168,11 @@
               } @else {
                 <div class="drop-zone-content">
                   <nz-icon class="drop-zone-icon" nzTheme="outline" nzType="picture"/>
-                  <p class="drop-zone-text">Kéo thả, dán (Ctrl+V) hoặc
+                  <p class="drop-zone-text">{{ 'ai.form.dropHint' | msg }}
                     @if (photosDisabled) {
-                      <span class="file-link">chọn file</span>
+                      <span class="file-link">{{ 'ai.form.chooseFile' | msg }}</span>
                     } @else {
-                      <a (click)="imageInput.click()" class="file-link" href="javascript:void(0)">chọn file</a>
+                      <a (click)="imageInput.click()" class="file-link" href="javascript:void(0)">{{ 'ai.form.chooseFile' | msg }}</a>
                     }
                   </p>
                 </div>
@@ -202,7 +202,7 @@
             }
           </div>
           <ng-container
-            *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Chọn nền tảng', $implicit: formGroup.controls.exportType}"/>
+            *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('ai.form.pickPlatform' | msg), $implicit: formGroup.controls.exportType}"/>
 
           @if (formGroup.controls.exportType.value === ExportType.GestureQuiz) {
             <!-- Each game is one stage of the quiz, numbered as the quiz will show it; a card toggles its game. The
@@ -211,14 +211,14 @@
               <div class="gesture-head">
                 <span class="field-label" id="gestureStagesLabel">Trò chơi</span>
                 <ng-container
-                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Chọn ít nhất 1 trò chơi', $implicit: formGroup.controls.gestureStages}"/>
+                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('ai.form.pickGame' | msg), $implicit: formGroup.controls.gestureStages}"/>
                 <div class="questions-per-stage">
                   <label class="field-label" for="questionsPerStage">Số câu mỗi màn</label>
                   <nz-input-number [formControl]="formGroup.controls.questionsPerStage" [nzMax]="questionsPerStageMax"
                                    [nzMin]="questionsPerStageMin" [nzPrecision]="0" [nzStep]="1"
                                    nzId="questionsPerStage" nzSize="small"></nz-input-number>
                   <ng-container
-                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: formGroup.controls.questionsPerStage}"/>
+                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('common.required' | msg), $implicit: formGroup.controls.questionsPerStage}"/>
                 </div>
               </div>
               <div aria-labelledby="gestureStagesLabel" class="games" role="group">
@@ -246,12 +246,12 @@
                             nzButtonStyle="solid">
               <label [nzValue]="1" nz-radio-button>Thấp</label>
               <label [nzValue]="2" nz-radio-button nzDisabled nz-tooltip
-                     nzTooltipTitle="Đang bảo trì.">Cao</label>
+                     [nzTooltipTitle]="'ai.form.intelligenceMaintenance' | msg">Cao</label>
             </nz-radio-group>
             @if (formGroup.controls.intelligence.value === 2) {
               <small class="intelligence-warning">
                 <nz-icon nzTheme="outline" nzType="warning"/>
-                Chậm hơn.
+                {{ 'ai.form.intelligenceSlower' | msg }}
               </small>
             }
           </div>

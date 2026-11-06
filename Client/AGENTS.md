@@ -642,9 +642,10 @@ overlays (modals, confirms, dropdowns, notifications) that render outside any co
   rows and the students' board own their colours (they style no library component). The medal colours they share
   are the `--qt-gold`, `--qt-silver` and `--qt-bronze` tokens (each with a `-soft` fill) of `styles.css`.
 - Read https://ng.ant.design/llms-full.txt and understand NG-ZORRO components. Use this knowledge when writing code with NG-ZORRO
-`provideNzI18n(en_US)` is set in `app.config.ts` despite most user-facing
-notification strings in the codebase being written in Vietnamese directly at the call site (not via
-i18n). `provideNzConfig` there also places every notification at the top, so call sites pass no `nzPlacement`.
+`provideNzI18n(appLocale)` is set in `app.config.ts`: `src/i18n/app-locale.ts` is ng-zorro's `vi_VN` plus an `App` section
+holding every user message (`src/i18n/areas/*.ts`, merged in `vi-messages.ts`). Components read them with the `msg` pipe
+or `Messages.get(key, params)` (`src/i18n/messages.ts`, keys typed, `%name%` placeholders); strings used in more than one
+area live in `areas/common.ts`: reuse a key instead of repeating the text. `provideNzConfig` there also places every notification at the top, so call sites pass no `nzPlacement`.
 
 Shared helpers to reuse rather than repeat: `models/http-failure.ts` (`httpFailure`: the status and plain-text body
 of a refused request), `services/ai-refusal.ts` (the rate-limit, role and offline notices of an AI request),

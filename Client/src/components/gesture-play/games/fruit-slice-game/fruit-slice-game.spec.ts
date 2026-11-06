@@ -4,6 +4,8 @@ import { GameAudio } from '../../../../game/game-audio';
 import { Choice, QuestionView, Reveal, VisionFrame } from '../../../../game/stage-game';
 import { FruitSliceGame } from './fruit-slice-game';
 import { Fruit, FruitField } from './fruit-slice-physics';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../../../i18n/app-locale';
 
 const QUESTION: QuestionView = {
   stage: 4,
@@ -92,7 +94,7 @@ describe('FruitSliceGame', () => {
   beforeEach(async () => {
     play = jasmine.createSpy('play');
     TestBed.configureTestingModule({
-      providers: [{
+      providers: [provideNzI18n(appLocale), {
         provide: GameAudio,
         useValue: {
           play,

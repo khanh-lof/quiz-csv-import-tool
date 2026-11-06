@@ -9,7 +9,7 @@
         <div [nzGutter]="16" nz-row>
           <div [nzLg]="24" [nzMd]="24" [nzSm]="24" [nzXs]="24" nz-col>
             <nz-form-item>
-              <nz-form-control [nzErrorTip]="'Chưa nhập tên đăng nhập'">
+              <nz-form-control [nzErrorTip]="'app.login.usernameRequired' | msg">
                 <label [for]="'username'">Tên đăng nhập</label>
                 <input
                   formControlName="username"
@@ -22,7 +22,7 @@
 
           <div [nzLg]="24" [nzMd]="24" [nzSm]="24" [nzXs]="24" nz-col>
             <nz-form-item>
-              <nz-form-control [nzErrorTip]="'Chưa nhập mật khẩu'">
+              <nz-form-control [nzErrorTip]="'app.login.passwordRequired' | msg">
                 <label [for]="'password'">Mật khẩu</label>
                 <nz-input-password>
                   <input formControlName="password" id="password"

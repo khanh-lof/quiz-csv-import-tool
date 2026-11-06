@@ -30,6 +30,7 @@ import {
   stagePosition,
   STAGES
 } from '../../../game/stages';
+import { MessagePipe, Messages } from '../../../i18n/messages';
 import { clamp } from '../../../game/gestures';
 import { AiJob } from '../../../models/ai-job';
 import {
@@ -38,12 +39,12 @@ import {
   DEFAULT_ATTEMPTS_LIMIT,
   MAX_ATTEMPTS_LIMIT,
   MIN_ATTEMPTS_LIMIT,
-  STAGE_LOCK_LABELS,
+  STAGE_LOCK_KEYS,
   StageLock,
 } from '../../../models/assignment';
 import { GestureQuiz, hasPinyin, questionCount, quizFromCsvText } from '../../../models/gesture-quiz';
 import { AssignmentService } from '../../../services/assignment.service';
-import { TIME_MODE_LABELS, TimeMode } from '../../../models/time-mode';
+import { TIME_MODE_KEYS, TimeMode } from '../../../models/time-mode';
 import { DeadlinePicker } from '../deadline-picker/deadline-picker';
 import { ShareLink } from '../share-link/share-link';
 
@@ -94,6 +95,7 @@ function effectiveAttempts(value: number | null): number {
     NzRadioComponent,
     NzRadioGroupComponent,
     NzSwitchComponent,
+    MessagePipe,
     DeadlinePicker,
     ShareLink,
   ],
@@ -112,15 +114,15 @@ export class AssignDialog {
   protected readonly defaultPercent = DEFAULT_PASS_PERCENT;
   protected readonly minAttemptsLimit = MIN_ATTEMPTS_LIMIT;
   protected readonly maxAttemptsLimit = MAX_ATTEMPTS_LIMIT;
-  protected readonly timeModes = (Object.keys(TIME_MODE_LABELS) as TimeMode[])
+  protected readonly timeModes = (Object.keys(TIME_MODE_KEYS) as TimeMode[])
     .map(value => ({
       value,
-      label: TIME_MODE_LABELS[value]
+      key: TIME_MODE_KEYS[value]
     }));
-  protected readonly stageLocks = (Object.keys(STAGE_LOCK_LABELS) as StageLock[])
+  protected readonly stageLocks = (Object.keys(STAGE_LOCK_KEYS) as StageLock[])
     .map(value => ({
       value,
-      label: STAGE_LOCK_LABELS[value]
+      key: STAGE_LOCK_KEYS[value]
     }));
   protected readonly label = signal('');
   protected readonly deadline = signal<Date | null>(null);
@@ -167,6 +169,7 @@ export class AssignDialog {
     });
   });
   private readonly assignmentService = inject(AssignmentService);
+  private readonly messages = inject(Messages);
   // The job's quiz read the way the game reads it, so the dialog counts and checks what students will play.
   protected readonly quiz = computed<GestureQuiz | null>(() => {
     const job = this.job();
@@ -242,7 +245,7 @@ export class AssignDialog {
         this.assignment.set(assignment);
         this.created.emit(assignment);
       },
-      error: err => this.error.set(assignmentErrorMessage(err)),
+      error: err => this.error.set(assignmentErrorMessage(err, this.messages)),
     });
   }
 

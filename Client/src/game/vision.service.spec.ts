@@ -10,6 +10,8 @@ import {
   toHandFrame,
   VisionService,
 } from './vision.service';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../i18n/app-locale';
 
 const point = (x: number, y: number) => ({
   x,
@@ -131,6 +133,7 @@ describe('VisionService', () => {
   let internals: Internals;
 
   beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideNzI18n(appLocale)] });
     service = TestBed.inject(VisionService);
     internals = service as unknown as Internals;
   });

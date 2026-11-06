@@ -1,3 +1,4 @@
+import type { MessageKey } from '../i18n/messages';
 import { VisionKind } from './stage-game';
 
 export type GameKind =
@@ -17,7 +18,7 @@ export interface StageDef {
   game: GameKind;
   name: string;
   icon: string;
-  hint: string;
+  hint: MessageKey;
   vision: VisionKind;
   optionCount: number;
   seconds: number;
@@ -37,7 +38,7 @@ export const STAGES: StageDef[] = [
     game: 'true-false',
     name: 'Đúng hay sai',
     icon: '👍',
-    hint: 'Ngón cái lên = Đúng, xuống = Sai. Giữ để chọn.',
+    hint: 'play.stage.hint.trueFalse',
     vision: 'hand',
     optionCount: 2,
     seconds: 12,
@@ -47,7 +48,7 @@ export const STAGES: StageDef[] = [
     game: 'head-tilt',
     name: 'Nghiêng đầu',
     icon: '🙆',
-    hint: 'Nghiêng đầu về đáp án đúng và giữ yên.',
+    hint: 'play.stage.hint.headTilt',
     vision: 'face',
     optionCount: 2,
     seconds: 12,
@@ -57,7 +58,7 @@ export const STAGES: StageDef[] = [
     game: 'frog-bite',
     name: 'Ếch đớp chữ',
     icon: '🐸',
-    hint: 'Dịch đầu sang làn đúng, há rồi khép miệng.',
+    hint: 'play.stage.hint.frogBite',
     vision: 'face',
     optionCount: 3,
     seconds: 15,
@@ -67,7 +68,7 @@ export const STAGES: StageDef[] = [
     game: 'fruit-slice',
     name: 'Chém hoa quả',
     icon: '🍉',
-    hint: 'Vung ngón trỏ chém quả cùng màu với đáp án đúng.',
+    hint: 'play.stage.hint.fruitSlice',
     vision: 'hand',
     optionCount: 3,
     seconds: 15,
@@ -77,7 +78,7 @@ export const STAGES: StageDef[] = [
     game: 'finger-count',
     name: 'Giơ ngón tay',
     icon: '✋',
-    hint: 'Giơ 1–4 ngón (không tính ngón cái) theo số đáp án.',
+    hint: 'play.stage.hint.fingerCount',
     vision: 'hand',
     optionCount: 4,
     seconds: 20,
@@ -87,7 +88,7 @@ export const STAGES: StageDef[] = [
     game: 'word-order',
     name: 'Xếp câu',
     icon: '🧩',
-    hint: 'Chỉ vào từng mảnh theo thứ tự, giữ yên hoặc chụm ngón để chọn.',
+    hint: 'play.stage.hint.wordOrder',
     vision: 'hand',
     optionCount: 0,
     seconds: 45,

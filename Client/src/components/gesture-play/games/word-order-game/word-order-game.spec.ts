@@ -3,6 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GameAudio } from '../../../../game/game-audio';
 import type { Choice, Point3, QuestionView, Reveal } from '../../../../game/stage-game';
 import { WordOrderGame } from './word-order-game';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../../../i18n/app-locale';
 
 // Two tiles read 的, so the game has to tell tiles apart by position.
 const QUESTION: QuestionView = {
@@ -50,7 +52,7 @@ describe('WordOrderGame', () => {
   let host: HTMLElement;
 
   async function setup(inputs: { cameraActive?: boolean; question?: QuestionView } = {}) {
-    TestBed.configureTestingModule({ imports: [WordOrderGame] });
+    TestBed.configureTestingModule({ imports: [WordOrderGame], providers: [provideNzI18n(appLocale)] });
     spyOn(TestBed.inject(GameAudio), 'play');
     fixture = TestBed.createComponent(WordOrderGame);
     game = fixture.componentInstance;

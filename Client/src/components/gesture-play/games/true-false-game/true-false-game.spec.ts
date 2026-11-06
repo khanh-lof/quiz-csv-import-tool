@@ -3,6 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GameAudio } from '../../../../game/game-audio';
 import type { HandFrame, QuestionView, Reveal } from '../../../../game/stage-game';
 import { TrueFalseGame } from './true-false-game';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../../../i18n/app-locale';
 
 const QUESTION: QuestionView = {
   stage: 1,
@@ -63,7 +65,7 @@ describe('TrueFalseGame', () => {
     audio = jasmine.createSpyObj<GameAudio>('GameAudio', ['play']);
     await TestBed.configureTestingModule({
       imports: [TrueFalseGame],
-      providers: [{
+      providers: [provideNzI18n(appLocale), {
         provide: GameAudio,
         useValue: audio
       }],

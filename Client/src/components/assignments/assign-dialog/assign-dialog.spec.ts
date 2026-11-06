@@ -3,7 +3,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { appLocale } from '../../../i18n/app-locale';
 import { AiJob } from '../../../models/ai-job';
 import { Assignment } from '../../../models/assignment';
 import { DEMO_QUIZ_CSV } from '../../../game/demo-quiz';
@@ -99,6 +101,7 @@ describe('AssignDialog', () => {
     TestBed.configureTestingModule({
       imports: [AssignDialog],
       providers: [
+        provideNzI18n(appLocale),
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),

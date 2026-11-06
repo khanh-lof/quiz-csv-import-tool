@@ -14,6 +14,7 @@ import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
+import { MessageKey, MessagePipe, Messages } from '../../../i18n/messages';
 import {
   Assignment,
   assignmentErrorMessage,
@@ -51,6 +52,7 @@ const CLOCK_TICK_MS = 30_000;
     NzTagComponent,
     NzDropdownModule,
     NzMenuModule,
+    MessagePipe,
     DeadlinePicker,
     ShareLink,
   ],
@@ -62,8 +64,6 @@ export class AssignmentList implements OnInit {
   protected readonly pageSize = PAGE_SIZE;
   protected readonly languageColor = languageTagColor;
   protected readonly languageTag = languageTagText;
-  protected readonly helpText =
-    'Giao bài ở AI › Lịch sử.';
   protected readonly assignments = signal<Assignment[]>([]);
   protected readonly loading = signal(false);
   // False until a list has arrived, so the empty state is not claimed before (or instead of) an answer.
@@ -95,6 +95,7 @@ export class AssignmentList implements OnInit {
 
   private readonly assignmentService = inject(AssignmentService);
   private readonly notificationService = inject(NzNotificationService);
+  private readonly messages = inject(Messages);
   private readonly modalService = inject(NzModalService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -133,11 +134,11 @@ export class AssignmentList implements OnInit {
   }
 
   protected statusText(assignment: Assignment): string {
-    return assignmentStatusText(assignment, this.now());
+    return assignmentStatusText(assignment, this.now(), this.messages);
   }
 
   protected async copyLink(assignment: Assignment): Promise<void> {
-    if (!await copyShareLink(this.notificationService, assignment.code, 'Lấy link ở Mã QR.')) {
+    if (!await copyShareLink(this.notificationService, this.messages, assignment.code, this.messages.get('assignments.share.fallbackQr'))) {
       this.showQr(assignment);
     }
   }
@@ -150,10 +151,10 @@ export class AssignmentList implements OnInit {
   // Menu items cannot hold a popconfirm (the menu closes under it), so closing and deleting ask in a modal.
   protected confirmClose(assignment: Assignment): void {
     this.modalService.confirm({
-      nzTitle: 'Đóng bài?',
-      nzContent: 'Học sinh sẽ không vào chơi được nữa.',
-      nzOkText: 'Đóng bài',
-      nzCancelText: 'Hủy',
+      nzTitle: this.messages.get('assignments.list.closeTitle'),
+      nzContent: this.messages.get('assignments.list.closeContent'),
+      nzOkText: this.messages.get('assignments.action.closeAssignment'),
+      nzCancelText: this.messages.get('common.cancel'),
       nzCentered: true,
       nzOnOk: () => this.closeAssignment(assignment),
     });
@@ -189,14 +190,14 @@ export class AssignmentList implements OnInit {
         this.replace(updated);
         this.reopenOpen.set(false);
       },
-      error: err => this.fail('Không mở lại được bài', err),
+      error: err => this.fail('assignments.failure.reopenAssignment', err),
     });
   }
 
   protected confirmRemove(assignment: Assignment): void {
-    confirmDelete(this.modalService, {
-      title: 'Xóa bài này?',
-      content: 'Bài và kết quả của học sinh sẽ bị xóa.',
+    confirmDelete(this.modalService, this.messages, {
+      title: this.messages.get('assignments.list.deleteTitle'),
+      content: this.messages.get('assignments.list.deleteContent'),
       onOk: () => this.remove(assignment),
     });
   }
@@ -206,7 +207,7 @@ export class AssignmentList implements OnInit {
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({
       next: updated => this.replace(updated),
-      error: err => this.fail('Không đóng được bài', err),
+      error: err => this.fail('assignments.failure.closeAssignment', err),
     });
   }
 
@@ -215,7 +216,7 @@ export class AssignmentList implements OnInit {
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({
       next: () => this.assignments.update(list => list.filter(item => item.id !== assignment.id)),
-      error: err => this.fail('Không xóa được bài', err),
+      error: err => this.fail('assignments.failure.removeAssignment', err),
     });
   }
 
@@ -230,8 +231,8 @@ export class AssignmentList implements OnInit {
       } : item));
   }
 
-  private fail(title: string, err: unknown): void {
-    this.notificationService.error(title, assignmentErrorMessage(err));
+  private fail(title: MessageKey, err: unknown): void {
+    this.notificationService.error(this.messages.get(title), assignmentErrorMessage(err, this.messages));
   }
 
   protected readonly languageTagText = languageTagText;

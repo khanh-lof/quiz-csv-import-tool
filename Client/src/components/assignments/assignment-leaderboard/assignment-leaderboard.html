@@ -2,7 +2,7 @@
   <nz-card>
     <div class="message" role="alert">
       <div aria-hidden="true" class="big-emoji">😕</div>
-      <h2 class="message-title">Không tìm thấy bài này</h2>
+      <h2 class="message-title">{{ 'assignments.leaderboard.notFound' | msg }}</h2>
       <a nz-button nzType="primary" routerLink="/assignments">Về Bài đã giao</a>
     </div>
   </nz-card>
@@ -16,8 +16,8 @@
       <nz-tag [nzColor]="open() ? 'green' : undefined">{{ statusText() }}</nz-tag>
     </div>
     <p class="meta">
-      <span>Thời gian mỗi câu: {{ timeModeLabels[d.timeMode] }}</span>
-      <span>Các màn: {{ stageLockLabels[d.stageLock] }}</span>
+      <span>Thời gian mỗi câu: {{ timeModeKeys[d.timeMode] | msg }}</span>
+      <span>Các màn: {{ stageLockKeys[d.stageLock] | msg }}</span>
       @if (passText()) {
         <span>Tỉ lệ đúng để qua màn: {{ passText() }}</span>
       }
@@ -25,7 +25,7 @@
         <span>Giới hạn: {{ d.maxAttempts }} lần/màn</span>
       }
       @if (!d.showBoard) {
-        <span>Học sinh không xem bảng xếp hạng</span>
+        <span>{{ 'assignments.leaderboard.hiddenFromStudents' | msg }}</span>
       }
       <span>Giao lúc {{ formatStamp(d.createdAt) }}</span>
       <span>{{ d.players.length }} học sinh</span>
@@ -45,21 +45,21 @@
         Xem thử
       </a>
       @if (open()) {
-        <button (nzOnConfirm)="closeAssignment()" [disabled]="busy()" nz-button nz-popconfirm nzCancelText="Hủy"
-                nzDanger nzOkText="Đóng bài"
-                nzPopconfirmPlacement="bottom" nzPopconfirmTitle="Đóng bài? Học sinh sẽ không vào chơi được nữa." nzType="default"
+        <button (nzOnConfirm)="closeAssignment()" [disabled]="busy()" nz-button nz-popconfirm
+                nzDanger [nzCancelText]="'common.cancel' | msg" [nzOkText]="'assignments.action.closeAssignment' | msg"
+                nzPopconfirmPlacement="bottom" [nzPopconfirmTitle]="'assignments.leaderboard.closeConfirm' | msg" nzType="default"
                 type="button">
           <nz-icon nzTheme="outline" nzType="stop"/>
-          Đóng bài
+          {{ 'assignments.action.closeAssignment' | msg }}
         </button>
         <button (click)="openDeadline('schedule')" nz-button nzType="default" type="button">
           <nz-icon nzTheme="outline" nzType="clock-circle"/>
-          Hẹn giờ đóng
+          {{ 'assignments.action.scheduleClose' | msg }}
         </button>
       } @else {
         <button (click)="openDeadline('reopen')" nz-button nzType="default" type="button">
           <nz-icon nzTheme="outline" nzType="unlock"/>
-          Mở lại
+          {{ 'assignments.action.reopen' | msg }}
         </button>
       }
       <button (click)="downloadLeaderboard()" [disabled]="d.players.length === 0" nz-button nzType="default"
@@ -85,7 +85,7 @@
   <nz-card #board [class.is-fullscreen]="fullscreen()" [nzExtra]="boardExtra" [nzTitle]="boardTitle" class="board">
     @if (d.players.length === 0) {
       <div class="empty">
-        <p class="empty-text">Chưa có học sinh.</p>
+        <p class="empty-text">{{ 'assignments.leaderboard.noPlayers' | msg }}</p>
         @if (open()) {
           <kt-quiz-share-link [code]="d.code" [qrSize]="200"/>
         }
@@ -96,7 +96,7 @@
                                 [stageCount]="stages().length" class="podium"/>
       }
       @if (ranked().length > 0) {
-        <ol aria-label="Bảng xếp hạng" class="entries" role="list">
+        <ol [attr.aria-label]="'common.leaderboardTitle' | msg" class="entries" role="list">
           @for (row of ranked(); track row.player.id) {
             <li [attr.data-player-id]="row.player.id" [attr.data-rank]="row.player.rank" class="entry">
               <span [class.is-number]="(row.player.rank ?? 0) > 3" class="rank">{{ medal(row.player.rank) }}</span>
@@ -149,10 +149,10 @@
   </nz-card>
 
   <ng-template #removeButton let-player>
-    <button (nzOnConfirm)="removePlayer(player)" [attr.aria-label]="'Xóa ' + player.name" [nzPopconfirmTitle]="'Xóa ' + player.name + ' khỏi bảng xếp hạng?'" class="remove" nz-button nz-popconfirm
-            nzCancelText="Hủy" nzDanger
-            nzOkText="Xóa" nzPopconfirmPlacement="left"
-            nzSize="small" nzType="default" title="Xóa khỏi bảng xếp hạng"
+    <button (nzOnConfirm)="removePlayer(player)" [attr.aria-label]="'assignments.leaderboard.removePlayer' | msg: {name: player.name}" [nzPopconfirmTitle]="'assignments.leaderboard.removePlayerConfirm' | msg: {name: player.name}" class="remove" nz-button nz-popconfirm
+            [nzCancelText]="'common.cancel' | msg" nzDanger
+            [nzOkText]="'assignments.action.delete' | msg" nzPopconfirmPlacement="left"
+            nzSize="small" nzType="default" [title]="'assignments.leaderboard.removePlayerTooltip' | msg"
             type="button">
       <nz-icon nzTheme="outline" nzType="delete"/>
     </button>
@@ -166,7 +166,7 @@
       }
       <nz-tag [nzColor]="open() ? 'green' : undefined" class="big-tag">{{ statusText() }}</nz-tag>
     } @else {
-      Bảng xếp hạng
+      {{ 'common.leaderboardTitle' | msg }}
     }
   </ng-template>
 
@@ -201,10 +201,10 @@
 
   <nz-modal (nzOnCancel)="deadlineOpen.set(false)" (nzOnOk)="saveDeadline()"
             (nzVisibleChange)="deadlineOpen.set($event)" [nzOkDisabled]="deadlineInPast()"
-            [nzOkLoading]="busy()" [nzOkText]="deadlineMode() === 'reopen' ? 'Mở lại' : 'Lưu'" [nzVisible]="deadlineOpen()" nzCancelText="Hủy"
+            [nzOkLoading]="busy()" [nzOkText]="(deadlineMode() === 'reopen' ? 'assignments.action.reopen' : 'common.save') | msg" [nzVisible]="deadlineOpen()" [nzCancelText]="'common.cancel' | msg"
             nzWidth="min(560px, 95vw)">
     <!-- A template, not nzTitle: the dialog is reused for both uses, and a string title is read once. -->
-    <ng-container *nzModalTitle>{{ deadlineMode() === 'reopen' ? 'Mở lại bài' : 'Hẹn giờ đóng' }}</ng-container>
+    <ng-container *nzModalTitle>{{ (deadlineMode() === 'reopen' ? 'assignments.leaderboard.reopenTitle' : 'assignments.action.scheduleClose') | msg }}</ng-container>
     <ng-container *nzModalContent>
       <kt-quiz-deadline-picker [(value)]="deadline"/>
     </ng-container>
@@ -213,7 +213,7 @@
   <nz-card>
     <div class="message" role="alert">
       <div aria-hidden="true" class="big-emoji">😕</div>
-      <h2 class="message-title">Chưa tải được bảng xếp hạng</h2>
+      <h2 class="message-title">{{ 'assignments.leaderboard.loadFailed' | msg }}</h2>
       <p class="message-text">{{ message }}</p>
       <div class="message-actions">
         <button (click)="refresh()" [nzLoading]="refreshing()" nz-button nzType="primary" type="button">Thử lại</button>

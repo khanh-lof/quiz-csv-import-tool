@@ -1,4 +1,4 @@
-import { Injectable, signal, TemplateRef } from '@angular/core';
+import { inject, Injectable, signal, TemplateRef } from '@angular/core';
 import { HttpClient, HttpStatusCode } from '@angular/common/http';
 import { catchError, exhaustMap, map, Observable, of, Subscription, takeWhile, tap, timer } from 'rxjs';
 import { NzNotificationComponent, NzNotificationService } from 'ng-zorro-antd/notification';
@@ -6,6 +6,7 @@ import { AiJob, failedJobMessage } from '../models/ai-job';
 import { AuthService } from './auth.service';
 import { SubmittedJob } from './ai-csv.service';
 import { escapeHtml } from './escape-html';
+import { Messages } from '../i18n/messages';
 
 export interface HistoryLinkContext {
   $implicit: NzNotificationComponent;
@@ -30,6 +31,7 @@ export class AiJobService {
   readonly loaded = signal(false);
   // Set by the app root: notice content that ends with the link to the history page, after `data.lead`.
   readonly historyLinkContent = signal<TemplateRef<HistoryLinkContext> | null>(null);
+  private readonly messages = inject(Messages);
   private readonly endpointUrl = '/api/csv/jobs';
   private polling: Subscription | null = null;
   private idlePollsToStop = DEFAULT_IDLE_POLLS;
@@ -117,22 +119,24 @@ export class AiJobService {
   }
 
   notifySent(): void {
-    this.notifyWithHistoryLink('info', 'Đã gửi yêu cầu', 'Kết quả ở');
+    this.notifyWithHistoryLink('info', this.messages.get('ai.job.sentTitle'), this.messages.get('ai.job.sentLead'));
   }
 
   private notifyWithHistoryLink(type: 'info' | 'success', title: string, lead: string): void {
     const content = this.historyLinkContent();
-    this.notificationService[type](title, content ?? `${escapeHtml(lead)} AI › Lịch sử.`, { nzData: { lead } });
+    this.notificationService[type](title, content ?? `${escapeHtml(lead)} ${this.messages.get('ai.job.historyLink')}`, { nzData: { lead } });
   }
 
   private announce(job: AiJob): void {
     if (job.status === 'done') {
-      this.notifyWithHistoryLink('success', 'AI đã tạo xong', `"${job.title}" — xem ở`);
+      this.notifyWithHistoryLink('success', this.messages.get('ai.job.doneTitle'),
+        this.messages.get('ai.job.doneLead', { title: job.title }));
       return;
     }
-    const title = escapeHtml(job.title);
-    this.notificationService.error('AI không tạo được',
-      `"${title}": ${escapeHtml(failedJobMessage(job))}`, { nzDuration: 0 });
+    this.notificationService.error(this.messages.get('ai.job.failedTitle'), this.messages.get('ai.job.failedBody', {
+      title: escapeHtml(job.title),
+      reason: escapeHtml(failedJobMessage(job, this.messages))
+    }), { nzDuration: 0 });
   }
 
   private reset(): void {

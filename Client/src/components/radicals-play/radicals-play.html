@@ -54,19 +54,19 @@
       @if (edit(); as table) {
         <div class="edit">
           @if (editEmpty()) {
-            <p>Không có mục nào để sửa.</p>
+            <p>{{ 'ai.radicals.nothingToEdit' | msg }}</p>
           }
           @if (table.words.length > 0) {
             <h3 class="edit-heading">Từ</h3>
             @if (hasDropped()) {
-              <p class="edit-hint">Từ "Đã bỏ": nhập pinyin để đưa vào bài.</p>
+              <p class="edit-hint">{{ 'ai.radicals.droppedHint' | msg }}</p>
             }
             <nz-table #wordsTable [nzData]="table.words" [nzFrontPagination]="false" [nzScroll]="{ x: 'max-content' }"
                       [nzShowPagination]="false" class="edit-table" nzSize="small">
               <thead>
               <tr>
                 <th>Từ</th>
-                <th>Bài</th>
+                <th>{{ 'ai.label.lesson' | msg }}</th>
                 <th>Pinyin</th>
                 <th>Nghĩa</th>
               </tr>
@@ -77,9 +77,9 @@
                     <td>
                       <span class="hanzi">{{ row.hanzi }}</span>
                       @if (row.dropped) {
-                        <nz-tag>Đã bỏ</nz-tag>
+                        <nz-tag>{{ 'ai.label.dropped' | msg }}</nz-tag>
                       } @else if (row.uncertain) {
-                        <nz-tag nzColor="warning">AI không chắc</nz-tag>
+                        <nz-tag nzColor="warning">{{ 'ai.label.uncertain' | msg }}</nz-tag>
                       } @else if (row.ai) {
                         <nz-tag>AI</nz-tag>
                       }
@@ -90,7 +90,7 @@
                              [attr.maxlength]="maxPinyinLength" [ngModel]="row.pinyin" [nzStatus]="row.problem === 'pinyin' ? 'error' : ''"
                              class="pinyin-input" nz-input/>
                       @if (row.problem === 'pinyin') {
-                        <div class="problem">Pinyin không khớp số chữ</div>
+                        <div class="problem">{{ 'ai.radicals.pinyinMismatch' | msg }}</div>
                       } @else if (readingHints().get(row.hanzi); as hint) {
                         <div class="edit-hint">{{ hint }}</div>
                       }
@@ -100,7 +100,7 @@
                              [attr.maxlength]="maxNoteLength" [ngModel]="row.meaning" [nzStatus]="row.problem === 'missing' ? 'error' : ''"
                              class="note-input" nz-input/>
                       @if (row.problem === 'missing') {
-                        <div class="problem">Nhập thiếu nàaa</div>
+                        <div class="problem">{{ 'common.required' | msg }}</div>
                       }
                     </td>
                   </tr>
@@ -134,7 +134,7 @@
                              [attr.maxlength]="maxNoteLength" [ngModel]="row.meaning" [nzStatus]="row.problem ? 'error' : ''"
                              class="note-input" nz-input/>
                       @if (row.problem) {
-                        <div class="problem">Nhập thiếu nàaa</div>
+                        <div class="problem">{{ 'common.required' | msg }}</div>
                       }
                     </td>
                   </tr>
@@ -178,7 +178,7 @@
                              [attr.maxlength]="maxNoteLength" [ngModel]="row.meaning" [nzStatus]="row.problem ? 'error' : ''"
                              class="note-input" nz-input/>
                       @if (row.problem) {
-                        <div class="problem">Nhập thiếu nàaa</div>
+                        <div class="problem">{{ 'common.required' | msg }}</div>
                       }
                     </td>
                   </tr>
@@ -188,7 +188,7 @@
           }
         </div>
       } @else if (review().length > 0) {
-        <nz-alert [nzDescription]="reviewList" class="review" nzMessage="Cần xem lại" nzShowIcon nzType="warning"/>
+        <nz-alert [nzDescription]="reviewList" class="review" [nzMessage]="'ai.radicals.review.title' | msg" nzShowIcon nzType="warning"/>
         <ng-template #reviewList>
           <ul class="review-list">
             @for (line of review(); track $index) {

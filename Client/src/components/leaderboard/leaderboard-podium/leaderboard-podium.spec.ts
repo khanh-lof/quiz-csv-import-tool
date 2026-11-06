@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { LeaderboardPodium } from './leaderboard-podium';
 import { PodiumEntry } from './podium';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../../i18n/app-locale';
 
 function entry(rank: number, name: string, overrides: Partial<PodiumEntry> = {}): PodiumEntry {
   return {
@@ -17,7 +19,7 @@ describe('LeaderboardPodium', () => {
   let fixture: ComponentFixture<LeaderboardPodium>;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [LeaderboardPodium] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [LeaderboardPodium], providers: [provideNzI18n(appLocale)] }).compileComponents();
     fixture = TestBed.createComponent(LeaderboardPodium);
   });
 

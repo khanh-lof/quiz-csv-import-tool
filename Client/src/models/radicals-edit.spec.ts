@@ -1,9 +1,13 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { TestBed } from '@angular/core/testing';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../i18n/app-locale';
+import { Messages } from '../i18n/messages';
 import {
   editRowCount,
   flaggedEdit,
   RadicalsEdit,
-  radicalsEditError,
+  radicalsEditError as radicalsEditErrorOf,
   withChar,
   withComponent,
   withWord
@@ -46,11 +50,15 @@ describe('radicals edit', () => {
     expect(flaggedEdit(new Error('x'))).toBeNull();
   });
 
-  it('words the server\'s refusals', () => {
-    expect(radicalsEditError(failure(404, 'Job not found'), 'x')).toBe('Không tìm thấy bài này.');
-    expect(radicalsEditError(failure(409, 'Job cannot be edited.'), 'x')).toBe('Bài cũ, không sửa được.');
-    expect(radicalsEditError(failure(409, 'No lesson has enough words for a group.'), 'x')).toBe('Không bài nào đủ từ.');
-    expect(radicalsEditError(failure(400, 'Invalid corrections.'), 'Không lưu được.')).toBe('Không lưu được.');
-    expect(radicalsEditError(new Error('offline'), 'Không tải được.')).toBe('Không tải được.');
+  it("words the server's refusals", () => {
+    TestBed.configureTestingModule({ providers: [provideNzI18n(appLocale)] });
+    const messages = TestBed.inject(Messages);
+    const radicalsEditError = (err: unknown, fallback: 'ai.radicals.loadRetry' | 'ai.radicals.saveRetry') =>
+      radicalsEditErrorOf(err, fallback, messages);
+    expect(radicalsEditError(failure(404, 'Job not found'), 'ai.radicals.loadRetry')).toBe('Không tìm thấy bài này.');
+    expect(radicalsEditError(failure(409, 'Job cannot be edited.'), 'ai.radicals.loadRetry')).toBe('Bài cũ, không sửa được.');
+    expect(radicalsEditError(failure(409, 'No lesson has enough words for a group.'), 'ai.radicals.loadRetry')).toBe('Không bài nào đủ từ.');
+    expect(radicalsEditError(failure(400, 'Invalid corrections.'), 'ai.radicals.saveRetry')).toBe('Không lưu được. Thử lại.');
+    expect(radicalsEditError(new Error('offline'), 'ai.radicals.loadRetry')).toBe('Không tải được. Thử lại.');
   });
 });

@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../i18n/app-locale';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
@@ -15,7 +17,7 @@ describe('WaygroundExtensionService', () => {
   beforeEach(() => {
     notifications = jasmine.createSpyObj('NzNotificationService', ['success', 'error']);
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), {
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideNzI18n(appLocale), {
         provide: NzNotificationService,
         useValue: notifications
       }]

@@ -1,4 +1,5 @@
 import { DEFAULT_PASS_PERCENT, stagePosition, STAGES } from '../game/stages';
+import { MessageKey, Messages } from '../i18n/messages';
 import { Utils } from '../utils';
 import { normalizeForSearch } from './ai-job';
 import { BYTE_ORDER_MARK } from './csv-text';
@@ -216,9 +217,9 @@ export interface StudentBoard {
   playerCount: number;
 }
 
-export const STAGE_LOCK_LABELS: Record<StageLock, string> = {
-  sequential: 'Phải qua màn trước mới mở màn sau',
-  open: 'Mở tất cả các màn',
+export const STAGE_LOCK_KEYS: Record<StageLock, MessageKey> = {
+  sequential: 'assignments.stageLock.sequential',
+  open: 'assignments.stageLock.open',
 };
 
 // The percentage of correct answers that passes a stage, from an assignment's `passPercents` (stage "1" to
@@ -309,12 +310,14 @@ export function formatStamp(time: Date | string): string {
   return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
-// The status of an assignment in words: 'Đã đóng', 'Đang mở · đóng lúc 21:30 14/10' or 'Đang mở'.
-export function assignmentStatusText(assignment: Assignment, now: Date): string {
+// The status of an assignment in words: closed, open until a time, or open.
+export function assignmentStatusText(assignment: Assignment, now: Date, messages: Messages): string {
   if (!isOpenAt(assignment, now)) {
-    return 'Đã đóng';
+    return messages.get('assignments.status.closed');
   }
-  return assignment.closesAt === null ? 'Đang mở' : `Đang mở · đóng lúc ${formatClose(assignment.closesAt)}`;
+  return assignment.closesAt === null
+    ? messages.get('assignments.status.open')
+    : messages.get('assignments.status.openUntil', { time: formatClose(assignment.closesAt) });
 }
 
 // The stage numbers an assignment has, in order.
@@ -337,16 +340,16 @@ function spreadsheetSafe(text: string): string {
 }
 
 // The server's plain-text answers to a teacher's assignment request, in words a teacher can act on.
-const TEACHER_ERRORS: Record<string, string> = {
-  'Assignment not found': 'Không tìm thấy bài này.',
-  'Job not found': 'Không tìm thấy quiz này.',
-  'Player not found': 'Học sinh này đã bị xóa.',
-  'Too many assignments.': 'Tối đa 100 bài. Xóa bớt ở Bài đã giao.',
-  'Job is not a finished gesture quiz.': 'Chỉ giao được Game đã tạo xong và có câu hỏi hợp lệ.',
-  'Invalid closing time.': 'Giờ đóng phải sau bây giờ, tối đa 180 ngày.',
-  'Label is too long.': 'Tên lớp / nhóm tối đa 60 ký tự.',
-  'Invalid pass percents.': 'Tỉ lệ đúng để qua màn phải từ 10% đến 100%.',
-  'Invalid replay limit.': 'Số lần chơi mỗi màn: 1–10, chỉ khi mở tất cả các màn.',
+const TEACHER_ERRORS: Record<string, MessageKey> = {
+  'Assignment not found': 'common.notFound',
+  'Job not found': 'assignments.error.jobNotFound',
+  'Player not found': 'assignments.error.playerNotFound',
+  'Too many assignments.': 'assignments.error.tooManyAssignments',
+  'Job is not a finished gesture quiz.': 'assignments.error.jobNotFinished',
+  'Invalid closing time.': 'assignments.error.invalidClosingTime',
+  'Label is too long.': 'assignments.error.labelTooLong',
+  'Invalid pass percents.': 'assignments.error.invalidPassPercents',
+  'Invalid replay limit.': 'assignments.error.invalidReplayLimit',
 };
 
 // The server's plain-text answers to a student's request that the client tells apart from the rest.
@@ -358,18 +361,19 @@ export const RUN_NOT_FOUND = 'Run not found';
 export const BOARD_HIDDEN = 'Board hidden';
 
 // What to tell the teacher when an AssignmentService call fails.
-export function assignmentErrorMessage(err: unknown): string {
+export function assignmentErrorMessage(err: unknown, messages: Messages): string {
   const { status, body } = httpFailure(err);
   if (status === null) {
-    return 'Thử lại.';
+    return messages.get('common.tryAgain');
   }
   if (status === 0) {
-    return 'Mất kết nối. Thử lại.';
+    return messages.get('common.offline');
   }
   if (status === 401) {
-    return 'Hết phiên đăng nhập. Đăng nhập lại.';
+    return messages.get('assignments.error.sessionExpired');
   }
-  return TEACHER_ERRORS[body] ?? (status === 400 ? 'Thông tin chưa hợp lệ.' : 'Thử lại.');
+  const key = TEACHER_ERRORS[body] ?? (status === 400 ? 'assignments.error.invalidInput' : 'common.tryAgain');
+  return messages.get(key);
 }
 
 // The leaderboard as a CSV file, rows in the order given (the server's leaderboard order). It starts with a BOM

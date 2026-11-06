@@ -16,6 +16,7 @@ import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiJob, AiJobStatus, failedJobMessage, filterJobs, lessonLabel } from '../../models/ai-job';
+import { MessagePipe, Messages } from '../../i18n/messages';
 import { ExportType } from '../../models/export-type';
 import { GESTURE_QUIZ_COLUMNS } from '../../models/gesture-quiz';
 import { CourseType } from '../../models/course-type';
@@ -81,6 +82,7 @@ interface ResultTable {
     NzMenuModule,
     AssignDialog,
     NzTooltipDirective,
+    MessagePipe,
   ],
   templateUrl: './ai-jobs.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -92,8 +94,12 @@ export class AiJobs implements OnInit {
   protected readonly CourseType = CourseType;
   protected readonly HskStandard = HskStandard;
   protected readonly lessonLabel = lessonLabel;
-  protected readonly failedJobMessage = failedJobMessage;
+  protected failedJobMessage(job: AiJob): string {
+    return failedJobMessage(job, this.messages);
+  }
+
   protected readonly languages = LANGUAGES;
+  private readonly messages = inject(Messages);
   // Lets the filter accept any level a job could have (HSK 3.0 goes to 9, an English course's grades to 12).
   protected readonly maxLevel = Math.max(hskMaxLevel(HskStandard.V3), 12);
   // Publishing needs the extension; without it only the download works.
@@ -219,7 +225,7 @@ export class AiJobs implements OnInit {
   protected openInTable(job: AiJob): void {
     const rows = this.csvImportService.parseCsv(this.resultText(job));
     if (rows.length === 0) {
-      this.notificationService.warning('Không có dữ liệu', '');
+      this.notificationService.warning(this.messages.get('common.noData'), '');
       return;
     }
     this.pendingImportService.set(rows);
@@ -239,7 +245,7 @@ export class AiJobs implements OnInit {
   protected downloadRadicals(job: AiJob): void {
     this.radicalsPageService.page(job.id).subscribe({
       next: html => this.radicalsPageService.download(job, html),
-      error: () => this.notificationService.error('Không tải được', 'Thử lại.'),
+      error: () => this.notificationService.error(this.messages.get('ai.history.loadFailed'), this.messages.get('common.tryAgain')),
     });
   }
 
@@ -256,15 +262,16 @@ export class AiJobs implements OnInit {
     const exported = this.fileExportService.exportFileFromCsvContent(
       FileExportService.buildFileName(job.title, exportType), this.resultText(job), exportType, !publish);
     if (!exported) {
-      this.notificationService.warning('Không có dữ liệu', '');
+      this.notificationService.warning(this.messages.get('common.noData'), '');
       return;
     }
     if (publish && exported.xlsx) {
       this.waygroundExtensionService.sendImport(job.title, exported.fileName, exported.xlsx);
-      this.notificationService.info('Đang tạo quiz trên Wayground…',
-        'Xong sẽ báo link ở đây.');
+      this.notificationService.info(this.messages.get('common.creatingOnWayground'),
+        this.messages.get('common.waygroundLinkHint'));
     } else if (exportType === ExportType.GestureQuiz) {
-      this.notificationService.success('Đã tải file', 'Mở file ở trang Chơi game.');
+      this.notificationService.success(this.messages.get('ai.history.downloaded.title'),
+        this.messages.get('ai.history.downloaded.body'));
     }
   }
 
@@ -277,9 +284,7 @@ export class AiJobs implements OnInit {
     if (this.canRetry(job) || this.retrying().has(job.id)) {
       return '';
     }
-    return job.imageCount > 0
-      ? 'Ảnh đã hết hạn lưu. Gửi lại ở AI › Tạo quiz.'
-      : 'Quá cũ để tạo lại. Gửi lại ở AI › Tạo quiz.';
+    return this.messages.get(job.imageCount > 0 ? 'ai.history.imagesExpired' : 'ai.history.tooOld');
   }
 
   // Sends the failed job's request again; the new job takes the failed one's place in the table.
@@ -297,8 +302,8 @@ export class AiJobs implements OnInit {
 
   // A menu item cannot hold a popconfirm (the menu closes under it), so deleting asks in a modal.
   protected confirmRemove(job: AiJob): void {
-    confirmDelete(this.modalService, {
-      title: 'Xóa lần tạo này?',
+    confirmDelete(this.modalService, this.messages, {
+      title: this.messages.get('ai.history.removeTitle'),
       content: job.title,
       onOk: () => this.remove(job),
     });
@@ -338,23 +343,22 @@ export class AiJobs implements OnInit {
   private showRetryError(err: unknown): void {
     const failure = httpFailure(err);
     const status = failure.status;
-    if (notifyAiRefusal(this.notificationService, failure)) {
+    if (notifyAiRefusal(this.notificationService, this.messages, failure)) {
       return;
     }
     if (status === HttpStatusCode.Gone || status === HttpStatusCode.NotFound || status === HttpStatusCode.Conflict) {
       // The table was older than the server (the images expired, another tab sent or deleted the job): catch up.
-      this.notificationService.error('Không tạo lại được', status === HttpStatusCode.Gone
-        ? 'Ảnh đã hết hạn lưu. Gửi lại ở AI › Tạo quiz.'
-        : 'Gửi lại ở AI › Tạo quiz.');
+      this.notificationService.error(this.messages.get('ai.history.retryFailed'), this.messages.get(
+        status === HttpStatusCode.Gone ? 'ai.history.imagesExpired' : 'ai.history.resend'));
       this.jobService.watch();
     } else {
-      this.notificationService.error('Không tạo lại được', 'Thử lại.');
+      this.notificationService.error(this.messages.get('ai.history.retryFailed'), this.messages.get('common.tryAgain'));
     }
   }
 
   private remove(job: AiJob): void {
     this.jobService.remove(job.id).subscribe({
-      error: () => this.notificationService.error('Không xóa được', 'Thử lại.'),
+      error: () => this.notificationService.error(this.messages.get('ai.history.removeFailed'), this.messages.get('common.tryAgain')),
     });
   }
 

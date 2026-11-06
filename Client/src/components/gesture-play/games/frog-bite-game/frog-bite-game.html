@@ -92,8 +92,8 @@
               <b [style.left.%]="biteMarkPercent" class="limit"></b>
             </div>
           </div>
-          @if (hintText()) {
-            <p [class.warn]="problem()" class="hint">{{ hintText() }}</p>
+          @if (hintText(); as hintKey) {
+            <p [class.warn]="problem()" class="hint">{{ hintKey | msg }}</p>
           }
         </div>
       }

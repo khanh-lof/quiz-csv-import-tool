@@ -15,6 +15,8 @@ import {
   viewChild,
 } from '@angular/core';
 
+import type { MessageKey } from '../../../../i18n/messages';
+import { MessagePipe } from '../../../../i18n/messages';
 import { GameAudio } from '../../../../game/game-audio';
 import { INDEX_TIP, mapToStage, PinchDetector, PointSmoother } from '../../../../game/gestures';
 import { isTypingTarget } from '../../../../game/hold-select';
@@ -50,6 +52,7 @@ const UNIT_ASPECT = 16 / 9;
 @Component({
   selector: 'kt-quiz-word-order-game',
   standalone: true,
+  imports: [MessagePipe],
   providers: [{
     provide: StageGameBase,
     useExisting: forwardRef(() => WordOrderGame)
@@ -104,8 +107,8 @@ export class WordOrderGame extends StageGameBase {
   protected readonly handVisible = signal(false);
   protected readonly pinched = signal(false);
 
-  protected readonly hint = computed(() => {
-    return this.cameraActive() && !this.handVisible() ? 'Đưa tay vào khung hình' : '';
+  protected readonly hint = computed<MessageKey | ''>(() => {
+    return this.cameraActive() && !this.handVisible() ? 'play.tracking.putHandIn' : '';
   });
   private readonly vision = inject(VisionService);
   private readonly audio = inject(GameAudio);

@@ -3,6 +3,7 @@ import {
   Component,
   DestroyRef,
   HostListener,
+  inject,
   signal
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -12,6 +13,7 @@ import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiCsvService } from '../../services/ai-csv.service';
 import { notifyAiRefusal } from '../../services/ai-refusal';
+import { MessagePipe, Messages } from '../../i18n/messages';
 import { httpFailure } from '../../models/http-failure';
 import { AiJobService, NEW_JOB_IDLE_POLLS } from '../../services/ai-job.service';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
@@ -136,7 +138,8 @@ type LanguageChoices =Pick<ReturnType<FormGroup<AiGenerationForm>['getRawValue']
     NzSelectComponent,
     NzInputDirective,
     NzSpinComponent,
-    NzTooltipDirective
+    NzTooltipDirective,
+    MessagePipe
   ],
   templateUrl: './ai-generation.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -163,6 +166,7 @@ export class AiGeneration {
   // One card per game, easiest first.
   protected readonly stages = STAGES;
 
+  private readonly messages = inject(Messages);
   private readonly choicesByLanguage = new Map<QuizLanguage, LanguageChoices>();
   private readonly defaultChoices: LanguageChoices;
   // The language whose choices the form holds, which `choicesByLanguage` gets back when another one is chosen.
@@ -273,7 +277,7 @@ export class AiGeneration {
 
   // Why they are shut, in the zone's tooltip and its accessible name.
   protected get photosDisabledReason(): string | null {
-    return this.photosDisabled ? `Có sẵn ${this.textbook?.title}, không cần ảnh.` : null;
+    return this.photosDisabled ? this.messages.get('ai.form.textbookHasBook', { title: this.textbook?.title ?? '' }) : null;
   }
 
   // The photos shown and sent: none while they are shut, though those added before the book was picked are kept
@@ -409,7 +413,7 @@ export class AiGeneration {
     }
     // Only the formatted mode needs images: the creative mode can work from the lesson identifiers alone.
     if (this.selectedImages().length === 0 && this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted) {
-      this.notificationService.warning('Cần ít nhất 1 ảnh', '');
+      this.notificationService.warning(this.messages.get('ai.form.needImage'), '');
       return;
     }
 
@@ -593,7 +597,7 @@ export class AiGeneration {
   private processImageFiles(files: File[]): void {
     const validFiles = files.filter(file => {
       if (!file.type.startsWith('image/')) {
-        this.notificationService.error('Không phải ảnh', escapeHtml(file.name));
+        this.notificationService.error(this.messages.get('ai.form.notImage'), escapeHtml(file.name));
         return false;
       }
       return true;
@@ -606,7 +610,7 @@ export class AiGeneration {
         // Compared by content, not name/size/date: every paste yields a fresh "image.png" stamped with
         // the current time, so pasting the same image twice would otherwise slip through.
         if (this.selectedImages().some(x => x.preview === preview)) {
-          this.notificationService.error('Ảnh trùng lặp', escapeHtml(file.name));
+          this.notificationService.error(this.messages.get('ai.form.duplicateImage'), escapeHtml(file.name));
           return;
         }
         this.selectedImages.update(images => [...images, {
@@ -642,23 +646,23 @@ export class AiGeneration {
     const failure = httpFailure(err);
     const status = failure.status;
     if (status === HttpStatusCode.Unauthorized) {
-      this.notificationService.warning('Hết phiên đăng nhập', '');
+      this.notificationService.warning(this.messages.get('ai.form.sessionExpired'), '');
       this.setGenerating(false);
       this.router.navigate(['/login'], { queryParams: { returnUrl: '/ai' } });
       return;
     }
-    if (notifyAiRefusal(this.notificationService, failure)) {
+    if (notifyAiRefusal(this.notificationService, this.messages, failure)) {
       return;
     }
     if (status === HttpStatusCode.BadRequest) {
-      this.notificationService.error('Yêu cầu không hợp lệ', '');
+      this.notificationService.error(this.messages.get('ai.form.invalidRequest'), '');
       return;
     }
     if (err instanceof UploadTooLargeError || status === HttpStatusCode.PayloadTooLarge) {
-      this.notificationService.error('Ảnh quá lớn',
-        'Giảm số ảnh.', { nzDuration: 0 });
+      this.notificationService.error(this.messages.get('ai.form.imageTooLarge'),
+        this.messages.get('ai.form.reduceImages'), { nzDuration: 0 });
       return;
     }
-    this.notificationService.error('Chưa gửi được yêu cầu', 'Thử lại.');
+    this.notificationService.error(this.messages.get('ai.form.sendFailed'), this.messages.get('common.tryAgain'));
   }
 }

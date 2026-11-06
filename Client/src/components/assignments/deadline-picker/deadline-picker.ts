@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, effect, model, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, model, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DisabledTimeConfig, NzDatePickerComponent } from 'ng-zorro-antd/date-picker';
 import { NZ_I18N, vi_VN } from 'ng-zorro-antd/i18n';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
+import { MessagePipe, Messages } from '../../../i18n/messages';
 import { formatClose } from '../../../models/assignment';
 import { deadlineFromPreset, DeadlinePreset } from './deadline-picker-logic';
 
@@ -11,7 +12,7 @@ import { deadlineFromPreset, DeadlinePreset } from './deadline-picker-logic';
 // starts over, or one that edits an existing closing time) is shown as the custom time.
 @Component({
   selector: 'kt-quiz-deadline-picker',
-  imports: [FormsModule, NzDatePickerComponent, NzRadioComponent, NzRadioGroupComponent],
+  imports: [FormsModule, MessagePipe, NzDatePickerComponent, NzRadioComponent, NzRadioGroupComponent],
   providers: [{
     provide: NZ_I18N,
     useValue: vi_VN
@@ -23,13 +24,15 @@ import { deadlineFromPreset, DeadlinePreset } from './deadline-picker-logic';
 export class DeadlinePicker {
   readonly value = model<Date | null>(null);
 
+  private readonly messages = inject(Messages);
+
   protected readonly preset = signal<DeadlinePreset>('none');
   // The date picker's value, null while the teacher has not picked a time.
   protected readonly customDate = signal<Date | null>(null);
 
   protected readonly closeText = computed(() => {
     const value = this.value();
-    return value ? `Đóng lúc ${formatClose(value)}.` : '';
+    return value ? this.messages.get('assignments.deadline.closesAt', { time: formatClose(value) }) : '';
   });
   // A closing time in the past would close the link at once, and the server refuses it.
   protected readonly inThePast = computed(() => {

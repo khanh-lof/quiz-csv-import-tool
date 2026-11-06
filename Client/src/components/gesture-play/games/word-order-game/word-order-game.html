@@ -15,7 +15,7 @@
         class="card target undo"
         type="button"
       >
-        <span aria-hidden="true">↩</span> Hoàn tác
+        <span aria-hidden="true">↩</span> {{ 'play.wordOrder.undo' | msg }}
       </button>
     }
   </div>
@@ -45,7 +45,7 @@
 
   @if (reveal() !== null) {
     <div class="card solution">
-      <span class="label">Đáp án đúng</span>
+      <span class="label">{{ 'play.answer.correct' | msg }}</span>
       <span class="sentence">
         @if (solutionPinyin()) {
           <span class="play-pinyin">{{ solutionPinyin() }}</span>
@@ -76,8 +76,8 @@
         </button>
       }
     </div>
-    @if (hint()) {
-      <p class="hint">{{ hint() }}</p>
+    @if (hint(); as hintKey) {
+      <p class="hint">{{ hintKey | msg }}</p>
     }
   }
 </div>

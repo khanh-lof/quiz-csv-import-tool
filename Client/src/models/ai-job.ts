@@ -1,3 +1,4 @@
+import { Messages, MessageKey } from '../i18n/messages';
 import { ExportType } from './export-type';
 import { CourseType } from './course-type';
 import { HskStandard } from './hsk-standard';
@@ -44,31 +45,31 @@ export interface AiJob {
 // What a failed job says to the user, by the server's error code (csvgen's Failure* codes and the handler's own).
 // The server messages are English, so none of them is shown as written. Jobs from before the codes fall back on
 // the status.
-const FAILED_JOB_MESSAGES: Record<string, string> = {
-  timeout: 'Quá lâu. Gửi lại hoặc giảm số ảnh.',
-  interrupted: 'Bị gián đoạn. Gửi lại.',
-  truncated: 'Đề quá dài. Giảm số câu hoặc số bài.',
-  filtered: 'Nội dung bị chặn. Đổi ảnh hoặc bài.',
-  overloaded: 'AI đang quá tải. Thử lại sau ít phút.',
-  bad_output: 'Kết quả lỗi. Gửi lại.',
-  provider_config: 'AI tạm ngưng. Báo quản trị viên.',
-  nothing_to_play: 'Không bài nào đủ từ. Chọn bài khác.',
+const FAILED_JOB_MESSAGES: Record<string, MessageKey> = {
+  timeout: 'ai.failure.timeout',
+  interrupted: 'ai.failure.interrupted',
+  truncated: 'ai.failure.truncated',
+  filtered: 'ai.failure.filtered',
+  overloaded: 'ai.failure.overloaded',
+  bad_output: 'ai.failure.badOutput',
+  provider_config: 'ai.failure.providerConfig',
+  nothing_to_play: 'ai.failure.nothingToPlay',
 };
 
-export function failedJobMessage(job: AiJob): string {
+export function failedJobMessage(job: AiJob, messages: Messages): string {
   const byCode = FAILED_JOB_MESSAGES[job.errorCode];
   if (byCode) {
-    return byCode;
+    return messages.get(byCode);
   }
   switch (job.errorStatus) {
     case 422:
-      return 'Không bài nào đủ từ. Chọn bài khác.';
+      return messages.get('ai.failure.nothingToPlay');
     case 504:
-      return 'Quá lâu. Gửi lại hoặc giảm số ảnh.';
+      return messages.get('ai.failure.timeout');
     case 502:
-      return 'Thử lại sau ít phút.';
+      return messages.get('ai.retryLater');
     default:
-      return 'Không rõ lỗi.';
+      return messages.get('ai.failure.unknown');
   }
 }
 

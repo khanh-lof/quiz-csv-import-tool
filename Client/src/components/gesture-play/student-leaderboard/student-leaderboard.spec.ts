@@ -5,6 +5,8 @@ import { StudentBoard, StudentBoardEntry } from '../../../models/assignment';
 import { GameAudio } from '../../../game/game-audio';
 import { SharedPlayService } from '../../../services/shared-play.service';
 import { BOARD_POLL_MS, StudentLeaderboard } from './student-leaderboard';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../../i18n/app-locale';
 
 const CODE = 'ABC123DEF4';
 
@@ -50,7 +52,7 @@ describe('StudentLeaderboard', () => {
     audio = jasmine.createSpyObj<GameAudio>('GameAudio', ['play']);
     TestBed.configureTestingModule({
       imports: [StudentLeaderboard],
-      providers: [{
+      providers: [provideNzI18n(appLocale), {
         provide: SharedPlayService,
         useValue: shared
       }, {

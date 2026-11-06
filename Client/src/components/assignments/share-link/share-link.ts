@@ -4,6 +4,7 @@ import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzInputDirective } from 'ng-zorro-antd/input';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzQRCodeComponent } from 'ng-zorro-antd/qr-code';
+import { MessagePipe, Messages } from '../../../i18n/messages';
 import { shareUrl } from '../../../models/assignment';
 import { copyShareLink } from '../../../services/copy-share-link';
 
@@ -11,7 +12,7 @@ import { copyShareLink } from '../../../services/copy-share-link';
 // link for a phone or a projector. Compact, so it fits in a dialog and on the leaderboard page.
 @Component({
   selector: 'kt-quiz-share-link',
-  imports: [NzButtonComponent, NzIconDirective, NzInputDirective, NzQRCodeComponent],
+  imports: [MessagePipe, NzButtonComponent, NzIconDirective, NzInputDirective, NzQRCodeComponent],
   templateUrl: './share-link.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './share-link.css',
@@ -23,6 +24,7 @@ export class ShareLink {
   protected readonly url = computed(() => shareUrl(this.code()));
 
   private readonly notificationService = inject(NzNotificationService);
+  private readonly messages = inject(Messages);
   private readonly linkInput = viewChild.required<ElementRef<HTMLInputElement>>('linkInput');
 
   protected selectLink(): void {
@@ -30,7 +32,7 @@ export class ShareLink {
   }
 
   protected async copy(): Promise<void> {
-    if (!await copyShareLink(this.notificationService, this.code(), 'Nhấn Ctrl+C để sao chép.')) {
+    if (!await copyShareLink(this.notificationService, this.messages, this.code(), this.messages.get('assignments.share.fallbackManual'))) {
       this.selectLink();
     }
   }

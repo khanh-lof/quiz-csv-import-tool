@@ -17,6 +17,8 @@ import {
   viewChildren
 } from '@angular/core';
 
+import type { MessageKey } from '../../../../i18n/messages';
+import { MessagePipe } from '../../../../i18n/messages';
 import { GameAudio } from '../../../../game/game-audio';
 import { INDEX_TIP, mapToStage } from '../../../../game/gestures';
 import { isTypingTarget } from '../../../../game/hold-select';
@@ -79,6 +81,7 @@ function fitSize(box: HTMLElement, span: HTMLElement, start: number): number {
 @Component({
   selector: 'kt-quiz-fruit-slice-game',
   standalone: true,
+  imports: [MessagePipe],
   providers: [{
     provide: StageGameBase,
     useExisting: forwardRef(() => FruitSliceGame)
@@ -126,15 +129,15 @@ export class FruitSliceGame extends OptionGameBase {
   private readonly handSeen = signal(false);
   // The how-to line at the bottom of the stage. It goes away once it has been understood (the
   // player has cut a fruit), except that a camera without a hand in view keeps asking for one.
-  protected readonly hint = computed(() => {
+  protected readonly hint = computed<MessageKey | ''>(() => {
     if (this.picked() !== null || this.reveal() !== null) {
       return '';
     }
     if (!this.cameraActive()) {
-      return this.played() ? '' : 'Kéo chuột qua quả để chém';
+      return this.played() ? '' : 'play.fruit.dragMouse';
     }
     if (!this.handSeen()) {
-      return 'Đưa ngón trỏ vào khung hình';
+      return 'play.fruit.pointFinger';
     }
     return '';
   });

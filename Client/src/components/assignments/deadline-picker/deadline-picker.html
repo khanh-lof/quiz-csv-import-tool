@@ -8,12 +8,12 @@
 @if (preset() === 'custom') {
   <nz-date-picker (ngModelChange)="setCustom($event)" [ngModel]="customDate()" [nzAllowClear]="false"
                   [nzDisabledDate]="disabledDate" [nzDisabledTime]="disabledTime" [nzShowNow]="false"
-                  [nzShowTime]="{nzFormat: 'HH:mm'}" aria-label="Giờ đóng bài" class="custom-time"
-                  nzFormat="HH:mm dd/MM/yyyy" nzPlaceHolder="Chọn ngày và giờ"/>
+                  [nzShowTime]="{nzFormat: 'HH:mm'}" [attr.aria-label]="'assignments.deadline.pickerLabel' | msg" class="custom-time"
+                  nzFormat="HH:mm dd/MM/yyyy" [nzPlaceHolder]="'assignments.deadline.pickerPlaceholder' | msg"/>
 }
 
 @if (closeText(); as text) {
   <p [class.text-error]="inThePast()" class="close-text">
-    {{ text }}{{ inThePast() ? ' Giờ này đã qua.' : '' }}
+    {{ text }}{{ inThePast() ? ' ' + ('assignments.deadline.inThePast' | msg) : '' }}
   </p>
 }

@@ -165,7 +165,7 @@ describe('thumbStatus', () => {
     expect(thumbStatus(view({
       armed: false,
       shown: 0
-    }))).toBe('Hạ tay xuống');
+    }))).toBe('play.thumb.handDown');
   });
 
   it('shows no text when there is nothing to choose', () => {

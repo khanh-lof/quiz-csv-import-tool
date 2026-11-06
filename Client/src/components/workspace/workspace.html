@@ -12,7 +12,7 @@
             <img alt="QuizTool" class="brand-logo" src="logo.ico"/>
           </a>
         }
-        <button (click)="toggleCollapsed()" [attr.aria-expanded]="!collapsed()" [attr.aria-label]="collapsed() ? 'Mở rộng menu' : 'Thu gọn menu'"
+        <button (click)="toggleCollapsed()" [attr.aria-expanded]="!collapsed()" [attr.aria-label]="(collapsed() ? 'app.workspace.expandMenu' : 'app.workspace.collapseMenu') | msg"
                 class="collapse-toggle" type="button">
           <nz-icon [nzType]="collapsed() ? 'double-right' : 'double-left'" nzTheme="outline"/>
         </button>

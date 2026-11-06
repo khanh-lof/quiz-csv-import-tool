@@ -1,3 +1,5 @@
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../i18n/app-locale';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpParams, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -31,7 +33,7 @@ describe('AiGeneration', () => {
     localStorage.removeItem(SETTINGS_STORAGE_KEY);
     TestBed.configureTestingModule({
       imports: [AiGeneration],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), provideNzI18n(appLocale)],
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(AiGeneration);

@@ -1,8 +1,8 @@
 @if (steps().length > 0) {
-  <ol aria-label="Ba hạng đầu" class="podium">
+  <ol [attr.aria-label]="'play.board.topThree' | msg" class="podium">
     @for (step of steps(); track step.rank) {
       <li [attr.data-rank]="step.rank" [style.grid-column]="step.column" class="step">
-        <span class="sr-only">Hạng {{ step.rank }}: </span>
+        <span class="sr-only">{{ 'play.board.rank' | msg: { rank: step.rank } }}: </span>
         @if (step.rank === 1) {
           <span aria-hidden="true" class="crown">👑</span>
         }

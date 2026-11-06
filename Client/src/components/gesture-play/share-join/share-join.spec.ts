@@ -1,13 +1,15 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AVATARS } from '../../../models/avatar';
 import { JoinRequest, ShareJoin } from './share-join';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../../i18n/app-locale';
 
 describe('ShareJoin', () => {
   let fixture: ComponentFixture<ShareJoin>;
   let joined: JoinRequest[];
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [ShareJoin] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [ShareJoin], providers: [provideNzI18n(appLocale)] }).compileComponents();
     fixture = TestBed.createComponent(ShareJoin);
     fixture.componentRef.setInput('title', 'HSK1 bài 1');
     joined = [];

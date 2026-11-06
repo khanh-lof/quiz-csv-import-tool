@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { appLocale } from '../../../i18n/app-locale';
 import { shareUrl } from '../../../models/assignment';
 import { ShareLink } from './share-link';
 
@@ -14,7 +16,7 @@ describe('ShareLink', () => {
     notifications = jasmine.createSpyObj('NzNotificationService', ['success', 'warning']);
     await TestBed.configureTestingModule({
       imports: [ShareLink],
-      providers: [{
+      providers: [provideNzI18n(appLocale), {
         provide: NzNotificationService,
         useValue: notifications
       }],

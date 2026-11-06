@@ -3,7 +3,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { appLocale } from '../../../i18n/app-locale';
 import { Assignment } from '../../../models/assignment';
 import { AssignmentList } from './assignment-list';
 
@@ -43,6 +45,7 @@ describe('AssignmentList', () => {
     TestBed.configureTestingModule({
       imports: [AssignmentList],
       providers: [
+        provideNzI18n(appLocale),
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),

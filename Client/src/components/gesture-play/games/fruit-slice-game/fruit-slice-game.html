@@ -21,6 +21,6 @@
 
 <canvas #field (contextmenu)="$event.preventDefault()" aria-hidden="true" class="field"></canvas>
 
-@if (hint()) {
-  <p class="hint">{{ hint() }}</p>
+@if (hint(); as hintKey) {
+  <p class="hint">{{ hintKey | msg }}</p>
 }
