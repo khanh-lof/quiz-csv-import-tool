@@ -46,9 +46,6 @@ func TestParseCreativeOptions(t *testing.T) {
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=1", check: func(o Options) bool {
 			return o.Intelligence == 1
 		}},
-		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=2", check: func(o Options) bool {
-			return o.Intelligence == 2
-		}},
 		{query: "exportType=Blooket&courseType=yct&level=1&lessonNumbers=2", check: func(o Options) bool {
 			return o.ExportType == Blooket && o.CourseType == Yct
 		}},
@@ -112,6 +109,7 @@ func TestParseCreativeOptions(t *testing.T) {
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=0", wantErr: "Invalid or missing lessonNumbers parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=-3", wantErr: "Invalid or missing lessonNumbers parameter."},
 		{query: "exportType=0&courseType=2&courseName=Boya&lessonNumbers=0", wantErr: "Invalid or missing lessonNumbers parameter."},
+		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=2", wantErr: "This intelligence level is under maintenance."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=0", wantErr: "Invalid intelligence parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=3", wantErr: "Invalid intelligence parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=x", wantErr: "Invalid intelligence parameter."},
