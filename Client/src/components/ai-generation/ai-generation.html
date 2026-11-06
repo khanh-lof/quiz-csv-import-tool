@@ -245,8 +245,7 @@
             <nz-radio-group [formControl]="formGroup.controls.intelligence" aria-labelledby="intelligenceLabel"
                             nzButtonStyle="solid">
               <label [nzValue]="1" nz-radio-button>Thấp</label>
-              <label [nzValue]="2" nz-radio-button nzDisabled nz-tooltip
-                     [nzTooltipTitle]="'ai.form.intelligenceMaintenance' | msg">Cao</label>
+              <label [nzValue]="2" nz-radio-button>Cao</label>
             </nz-radio-group>
             @if (formGroup.controls.intelligence.value === 2) {
               <small class="intelligence-warning">

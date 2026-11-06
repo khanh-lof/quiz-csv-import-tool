@@ -21,6 +21,7 @@ import (
 	"quiz-csv-import-tool/server/internal/auth"
 	"quiz-csv-import-tool/server/internal/config"
 	"quiz-csv-import-tool/server/internal/csvgen"
+	"quiz-csv-import-tool/server/internal/imagestore"
 	"quiz-csv-import-tool/server/internal/store"
 )
 
@@ -98,6 +99,16 @@ func run(logger *slog.Logger) error {
 		LLMTimeout:       cfg.LLM.Timeout,
 		StageSeconds:     cfg.GameStageSeconds,
 		Logger:           logger,
+	}
+	if cfg.CloudinaryURL != "" {
+		// FromEnv checked it already.
+		srv.ImageStore, _ = imagestore.NewCloudinary(cfg.CloudinaryURL)
+	} else {
+		logger.Warn("CLOUDINARY_URL is not set; jobs with images cannot be retried")
+	}
+	if cfg.HighIntelligenceServer != nil {
+		srv.HighIntelligenceProxy = api.NewHighIntelligenceProxy(cfg.HighIntelligenceServer, logger)
+		logger.Info("High intelligence jobs go to their own server", "host", cfg.HighIntelligenceServer.Host)
 	}
 
 	httpServer := &http.Server{

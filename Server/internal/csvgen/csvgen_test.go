@@ -46,6 +46,9 @@ func TestParseCreativeOptions(t *testing.T) {
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=1", check: func(o Options) bool {
 			return o.Intelligence == 1
 		}},
+		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=2", check: func(o Options) bool {
+			return o.Intelligence == 2
+		}},
 		{query: "exportType=Blooket&courseType=yct&level=1&lessonNumbers=2", check: func(o Options) bool {
 			return o.ExportType == Blooket && o.CourseType == Yct
 		}},
@@ -115,7 +118,6 @@ func TestParseCreativeOptions(t *testing.T) {
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=0", wantErr: "Invalid or missing lessonNumbers parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=-3", wantErr: "Invalid or missing lessonNumbers parameter."},
 		{query: "exportType=0&courseType=2&courseName=Boya&lessonNumbers=0", wantErr: "Invalid or missing lessonNumbers parameter."},
-		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=2", wantErr: "This intelligence level is under maintenance."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=0", wantErr: "Invalid intelligence parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=3", wantErr: "Invalid intelligence parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=x", wantErr: "Invalid intelligence parameter."},
@@ -849,6 +851,10 @@ func TestCreativeSystemPromptTellsTheTimeLimit(t *testing.T) {
 	unlimited := creativeSystemPrompt(Chinese, 0)
 	if strings.Contains(unlimited, "TIME LIMIT") || !strings.Contains(unlimited, "outside the CSV.\n\n## OUTPUT FORMAT") {
 		t.Error("without a deadline there is no TIME LIMIT section")
+	}
+	if !strings.Contains(limited, "The whole answer has a time limit, so keep searches few") ||
+		strings.Contains(unlimited, "time limit") || !strings.Contains(unlimited, "Every search makes the answer slower, so keep searches few") {
+		t.Error("the search guidance mentions a time limit only when there is one")
 	}
 	req := buildCreativeRequest("m", 280*time.Second, nil, Options{ExportType: GimKit, CourseType: Hsk, LessonNumbers: []int{1}})
 	if req.Instructions != limited {

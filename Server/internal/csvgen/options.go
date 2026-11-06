@@ -77,9 +77,8 @@ const IntelligenceLevels = 2
 // DefaultIntelligence is used when the client sends none; it matches the GUI default (Thấp).
 const DefaultIntelligence = 1
 
-// intelligenceUnderMaintenance lists the levels the server rejects for now ("Cao" is unstable: its
-// responses run too long and fail). Remove a level here to accept it again.
-var intelligenceUnderMaintenance = map[int]bool{2: true}
+// HighIntelligence is "Cao", the level whose jobs may run on a server of their own (api.HighIntelligenceProxy).
+const HighIntelligence = 2
 
 // GestureStageCount is how many games (stages) a Game can have. A stage's number, 1 to
 // GestureStageCount, is the identity of its game in the CSV, so it never changes when a quiz leaves
@@ -254,9 +253,6 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 		intelligence, err := strconv.Atoi(raw)
 		if err != nil || intelligence < 1 || intelligence > IntelligenceLevels {
 			return Options{}, errors.New("Invalid intelligence parameter.")
-		}
-		if intelligenceUnderMaintenance[intelligence] {
-			return Options{}, errors.New("This intelligence level is under maintenance.")
 		}
 		opts.Intelligence = intelligence
 	}
