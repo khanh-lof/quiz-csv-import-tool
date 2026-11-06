@@ -129,12 +129,27 @@ func (m *MemoryJobs) Delete(_ context.Context, username, id string) error {
 	return nil
 }
 
-func (m *MemoryJobs) ExpireRunning(_ context.Context, username string, before time.Time, message string) ([]Job, error) {
+func (m *MemoryJobs) SetImages(_ context.Context, username, id string, images []JobImage, storedAt time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if j, ok := m.jobs[id]; ok && j.Username == username {
+		storedAt = storedAt.UTC().Truncate(time.Millisecond)
+		j.Images, j.ImagesStoredAt = images, &storedAt
+		m.jobs[id] = j
+	}
+	return nil
+}
+
+func (m *MemoryJobs) ExpireRunning(_ context.Context, username string, cutoffs ExpiryCutoffs, message string) ([]Job, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	var expired []Job
 	now := m.Now().UTC()
 	for id, j := range m.jobs {
+		before := cutoffs.Before
+		if cutoffs.resumable(j) {
+			before = cutoffs.ResumableBefore
+		}
 		if j.Username == username && j.Status == JobRunning && lastSign(j).Before(before) {
 			j.Status, j.ErrorStatus, j.ErrorCode, j.ErrorMessage, j.FinishedAt = JobFailed, ExpiredJobStatus, ExpiredJobCode, message, &now
 			m.jobs[id] = j
@@ -142,6 +157,21 @@ func (m *MemoryJobs) ExpireRunning(_ context.Context, username string, before ti
 		}
 	}
 	return expired, nil
+}
+
+func (m *MemoryJobs) ClaimInterrupted(_ context.Context, intelligence int, before time.Time, maxResumes int) (*Job, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, j := range m.jobs {
+		if j.Status == JobRunning && j.Creative && j.Intelligence == intelligence && j.Resumes < maxResumes &&
+			lastSign(j).Before(before) {
+			now := m.Now().UTC()
+			j.HeartbeatAt, j.Resumes, j.ProgressRows = &now, j.Resumes+1, 0
+			m.jobs[id] = j
+			return &j, nil
+		}
+	}
+	return nil, nil
 }
 
 func (m *MemoryJobs) Prune(_ context.Context, username string, keep int) error {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
@@ -41,22 +42,54 @@ func isHighIntelligenceJob(job *store.Job, opts csvgen.Options) bool {
 	return job.Creative && opts.Intelligence == csvgen.HighIntelligence
 }
 
+// HighIntelligenceServer is the main server's way to the High intelligence server: it serves the requests handed
+// to it, and Wake asks it to start, should it be asleep, so it takes over its interrupted jobs.
+type HighIntelligenceServer interface {
+	http.Handler
+	Wake(ctx context.Context)
+}
+
+// wakeWait bounds a wake call: the request only has to arrive, and a sleeping server answers once it is up.
+const wakeWait = 3 * time.Second
+
+type highIntelligenceProxy struct {
+	*httputil.ReverseProxy
+	health string
+	client *http.Client
+}
+
 // NewHighIntelligenceProxy forwards a request to the High intelligence server at target, with its path, query,
 // body and Authorization header unchanged. That server checks the token itself, so both servers must share
 // JWT_SECRET.
-func NewHighIntelligenceProxy(target *url.URL, logger *slog.Logger) http.Handler {
+func NewHighIntelligenceProxy(target *url.URL, logger *slog.Logger) HighIntelligenceServer {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.ResponseHeaderTimeout = highIntelligenceWait
-	return &httputil.ReverseProxy{
-		Rewrite: func(pr *httputil.ProxyRequest) {
-			pr.SetURL(target)
-			pr.SetXForwarded()
+	return &highIntelligenceProxy{
+		ReverseProxy: &httputil.ReverseProxy{
+			Rewrite: func(pr *httputil.ProxyRequest) {
+				pr.SetURL(target)
+				pr.SetXForwarded()
+			},
+			Transport: transport,
+			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+				logger.Error("forwarding to the High intelligence server failed", "path", r.URL.Path, "error", err)
+				writeText(w, http.StatusBadGateway, "The High intelligence AI server is unavailable.")
+			},
 		},
-		Transport: transport,
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			logger.Error("forwarding to the High intelligence server failed", "path", r.URL.Path, "error", err)
-			writeText(w, http.StatusBadGateway, "The High intelligence AI server is unavailable.")
-		},
+		health: target.JoinPath("healthz").String(),
+		client: &http.Client{Timeout: wakeWait},
+	}
+}
+
+// Wake requests the server's health check. Its answer does not matter: a timeout while the server starts is
+// expected, and the request reaching it is what starts it.
+func (p *highIntelligenceProxy) Wake(ctx context.Context) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.health, nil)
+	if err != nil {
+		return
+	}
+	if resp, err := p.client.Do(req); err == nil {
+		_ = resp.Body.Close()
 	}
 }
 

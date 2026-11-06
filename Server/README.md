@@ -56,7 +56,11 @@ On Vercel, the API deploys together with the client as the `server` service of t
 
 The creative jobs at High intelligence run on `cmd/ai-server`, the free Render web service of the root
 `render.yaml`, when the Vercel project's `HIGH_INTELLIGENCE_SERVER_URL` names it. It needs the same
-`MONGODB_URI`, `JWT_SECRET` and LLM settings, serves nothing but those jobs, and has no LLM time limit.
+`MONGODB_URI`, `JWT_SECRET`, `CLOUDINARY_URL` and LLM settings, serves nothing but those jobs, has no LLM time
+limit, and runs again by itself a job it was stopped in the middle of.
+
+`CLOUDINARY_URL` (both servers) is a Cloudinary account, the free plan being enough: each job's images are kept
+there for 30 days so the job can be sent again without an upload, and the servers delete the older ones.
 
 Elsewhere, build the image from `Dockerfile` (static binary on distroless, listens on `PORT`, default 8080 in
 the image) and run it anywhere containers run, behind a reverse proxy that serves the client on the

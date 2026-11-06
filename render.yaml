@@ -33,3 +33,6 @@ services:
         sync: false
       - key: LLM_INTELLIGENCE_MODELS
         sync: false
+      # Where the jobs' images are kept, so an interrupted job can be resumed and a failed one retried.
+      - key: CLOUDINARY_URL
+        sync: false

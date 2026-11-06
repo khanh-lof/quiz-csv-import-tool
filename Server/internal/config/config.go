@@ -13,6 +13,7 @@ import (
 
 	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/gesturequiz"
+	"quiz-csv-import-tool/server/internal/imagestore"
 )
 
 type Config struct {
@@ -46,6 +47,9 @@ type Config struct {
 	// HighIntelligenceServer is the base URL of the server that runs the creative jobs at High intelligence
 	// (HIGH_INTELLIGENCE_SERVER_URL, cmd/ai-server); nil runs them on this server, under LLM.Timeout.
 	HighIntelligenceServer *url.URL
+	// CloudinaryURL is the Cloudinary account that keeps the images of jobs, so they can be sent again
+	// (CLOUDINARY_URL, cloudinary://<api key>:<api secret>@<cloud name>); empty keeps none.
+	CloudinaryURL string
 
 	AICallsPerRound int
 	RoundDuration   time.Duration
@@ -167,6 +171,11 @@ func FromEnv() (Config, error) {
 	cfg.GameStageSeconds = seconds
 	if cfg.HighIntelligenceServer, err = parseServerURL(os.Getenv("HIGH_INTELLIGENCE_SERVER_URL")); err != nil {
 		errs = append(errs, err)
+	}
+	if cfg.CloudinaryURL = strings.TrimSpace(os.Getenv("CLOUDINARY_URL")); cfg.CloudinaryURL != "" {
+		if _, err := imagestore.NewCloudinary(cfg.CloudinaryURL); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	if cfg.LoginMaxAttempts < 1 {
 		errs = append(errs, errors.New("LOGIN_MAX_ATTEMPTS must be at least 1"))

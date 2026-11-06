@@ -19,10 +19,10 @@ Module `quiz-csv-import-tool/server`, laid out as:
   only `api.Server.HighIntelligenceHandler` (start and retry a creative job at High intelligence, 400 for any
   other job, and `/healthz`), with no LLM time limit. It refuses to start without the LLM settings, waits up to
   `shutdownGrace` (25 s, under the 30 s Render leaves a free instance after SIGTERM; `maxShutdownDelaySeconds`
-  needs a paid one) for running jobs on shutdown, so a deploy cuts off a longer job, which is then failed as
-  interrupted, and
-  while any job runs requests its own public URL (`RENDER_EXTERNAL_URL`) every 5 minutes so Render's free
-  instance does not go to sleep under it.
+  needs a paid one) for running jobs on shutdown, so a deploy cuts off a longer job, while any job runs requests
+  its own public URL (`RENDER_EXTERNAL_URL`) every 5 minutes so Render's free instance does not go to sleep under
+  it, and every minute, from boot, takes over and runs again the High intelligence jobs whose process died
+  (`resumeInterrupted`, see [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes)).
 - `cmd/import-users` — one-off tool importing users exported from the old Cosmos DB container.
 - `internal/config` — env-var configuration (`FromEnv`) and a small `.env` loader for local dev.
 - `internal/api` — routing (`Server.Handler`) and all handlers.
@@ -88,6 +88,9 @@ without them.
   creative job at High intelligence to it (`HighIntelligenceProxy`, path, query, body and token unchanged, up to
   2 minutes for its `202`, 502 `The High intelligence AI server is unavailable.` when it cannot be reached).
   Empty runs those jobs here. The AI server ignores it
+- `CLOUDINARY_URL` — `cloudinary://<api key>:<api secret>@<cloud name>`: where both servers keep the images of jobs
+  for 30 days (`imagestore.Cloudinary`, Basic-auth calls to the Upload and Admin APIs), so a failed job can be
+  retried and an interrupted one resumed; empty keeps none, and a malformed value stops the server at start
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LLM_MODEL` — if any is missing the server still starts, but
   CSV generation answers 500. `LLM_MODEL` serves the formatted mode (sent with `reasoning_effort: low`)
 - `LLM_INTELLIGENCE_MODELS` — optional, exactly 2 comma-separated models: the creative-mode model for
@@ -146,15 +149,18 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   stores a running `store.Job`, prunes the user's jobs to the newest 30, answers `202 {"id"}` (flushed
   early, `Connection: close`) and keeps running in the same handler: `runJob` calls the generator on a
   context detached from the request (`context.WithoutCancel`), so the client leaving does not cancel it,
-  and records the outcome with `Jobs.Complete` / `Jobs.Fail`; a failed job's images go to `retryImages`
-  (`retry_images.go`, in memory, for `retryImagesTTL`, one hour). `retryJob` ("Tạo lại") rebuilds the failed
-  job's request with `retryOptions`, takes its images from `retryImages` and goes through the same `startJob`
+  and records the outcome with `Jobs.Complete` / `Jobs.Fail`; meanwhile `storeJobImages` stores the images in the
+  `ImageStore` (Cloudinary) and records them with `Jobs.SetImages` (`job_images.go`, kept for `imagesKeptFor`, 30
+  days). `retryJob` ("Tạo lại") rebuilds the failed job's request with `retryOptions`, fetches its images from the
+  `ImageStore` (410 once they are not kept) and goes through the same `startJob`
   (rate limit, store, prune, `202`) and `runJob`, deleting the failed job before it answers; its refusals are
   in [../AGENTS.md](../AGENTS.md#retrying-ai-requests). Validation, auth and rate-limit
   errors are still answered synchronously with the plain-text bodies below. `title` (query, capped at
   100 runes) names the job. `listJobs` returns the user's jobs newest first (JSON `{"jobs": [...]}`,
   the CSV included, and `retryable`/`retryUntil` from `retryState`) after failing as abandoned any running job
-  whose heartbeat is older than `abandonedAfter` (3 min; and refunding its call). While `runJob` works,
+  whose heartbeat is older than `abandonedAfter` (3 min; and refunding its call), giving a High intelligence job
+  `resumeGiveUp` (10 min) when there is a High intelligence server, which takes it over (`resume.go`), and waking
+  that server when such a job waits (`HighIntelligenceServer.Wake`, at most once a minute). While `runJob` works,
   `keepJobAlive` records the job's heartbeat (`Jobs.Heartbeat`) every `jobHeartbeatInterval` (30 s), so only a job
   whose process died is failed, whichever server ran it and however long it takes. A creative job at High
   intelligence goes to `HighIntelligenceProxy` before any of this when one is set (`isHighIntelligence`, from the

@@ -6,9 +6,12 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"quiz-csv-import-tool/server/internal/store"
 )
 
 func TestActivityCountsRunningRequestsButNotTheHealthCheck(t *testing.T) {
@@ -38,6 +41,60 @@ func TestActivityCountsRunningRequestsButNotTheHealthCheck(t *testing.T) {
 	<-done
 	if n := a.running.Load(); n != 0 {
 		t.Fatalf("running after the job: %d", n)
+	}
+}
+
+// fakeResumer hands out its jobs one claim at a time, then nil, and holds each resumed job until released.
+type fakeResumer struct {
+	mu      sync.Mutex
+	waiting []*store.Job
+	resumed chan string
+	release chan struct{}
+}
+
+func (f *fakeResumer) ClaimInterruptedJob(context.Context) (*store.Job, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.waiting) == 0 {
+		return nil, nil
+	}
+	job := f.waiting[0]
+	f.waiting = f.waiting[1:]
+	return job, nil
+}
+
+func (f *fakeResumer) ResumeJob(_ context.Context, job *store.Job) {
+	f.resumed <- job.ID
+	<-f.release
+}
+
+func TestResumeInterruptedRunsEveryClaimedJobAsRunning(t *testing.T) {
+	jobs := &fakeResumer{waiting: []*store.Job{{ID: "a"}, {ID: "b"}}, resumed: make(chan string, 3), release: make(chan struct{})}
+	var a activity
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go a.resumeInterrupted(ctx, jobs, time.Millisecond, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	got := map[string]bool{<-jobs.resumed: true, <-jobs.resumed: true}
+	if !got["a"] || !got["b"] || a.running.Load() != 2 {
+		t.Fatalf("resumed %v, %d running", got, a.running.Load())
+	}
+	// A job claimed later, on a following check, is resumed too.
+	jobs.mu.Lock()
+	jobs.waiting = append(jobs.waiting, &store.Job{ID: "c"})
+	jobs.mu.Unlock()
+	if id := <-jobs.resumed; id != "c" {
+		t.Fatalf("resumed %s", id)
+	}
+
+	waitCtx, cancelWait := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancelWait()
+	if a.waitResumed(waitCtx) {
+		t.Fatal("waitResumed returned while jobs still run")
+	}
+	close(jobs.release)
+	if !a.waitResumed(context.Background()) || a.running.Load() != 0 {
+		t.Fatalf("after the jobs: %d running", a.running.Load())
 	}
 }
 

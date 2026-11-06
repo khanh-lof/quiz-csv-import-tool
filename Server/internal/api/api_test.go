@@ -73,6 +73,7 @@ type testEnv struct {
 	assignments *store.MemoryAssignments
 	clock       *testClock
 	gen         *fakeGenerator
+	images      *fakeImageStore
 }
 
 func newEnv(t *testing.T) *testEnv {
@@ -102,7 +103,9 @@ func newEnv(t *testing.T) *testEnv {
 		LoginWindow:      15 * time.Minute,
 		Logger:           slog.New(slog.DiscardHandler),
 	}
-	env := &testEnv{srv: srv, h: srv.Handler(), users: users, jobs: jobs, assignments: assignments, clock: clock, gen: gen}
+	images := &fakeImageStore{}
+	srv.ImageStore = images
+	env := &testEnv{srv: srv, h: srv.Handler(), users: users, jobs: jobs, assignments: assignments, clock: clock, gen: gen, images: images}
 	env.createUser(t, "alice", "pw", []string{"User"})
 	return env
 }
@@ -917,7 +920,7 @@ func TestListJobsReturnsLessonNumbers(t *testing.T) {
 	}
 }
 
-func TestRetryJobKeepsImagesForAWhile(t *testing.T) {
+func TestRetryJobSendsTheKeptImagesAgain(t *testing.T) {
 	env := newEnv(t)
 	env.createUser(t, "bob", "pw", []string{"User"})
 	token, _ := env.login(t, "alice", "pw")
@@ -925,27 +928,31 @@ func TestRetryJobKeepsImagesForAWhile(t *testing.T) {
 	env.gen.err = errors.New("boom")
 	env.upload(t, upload{token: token, files: 2, query: "?title=Anh"})
 	failed := env.onlyJob(t, "alice")
+	if len(failed.Images) != 2 || !failed.ImagesStoredAt.Equal(testClockStart) || env.images.stored() != 2 {
+		t.Fatalf("failed job %+v, %d images stored", failed, env.images.stored())
+	}
 	if view := env.listJobs(t, token)[0]; view["retryable"] != true ||
-		view["retryUntil"] != testClockStart.Add(retryImagesTTL).Format(time.RFC3339Nano) {
+		view["retryUntil"] != testClockStart.Add(imagesKeptFor).Format(time.RFC3339Nano) {
 		t.Fatalf("failed job: %v", view)
 	}
 	if rec := env.retry(t, bob, failed.ID); rec.Code != http.StatusNotFound {
 		t.Fatalf("another user's job: %d", rec.Code)
 	}
 
-	// The retry fails too, and its images are kept again, for the full time from this failure.
-	env.clock.Advance(30 * time.Minute)
+	// The retry fails too. It took the images over, without storing them again, until the same time.
+	env.clock.Advance(10 * 24 * time.Hour)
 	env.gen.images = nil
 	if rec := env.retry(t, token, failed.ID); rec.Code != http.StatusAccepted {
 		t.Fatalf("retry: %d %q", rec.Code, rec.Body)
 	}
 	retried := env.onlyJob(t, "alice")
 	if retried.Creative || retried.ImageCount != 2 || retried.Title != "Anh" || len(env.gen.images) != 2 ||
-		string(env.gen.images[1].Data) != "png-bytes" {
+		string(env.gen.images[1].Data) != "png-bytes" || !slices.Equal(retried.Images, failed.Images) ||
+		!retried.ImagesStoredAt.Equal(testClockStart) || env.images.stored() != 2 {
 		t.Fatalf("retried job %+v, generator got %+v", retried, env.gen.images)
 	}
 
-	env.clock.Advance(retryImagesTTL - time.Second)
+	env.clock.Advance(imagesKeptFor - 10*24*time.Hour - time.Second)
 	if view := env.listJobs(t, token)[0]; view["retryable"] != true {
 		t.Fatalf("just before the images expire: %v", view)
 	}
@@ -958,6 +965,18 @@ func TestRetryJobKeepsImagesForAWhile(t *testing.T) {
 	}
 	if env.onlyJob(t, "alice").ID != retried.ID {
 		t.Fatal("a refused retry must keep the failed job")
+	}
+}
+
+func TestRetryJobOfImagesDeletedFromTheStore(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	env.gen.err = errors.New("boom")
+	env.upload(t, upload{token: token, files: 1})
+	failed := env.onlyJob(t, "alice")
+	env.images.forget(failed.Images[0].PublicID)
+	if rec := env.retry(t, token, failed.ID); rec.Code != http.StatusGone || rec.Body.String() != "Images expired." {
+		t.Fatalf("got %d %q", rec.Code, rec.Body)
 	}
 }
 
@@ -997,15 +1016,6 @@ func TestRetryJobRefusals(t *testing.T) {
 		t.Fatalf("the failed job must stay: %v", err)
 	}
 
-	// Deleting the job lets its images go.
-	req := httptest.NewRequest(http.MethodDelete, "/api/csv/jobs/"+failed.ID, nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	if rec := env.do(req); rec.Code != http.StatusNoContent {
-		t.Fatalf("delete: %d", rec.Code)
-	}
-	if _, _, ok := env.srv.retryImages.get(failed.ID, "alice", env.clock.Now()); ok {
-		t.Fatal("images kept after the job was deleted")
-	}
 }
 
 func TestRefreshTokenReuseRevokesSessions(t *testing.T) {

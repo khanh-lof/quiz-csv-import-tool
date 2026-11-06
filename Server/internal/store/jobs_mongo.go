@@ -130,15 +130,42 @@ func (m *MongoJobs) Delete(ctx context.Context, username, id string) error {
 	return nil
 }
 
-func (m *MongoJobs) ExpireRunning(ctx context.Context, username string, before time.Time, message string) ([]Job, error) {
+func (m *MongoJobs) SetImages(ctx context.Context, username, id string, images []JobImage, storedAt time.Time) error {
+	_, err := m.jobs.UpdateOne(ctx,
+		bson.M{"_id": id, "username": username},
+		bson.M{"$set": bson.M{"images": images, "imagesStoredAt": storedAt.UTC()}})
+	return err
+}
+
+// lastSignBefore matches a job whose last sign of life, its heartbeat or before the first one its creation,
+// is before t.
+func lastSignBefore(t time.Time) bson.M {
+	return bson.M{"$or": bson.A{
+		bson.M{"heartbeatAt": bson.M{"$lt": t}},
+		bson.M{"heartbeatAt": bson.M{"$exists": false}, "createdAt": bson.M{"$lt": t}},
+	}}
+}
+
+// resumableJob matches a creative job at intelligence resumed fewer than maxResumes times ($not also
+// matches a job without the field, never resumed).
+func resumableJob(intelligence, maxResumes int) bson.M {
+	return bson.M{"creative": true, "intelligence": intelligence, "resumes": bson.M{"$not": bson.M{"$gte": maxResumes}}}
+}
+
+func (m *MongoJobs) ExpireRunning(ctx context.Context, username string, cutoffs ExpiryCutoffs, message string) ([]Job, error) {
+	stale := lastSignBefore(cutoffs.Before)
+	if cutoffs.ResumableIntelligence != 0 {
+		resumable := resumableJob(cutoffs.ResumableIntelligence, cutoffs.MaxResumes)
+		stale = bson.M{"$or": bson.A{
+			bson.M{"$and": bson.A{bson.M{"$nor": bson.A{resumable}}, lastSignBefore(cutoffs.Before)}},
+			bson.M{"$and": bson.A{resumable, lastSignBefore(cutoffs.ResumableBefore)}},
+		}}
+	}
 	var expired []Job
 	for {
 		var job Job
 		err := m.jobs.FindOneAndUpdate(ctx,
-			bson.M{"username": username, "status": JobRunning, "$or": bson.A{
-				bson.M{"heartbeatAt": bson.M{"$lt": before}},
-				bson.M{"heartbeatAt": bson.M{"$exists": false}, "createdAt": bson.M{"$lt": before}},
-			}},
+			bson.M{"username": username, "status": JobRunning, "$and": bson.A{stale}},
 			bson.M{"$set": bson.M{
 				"status": JobFailed, "errorStatus": ExpiredJobStatus, "errorCode": ExpiredJobCode, "errorMessage": message,
 				"finishedAt": m.now().UTC(),
@@ -152,6 +179,21 @@ func (m *MongoJobs) ExpireRunning(ctx context.Context, username string, before t
 		}
 		expired = append(expired, job)
 	}
+}
+
+func (m *MongoJobs) ClaimInterrupted(ctx context.Context, intelligence int, before time.Time, maxResumes int) (*Job, error) {
+	var job Job
+	err := m.jobs.FindOneAndUpdate(ctx,
+		bson.M{"status": JobRunning, "$and": bson.A{resumableJob(intelligence, maxResumes), lastSignBefore(before)}},
+		bson.M{"$set": bson.M{"heartbeatAt": m.now().UTC(), "progressRows": 0}, "$inc": bson.M{"resumes": 1}},
+		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&job)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &job, nil
 }
 
 func (m *MongoJobs) Prune(ctx context.Context, username string, keep int) error {

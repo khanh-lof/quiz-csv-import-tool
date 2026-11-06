@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"quiz-csv-import-tool/server/internal/auth"
 	"quiz-csv-import-tool/server/internal/config"
 	"quiz-csv-import-tool/server/internal/csvgen"
+	"quiz-csv-import-tool/server/internal/imagestore"
 	"quiz-csv-import-tool/server/internal/store"
 )
 
@@ -43,6 +45,8 @@ const (
 	// keepAwakeEvery is how often a busy server requests its own public URL: well inside the 15 minutes
 	// without inbound requests after which Render puts a free instance to sleep.
 	keepAwakeEvery = 5 * time.Minute
+	// resumeCheckEvery is how often the server looks for interrupted jobs to take over.
+	resumeCheckEvery = time.Minute
 )
 
 func run(logger *slog.Logger) error {
@@ -91,10 +95,18 @@ func run(logger *slog.Logger) error {
 		Logger:          logger,
 	}
 
+	if cfg.CloudinaryURL != "" {
+		// FromEnv checked it already.
+		srv.ImageStore, _ = imagestore.NewCloudinary(cfg.CloudinaryURL)
+	} else {
+		logger.Warn("CLOUDINARY_URL is not set; jobs with images cannot be retried or resumed")
+	}
+
 	var jobs activity
 	if self := strings.TrimRight(os.Getenv("RENDER_EXTERNAL_URL"), "/"); self != "" {
 		go jobs.keepAwake(ctx, self+"/healthz", keepAwakeEvery, logger)
 	}
+	go jobs.resumeInterrupted(ctx, srv, resumeCheckEvery, logger)
 
 	httpServer := &http.Server{
 		Addr:              net.JoinHostPort("", cfg.Port),
@@ -119,15 +131,18 @@ func run(logger *slog.Logger) error {
 	}
 	// A second signal kills the process at once.
 	stop()
-	// Shutdown waits for the handlers still running, which are the AI jobs still generating, so a job about to
-	// finish still can. A longer one is cut off when the process ends, and failed as interrupted by the main
-	// server once its heartbeat is missed.
+	// Shutdown waits for the handlers still running, which are the AI jobs still generating, and so do the
+	// resumed jobs, so a job about to finish still can. A longer one is cut off when the process ends, and taken
+	// over again by the next instance once its heartbeat is missed.
 	logger.Info("shutting down")
 	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), shutdownGrace)
 	defer cancelShutdown()
 	err = httpServer.Shutdown(shutdownCtx)
+	if err == nil && !jobs.waitResumed(shutdownCtx) {
+		err = context.DeadlineExceeded
+	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		logger.Warn("stopping with AI jobs still running; they will be failed as interrupted")
+		logger.Warn("stopping with AI jobs still running; they will be resumed")
 		return nil
 	}
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -136,9 +151,65 @@ func run(logger *slog.Logger) error {
 	return nil
 }
 
-// activity counts the requests being handled, the health check aside. A job's handler runs until its job ends,
-// so the count is above zero exactly while a job is generating.
-type activity struct{ running atomic.Int64 }
+// activity counts the requests being handled, the health check aside, and the resumed jobs. A job's handler runs
+// until its job ends, so the count is above zero exactly while a job is generating.
+type activity struct {
+	running atomic.Int64
+	resumed sync.WaitGroup
+}
+
+// jobResumer is how resumeInterrupted takes jobs over; implemented by *api.Server.
+type jobResumer interface {
+	ClaimInterruptedJob(ctx context.Context) (*store.Job, error)
+	ResumeJob(ctx context.Context, job *store.Job)
+}
+
+// resumeInterrupted takes over every High intelligence job whose process died, at once and then every interval
+// until ctx ends, and runs each in the background. Right after a restart or a deploy, that is the jobs the
+// previous instance was running.
+func (a *activity) resumeInterrupted(ctx context.Context, jobs jobResumer, every time.Duration, logger *slog.Logger) {
+	ticker := time.NewTicker(every)
+	defer ticker.Stop()
+	for {
+		for {
+			job, err := jobs.ClaimInterruptedJob(ctx)
+			if err != nil {
+				if ctx.Err() == nil {
+					logger.Warn("looking for interrupted jobs failed", "error", err)
+				}
+				break
+			}
+			if job == nil {
+				break
+			}
+			a.running.Add(1)
+			a.resumed.Go(func() {
+				defer a.running.Add(-1)
+				jobs.ResumeJob(ctx, job)
+			})
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+// waitResumed waits for the resumed jobs to end; false when ctx ends first.
+func (a *activity) waitResumed(ctx context.Context) bool {
+	done := make(chan struct{})
+	go func() {
+		a.resumed.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
 
 func (a *activity) track(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
