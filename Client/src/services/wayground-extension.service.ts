@@ -1,9 +1,10 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { WaygroundDelivery } from '../models/wayground-delivery';
 import { FileExportService } from './file-export.service';
 import { escapeHtml } from './escape-html';
+import { Messages } from '../i18n/messages';
 
 // The user's last choice between downloading the Wayground file and letting the extension publish it,
 // shared by the table and the AI page.
@@ -40,6 +41,7 @@ export interface WaygroundImportResult {
 export class WaygroundExtensionService {
   // Requests this page sent, so results meant for another QuizTool tab are ignored. Each keeps its file,
   // which is downloaded if the extension fails so the user can import it by hand.
+  private readonly messages = inject(Messages);
   private readonly pendingRequests = new Map<string, { fileName: string, xlsx: Uint8Array }>();
 
   constructor(private readonly notificationService: NzNotificationService,
@@ -61,7 +63,7 @@ export class WaygroundExtensionService {
   public downloadExtension(): void {
     this.httpClient.get(EXTENSION_ZIP_URL, { responseType: 'blob' }).subscribe({
       next: zip => this.fileExportService.downloadBlob(EXTENSION_ZIP_NAME, zip),
-      error: () => this.notificationService.error('Không tải được tiện ích', 'Thử lại.'),
+      error: () => this.notificationService.error(this.messages.get('app.wayground.extensionDownloadFailed'), this.messages.get('common.tryAgain')),
     });
   }
 
@@ -123,8 +125,8 @@ export class WaygroundExtensionService {
     if (!result.ok || !result.shareUrl) {
       // The file was not downloaded when the extension took it, so fetch it now for the manual import.
       this.fileExportService.downloadXlsx(file.fileName, file.xlsx);
-      this.notificationService.error('Wayground chưa publish được',
-        `Đã tải ${escapeHtml(file.fileName)}, import bằng tay.`, { nzDuration: 0 });
+      this.notificationService.error(this.messages.get('app.wayground.publishFailed'),
+        this.messages.get('app.wayground.downloadedImportManually', { fileName: escapeHtml(file.fileName) }), { nzDuration: 0 });
       return;
     }
     // The tab is focused again (the extension closed the Wayground tab), so the copy usually works;
@@ -136,8 +138,11 @@ export class WaygroundExtensionService {
 
   private showPublished(result: WaygroundImportResult, copied: boolean): void {
     const url = escapeHtml(result.shareUrl!);
-    this.notificationService.success('Đã publish quiz trên Wayground',
-      `"${escapeHtml(result.title)}"${copied ? ' (đã sao chép)' : ''}: ` +
-      `<a href="${url}" target="_blank" rel="noopener">${url}</a>`, { nzDuration: 0 });
+    this.notificationService.success(this.messages.get('app.wayground.published'),
+      this.messages.get('app.wayground.publishedBody', {
+        title: escapeHtml(result.title),
+        copied: copied ? this.messages.get('app.wayground.copiedSuffix') : '',
+        link: `<a href="${url}" target="_blank" rel="noopener">${url}</a>`
+      }), { nzDuration: 0 });
   }
 }

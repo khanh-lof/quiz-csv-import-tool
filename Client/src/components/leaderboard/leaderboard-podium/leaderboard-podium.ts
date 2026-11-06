@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { MessagePipe, Messages } from '../../../i18n/messages';
 import { AvatarRing, AvatarSize, PlayerAvatar } from '../player-avatar/player-avatar';
 import { MarqueeText } from '../marquee-text/marquee-text';
 import { PodiumEntry, podiumSteps } from './podium';
@@ -33,7 +34,7 @@ interface StepView {
 // decides when there is a podium to show (at least one ranked player).
 @Component({
   selector: 'kt-quiz-leaderboard-podium',
-  imports: [MarqueeText, PlayerAvatar],
+  imports: [MarqueeText, PlayerAvatar, MessagePipe],
   templateUrl: './leaderboard-podium.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './leaderboard-podium.css',
@@ -47,6 +48,8 @@ export class LeaderboardPodium {
   readonly stageCount = input.required<number>();
   readonly possible = input.required<number>();
   readonly large = input(false);
+
+  private readonly messages = inject(Messages);
 
   protected readonly steps = computed((): StepView[] => podiumSteps(this.entries()).map(step => {
     // Players on one step share a rank, so they share what the rank was won with.
@@ -62,7 +65,12 @@ export class LeaderboardPodium {
       shown: step.entries.slice(0, MAX_AVATARS),
       extra: Math.max(0, step.entries.length - MAX_AVATARS),
       names: step.entries.map(entry => entry.name).join(' · '),
-      meta: `${stagesPassed}/${this.stageCount()} màn · ${correct}/${this.possible()} câu`,
+      meta: this.messages.get('play.board.score', {
+        passed: stagesPassed,
+        stages: this.stageCount(),
+        correct,
+        possible: this.possible()
+      }),
     };
   }));
   protected readonly medal = medal;

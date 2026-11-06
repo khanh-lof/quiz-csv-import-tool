@@ -39,6 +39,7 @@ import {
   timer,
 } from 'rxjs';
 import { stagePosition, STAGES } from '../../../game/stages';
+import { MessageKey, MessagePipe, Messages } from '../../../i18n/messages';
 import {
   Assignment,
   AssignmentChange,
@@ -50,14 +51,14 @@ import {
   leaderboardCsv,
   LeaderboardEntry,
   passPercentOf,
-  STAGE_LOCK_LABELS,
+  STAGE_LOCK_KEYS,
 } from '../../../models/assignment';
 import { AssignmentService } from '../../../services/assignment.service';
 import { copyShareLink } from '../../../services/copy-share-link';
 import { FileExportService } from '../../../services/file-export.service';
 import { toggleFullscreen } from '../../../services/fullscreen';
 import { hasPinyin, quizFromCsvText } from '../../../models/gesture-quiz';
-import { TIME_MODE_LABELS } from '../../../models/time-mode';
+import { TIME_MODE_KEYS } from '../../../models/time-mode';
 import { LeaderboardPodium } from '../../leaderboard/leaderboard-podium/leaderboard-podium';
 import { PodiumEntry } from '../../leaderboard/leaderboard-podium/podium';
 import { MarqueeText } from '../../leaderboard/marquee-text/marquee-text';
@@ -125,6 +126,7 @@ interface RankedRow {
     NzSwitchComponent,
     NzTagComponent,
     FormsModule,
+    MessagePipe,
     DeadlinePicker,
     LeaderboardPodium,
     MarqueeText,
@@ -138,8 +140,8 @@ interface RankedRow {
 export class AssignmentLeaderboard {
   protected readonly medal = medal;
   protected readonly formatStamp = formatStamp;
-  protected readonly timeModeLabels = TIME_MODE_LABELS;
-  protected readonly stageLockLabels = STAGE_LOCK_LABELS;
+  protected readonly timeModeKeys = TIME_MODE_KEYS;
+  protected readonly stageLockKeys = STAGE_LOCK_KEYS;
 
   protected readonly detail = signal<AssignmentDetail | null>(null);
   // Its own signal so the polling, which replaces the detail, does not parse the same quiz again.
@@ -174,7 +176,7 @@ export class AssignmentLeaderboard {
   });
   protected readonly statusText = computed(() => {
     const detail = this.detail();
-    return detail === null ? '' : assignmentStatusText(detail, this.now());
+    return detail === null ? '' : assignmentStatusText(detail, this.now(), this.messages);
   });
   protected readonly stages = computed<StageColumn[]>(() => {
     const keys = Object.keys(this.detail()?.stageCounts ?? {}).sort((a, b) => Number(a) - Number(b));
@@ -235,6 +237,7 @@ export class AssignmentLeaderboard {
   private readonly route = inject(ActivatedRoute);
   private readonly assignments = inject(AssignmentService);
   private readonly notificationService = inject(NzNotificationService);
+  private readonly messages = inject(Messages);
   private readonly fileExport = inject(FileExportService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
@@ -291,7 +294,7 @@ export class AssignmentLeaderboard {
     if (detail === null) {
       return;
     }
-    await copyShareLink(this.notificationService, detail.code, 'Lấy link ở Mã QR.');
+    await copyShareLink(this.notificationService, this.messages, detail.code, this.messages.get('assignments.share.fallbackQr'));
   }
 
   // Shows or hides the pinyin from the students' next question on.
@@ -302,13 +305,13 @@ export class AssignmentLeaderboard {
     }
     this.pinyinSaving.set(true);
     this.change({ showPinyin: !detail.showPinyin }).pipe(finalize(() => this.pinyinSaving.set(false))).subscribe({
-      error: err => this.fail('Không đổi được cài đặt pinyin', err),
+      error: err => this.fail('assignments.failure.changePinyin', err),
     });
   }
 
   protected closeAssignment(): void {
     this.change({ closed: true }).subscribe({
-      error: err => this.fail('Không đóng được bài', err),
+      error: err => this.fail('assignments.failure.closeAssignment', err),
     });
   }
 
@@ -331,7 +334,7 @@ export class AssignmentLeaderboard {
       closesAt
     } : { closesAt }).subscribe({
       next: () => this.deadlineOpen.set(false),
-      error: err => this.fail(reopen ? 'Không mở lại được bài' : 'Không hẹn giờ được', err),
+      error: err => this.fail(reopen ? 'assignments.failure.reopenAssignment' : 'assignments.failure.scheduleClose', err),
     });
   }
 
@@ -344,7 +347,7 @@ export class AssignmentLeaderboard {
   }
 
   protected toggleFullscreen(): void {
-    toggleFullscreen(this.board()?.nativeElement, this.notificationService);
+    toggleFullscreen(this.board()?.nativeElement, this.notificationService, this.messages.get('play.fullscreen.failed'));
   }
 
   protected removePlayer(player: LeaderboardEntry): void {
@@ -352,7 +355,7 @@ export class AssignmentLeaderboard {
     this.assignments.removePlayer(id, player.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       // The ranks of the others may move up, so the leaderboard is asked for again rather than patched.
       next: () => this.load(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(),
-      error: err => this.fail('Không xóa được học sinh', err),
+      error: err => this.fail('assignments.failure.removePlayer', err),
     });
   }
 
@@ -421,7 +424,7 @@ export class AssignmentLeaderboard {
     if (err instanceof HttpErrorResponse && err.status === 404) {
       this.notFound.set(true);
     } else if (this.detail() === null) {
-      this.loadError.set(assignmentErrorMessage(err));
+      this.loadError.set(assignmentErrorMessage(err, this.messages));
     }
   }
 
@@ -443,10 +446,10 @@ export class AssignmentLeaderboard {
     );
   }
 
-  private fail(title: string, err: unknown): void {
+  private fail(title: MessageKey, err: unknown): void {
     if (err instanceof HttpErrorResponse && err.status === 404) {
       this.notFound.set(true);
     }
-    this.notificationService.error(title, assignmentErrorMessage(err));
+    this.notificationService.error(this.messages.get(title), assignmentErrorMessage(err, this.messages));
   }
 }

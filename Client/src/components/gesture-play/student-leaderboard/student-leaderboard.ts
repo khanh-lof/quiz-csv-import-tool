@@ -13,6 +13,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BOARD_HIDDEN, StudentBoard, StudentBoardEntry } from '../../../models/assignment';
 import { httpFailure } from '../../../models/http-failure';
+import { MessagePipe } from '../../../i18n/messages';
 import { SharedPlayService } from '../../../services/shared-play.service';
 import { GameAudio } from '../../../game/game-audio';
 import { LeaderboardPodium } from '../../leaderboard/leaderboard-podium/leaderboard-podium';
@@ -37,7 +38,7 @@ const PODIUM_RANKS = 3;
 // closed when opened).
 @Component({
   selector: 'kt-quiz-student-leaderboard',
-  imports: [LeaderboardPodium, MarqueeText, PlayerAvatar],
+  imports: [LeaderboardPodium, MarqueeText, PlayerAvatar, MessagePipe],
   templateUrl: './student-leaderboard.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './student-leaderboard.css',

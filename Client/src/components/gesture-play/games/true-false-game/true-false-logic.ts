@@ -1,3 +1,4 @@
+import type { MessageKey } from '../../../../i18n/messages';
 import { thumbChoice } from '../../../../game/gestures';
 import type { HandFrame } from '../../../../game/stage-game';
 import { FALSE_ANSWER, TRUE_ANSWER } from '../../../../game/stages';
@@ -77,9 +78,9 @@ export function sameThumbView(a: ThumbView, b: ThumbView): boolean {
 }
 
 // The line under the targets that tells the player what the camera is doing.
-export function thumbStatus(view: ThumbView): string {
+export function thumbStatus(view: ThumbView): MessageKey | '' {
   if (view.choice === null && !view.armed && view.shown !== null) {
-    return 'Hạ tay xuống';
+    return 'play.thumb.handDown';
   }
   return '';
 }

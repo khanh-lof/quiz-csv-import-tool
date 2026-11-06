@@ -4,6 +4,8 @@ import { GameAudio } from '../../../../game/game-audio';
 import type { HandFrame, Point3, QuestionView, Reveal } from '../../../../game/stage-game';
 import { VisionService } from '../../../../game/vision.service';
 import { FingerCountGame } from './finger-count-game';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../../../i18n/app-locale';
 
 const QUESTION: QuestionView = {
   stage: 5,
@@ -86,6 +88,7 @@ describe('FingerCountGame', () => {
     await TestBed.configureTestingModule({
       imports: [FingerCountGame],
       providers: [
+        provideNzI18n(appLocale),
         {
           provide: GameAudio,
           useValue: audio

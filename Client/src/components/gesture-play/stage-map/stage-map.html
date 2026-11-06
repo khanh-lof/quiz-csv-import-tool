@@ -4,18 +4,19 @@
   @if (allPassed()) {
     <div class="celebration" role="status">
       <div aria-hidden="true" class="trophy">🏆</div>
-      <h2>Chúc mừng! Bạn đã qua tất cả các màn</h2>
-      <p>Tổng điểm tốt nhất: <b>{{ totalScore() }}</b></p>
+      <h2>{{ 'play.map.celebration' | msg }}</h2>
+      <p [innerHTML]="'play.map.totalScore' | msg: { score: totalScore() }"></p>
     </div>
   }
 
   <p class="summary">
     @if (cards().length === 1) {
-      1 màn, <b>{{ total() }}</b> câu. Đúng từ {{ cards()[0].percent }}% số câu là qua màn.
+      <span [innerHTML]="'play.map.summaryOne' | msg: { total: total() }"></span>
+      {{ 'play.map.passRule' | msg: { percent: cards()[0].percent } }}
     } @else {
-      <b>{{ cards().length }}</b> màn, <b>{{ total() }}</b> câu.
+      <span [innerHTML]="'play.map.summaryMany' | msg: { stages: cards().length, total: total() }"></span>
       @if (commonPercent(); as percent) {
-        Đúng từ {{ percent }}% số câu {{ allOpen() ? 'là qua màn' : 'để mở màn sau' }}.
+        {{ (allOpen() ? 'play.map.passRule' : 'play.map.unlockRule') | msg: { percent: percent } }}
       }
     }
   </p>
@@ -23,24 +24,24 @@
   <div class="stages">
     @for (card of cards(); track card.def.stage) {
       <button (click)="start.emit(card.def.stage)" [class]="'status-' + card.status" [def]="card.def"
-              [disabled]="!card.playable" [label]="'Màn ' + card.position"
+              [disabled]="!card.playable" [label]="'play.stage.label' | msg: { position: card.position }"
               ktQuizGestureStageCard>
         @switch (card.status) {
           @case ('passed') {
-            <nz-tag cardTag nzColor="success">Đã qua ✓</nz-tag>
+            <nz-tag cardTag nzColor="success">{{ 'play.map.passed' | msg }}</nz-tag>
           }
           @case ('used') {
-            <nz-tag cardTag>Hết lượt</nz-tag>
+            <nz-tag cardTag>{{ 'play.map.noAttempts' | msg }}</nz-tag>
           }
           @case ('locked') {
-            <nz-tag cardTag>Khóa 🔒</nz-tag>
+            <nz-tag cardTag>{{ 'play.map.locked' | msg }}</nz-tag>
           }
         }
         <span class="card-foot">
           <span>
-            {{ card.count }} câu
+            {{ 'play.stage.questionCount' | msg: { count: card.count } }}
             @if (card.percent !== defaultPercent) {
-              · qua màn từ {{ card.percent }}%
+              · {{ 'play.map.passFrom' | msg: { percent: card.percent } }}
             }
             @if (card.attemptsText) {
               · {{ card.attemptsText }}
@@ -48,9 +49,9 @@
           </span>
           <span class="best">
             @if (card.best; as best) {
-              Tốt nhất: <b>{{ best.correct }}/{{ best.total }}</b> · {{ best.correct * pointsPerCorrect }} điểm
+              <span [innerHTML]="'play.map.best' | msg: { correct: best.correct, total: best.total, points: best.correct * pointsPerCorrect }"></span>
             } @else {
-              Chưa chơi
+              {{ 'play.map.notPlayed' | msg }}
             }
           </span>
         </span>
@@ -61,9 +62,9 @@
   <div class="settings">
     <div class="setting">
       @if (lockedTimeMode(); as locked) {
-        <span><span class="setting-label">Thời gian mỗi câu:</span> {{ timeModeLabels[locked] }}</span>
+        <span><span class="setting-label">{{ 'play.map.timePerQuestion' | msg }}:</span> {{ timeModeLabels[locked] }}</span>
       } @else {
-        <span class="setting-label">Thời gian mỗi câu</span>
+        <span class="setting-label">{{ 'play.map.timePerQuestion' | msg }}</span>
         <nz-radio-group (ngModelChange)="setTimeMode($event)" [ngModel]="settings().timeMode"
                         nzButtonStyle="solid" nzSize="small">
           <label nz-radio-button nzValue="standard">{{ timeModeLabels.standard }}</label>
@@ -73,24 +74,24 @@
       }
     </div>
     <div class="setting">
-      <span class="setting-label">Âm thanh</span>
+      <span class="setting-label">{{ 'play.map.sound' | msg }}</span>
       <nz-switch (ngModelChange)="setSound($event)" [ngModel]="settings().sound"
-                 nzCheckedChildren="Bật" nzUnCheckedChildren="Tắt"/>
+                 [nzCheckedChildren]="'common.switchOn' | msg" [nzUnCheckedChildren]="'common.switchOff' | msg"/>
     </div>
     @if (allowPinyinChoice()) {
       <div class="setting">
-        <span class="setting-label">Hiện pinyin</span>
+        <span class="setting-label">{{ 'play.map.showPinyin' | msg }}</span>
         <nz-switch (ngModelChange)="setShowPinyin($event)" [ngModel]="settings().showPinyin"
-                   nzCheckedChildren="Bật" nzUnCheckedChildren="Tắt"/>
+                   [nzCheckedChildren]="'common.switchOn' | msg" [nzUnCheckedChildren]="'common.switchOff' | msg"/>
       </div>
     }
     @if (allowReset()) {
       <button (nzOnConfirm)="resetProgress()" class="reset-button" nz-button nz-popconfirm
-              nzCancelText="Hủy" nzDanger
-              nzOkDanger nzOkText="Chơi lại" nzPopconfirmPlacement="top" nzPopconfirmTitle="Xóa tiến độ và chơi lại từ đầu?"
+              [nzCancelText]="'common.cancel' | msg" nzDanger
+              nzOkDanger [nzOkText]="'play.map.resetOk' | msg" nzPopconfirmPlacement="top" [nzPopconfirmTitle]="'play.map.resetConfirm' | msg"
               type="button">
         <nz-icon nzTheme="outline" nzType="reload"/>
-        Chơi lại từ đầu
+        {{ 'play.map.reset' | msg }}
       </button>
     }
   </div>

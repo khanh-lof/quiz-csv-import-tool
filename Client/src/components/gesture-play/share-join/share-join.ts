@@ -12,6 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzInputDirective } from 'ng-zorro-antd/input';
+import { MessagePipe } from '../../../i18n/messages';
 import { formatClose } from '../../../models/assignment';
 import { randomAvatar } from '../../../models/avatar';
 import { AvatarPicker } from '../../leaderboard/avatar-picker/avatar-picker';
@@ -29,7 +30,7 @@ export interface JoinRequest {
 // which passes the reason back in `error`.
 @Component({
   selector: 'kt-quiz-share-join',
-  imports: [FormsModule, NzButtonComponent, NzInputDirective, AvatarPicker, PlayerAvatar],
+  imports: [FormsModule, NzButtonComponent, NzInputDirective, AvatarPicker, PlayerAvatar, MessagePipe],
   templateUrl: './share-join.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './share-join.css',

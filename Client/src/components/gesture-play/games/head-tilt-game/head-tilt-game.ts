@@ -10,6 +10,8 @@ import {
   untracked,
 } from '@angular/core';
 
+import type { MessageKey } from '../../../../i18n/messages';
+import { MessagePipe } from '../../../../i18n/messages';
 import { GameAudio } from '../../../../game/game-audio';
 import { FaceFrame, OptionGameBase, QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
 import { VisionService } from '../../../../game/vision.service';
@@ -25,7 +27,7 @@ const RING_LENGTH = 603.19;
 // the camera the cards are clicked or picked with the keys (1 or ←, 2 or →).
 @Component({
   selector: 'kt-quiz-head-tilt-game',
-  imports: [FaceCalibrationPanel],
+  imports: [FaceCalibrationPanel, MessagePipe],
   providers: [{
     provide: StageGameBase,
     useExisting: forwardRef(() => HeadTiltGame)
@@ -58,7 +60,7 @@ export class HeadTiltGame extends OptionGameBase {
 
   protected readonly progress = signal(0);
   protected readonly lean = signal(0);
-  protected readonly hint = signal('');
+  protected readonly hint = signal<MessageKey | ''>('');
   protected readonly problem = signal(false);
   protected readonly meterLeft = computed(() => meterPercent(this.lean()));
   protected readonly ringOffset = computed(() => RING_LENGTH * (1 - this.progress()));

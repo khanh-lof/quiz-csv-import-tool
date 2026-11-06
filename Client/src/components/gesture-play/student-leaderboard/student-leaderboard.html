@@ -1,17 +1,17 @@
 @if (board(); as current) {
   <section aria-labelledby="student-board-title" class="board">
     <header class="head">
-      <h2 class="title" id="student-board-title"><span aria-hidden="true">🏆</span> Bảng xếp hạng</h2>
+      <h2 class="title" id="student-board-title"><span aria-hidden="true">🏆</span> {{ 'common.leaderboardTitle' | msg }}</h2>
     </header>
 
     @if (podium().length === 0) {
-      <p class="note">Chưa ai có kết quả.</p>
+      <p class="note">{{ 'play.board.empty' | msg }}</p>
     } @else {
       <kt-quiz-leaderboard-podium [entries]="podium()" [possible]="current.possible" [stageCount]="current.stageCount"/>
     }
 
     @if (onPodium()) {
-      <p class="note cheer">Chúc mừng! Bạn trong top 3 🎉</p>
+      <p class="note cheer">{{ 'play.board.cheer' | msg }}</p>
     }
 
     @if (ownRow(); as own) {
@@ -21,10 +21,10 @@
         <span class="info">
           <span class="who">
             <kt-quiz-marquee-text [text]="own.name"/>
-            <span class="you-tag">Bạn</span>
+            <span class="you-tag">{{ 'play.board.you' | msg }}</span>
           </span>
           <span class="score">
-            Hạng {{ own.rank }} · {{ own.stagesPassed }}/{{ current.stageCount }} màn · {{ own.correct }}/{{ current.possible }} câu
+            {{ 'play.board.rank' | msg: { rank: own.rank! } }} · {{ 'play.board.score' | msg: { passed: own.stagesPassed, stages: current.stageCount, correct: own.correct, possible: current.possible } }}
           </span>
         </span>
       </div>

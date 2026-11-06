@@ -5,6 +5,8 @@ import { Choice, QuestionView, Reveal } from '../../../../game/stage-game';
 import { VisionService } from '../../../../game/vision.service';
 import { faceFrame, FaceSpec, NEUTRAL, playFrames, VIDEO_HEIGHT, VIDEO_WIDTH, } from '../head-tilt-game/face-fixture';
 import { FrogBiteGame } from './frog-bite-game';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../../../i18n/app-locale';
 
 const QUESTION: QuestionView = {
   stage: 3,
@@ -31,6 +33,7 @@ describe('FrogBiteGame', () => {
     play = jasmine.createSpy('play');
     TestBed.configureTestingModule({
       providers: [
+        provideNzI18n(appLocale),
         {
           provide: GameAudio,
           useValue: { play }

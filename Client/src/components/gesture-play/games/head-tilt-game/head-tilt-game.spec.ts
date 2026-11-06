@@ -6,6 +6,8 @@ import { VisionService } from '../../../../game/vision.service';
 import { faceFrame, FaceSpec, playFrames, VIDEO_HEIGHT, VIDEO_WIDTH } from './face-fixture';
 import { HeadTiltGame } from './head-tilt-game';
 import { RECALIBRATE_AFTER_MS } from './head-tilt-logic';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../../../i18n/app-locale';
 
 const QUESTION: QuestionView = {
   stage: 2,
@@ -27,6 +29,7 @@ describe('HeadTiltGame', () => {
     play = jasmine.createSpy('play');
     TestBed.configureTestingModule({
       providers: [
+        provideNzI18n(appLocale),
         {
           provide: GameAudio,
           useValue: { play }

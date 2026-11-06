@@ -28,6 +28,8 @@ import { isTypingTarget } from '../../game/hold-select';
 import { Choice, QuestionView, Reveal, StageGameBase, VisionFrame, VisionKind } from '../../game/stage-game';
 import { passMark, stageDef, stagePosition, STAGES } from '../../game/stages';
 import { VisionService } from '../../game/vision.service';
+import type { MessageKey } from '../../i18n/messages';
+import { MessagePipe, Messages } from '../../i18n/messages';
 import { AiJob } from '../../models/ai-job';
 import {
   ASSIGNMENT_FULL,
@@ -104,16 +106,16 @@ interface SharedInfo {
   closesAt: string | null;
 }
 
-const SHARED_CLOSED = 'Bài này đã đóng.';
-const SHARED_MISSING = 'Không tìm thấy bài này. Kiểm tra lại link.';
-const SHARED_FAILED = 'Không tải được bài. Tải lại trang.';
+const SHARED_CLOSED = 'play.shared.closed';
+const SHARED_MISSING = 'play.shared.missing';
+const SHARED_FAILED = 'play.shared.failed';
 
 // What the page says when a quiz has nothing to play, by how it was opened (a job reads like a file).
 const NO_QUESTIONS = {
-  local: 'Không có câu hỏi hợp lệ.',
-  shared: 'Bài này chưa có câu hỏi. Báo thầy cô.',
-  preview: 'Không có câu hỏi hợp lệ.',
-};
+  local: 'play.load.noQuestions',
+  shared: 'play.shared.empty',
+  preview: 'play.load.noQuestions',
+} as const;
 
 // What the camera sees of the player, for the status chip: 'seen' (the hand or face is in view), 'lost'
 // (nothing there) and 'multi' (more than one face, which the face games cannot use).
@@ -143,9 +145,9 @@ const STAGE_CHECK_TIMEOUT_MS = 4000;
 // the page's own clock says, so the answer that says so is on its way while it still counts.
 const DEADLINE_MARGIN_MS = 1000;
 
-const STAND_TIP: Record<VisionKind, string> = {
-  hand: 'Đứng cách camera 0,6–1,2 m, đủ sáng.',
-  face: 'Cách camera 0,6–1,2 m, nhìn thẳng, đủ sáng.',
+const STAND_TIP: Record<VisionKind, MessageKey> = {
+  hand: 'play.camera.standHand',
+  face: 'play.camera.standFace',
 };
 
 // The question a student plays when the server deals it: what the games show and nothing else. The answer, which
@@ -217,6 +219,7 @@ function withVerdict(play: PlayQuestion, verdict: SharedVerdict): PlayQuestion {
     NzIconDirective,
     NzModalModule,
     NzSpinComponent,
+    MessagePipe,
     AvatarPicker,
     MarqueeText,
     PlayerAvatar,
@@ -261,17 +264,17 @@ export class GesturePlay implements OnInit, OnDestroy {
       case 'job':
         return {
           url: '/ai-history',
-          text: 'Về Lịch sử'
+          text: this.messages.get('play.page.backToHistory')
         };
       case 'preview':
         return {
           url: `/assignments/${encodeURIComponent(this.assignmentId() ?? '')}`,
-          text: 'Về Bảng xếp hạng'
+          text: this.messages.get('play.page.backToLeaderboard')
         };
       case 'local':
         return {
           url: '/quiz',
-          text: 'Về Quiz thủ công'
+          text: this.messages.get('play.page.backToManualQuiz')
         };
       default:
         return null;
@@ -334,7 +337,14 @@ export class GesturePlay implements OnInit, OnDestroy {
     const own = limits?.[String(this.stage())];
     return limits && own !== undefined ? own : timeLimitFor(this.def().seconds, this.effectiveTimeMode());
   });
-  protected readonly standTip = computed(() => STAND_TIP[this.def().vision]);
+  protected readonly stageFacts = computed(() => {
+    const seconds = this.stageTimeLimit();
+    const count = this.stageQuestionCount();
+    return seconds === null
+      ? this.messages.get('play.intro.untimed', { count })
+      : this.messages.get('play.intro.timed', { count, seconds });
+  });
+  protected readonly standTip = computed(() => this.messages.get(STAND_TIP[this.def().vision]));
   // A shared run is played against the server: the run is being started, an answer is out (the page ignores
   // further input and its clock stands still until the verdict comes), the next question is being fetched, or
   // the last request failed even after the service's retries and waits for "Thử lại".
@@ -388,17 +398,17 @@ export class GesturePlay implements OnInit, OnDestroy {
     if (reveal.chosen === null) {
       return {
         kind: 'wrong',
-        text: '⏱ Hết giờ'
+        text: this.messages.get('play.verdict.timeUp')
       };
     }
     return reveal.correct
       ? {
         kind: 'correct',
-        text: `✓ Chính xác! +${POINTS_PER_CORRECT}`
+        text: this.messages.get('play.verdict.correct', { points: POINTS_PER_CORRECT })
       }
       : {
         kind: 'wrong',
-        text: '✗ Chưa đúng'
+        text: this.messages.get('play.verdict.wrong')
       };
   });
   protected readonly cameraOn = computed(() => this.cameraState() === 'on');
@@ -409,7 +419,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     switch (this.cameraState()) {
       case 'starting':
         return {
-          text: 'Đang bật camera…',
+          text: this.messages.get('play.camera.starting'),
           tone: 'wait'
         };
       case 'on':
@@ -417,7 +427,7 @@ export class GesturePlay implements OnInit, OnDestroy {
         return null;
       default:
         return {
-          text: 'Không dùng được camera',
+          text: this.messages.get('play.camera.unusable'),
           tone: 'bad'
         };
     }
@@ -430,7 +440,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     switch (this.modelState()) {
       case 'loading':
         return {
-          text: 'Đang tải nhận diện…',
+          text: this.messages.get('play.model.loading'),
           tone: 'wait'
         };
       default:
@@ -445,17 +455,17 @@ export class GesturePlay implements OnInit, OnDestroy {
     switch (this.tracking()) {
       case 'seen':
         return {
-          text: hand ? 'Đã thấy tay ✓' : 'Đã thấy mặt ✓',
+          text: this.messages.get(hand ? 'play.tracking.handSeen' : 'play.tracking.faceSeen'),
           tone: 'ok'
         };
       case 'multi':
         return {
-          text: 'Chỉ một người trước camera',
+          text: this.messages.get('play.tracking.multiple'),
           tone: 'bad'
         };
       default:
         return {
-          text: hand ? 'Đưa tay vào khung hình' : 'Chưa thấy mặt',
+          text: this.messages.get(hand ? 'play.tracking.putHandIn' : 'play.face.notSeen'),
           tone: 'wait'
         };
     }
@@ -465,6 +475,7 @@ export class GesturePlay implements OnInit, OnDestroy {
   private readonly zone = inject(NgZone);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly messages = inject(Messages);
   private readonly notificationService = inject(NzNotificationService);
   private readonly jobService = inject(AiJobService);
   private readonly assignmentService = inject(AssignmentService);
@@ -483,7 +494,7 @@ export class GesturePlay implements OnInit, OnDestroy {
       return message;
     }
     return this.cameraOn() && this.modelState() === 'error'
-      ? 'Chưa tải được nhận diện.'
+      ? this.messages.get('play.model.failed')
       : '';
   });
   private readonly audio = inject(GameAudio);
@@ -650,7 +661,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     }
     const reader = new FileReader();
     reader.onload = () => this.openCsv(String(reader.result ?? ''), titleFromFileName(file.name));
-    reader.onerror = () => this.fail('Không đọc được file này.');
+    reader.onerror = () => this.fail('play.load.fileUnreadable');
     reader.readAsText(file);
   }
 
@@ -745,7 +756,7 @@ export class GesturePlay implements OnInit, OnDestroy {
           this.avatarOpen.set(false);
           this.fail(SHARED_CLOSED);
         } else {
-          this.notificationService.error('Chưa đổi được hình đại diện', '');
+          this.notificationService.error(this.messages.get('play.avatar.changeFailed'), '');
         }
       },
     });
@@ -917,7 +928,7 @@ export class GesturePlay implements OnInit, OnDestroy {
   }
 
   protected toggleFullscreen(): void {
-    toggleFullscreen(this.host.nativeElement, this.notificationService);
+    toggleFullscreen(this.host.nativeElement, this.notificationService, this.messages.get('play.fullscreen.failed'));
   }
 
   private loadJob(id: string): void {
@@ -931,19 +942,19 @@ export class GesturePlay implements OnInit, OnDestroy {
     // The table's list is empty when the page was opened directly (or the job is new): ask once.
     this.jobService.refresh().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => this.openJob(find()),
-      error: () => this.fail('Không tải được quiz. Kiểm tra mạng rồi thử lại.'),
+      error: () => this.fail('play.load.quizFailed'),
     });
   }
 
   private openJob(job: AiJob | undefined): void {
     if (!job) {
-      this.fail('Không tìm thấy quiz này trong Lịch sử.');
+      this.fail('play.load.quizMissing');
     } else if (job.status === 'running') {
-      this.fail('AI chưa tạo xong quiz này.');
+      this.fail('play.load.quizRunning');
     } else if (job.status !== 'done') {
-      this.fail('Lần tạo này bị lỗi.');
+      this.fail('common.jobFailed');
     } else if (job.exportType !== ExportType.GestureQuiz) {
-      this.fail('Quiz này không phải Game.');
+      this.fail('play.load.quizNotGame');
     } else {
       this.openCsv(job.csv, job.title);
     }
@@ -970,7 +981,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     // A student cannot do anything about rows the teacher's quiz lost, so only the others are told.
     if (quiz.skipped > 0 && this.mode() !== 'shared') {
       this.notificationService.warning(
-        `Bỏ qua ${quiz.skipped} dòng không dùng được`,
+        this.messages.get('play.load.skippedRows', { count: quiz.skipped }),
         '');
     }
     return quiz;
@@ -1037,7 +1048,7 @@ export class GesturePlay implements OnInit, OnDestroy {
         });
         this.openCsv(detail.csv, detail.title);
       },
-      error: err => this.fail('Không tải được bài.', httpFailure(err).status === 404),
+      error: err => this.fail('play.load.assignmentFailed', httpFailure(err).status === 404),
     });
   }
 
@@ -1049,15 +1060,15 @@ export class GesturePlay implements OnInit, OnDestroy {
 
   // What a final answer from the server means to a student: the link points at nothing (404) or the
   // assignment is over (410). Anything else (offline, a server error) may pass, so it gives null.
-  private sharedGone(err: unknown): string | null {
+  private sharedGone(err: unknown): MessageKey | null {
     const { status } = httpFailure(err);
     return status === 404 ? SHARED_MISSING : status === 410 ? SHARED_CLOSED : null;
   }
 
   // A quiz opened from a job, a shared quiz or a preview has no load screen to go back to, so its problems
   // get their own card, with a way back for the two signed-in modes (a student has none).
-  private fail(message: string, missing = false): void {
-    this.problem.set(message);
+  private fail(message: MessageKey, missing = false): void {
+    this.problem.set(this.messages.get(message));
     // A student who joined sees the final board under "closed": the leaderboard route answers after the close.
     this.closedBoard.set(
       message === SHARED_CLOSED && this.mode() === 'shared' && this.sharedPlay.identity(this.shareCode()) !== null);
@@ -1065,7 +1076,7 @@ export class GesturePlay implements OnInit, OnDestroy {
     // An assignment that is gone has no leaderboard page to return to, only the list.
     this.errorLink.set(missing ? {
       url: '/assignments',
-      text: 'Về Bài đã giao'
+      text: this.messages.get('play.page.backToAssignments')
     } : this.backLink());
   }
 
@@ -1081,18 +1092,18 @@ export class GesturePlay implements OnInit, OnDestroy {
   private joinProblem(err: unknown): string {
     const { status, body } = httpFailure(err, 0);
     if (status === 409 && body === NAME_TAKEN) {
-      return 'Tên này đã có người dùng. Thêm họ hoặc số.';
+      return this.messages.get('play.join.nameTaken');
     }
     if (status === 409 && body === ASSIGNMENT_FULL) {
-      return 'Bài đã đủ học sinh. Báo thầy cô.';
+      return this.messages.get('play.join.full');
     }
     if (status === 400) {
-      return 'Tên cần từ 1 đến 40 ký tự.';
+      return this.messages.get('play.join.nameLength');
     }
     if (status === 0) {
-      return 'Mất kết nối. Thử lại.';
+      return this.messages.get('common.offline');
     }
-    return 'Chưa vào được bài. Thử lại.';
+    return this.messages.get('play.join.failed');
   }
 
   private showIntro(stage: number): void {
@@ -1474,8 +1485,8 @@ export class GesturePlay implements OnInit, OnDestroy {
     // tab, or the page and the server are out of step. Nothing here can go on.
     this.backToMap();
     this.notificationService.warning(
-      'Lượt chơi đã kết thúc',
-      'Màn này đang mở ở tab khác.');
+      this.messages.get('play.run.ended'),
+      this.messages.get('play.run.endedInOtherTab'));
   }
 
   // What a failed start of a run means: the same final answers, and the two refusals that only a start can get.
@@ -1488,17 +1499,19 @@ export class GesturePlay implements OnInit, OnDestroy {
       // This page thought the stage was open and the server knows better: the map is brought into step.
       this.backToMap();
       this.refreshSharedProgress();
-      this.notificationService.warning('Màn này chưa mở', 'Hãy qua màn trước.');
+      this.notificationService.warning(
+        this.messages.get('play.run.stageLocked'),
+        this.messages.get('play.run.stageLockedDetail'));
     } else if (status === 409 && body === REPLAY_LIMIT_REACHED) {
       this.useUpAttempts(stage);
       this.backToMap();
-      this.notificationService.warning('Hết lượt chơi', '');
+      this.notificationService.warning(this.messages.get('play.run.noAttempts'), '');
     } else {
       // Offline, or a failure the student can try again: the intro is where "Bắt đầu" is.
       this.screen.set('intro');
       this.notificationService.error(
-        'Chưa bắt đầu được màn',
-        status === 0 ? 'Mất kết nối.' : 'Thử lại.');
+        this.messages.get('play.run.startFailed'),
+        this.messages.get(status === 0 ? 'play.connection.lost' : 'common.tryAgain'));
     }
   }
 

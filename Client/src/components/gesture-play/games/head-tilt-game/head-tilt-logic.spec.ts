@@ -202,10 +202,10 @@ describe('HeadTiltReader', () => {
     }, rest.end, 2000);
     expect(selections(crowd.results)).toEqual([]);
     expect(crowd.results.every(step => step.invalid)).toBeTrue();
-    expect(crowd.results[0].problem).toBe('Chỉ một khuôn mặt');
+    expect(crowd.results[0].problem).toBe('play.face.onlyOne');
 
     const none = play(reader, { faces: 0 }, crowd.end, 200);
-    expect(none.results[0].problem).toBe('Chưa thấy mặt');
+    expect(none.results[0].problem).toBe('play.face.notSeen');
   });
 
   it('forgets a hold in progress when the face is lost and starts from the middle again', () => {
@@ -249,12 +249,12 @@ describe('tiltHint', () => {
     expect(tiltHint({
       ...idle,
       invalid: true,
-      problem: 'Chưa thấy mặt'
-    })).toBe('Chưa thấy mặt');
+      problem: 'play.face.notSeen'
+    })).toBe('play.face.notSeen');
     expect(tiltHint({
       ...idle,
       waiting: true
-    })).toBe('Đưa đầu về giữa');
+    })).toBe('play.tilt.backToCenter');
     expect(tiltHint({
       ...idle,
       side: 'left',

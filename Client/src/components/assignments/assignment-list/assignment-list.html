@@ -2,15 +2,15 @@
   <div class="list-toolbar">
   @if (assignments().length > 0) {
     <div class="list-filters">
-      <input (ngModelChange)="search.set($event ?? '')" [ngModel]="search()" aria-label="Tìm kiếm" class="search-input"
-             nz-input placeholder="Tìm kiếm" type="search"/>
+      <input (ngModelChange)="search.set($event ?? '')" [ngModel]="search()" [attr.aria-label]="'common.search' | msg" class="search-input"
+             nz-input [placeholder]="'common.search' | msg" type="search"/>
       <nz-select (ngModelChange)="status.set($event ?? null)" [ngModel]="status()" class="filter-select" nzAllowClear
-                 nzPlaceHolder="Trạng thái">
-        <nz-option nzLabel="Đang mở" nzValue="open"></nz-option>
-        <nz-option nzLabel="Đã đóng" nzValue="closed"></nz-option>
+                 [nzPlaceHolder]="'common.status' | msg">
+        <nz-option [nzLabel]="'assignments.status.open' | msg" nzValue="open"></nz-option>
+        <nz-option [nzLabel]="'assignments.status.closed' | msg" nzValue="closed"></nz-option>
       </nz-select>
       <nz-select (ngModelChange)="language.set($event ?? null)" [ngModel]="language()" class="filter-select" nzAllowClear
-                 nzPlaceHolder="Ngôn ngữ">
+                 [nzPlaceHolder]="'common.language' | msg">
         @for (option of languages; track option.value) {
           <nz-option [nzValue]="option.value" [nzLabel]="languageTagText(option.value)"></nz-option>
         }
@@ -34,8 +34,8 @@
     <thead>
     <tr>
       <th>Bài</th>
-      <th>Ngôn ngữ</th>
-      <th>Trạng thái</th>
+      <th>{{ 'common.language' | msg }}</th>
+      <th>{{ 'common.status' | msg }}</th>
       <th>Học sinh</th>
       <th>Lúc giao</th>
       <th nzWidth="40px"></th>
@@ -57,15 +57,15 @@
           <td>{{ assignment.playerCount }}</td>
           <td>{{ assignment.createdAt | date:'dd/MM HH:mm' }}</td>
           <td class="assignment-actions">
-            <button [nzDropdownMenu]="assignmentMenu" aria-label="Thao tác" nz-button nz-dropdown nzPlacement="bottomRight" nzSize="small"
-                    nzTrigger="click" nzType="text" title="Thao tác" type="button">
+            <button [nzDropdownMenu]="assignmentMenu" [attr.aria-label]="'assignments.list.actions' | msg" nz-button nz-dropdown nzPlacement="bottomRight" nzSize="small"
+                    nzTrigger="click" nzType="text" [title]="'assignments.list.actions' | msg" type="button">
               <nz-icon nzTheme="twotone" nzTwotoneColor="#ff8ecb" nzType="control"/>
             </button>
             <nz-dropdown-menu #assignmentMenu="nzDropdownMenu">
               <ul class="action-menu" nz-menu>
                 <li [routerLink]="['/assignments', assignment.id]" nz-menu-item>
                   <nz-icon nzTheme="outline" nzType="trophy"/>
-                  Bảng xếp hạng
+                  {{ 'common.leaderboardTitle' | msg }}
                 </li>
                 <li (click)="copyLink(assignment)" nz-menu-item>
                   <nz-icon nzTheme="outline" nzType="link"/>
@@ -78,18 +78,18 @@
                 @if (isOpen(assignment)) {
                   <li (click)="confirmClose(assignment)" nz-menu-item>
                     <nz-icon nzTheme="outline" nzType="lock"/>
-                    Đóng bài
+                    {{ 'assignments.action.closeAssignment' | msg }}
                   </li>
                 } @else {
                   <li (click)="askReopen(assignment)" nz-menu-item>
                     <nz-icon nzTheme="outline" nzType="unlock"/>
-                    Mở lại
+                    {{ 'assignments.action.reopen' | msg }}
                   </li>
                 }
                 <li nz-menu-divider></li>
                 <li (click)="confirmRemove(assignment)" nz-menu-item nzDanger>
                   <nz-icon nzTheme="outline" nzType="delete"/>
-                  Xóa
+                  {{ 'assignments.action.delete' | msg }}
                 </li>
               </ul>
             </nz-dropdown-menu>
@@ -104,12 +104,12 @@
      empty list that was not loaded. -->
 <ng-template #emptyTemplate>
   @if (failed()) {
-    <p class="help">Chưa tải được danh sách.</p>
+    <p class="help">{{ 'assignments.list.loadFailed' | msg }}</p>
   } @else if (loaded() && isFiltering()) {
-    <p class="help">Không có kết quả.</p>
+    <p class="help">{{ 'common.noResults' | msg }}</p>
   } @else if (loaded()) {
     <div class="empty">
-      <p class="help">{{ helpText }}</p>
+      <p class="help">{{ 'assignments.list.emptyHelp' | msg }}</p>
       <a nz-button nzType="primary" routerLink="/ai-history">
         <nz-icon nzTheme="outline" nzType="history"/>
         Đến AI › Lịch sử
@@ -130,9 +130,9 @@
 </nz-modal>
 
 <nz-modal (nzOnCancel)="reopenOpen.set(false)" (nzOnOk)="confirmReopen()" (nzVisibleChange)="reopenOpen.set($event)"
-          [nzOkDisabled]="reopenDeadlinePassed()" [nzOkLoading]="reopenBusy()" [nzVisible]="reopenOpen()" nzCancelText="Hủy"
-          nzOkText="Mở lại" nzWidth="min(560px, 95vw)">
-  <ng-container *nzModalTitle>Mở lại: {{ reopening()?.title }}</ng-container>
+          [nzOkDisabled]="reopenDeadlinePassed()" [nzOkLoading]="reopenBusy()" [nzVisible]="reopenOpen()" [nzCancelText]="'common.cancel' | msg"
+          [nzOkText]="'assignments.action.reopen' | msg" nzWidth="min(560px, 95vw)">
+  <ng-container *nzModalTitle>{{ 'assignments.list.reopenTitle' | msg: {title: reopening()?.title ?? ''} }}</ng-container>
   <ng-container *nzModalContent>
     <kt-quiz-deadline-picker [(value)]="reopenDeadline"/>
   </ng-container>

@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 
+import { MessagePipe } from '../../../../i18n/messages';
+
 import type { CalibrationStatus } from './face-common';
 import { calibrationMessage } from './face-common';
 
@@ -9,17 +11,17 @@ import { calibrationMessage } from './face-common';
 // second of steady looking; once calibrated it shrinks to a small "calibrate again" button.
 @Component({
   selector: 'kt-quiz-face-calibration',
-  imports: [NzButtonComponent],
+  imports: [NzButtonComponent, MessagePipe],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     @if (calibrating()) {
       <div class="card" role="status">
-        <p class="message" [class.warn]="warn()">{{ message() }}</p>
+        <p class="message" [class.warn]="warn()">{{ message() | msg }}</p>
         <div class="bar"><i [style.width.%]="progress() * 100"></i></div>
       </div>
     } @else {
       <button nz-button nzSize="small" type="button" (click)="recalibrate.emit()">
-        Hiệu chỉnh lại
+        {{ 'play.face.recalibrate' | msg }}
       </button>
     }
   `,

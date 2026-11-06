@@ -35,6 +35,8 @@ import { timeLimitFor } from './gesture-engine';
 import { GesturePlay } from './gesture-play';
 import { TimeMode } from '../../models/time-mode';
 import { ShareJoin } from './share-join/share-join';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../i18n/app-locale';
 
 const PROGRESS_KEY = 'gesture-quiz-progress';
 const SETTINGS_KEY = 'gesture-quiz-settings';
@@ -376,6 +378,7 @@ describe('GesturePlay', () => {
     assignments.get.and.callFake(() => of(assignmentDetail()));
     TestBed.configureTestingModule({
       providers: [
+        provideNzI18n(appLocale),
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),

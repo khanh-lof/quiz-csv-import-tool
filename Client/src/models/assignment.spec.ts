@@ -1,6 +1,10 @@
 import { TIME_MODE_LABELS } from './time-mode';
 import { QuizLanguage } from './quiz-language';
 import { HttpErrorResponse } from '@angular/common/http';
+import { TestBed } from '@angular/core/testing';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../i18n/app-locale';
+import { Messages } from '../i18n/messages';
 import {
   Assignment,
   AssignmentDetail,
@@ -236,19 +240,25 @@ describe('formatClose and formatStamp', () => {
 
 describe('assignmentStatusText', () => {
   const now = new Date(2026, 9, 14, 12, 0);
+  let messages: Messages;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideNzI18n(appLocale)] });
+    messages = TestBed.inject(Messages);
+  });
 
   it('says closed for a closed assignment', () => {
-    expect(assignmentStatusText(assignment({ closedAt: local(2026, 10, 14, 11) }), now)).toBe('Đã đóng');
-    expect(assignmentStatusText(assignment({ closesAt: local(2026, 10, 14, 11) }), now)).toBe('Đã đóng');
+    expect(assignmentStatusText(assignment({ closedAt: local(2026, 10, 14, 11) }), now, messages)).toBe('Đã đóng');
+    expect(assignmentStatusText(assignment({ closesAt: local(2026, 10, 14, 11) }), now, messages)).toBe('Đã đóng');
   });
 
   it('gives the closing time of an open assignment that has one', () => {
-    expect(assignmentStatusText(assignment({ closesAt: local(2026, 10, 14, 21, 30) }), now))
+    expect(assignmentStatusText(assignment({ closesAt: local(2026, 10, 14, 21, 30) }), now, messages))
       .toBe('Đang mở · đóng lúc 21:30 14/10');
   });
 
   it('just says open without a closing time', () => {
-    expect(assignmentStatusText(assignment(), now)).toBe('Đang mở');
+    expect(assignmentStatusText(assignment(), now, messages)).toBe('Đang mở');
   });
 });
 
@@ -438,24 +448,31 @@ describe('attemptsLeft', () => {
 });
 
 describe('assignmentErrorMessage', () => {
+  let messages: Messages;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideNzI18n(appLocale)] });
+    messages = TestBed.inject(Messages);
+  });
+
   const failure = (status: number, error: unknown = '') => new HttpErrorResponse({
     status,
     error
   });
 
   it('turns the plain-text answers of the server into advice', () => {
-    expect(assignmentErrorMessage(failure(409, 'Too many assignments.'))).toContain('Tối đa 100 bài');
-    expect(assignmentErrorMessage(failure(404, 'Job not found'))).toContain('Không tìm thấy quiz');
-    expect(assignmentErrorMessage(failure(400, 'Invalid closing time.\n'))).toContain('sau bây giờ');
-    expect(assignmentErrorMessage(failure(400, 'Invalid pass percents.'))).toContain('10% đến 100%');
-    expect(assignmentErrorMessage(failure(400, 'Invalid replay limit.'))).toContain('1–10');
+    expect(assignmentErrorMessage(failure(409, 'Too many assignments.'), messages)).toContain('Tối đa 100 bài');
+    expect(assignmentErrorMessage(failure(404, 'Job not found'), messages)).toContain('Không tìm thấy quiz');
+    expect(assignmentErrorMessage(failure(400, 'Invalid closing time.\n'), messages)).toContain('sau bây giờ');
+    expect(assignmentErrorMessage(failure(400, 'Invalid pass percents.'), messages)).toContain('10% đến 100%');
+    expect(assignmentErrorMessage(failure(400, 'Invalid replay limit.'), messages)).toContain('1–10');
   });
 
   it('explains a lost connection, an expired login and anything unknown', () => {
-    expect(assignmentErrorMessage(failure(0))).toContain('Mất kết nối');
-    expect(assignmentErrorMessage(failure(401))).toContain('đăng nhập');
-    expect(assignmentErrorMessage(failure(400, 'Something else'))).toBe('Thông tin chưa hợp lệ.');
-    expect(assignmentErrorMessage(failure(500))).toBe('Thử lại.');
-    expect(assignmentErrorMessage(new Error('x'))).toBe('Thử lại.');
+    expect(assignmentErrorMessage(failure(0), messages)).toContain('Mất kết nối');
+    expect(assignmentErrorMessage(failure(401), messages)).toContain('đăng nhập');
+    expect(assignmentErrorMessage(failure(400, 'Something else'), messages)).toBe('Thông tin chưa hợp lệ.');
+    expect(assignmentErrorMessage(failure(500), messages)).toBe('Thử lại.');
+    expect(assignmentErrorMessage(new Error('x'), messages)).toBe('Thử lại.');
   });
 });

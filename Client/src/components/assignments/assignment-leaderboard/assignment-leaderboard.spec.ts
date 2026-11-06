@@ -3,7 +3,9 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, discardPeriodicTasks, fakeAsync, flush, TestBed, tick } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { appLocale } from '../../../i18n/app-locale';
 import { of } from 'rxjs';
 import { Assignment, AssignmentDetail, LeaderboardEntry } from '../../../models/assignment';
 import { AssignmentLeaderboard } from './assignment-leaderboard';
@@ -162,6 +164,7 @@ describe('AssignmentLeaderboard', () => {
     TestBed.configureTestingModule({
       imports: [AssignmentLeaderboard],
       providers: [
+        provideNzI18n(appLocale),
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),

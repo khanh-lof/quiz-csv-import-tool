@@ -7,11 +7,11 @@
     <p class="label">{{ label() }}</p>
   }
   @if (closeText()) {
-    <p class="closing">Bài đóng lúc {{ closeText() }}</p>
+    <p class="closing">{{ 'play.join.closesAt' | msg: { time: closeText() } }}</p>
   }
 
   <div class="field">
-    <label class="field-label" for="player-name">Tên của bạn</label>
+    <label class="field-label" for="player-name">{{ 'play.join.nameLabel' | msg }}</label>
     <input #nameInput (keydown.enter)="onEnter($event)" (ngModelChange)="name.set($event ?? '')" [attr.aria-describedby]="error() ? 'player-name-error' : null" [attr.aria-invalid]="!!error()" [class.ant-input-status-error]="!!error()" [ngModel]="name()"
            autocomplete="off" autofocus
            id="player-name"
@@ -22,12 +22,12 @@
   </div>
 
   <div class="field">
-    <span class="field-label">Chọn hình đại diện</span>
+    <span class="field-label">{{ 'play.join.pickAvatar' | msg }}</span>
     <kt-quiz-avatar-picker [(value)]="avatar"/>
   </div>
 
   <button (click)="submit()" [disabled]="trimmed() === '' || busy()" [nzLoading]="busy()" class="join-button" nz-button
           nzSize="large" nzType="primary" type="button">
-    Vào chơi
+    {{ 'play.join.submit' | msg }}
   </button>
 </section>

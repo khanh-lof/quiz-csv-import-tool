@@ -1,4 +1,8 @@
-import { AiJob, AiJobFilter, failedJobMessage, filterJobs, lessonLabel } from './ai-job';
+import { TestBed } from '@angular/core/testing';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../i18n/app-locale';
+import { Messages } from '../i18n/messages';
+import { AiJob, AiJobFilter, failedJobMessage as failedMessage, filterJobs, lessonLabel } from './ai-job';
 import { ExportType } from './export-type';
 import { CourseType } from './course-type';
 import { HskStandard } from './hsk-standard';
@@ -280,6 +284,10 @@ describe('lessonLabel', () => {
 });
 
 describe('failedJobMessage', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [provideNzI18n(appLocale)] }));
+
+  const failedJobMessage = (failedJob: AiJob) => failedMessage(failedJob, TestBed.inject(Messages));
+
   it('words the "not enough words" failure of a Ghép bộ thủ job', () => {
     const failed = job({ status: 'failed', exportType: ExportType.Radicals, errorStatus: 422, errorMessage: 'No lesson has enough words for a group.' });
     expect(failedJobMessage(failed)).toContain('đủ từ');

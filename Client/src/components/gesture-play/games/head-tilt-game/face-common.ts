@@ -1,3 +1,4 @@
+import type { MessageKey } from '../../../../i18n/messages';
 import { eyeRoll, FACE_LEFT_EYE_OUTER, FACE_NOSE_TIP, FACE_RIGHT_EYE_OUTER, } from '../../../../game/gestures';
 import type { FaceFrame } from '../../../../game/stage-game';
 
@@ -148,21 +149,21 @@ export class FaceCalibrator {
 }
 
 // Why the face cannot be used right now, or null when exactly one face is in view.
-export function faceProblemMessage(faces: number): string | null {
+export function faceProblemMessage(faces: number): MessageKey | null {
   if (faces === 1) {
     return null;
   }
-  return faces > 1 ? 'Chỉ một khuôn mặt' : 'Chưa thấy mặt';
+  return faces > 1 ? 'play.face.onlyOne' : 'play.face.notSeen';
 }
 
-export function calibrationMessage(status: CalibrationStatus): string {
+export function calibrationMessage(status: CalibrationStatus): MessageKey {
   if (status === 'no-face') {
-    return faceProblemMessage(0) ?? '';
+    return 'play.face.notSeen';
   }
   if (status === 'many-faces') {
-    return faceProblemMessage(2) ?? '';
+    return 'play.face.onlyOne';
   }
-  return 'Nhìn thẳng vào camera';
+  return 'play.face.lookStraight';
 }
 
 // A card's text split into the word and the note in brackets after it, e.g. '水 (shuǐ)' into '水' and

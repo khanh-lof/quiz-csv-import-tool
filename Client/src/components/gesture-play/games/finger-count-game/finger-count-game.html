@@ -65,9 +65,9 @@
 
   @if (cameraActive()) {
     <div [class.hidden]="locked()" class="status">
-      <b [class.seen]="view().count >= 0" class="badge">{{ badge() }}</b>
-      @if (status()) {
-        <span class="hint">{{ status() }}</span>
+      <b [class.seen]="view().count >= 0" class="badge">{{ badge().key | msg: badge().params }}</b>
+      @if (status(); as statusKey) {
+        <span class="hint">{{ statusKey | msg }}</span>
       }
     </div>
   }

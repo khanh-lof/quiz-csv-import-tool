@@ -241,9 +241,9 @@ describe('badge and status', () => {
   const view = (partial: Partial<FingerView>): FingerView => ({ ...IDLE_FINGER_VIEW, ...partial });
 
   it('names what the camera sees', () => {
-    expect(fingerBadge(NO_HAND)).toBe('Chưa thấy bàn tay');
-    expect(fingerBadge(0)).toBe('Nắm tay');
-    expect(fingerBadge(3)).toBe('3 ngón');
+    expect(fingerBadge(NO_HAND)).toEqual({ key: 'play.hand.notSeen' });
+    expect(fingerBadge(0)).toEqual({ key: 'play.finger.fist' });
+    expect(fingerBadge(3)).toEqual({ key: 'play.finger.count', params: { count: 3 } });
   });
 
   it('shows no text while a card is charging', () => {
@@ -259,7 +259,7 @@ describe('badge and status', () => {
     expect(fingerStatus(view({
       armed: false,
       count: 2
-    }))).toBe('Nắm tay lại');
+    }))).toBe('play.finger.fistAgain');
   });
 
   it('shows no text otherwise', () => {

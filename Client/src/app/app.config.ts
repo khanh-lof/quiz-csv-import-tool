@@ -8,9 +8,10 @@ import {
 import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
-import { en_US, provideNzI18n } from 'ng-zorro-antd/i18n';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../i18n/app-locale';
 import { registerLocaleData } from '@angular/common';
-import en from '@angular/common/locales/en';
+import vi from '@angular/common/locales/vi';
 import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/common/http';
 import { AuthInterceptor } from '../services/auth.interceptor';
 import { finalize, firstValueFrom, of } from 'rxjs';
@@ -21,7 +22,7 @@ import { provideNzConfig } from 'ng-zorro-antd/core/config';
 import { provideNzDateFnsAdapter } from 'ng-zorro-antd/core/time';
 
 
-registerLocaleData(en);
+registerLocaleData(vi);
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -29,7 +30,7 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideAnimationsAsync(),
     provideRouter(routes),
-    provideNzI18n(en_US),
+    provideNzI18n(appLocale),
     provideNzConfig({ notification: { nzPlacement: 'top' } }),
     provideHttpClient(withXhr(), withInterceptorsFromDi()),
     provideAppInitializer(() =>

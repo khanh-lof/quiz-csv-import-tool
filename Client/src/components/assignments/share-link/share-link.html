@@ -3,7 +3,7 @@
   <div class="details">
     <p class="code">Mã bài: <span class="code-text">{{ code() }}</span></p>
     <div class="link-row">
-      <input #linkInput (focus)="selectLink()" [value]="url()" aria-label="Link bài" class="link" nz-input readonly/>
+      <input #linkInput (focus)="selectLink()" [value]="url()" [attr.aria-label]="'assignments.share.linkLabel' | msg" class="link" nz-input readonly/>
       <button (click)="copy()" nz-button nzType="primary" type="button">
         <nz-icon nzTheme="outline" nzType="copy"/>
         Sao chép link

@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NgModel } from '@angular/forms';
 import { By } from '@angular/platform-browser';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../../i18n/app-locale';
 import { provideNzDateFnsAdapter } from 'ng-zorro-antd/core/time';
 import { NzDatePickerComponent } from 'ng-zorro-antd/date-picker';
 import { DeadlinePicker } from './deadline-picker';
@@ -12,7 +14,7 @@ describe('DeadlinePicker', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [DeadlinePicker],
-      providers: [provideNzDateFnsAdapter()]
+      providers: [provideNzDateFnsAdapter(), provideNzI18n(appLocale)]
     }).compileComponents();
     fixture = TestBed.createComponent(DeadlinePicker);
     picker = fixture.componentInstance;

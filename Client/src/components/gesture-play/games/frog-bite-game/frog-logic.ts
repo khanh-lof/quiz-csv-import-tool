@@ -1,3 +1,4 @@
+import type { MessageKey } from '../../../../i18n/messages';
 import { BiteDetector } from '../../../../game/gestures';
 import type { FaceFrame } from '../../../../game/stage-game';
 import type { FacePose } from '../head-tilt-game/face-common';
@@ -87,7 +88,7 @@ export class LaneTracker {
 export interface FrogStep {
   // No single usable face this frame; `problem` says why in words.
   invalid: boolean;
-  problem: string | null;
+  problem: MessageKey | null;
   lane: Lane;
   laneChanged: boolean;
   // Head shift in screen space, in eye spans (positive = toward the right lane).
@@ -196,18 +197,18 @@ export class FrogReader {
 }
 
 // What the hint under the mouth meter says.
-export function frogHint(step: FrogStep): string {
+export function frogHint(step: FrogStep): MessageKey | '' {
   if (step.problem) {
     return step.problem;
   }
   if (step.mouthOpen) {
-    return 'Khép miệng để đớp';
+    return 'play.frog.closeToBite';
   }
   if (step.waitingForClosedMouth) {
-    return 'Khép miệng lại';
+    return 'play.frog.closeAgain';
   }
   if (!step.stable) {
     return '';
   }
-  return 'Há rồi khép miệng để đớp';
+  return 'play.frog.openThenClose';
 }

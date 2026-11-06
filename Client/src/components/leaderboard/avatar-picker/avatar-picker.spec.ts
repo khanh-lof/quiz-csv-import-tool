@@ -2,13 +2,15 @@ import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AVATARS } from '../../../models/avatar';
 import { AvatarPicker } from './avatar-picker';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../../i18n/app-locale';
 
 describe('AvatarPicker', () => {
   let fixture: ComponentFixture<AvatarPicker>;
   let picker: AvatarPicker;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [AvatarPicker] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [AvatarPicker], providers: [provideNzI18n(appLocale)] }).compileComponents();
     fixture = TestBed.createComponent(AvatarPicker);
     picker = fixture.componentInstance;
     fixture.detectChanges();
@@ -232,7 +234,7 @@ class Host {
 
 describe('AvatarPicker with two-way binding', () => {
   it('shows the bound value and writes a choice back', async () => {
-    await TestBed.configureTestingModule({ imports: [Host] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [Host], providers: [provideNzI18n(appLocale)] }).compileComponents();
     const fixture = TestBed.createComponent(Host);
     fixture.detectChanges();
     const radios = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button[role="radio"]'));

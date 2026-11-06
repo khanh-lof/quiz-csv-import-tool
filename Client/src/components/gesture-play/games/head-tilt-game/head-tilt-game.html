@@ -20,7 +20,7 @@
         type="button">
         <span class="chip">
           <kbd>{{ card.index === 0 ? '←' : '→' }}</kbd>
-          {{ card.index === 0 ? 'Trái' : 'Phải' }}
+          {{ (card.index === 0 ? 'play.tilt.left' : 'play.tilt.right') | msg }}
         </span>
         @if (card.pinyin) {
           <span class="pinyin">{{ card.pinyin }}</span>
@@ -70,8 +70,8 @@
             <div class="track"><i [style.left.%]="meterLeft()"></i></div>
             <span>→</span>
           </div>
-          @if (hintText()) {
-            <p [class.warn]="problem()" class="hint">{{ hintText() }}</p>
+          @if (hintText(); as hintKey) {
+            <p [class.warn]="problem()" class="hint">{{ hintKey | msg }}</p>
           }
         </div>
       }

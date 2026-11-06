@@ -42,9 +42,9 @@
     }
   </div>
 
-  @if (cameraActive() && status()) {
+  @if (cameraActive() && status(); as statusKey) {
     <p [class.active]="view().choice !== null" [class.hidden]="locked()" class="status">
-      {{ status() }}
+      {{ statusKey | msg }}
     </p>
   }
 </div>

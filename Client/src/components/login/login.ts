@@ -12,6 +12,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { AuthService } from '../../services/auth.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { Messages, MessagePipe } from '../../i18n/messages';
 
 @Component({
   selector: 'kt-quiz-login',
@@ -26,7 +27,8 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
     NzCheckboxModule,
     NzSpinModule,
     NzIconModule,
-    RouterLink
+    RouterLink,
+    MessagePipe
   ],
   templateUrl: './login.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -42,6 +44,7 @@ export class LoginComponent implements OnInit {
   private fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
   private readonly notificationService = inject(NzNotificationService);
+  private readonly messages = inject(Messages);
 
   // Where to go after logging in, e.g. back to the table with the AI popup reopened. Only an in-app path
   // is accepted ("/…" but not "//…"), so the query param cannot send the user to another site.
@@ -83,16 +86,16 @@ export class LoginComponent implements OnInit {
       },
       error: (error) => {
         this.isLoading = false;
-        let errorMessage = 'Thử lại.';
+        let errorMessage = this.messages.get('common.tryAgain');
         if (error.status === 401) {
-          errorMessage = 'Sai tên đăng nhập hoặc mật khẩu.';
+          errorMessage = this.messages.get('app.login.wrongCredentials');
         } else if (error.status === 429) {
           const minutes = Math.ceil(Number(error.headers?.get('Retry-After') ?? 60) / 60);
-          errorMessage = `Sai quá nhiều lần. Thử lại sau ${minutes} phút.`;
+          errorMessage = this.messages.get('app.login.tooManyAttempts', { minutes });
         } else if (error.status === 0) {
-          errorMessage = 'Kiểm tra mạng rồi thử lại.';
+          errorMessage = this.messages.get('common.checkNetwork');
         }
-        this.notificationService.error('Đăng nhập thất bại', errorMessage);
+        this.notificationService.error(this.messages.get('app.login.failed'), errorMessage);
       }
     });
   }

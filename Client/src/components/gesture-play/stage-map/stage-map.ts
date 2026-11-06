@@ -6,6 +6,7 @@ import { NzPopconfirmDirective } from 'ng-zorro-antd/popconfirm';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { NzSwitchComponent } from 'ng-zorro-antd/switch';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
+import { MessagePipe, Messages } from '../../../i18n/messages';
 import { DEFAULT_PASS_PERCENT, StageDef, stagePosition, STAGES } from '../../../game/stages';
 import { passPercentOf } from '../../../models/assignment';
 import { TIME_MODE_LABELS, TimeMode } from '../../../models/time-mode';
@@ -51,6 +52,7 @@ interface StageCard {
     NzRadioGroupComponent,
     NzSwitchComponent,
     NzTagComponent,
+    MessagePipe,
   ],
   templateUrl: './stage-map.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -89,6 +91,7 @@ export class GestureStageMap {
     this.cards().reduce((sum, card) => sum + (card.best?.correct ?? 0) * POINTS_PER_CORRECT, 0));
   protected readonly pointsPerCorrect = POINTS_PER_CORRECT;
   protected readonly timeModeLabels = TIME_MODE_LABELS;
+  private readonly messages = inject(Messages);
   private readonly progress = inject(GestureProgressService);
   protected readonly cards = computed<StageCard[]>(() => {
     const quiz = this.quiz();
@@ -106,13 +109,23 @@ export class GestureStageMap {
         best: this.progress.best(quiz.key, def.stage),
         status,
         // A stage the tag already calls "Hết lượt" does not say it twice.
-        attemptsText: left === null ? '' : left > 0 ? `Còn ${left} lượt` : status === 'used' ? '' : 'Hết lượt',
+        attemptsText: this.attemptsText(left, status),
         playable: status !== 'locked' && status !== 'used' && left !== 0,
       };
     });
   });
   private readonly settingsService = inject(GestureSettingsService);
   protected readonly settings = this.settingsService.settings;
+
+  private attemptsText(left: number | null, status: StageStatus): string {
+    if (left === null) {
+      return '';
+    }
+    if (left > 0) {
+      return this.messages.get('play.map.attemptsLeft', { count: left });
+    }
+    return status === 'used' ? '' : this.messages.get('play.map.noAttempts');
+  }
 
   protected setTimeMode(mode: TimeMode): void {
     this.settingsService.update({ timeMode: mode });

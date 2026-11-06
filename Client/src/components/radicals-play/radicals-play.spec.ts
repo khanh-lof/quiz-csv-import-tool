@@ -2,9 +2,12 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { ModalOptions, NzModalService } from 'ng-zorro-antd/modal';
 import { Observable, of } from 'rxjs';
+import { appLocale } from '../../i18n/app-locale';
+import { Messages } from '../../i18n/messages';
 import { AiJob } from '../../models/ai-job';
 import { ExportType } from '../../models/export-type';
 import { RadicalsEdit } from '../../models/radicals-edit';
@@ -13,6 +16,7 @@ import { RadicalsPlay, reviewLines } from './radicals-play';
 
 describe('reviewLines', () => {
   it('writes one line per kind of item and leaves the empty kinds out', () => {
+    TestBed.configureTestingModule({ providers: [provideNzI18n(appLocale)] });
     const lines = reviewLines({
       aiWords: ['借', '还'],
       uncertainWords: [],
@@ -22,7 +26,7 @@ describe('reviewLines', () => {
       pinyinWarnings: [{ lesson: 1, word: '还', char: '还', syllable: 'hǎi', readings: ['hái', 'huán'] }],
       skippedLessons: [{ lesson: 2, usableWordCount: 4, unusableWords: ['一'] }],
       missingGlyphs: [],
-    });
+    }, TestBed.inject(Messages));
     expect(lines.map(line => line.label)).toEqual([
       'Pinyin, nghĩa do AI điền', 'Pinyin cần xem (bài 1)', 'Bài 2 bị bỏ', 'Nghĩa chữ do AI điền'
     ]);
@@ -69,6 +73,7 @@ describe('RadicalsPlay', () => {
     TestBed.configureTestingModule({
       imports: [RadicalsPlay],
       providers: [
+        provideNzI18n(appLocale),
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),

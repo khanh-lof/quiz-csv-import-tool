@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"quiz-csv-import-tool/server/internal/gesturequiz"
 )
@@ -172,6 +174,10 @@ func (o Options) CourseDisplayName() string {
 	return o.CourseName
 }
 
+// MaxCourseNameLength is the longest courseName accepted, in characters. Keep it equal to the
+// course name input's maxlength in Client/src/components/ai-generation/ai-generation.html.
+const MaxCourseNameLength = 100
+
 // ParseCreativeOptions reads the creative-mode query parameters. The error text is returned to
 // the client as-is.
 func ParseCreativeOptions(q url.Values) (Options, error) {
@@ -211,6 +217,10 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 		opts.CourseName = strings.TrimSpace(q.Get("courseName"))
 		if opts.CourseName == "" {
 			return Options{}, errors.New("Invalid or missing courseName parameter.")
+		}
+		// The name goes into the model's prompt verbatim, so it is kept to one short line.
+		if utf8.RuneCountInString(opts.CourseName) > MaxCourseNameLength || strings.ContainsFunc(opts.CourseName, unicode.IsControl) {
+			return Options{}, fmt.Errorf("courseName must be one line of at most %d characters.", MaxCourseNameLength)
 		}
 	}
 

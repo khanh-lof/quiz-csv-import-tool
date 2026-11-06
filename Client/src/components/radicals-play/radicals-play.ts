@@ -24,6 +24,7 @@ import { NzInputDirective } from 'ng-zorro-antd/input';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
+import { MessagePipe, Messages } from '../../i18n/messages';
 import { AiJob } from '../../models/ai-job';
 import { ExportType } from '../../models/export-type';
 import { hasReviewItems, RadicalsReview, radicalsReviewOf } from '../../models/radicals-review';
@@ -57,7 +58,7 @@ interface ReviewLine {
 @Component({
   selector: 'kt-quiz-radicals-play',
   imports: [RouterLink, FormsModule, NzButtonComponent, NzIconDirective, NzSpinComponent, NzAlertComponent, NzInputDirective,
-    NzTableModule, NzTagComponent, NzModalModule],
+    NzTableModule, NzTagComponent, NzModalModule, MessagePipe],
   templateUrl: './radicals-play.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './radicals-play.css',
@@ -69,6 +70,7 @@ export class RadicalsPlay implements OnInit, LeaveCheck {
   private readonly sanitizer = inject(DomSanitizer);
   private readonly modalService = inject(NzModalService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly messages = inject(Messages);
 
   private readonly frameBox = viewChild<ElementRef<HTMLElement>>('frameBox');
 
@@ -87,13 +89,16 @@ export class RadicalsPlay implements OnInit, LeaveCheck {
   });
   protected readonly review = computed(() => {
     const review = this.reviewData();
-    return review && hasReviewItems(review) ? reviewLines(review) : [];
+    return review && hasReviewItems(review) ? reviewLines(review, this.messages) : [];
   });
   // The dictionary's readings of a word's character whose pinyin looks wrong, shown under the word's pinyin.
   protected readonly readingHints = computed(() => {
     const hints = new Map<string, string>();
     for (const warning of this.reviewData()?.pinyinWarnings ?? []) {
-      const hint = `${warning.char} đọc ${warning.readings.join(' / ')}`;
+      const hint = this.messages.get('ai.radicals.review.reading', {
+        char: warning.char,
+        readings: warning.readings.join(' / ')
+      });
       hints.set(warning.word, hints.has(warning.word) ? `${hints.get(warning.word)}; ${hint}` : hint);
     }
     return hints;
@@ -162,7 +167,7 @@ export class RadicalsPlay implements OnInit, LeaveCheck {
       },
       error: (err: unknown) => {
         this.editLoading.set(false);
-        this.editError.set(radicalsEditError(err, 'Không tải được. Thử lại.'));
+        this.editError.set(radicalsEditError(err, 'ai.radicals.loadRetry', this.messages));
       },
     });
   }
@@ -187,10 +192,10 @@ export class RadicalsPlay implements OnInit, LeaveCheck {
 
   private confirmDiscard(answer: (discard: boolean) => void): void {
     this.modalService.confirm({
-      nzTitle: 'Bỏ các thay đổi chưa lưu?',
-      nzOkText: 'Bỏ',
+      nzTitle: this.messages.get('ai.radicals.discardTitle'),
+      nzOkText: this.messages.get('ai.radicals.discardOk'),
       nzOkDanger: true,
-      nzCancelText: 'Sửa tiếp',
+      nzCancelText: this.messages.get('ai.radicals.discardCancel'),
       nzCentered: true,
       nzOnOk: () => answer(true),
       nzOnCancel: () => answer(false),
@@ -231,10 +236,10 @@ export class RadicalsPlay implements OnInit, LeaveCheck {
         const flagged = flaggedEdit(err);
         if (flagged) {
           this.edit.set(flagged);
-          this.editError.set('Sửa các ô đỏ.');
+          this.editError.set(this.messages.get('ai.radicals.fixRedCells'));
           return;
         }
-        this.editError.set(radicalsEditError(err, 'Không lưu được. Thử lại.'));
+        this.editError.set(radicalsEditError(err, 'ai.radicals.saveRetry', this.messages));
       },
     });
   }
@@ -250,7 +255,7 @@ export class RadicalsPlay implements OnInit, LeaveCheck {
       error: () => {
         this.saving.set(false);
         this.closeEdit();
-        this.saveNotice.set('Đã lưu. Tải lại trang để xem bài mới.');
+        this.saveNotice.set(this.messages.get('ai.radicals.savedReload'));
       },
     });
   }
@@ -267,17 +272,17 @@ export class RadicalsPlay implements OnInit, LeaveCheck {
     // Opened straight from a link or a reload: the history has not been fetched yet.
     this.jobService.refresh().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: jobs => this.load(jobs.find(job => job.id === jobId) ?? null),
-      error: () => this.fail('Không tải được. Tải lại trang.'),
+      error: () => this.fail(this.messages.get('ai.radicals.loadReload')),
     });
   }
 
   private load(job: AiJob | null): void {
     if (!job || job.exportType !== ExportType.Radicals) {
-      this.fail('Không tìm thấy bài này.');
+      this.fail(this.messages.get('common.notFound'));
       return;
     }
     if (job.status !== 'done') {
-      this.fail(job.status === 'running' ? 'AI chưa tạo xong bài này.' : 'Lần tạo này bị lỗi.');
+      this.fail(this.messages.get(job.status === 'running' ? 'ai.radicals.notFinished' : 'common.jobFailed'));
       return;
     }
     this.job.set(job);
@@ -287,8 +292,8 @@ export class RadicalsPlay implements OnInit, LeaveCheck {
         this.screen.set('ready');
       },
       error: (err: unknown) => this.fail(err instanceof HttpErrorResponse && err.status === HttpStatusCode.NotFound
-        ? 'Không tìm thấy bài này.'
-        : 'Không tải được. Tải lại trang.'),
+        ? this.messages.get('common.notFound')
+        : this.messages.get('ai.radicals.loadReload')),
     });
   }
 
@@ -299,27 +304,35 @@ export class RadicalsPlay implements OnInit, LeaveCheck {
 }
 
 // The review in the teacher's words, one line per kind of item, empty kinds left out.
-export function reviewLines(review: RadicalsReview): ReviewLine[] {
+export function reviewLines(review: RadicalsReview, messages: Messages): ReviewLine[] {
   const lines: ReviewLine[] = [];
   const add = (label: string, items: string[] | null | undefined) => {
     if (items && items.length > 0) {
       lines.push({ label, text: items.join(', ') });
     }
   };
-  add('AI không chắc', review.uncertainWords);
-  add('Pinyin, nghĩa do AI điền', review.aiWords);
+  add(messages.get('ai.label.uncertain'), review.uncertainWords);
+  add(messages.get('ai.radicals.review.aiWords'), review.aiWords);
   for (const warning of review.pinyinWarnings ?? []) {
     lines.push({
-      label: `Pinyin cần xem (bài ${warning.lesson})`,
-      text: `${warning.word}: ${warning.char} ghi "${warning.syllable}", đọc ${warning.readings.join(' / ')}`
+      label: messages.get('ai.radicals.review.pinyinWarning', { lesson: warning.lesson }),
+      text: messages.get('ai.radicals.review.pinyinWarningText', {
+        word: warning.word,
+        char: warning.char,
+        syllable: warning.syllable,
+        readings: warning.readings.join(' / ')
+      })
     });
   }
-  add('Bỏ vì thiếu pinyin', review.droppedWords);
+  add(messages.get('ai.radicals.review.dropped'), review.droppedWords);
   for (const lesson of review.skippedLessons ?? []) {
-    lines.push({ label: `Bài ${lesson.lesson} bị bỏ`, text: `chỉ ${lesson.usableWordCount} từ ghép bộ được` });
+    lines.push({
+      label: messages.get('ai.radicals.review.skippedLesson', { lesson: lesson.lesson }),
+      text: messages.get('ai.radicals.review.skippedLessonText', { count: lesson.usableWordCount })
+    });
   }
-  add('Nghĩa chữ do AI điền', review.aiChars);
-  add('Bộ do AI điền', review.aiComponents);
-  add('Không vẽ được', review.missingGlyphs);
+  add(messages.get('ai.radicals.review.aiChars'), review.aiChars);
+  add(messages.get('ai.radicals.review.aiComponents'), review.aiComponents);
+  add(messages.get('ai.radicals.review.missingGlyphs'), review.missingGlyphs);
   return lines;
 }

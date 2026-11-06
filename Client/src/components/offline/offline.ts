@@ -7,6 +7,7 @@ import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { OnlineStatusService } from '../../services/online-status.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Messages } from '../../i18n/messages';
 
 @Component({
   selector: 'kt-quiz-offline',
@@ -26,6 +27,7 @@ export class OfflineComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly notificationService = inject(NzNotificationService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly messages = inject(Messages);
 
   ngOnInit(): void {
     this.onlineStatusService.isOnline$
@@ -45,7 +47,7 @@ export class OfflineComponent implements OnInit {
         this.onlineStatusService.navigateToReturnUrl();
       } else {
         this.notificationService.warning(
-          'Chưa có kết nối',
+          this.messages.get('app.offline.notConnected'),
           ''
         );
       }

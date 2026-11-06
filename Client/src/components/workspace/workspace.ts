@@ -15,6 +15,7 @@ import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzMenuDirective, NzMenuItemComponent, NzSubMenuComponent } from 'ng-zorro-antd/menu';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AuthService } from '../../services/auth.service';
+import { MessagePipe } from '../../i18n/messages';
 
 // The pages of the frame, as the routes that host them: the two ways of building a quiz, the history of the
 // AI ones, and the assignments of the gesture quizzes.
@@ -119,7 +120,8 @@ const NARROW_QUERY = '(max-width: 767px)';
     NzIconDirective,
     NzMenuDirective,
     NzMenuItemComponent,
-    NzSubMenuComponent
+    NzSubMenuComponent,
+    MessagePipe
   ],
   templateUrl: './workspace.html',
   changeDetection: ChangeDetectionStrategy.Eager,

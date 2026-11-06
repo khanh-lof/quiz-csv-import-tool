@@ -1,7 +1,9 @@
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { appLocale } from '../i18n/app-locale';
 import { AiJobService, NEW_JOB_IDLE_POLLS } from './ai-job.service';
 import { AuthService } from './auth.service';
 import { AiJob } from '../models/ai-job';
@@ -45,7 +47,7 @@ describe('AiJobService', () => {
   beforeEach(() => {
     notifications = jasmine.createSpyObj('NzNotificationService', ['success', 'error']);
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), {
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideNzI18n(appLocale), {
         provide: NzNotificationService,
         useValue: notifications
       }],

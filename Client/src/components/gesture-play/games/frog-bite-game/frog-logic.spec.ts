@@ -250,11 +250,11 @@ describe('FrogReader', () => {
     }, crowd.end, 200);
     expect(selections([...crowd.results, ...closed.results])).toEqual([]);
     expect(crowd.results.every(step => step.invalid)).toBeTrue();
-    expect(crowd.results[0].problem).toBe('Chỉ một khuôn mặt');
+    expect(crowd.results[0].problem).toBe('play.face.onlyOne');
     expect(crowd.results[0].lane).toBe(1);
 
     const none = play(reader, { faces: 0 }, closed.end, 100);
-    expect(none.results[0].problem).toBe('Chưa thấy mặt');
+    expect(none.results[0].problem).toBe('play.face.notSeen');
   });
 
   it('does not finish a bite that was in progress when the face was lost', () => {
@@ -312,17 +312,17 @@ describe('frogHint', () => {
   it('says what to do next', () => {
     expect(frogHint({
       ...base,
-      problem: 'Chưa thấy mặt',
+      problem: 'play.face.notSeen',
       invalid: true
-    })).toBe('Chưa thấy mặt');
+    })).toBe('play.face.notSeen');
     expect(frogHint({
       ...base,
       mouthOpen: true
-    })).toBe('Khép miệng để đớp');
+    })).toBe('play.frog.closeToBite');
     expect(frogHint({
       ...base,
       waitingForClosedMouth: true
-    })).toBe('Khép miệng lại');
+    })).toBe('play.frog.closeAgain');
     expect(frogHint({
       ...base,
       stable: false
@@ -330,7 +330,7 @@ describe('frogHint', () => {
     expect(frogHint({
       ...base,
       lane: 2
-    })).toBe('Há rồi khép miệng để đớp');
-    expect(frogHint(base)).toBe('Há rồi khép miệng để đớp');
+    })).toBe('play.frog.openThenClose');
+    expect(frogHint(base)).toBe('play.frog.openThenClose');
   });
 });

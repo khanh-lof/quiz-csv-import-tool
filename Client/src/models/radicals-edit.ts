@@ -1,4 +1,5 @@
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
+import { MessageKey, Messages } from '../i18n/messages';
 
 // What the teacher may correct in a finished "Ghép bộ thủ" exercise, as `GET csv/jobs/{id}/radicals` answers it and
 // `PUT` takes it back with values changed (csvgen.RadicalsEdit on the server, kept in step by hand): the words whose
@@ -78,18 +79,18 @@ export function flaggedEdit(err: unknown): RadicalsEdit | null {
 }
 
 // What a failed load or save of the table says to the teacher; `fallback` for a failure with nothing more to say.
-export function radicalsEditError(err: unknown, fallback: string): string {
+export function radicalsEditError(err: unknown, fallback: MessageKey, messages: Messages): string {
   if (!(err instanceof HttpErrorResponse)) {
-    return fallback;
+    return messages.get(fallback);
   }
   if (err.status === HttpStatusCode.NotFound) {
-    return 'Không tìm thấy bài này.';
+    return messages.get('common.notFound');
   }
   if (err.status === HttpStatusCode.Conflict && err.error === 'Job cannot be edited.') {
-    return 'Bài cũ, không sửa được.';
+    return messages.get('ai.radicals.stale');
   }
   if (err.status === HttpStatusCode.Conflict && err.error === 'No lesson has enough words for a group.') {
-    return 'Không bài nào đủ từ.';
+    return messages.get('ai.radicals.noLesson');
   }
-  return fallback;
+  return messages.get(fallback);
 }

@@ -7,7 +7,7 @@ description: Review every user-facing message in the Client (notifications, hint
 
 The rule, in `Client/AGENTS.md` ("User messages"): the default is no text. A message exists only when the user
 would otherwise be stuck or misled, never explains, and is as short as possible; when unsure, remove it. All UI
-text is Vietnamese, written at the call site (no i18n). NEVER put technical things into user messages.
+text is Vietnamese, kept in `Client/src/i18n/areas` (reuse a key when the text repeats). NEVER put technical things into user messages.
 
 Default scope is the whole `Client/src`; if the user names files or a diff (`git diff`), review only those.
 Report first; edit only when the user asked for fixes.

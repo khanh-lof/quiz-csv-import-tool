@@ -8,6 +8,7 @@ import {
   linkedSignal,
 } from '@angular/core';
 
+import { MessagePipe } from '../../../../i18n/messages';
 import { GameAudio } from '../../../../game/game-audio';
 import { OptionGameBase, QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
 import { HoldSelector, isPlainKey, ringOffset } from '../../../../game/hold-select';
@@ -28,6 +29,7 @@ import {
 @Component({
   selector: 'kt-quiz-true-false-game',
   standalone: true,
+  imports: [MessagePipe],
   providers: [{
     provide: StageGameBase,
     useExisting: forwardRef(() => TrueFalseGame)

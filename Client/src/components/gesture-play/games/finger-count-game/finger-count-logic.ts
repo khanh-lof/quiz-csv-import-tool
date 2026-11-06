@@ -1,3 +1,4 @@
+import type { MessageKey, MessageParams } from '../../../../i18n/messages';
 import { countExtendedFingers } from '../../../../game/gestures';
 import type { HandFrame } from '../../../../game/stage-game';
 import { HoldView, sameProgress, StableReading } from '../../../../game/hold-select';
@@ -61,18 +62,23 @@ export function sameFingerView(a: FingerView, b: FingerView): boolean {
   );
 }
 
+export interface FingerBadge {
+  key: MessageKey;
+  params?: MessageParams;
+}
+
 // The badge that always tells the player what the camera sees.
-export function fingerBadge(count: number): string {
+export function fingerBadge(count: number): FingerBadge {
   if (count === NO_HAND) {
-    return 'Chưa thấy bàn tay';
+    return { key: 'play.hand.notSeen' };
   }
-  return count === 0 ? 'Nắm tay' : `${count} ngón`;
+  return count === 0 ? { key: 'play.finger.fist' } : { key: 'play.finger.count', params: { count } };
 }
 
 // The sentence next to the badge: only the cue to put the hand down after an answer.
-export function fingerStatus(view: FingerView): string {
+export function fingerStatus(view: FingerView): MessageKey | '' {
   if (view.choice === null && !view.armed && view.count > 0) {
-    return 'Nắm tay lại';
+    return 'play.finger.fistAgain';
   }
   return '';
 }

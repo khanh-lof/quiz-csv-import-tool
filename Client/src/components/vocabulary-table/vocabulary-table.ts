@@ -46,6 +46,7 @@ import { WaygroundDelivery } from '../../models/wayground-delivery';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { NzContentComponent, NzLayoutComponent } from 'ng-zorro-antd/layout';
 import { NzTooltipDirective } from 'ng-zorro-antd/tooltip';
+import { Messages, MessagePipe } from '../../i18n/messages';
 
 // The table's rows and chosen template, kept in the browser so a reload or a visit to another screen
 // (the AI page, the login) does not lose what the user typed.
@@ -76,7 +77,8 @@ interface TableDraft {
     NgTemplateOutlet,
     NzModalModule,
     CdkTextareaAutosize,
-    NzTooltipDirective
+    NzTooltipDirective,
+    MessagePipe
   ],
   templateUrl: './vocabulary-table.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -103,6 +105,7 @@ export class VocabularyTable implements OnInit {
               private readonly pendingImportService: PendingImportService,
               private readonly waygroundExtensionService: WaygroundExtensionService,
               private readonly authService: AuthService,
+              private readonly messages: Messages,
               formBuilder: FormBuilder) {
     this.formGroup = formBuilder.group({
       listOfData: formBuilder.array<FormGroup<QuestionDefinitionForm>>(this.createDefaultQuestionFormGroups(), [Validators.minLength(this.minRows), this.duplicateValidator]),
@@ -171,7 +174,7 @@ export class VocabularyTable implements OnInit {
       const rows = this.csvImportService.parseCsv(content);
 
       if (!rows.length) {
-        this.notificationService.warning('Không có dữ liệu', 'File không có dòng hợp lệ.');
+        this.notificationService.warning(this.messages.get('common.noData'), this.messages.get('app.table.noValidRows'));
         return;
       }
 
@@ -191,15 +194,15 @@ export class VocabularyTable implements OnInit {
     const exportTypeControl = this.formGroup.get('exportType')!;
     if (exportTypeControl.value === null) {
       exportTypeControl.markAsDirty();
-      this.notificationService.error('Chưa chọn nền tảng', '');
+      this.notificationService.error(this.messages.get('app.table.platformNotChosen'), '');
       return;
     }
     // Rows left completely empty are ignored rather than blocking the export, as long as enough real
     // rows remain for the builders to draw wrong answers from.
     const filledRowCount = this.questionForms.controls.filter(x => !this.isEmptyRow(x)).length;
     if (filledRowCount < this.minRows) {
-      this.notificationService.error('Chưa đủ câu hỏi',
-        `Cần ít nhất ${this.minRows} câu hỏi có đáp án.`);
+      this.notificationService.error(this.messages.get('app.table.notEnoughQuestions'),
+        this.messages.get('app.table.minRowsWithAnswer', { minRows: this.minRows }));
       return;
     }
     this.removeEmptyControls();
@@ -208,8 +211,8 @@ export class VocabularyTable implements OnInit {
     this.formGroup.markAllAsDirty();
     if (this.formGroup.invalid) {
       const problem = this.questionForms.hasError('duplicateExists')
-        ? 'Có câu hỏi hoặc đáp án trùng'
-        : 'Còn ô trống';
+        ? this.messages.get('app.table.duplicateExists')
+        : this.messages.get('app.table.emptyCells');
       this.notificationService.error(problem, '');
       return;
     }
@@ -222,8 +225,8 @@ export class VocabularyTable implements OnInit {
     if (!exported) return;
     if (publish && exported.xlsx) {
       this.waygroundExtensionService.sendImport(title, exported.fileName, exported.xlsx);
-      this.notificationService.info('Đang tạo quiz trên Wayground…',
-        'Xong sẽ báo link ở đây.');
+      this.notificationService.info(this.messages.get('common.creatingOnWayground'),
+        this.messages.get('common.waygroundLinkHint'));
       return;
     }
   }
@@ -233,8 +236,8 @@ export class VocabularyTable implements OnInit {
       this.deleteAllRows();
       return;
     }
-    confirmDelete(this.modalService, {
-      title: 'Xóa tất cả câu hỏi?',
+    confirmDelete(this.modalService, this.messages, {
+      title: this.messages.get('app.table.confirmDeleteAll'),
       onOk: () => this.deleteAllRows(),
     });
   }

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, model, viewChildren } from '@angular/core';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
+import { MessagePipe } from '../../../i18n/messages';
 import { AVATARS, randomAvatar } from '../../../models/avatar';
 import { PlayerAvatar } from '../player-avatar/player-avatar';
 
@@ -12,7 +13,7 @@ const COLUMNS = 6;
 // none is), and the arrow keys, Home and End move the focus and the choice together, as native radios do.
 @Component({
   selector: 'kt-quiz-avatar-picker',
-  imports: [NzButtonComponent, PlayerAvatar],
+  imports: [NzButtonComponent, PlayerAvatar, MessagePipe],
   templateUrl: './avatar-picker.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './avatar-picker.css',

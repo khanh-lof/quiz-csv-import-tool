@@ -7,15 +7,15 @@
         <div class="left-buttons">
           <kt-quiz-usage-guide>
             <ol>
-              <li>Nhập câu hỏi và đáp án, hoặc mở từ <b>AI › Lịch sử</b> (<b>Mở trong bảng</b>).</li>
-              <li>Chọn nền tảng rồi tải file.</li>
+              <li [innerHTML]="'app.table.guideSteps' | msg"></li>
+              <li>{{ 'app.table.guideExport' | msg }}</li>
             </ol>
-            <p>Cần ít nhất {{ minRows }} câu, không trùng nhau; dòng trống bị bỏ qua.</p>
-            <p><b>Trắc nghiệm</b>: đáp án sai lấy từ đáp án của các câu khác.</p>
-            <p>Wayground: có thể dùng <b>Tiện ích tự publish</b> (@if (loggedIn) {<a
-              (click)="downloadExtension($event)" href="/api/extension">tải về</a>, }<a
+            <p>{{ 'app.table.guideRules' | msg: { minRows } }}</p>
+            <p [innerHTML]="'app.table.guideMultipleChoice' | msg"></p>
+            <p>{{ 'app.table.guideWaygroundLead' | msg }} <b>{{ 'app.wayground.extensionDelivery' | msg }}</b> (@if (loggedIn) {<a
+              (click)="downloadExtension($event)" href="/api/extension">{{ 'app.table.guideDownload' | msg }}</a>, }<a
               href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
-              target="_blank">cách cài</a>).</p>
+              target="_blank">{{ 'app.table.guideInstall' | msg }}</a>).</p>
           </kt-quiz-usage-guide>
           <button (click)="confirmDeleteAllRows()" nz-button nzType="text" type="button">
             <nz-icon nzTheme="outline" nzType="delete"/>
@@ -26,7 +26,7 @@
         <div class="right-buttons">
 
           <!-- Select page template -->
-          <nz-select formControlName="exportType" nzPlaceHolder="Tạo quiz cho" nzSize="large">
+          <nz-select formControlName="exportType" [nzPlaceHolder]="'app.table.exportPlaceholder' | msg" nzSize="large">
             <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
             <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
             <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
@@ -37,8 +37,8 @@
               <label [nzValue]="WaygroundDelivery.Download" nz-radio-button>Tải file</label>
               <label [nzDisabled]="!extensionInstalled" [nzValue]="WaygroundDelivery.Extension"
                      nz-tooltip
-                     [nzTooltipTitle]="extensionInstalled ? '' : 'Chưa cài tiện ích QuizTool'"
-                     nz-radio-button>Tiện ích tự publish</label>
+                     [nzTooltipTitle]="extensionInstalled ? '' : ('common.extensionMissing' | msg)"
+                     nz-radio-button>{{ 'app.wayground.extensionDelivery' | msg }}</label>
             </nz-radio-group>
           }
           <!-- Always shown: clicking it explains what is still missing (template, rows) instead of the
@@ -86,20 +86,20 @@
                 <textarea #rowSourceInputs [formControl]="item.controls.question" cdkTextareaAutosize
                           nz-input></textarea>
                 <ng-container
-                  *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: 'Trùng câu hỏi', $implicit: item.controls.question}"/>
+                  *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: ('app.table.duplicateQuestion' | msg), $implicit: item.controls.question}"/>
                 <ng-container
-                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: item.controls.question}"/>
+                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('common.required' | msg), $implicit: item.controls.question}"/>
               </td>
               <td class="cell-flex">
                 <textarea #rowSourceInputs [formControl]="item.controls.answer" cdkTextareaAutosize nz-input></textarea>
                 <ng-container
-                  *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: 'Trùng đáp án', $implicit: item.controls.answer}"/>
+                  *ngTemplateOutlet="errorMessage; context : { errorKey: duplicateErrorKey, message: ('app.table.duplicateAnswer' | msg), $implicit: item.controls.answer}"/>
                 <ng-container
-                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: 'Nhập thiếu nàaa', $implicit: item.controls.answer}"/>
+                  *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('common.required' | msg), $implicit: item.controls.answer}"/>
               </td>
               @if (formGroup.get('exportType')?.value === ExportType.Wayground) {
                 <td class="cell-flex">
-                  <nz-select [formControl]="item.controls.questionType" nzPlaceHolder="Chọn loại câu hỏi">
+                  <nz-select [formControl]="item.controls.questionType" [nzPlaceHolder]="'app.table.questionTypePlaceholder' | msg">
                     <nz-option [nzValue]="QuestionType.MultipleChoice" nzLabel="Trắc nghiệm"></nz-option>
                     <nz-option [nzValue]="QuestionType.FillInTheBlank" nzLabel="Điền từ"></nz-option>
                   </nz-select>
@@ -107,7 +107,7 @@
               }
               @if (tableWord.data.length > minRows) {
                 <td style="text-align: center">
-                  <button (click)="deleteRow(i)" aria-label="Xóa dòng" nz-button nzShape="circle" nzType="text"
+                  <button (click)="deleteRow(i)" [attr.aria-label]="'app.table.deleteRow' | msg" nz-button nzShape="circle" nzType="text"
                           type="button">
                     <nz-icon nzTheme="outline" nzType="delete"/>
                   </button>

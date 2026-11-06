@@ -1,7 +1,9 @@
-import { Injectable, Signal, signal } from '@angular/core';
+import { inject, Injectable, Signal, signal } from '@angular/core';
 // Type-only: MediaPipe itself is loaded with a dynamic import in `ensureModel`, so it stays in its
 // own lazy chunk and is only downloaded when a player turns the camera on.
 import type { FaceLandmarker, GestureRecognizer } from '@mediapipe/tasks-vision';
+import { Messages } from '../i18n/messages';
+import type { MessageKey } from '../i18n/messages';
 import type { FaceFrame, HandFrame, Point3, VisionFrame, VisionKind } from './stage-game';
 
 export type CameraState = 'off' | 'starting' | 'on' | 'denied' | 'unavailable' | 'error';
@@ -29,12 +31,12 @@ const MIN_DETECT_INTERVAL_MS = 28;
 const MAX_CONSECUTIVE_FAILURES = 6;
 
 const CAMERA_MESSAGES = {
-  denied: 'Camera bị chặn. Cho phép camera cho trang này rồi bật lại.',
-  unavailable: 'Không tìm thấy camera.',
-  unsupported: 'Trình duyệt không hỗ trợ camera. Dùng Chrome hoặc Edge qua HTTPS.',
-  inUse: 'Camera đang được ứng dụng khác dùng. Đóng nó rồi bật lại.',
-  other: 'Không bật được camera.',
-  disconnected: 'Camera bị ngắt. Cắm lại rồi bật lại.',
+  denied: 'play.camera.blocked',
+  unavailable: 'play.camera.notFound',
+  unsupported: 'play.camera.unsupported',
+  inUse: 'play.camera.inUse',
+  other: 'play.camera.failed',
+  disconnected: 'play.camera.disconnected',
 } as const;
 
 // The slices of MediaPipe's results the converters read. Typed structurally (MediaPipe's own result
@@ -111,6 +113,8 @@ export class VisionService {
   // One element for the whole session; the page appends it to its DOM and mirrors it with CSS. The
   // frames MediaPipe sees are never mirrored.
   readonly video: HTMLVideoElement = VisionService.createVideo();
+
+  private readonly messages = inject(Messages);
 
   private readonly cameraStateSignal = signal<CameraState>('off');
   readonly cameraState: Signal<CameraState> = this.cameraStateSignal.asReadonly();
@@ -330,7 +334,7 @@ export class VisionService {
         this.generation++;
         this.releaseStream();
         this.cameraStateSignal.set('off');
-        this.cameraMessageSignal.set(CAMERA_MESSAGES.disconnected);
+        this.cameraMessageSignal.set(this.messages.get(CAMERA_MESSAGES.disconnected));
       }
     });
     await this.startPlayback();
@@ -371,9 +375,9 @@ export class VisionService {
     this.lastVideoTime.face = -1;
   }
 
-  private fail(state: 'denied' | 'unavailable' | 'error', message: string): void {
+  private fail(state: 'denied' | 'unavailable' | 'error', message: MessageKey): void {
     this.cameraStateSignal.set(state);
-    this.cameraMessageSignal.set(message);
+    this.cameraMessageSignal.set(this.messages.get(message));
   }
 
   private failFrom(error: unknown): void {

@@ -10,6 +10,8 @@ import {
   untracked,
 } from '@angular/core';
 
+import type { MessageKey } from '../../../../i18n/messages';
+import { MessagePipe } from '../../../../i18n/messages';
 import { GameAudio } from '../../../../game/game-audio';
 import { clamp } from '../../../../game/gestures';
 import { FaceFrame, OptionGameBase, QuestionView, StageGameBase, VisionFrame } from '../../../../game/stage-game';
@@ -34,7 +36,7 @@ const ARROW_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowDown'];
 // upper half of the bar.
 const MOUTH_FULL = 0.7;
 
-const MISSED_HINT = 'Giữ yên ở một làn rồi đớp';
+const MISSED_HINT = 'play.frog.missed';
 const MISSED_HINT_MS = 1400;
 
 // Stage 3: three lanes, each with one answer; the frog follows the player's head from lane to lane
@@ -42,7 +44,7 @@ const MISSED_HINT_MS = 1400;
 // clicked or picked with 1 / 2 / 3, or the frog is moved with ← ↓ → and bites on Space.
 @Component({
   selector: 'kt-quiz-frog-bite-game',
-  imports: [FaceCalibrationPanel],
+  imports: [FaceCalibrationPanel, MessagePipe],
   providers: [{
     provide: StageGameBase,
     useExisting: forwardRef(() => FrogBiteGame)
@@ -78,7 +80,7 @@ export class FrogBiteGame extends OptionGameBase {
   protected readonly stable = signal(false);
   protected readonly jawOpen = signal(0);
   protected readonly mouthOpen = signal(false);
-  protected readonly hint = signal('');
+  protected readonly hint = signal<MessageKey | ''>('');
   protected readonly problem = signal(false);
   // After a bite the frog stays at the lane it bit.
   protected readonly frogLane = computed<number>(() => this.picked() ?? this.lane());
