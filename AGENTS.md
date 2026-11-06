@@ -647,7 +647,8 @@ two sides guard against both:
 
 - The client shrinks images before upload (`ImageCompressionService.compressForUpload`): JPEG,
   longest side 2048 px, stepping down in size/quality until the batch fits a 4 MB budget, else it
-  refuses the upload itself.
+  refuses the upload itself. The server sniffs each file's bytes and accepts only PNG, JPEG, WebP and GIF
+  (400 `Unsupported image type.`), so the JPEG the client sends always passes.
 - The server bounds each LLM call with `LLM_TIMEOUT_SECONDS` (default 280, under Vercel's limit); hitting
   it fails the job with `504 AI generation timed out.` and refunds the call. The upload itself is a
   separate, short request, so only the generation can hit the time limit.

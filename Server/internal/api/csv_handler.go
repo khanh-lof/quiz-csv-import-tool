@@ -471,12 +471,23 @@ func readImages(w http.ResponseWriter, r *http.Request) ([]csvgen.Image, *reques
 		if err != nil {
 			return nil, uploadError(err)
 		}
-		partType := part.Header.Get("Content-Type")
-		if partType == "" {
-			partType = "application/octet-stream"
+		imageType, ok := detectImageType(data)
+		if !ok {
+			return nil, &requestError{http.StatusBadRequest, "Unsupported image type."}
 		}
-		images = append(images, csvgen.Image{ContentType: partType, Data: data})
+		images = append(images, csvgen.Image{ContentType: imageType, Data: data})
 	}
+}
+
+// detectImageType sniffs the bytes rather than trusting the part's Content-Type header, since the type
+// is written into the data: URL sent to the model.
+func detectImageType(data []byte) (string, bool) {
+	detected := http.DetectContentType(data)
+	switch detected {
+	case "image/png", "image/jpeg", "image/webp", "image/gif":
+		return detected, true
+	}
+	return "", false
 }
 
 // requestError is a client error to answer with as plain text.

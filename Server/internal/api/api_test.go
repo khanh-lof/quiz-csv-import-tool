@@ -326,12 +326,16 @@ func TestCreateUserRequiresAdminKey(t *testing.T) {
 	}
 }
 
+// testPNG starts with the PNG signature, which is all the server's type sniffing looks at.
+const testPNG = "\x89PNG\r\n\x1a\npng-bytes"
+
 type upload struct {
-	query   string
-	token   string
-	files   int
-	rawBody *string // overrides the multipart body when set
-	ctype   *string
+	query    string
+	token    string
+	files    int
+	fileData *string // the content of every file part; testPNG when nil
+	rawBody  *string // overrides the multipart body when set
+	ctype    *string
 }
 
 func (e *testEnv) upload(t *testing.T, u upload) *httptest.ResponseRecorder {
@@ -339,9 +343,13 @@ func (e *testEnv) upload(t *testing.T, u upload) *httptest.ResponseRecorder {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	_ = mw.WriteField("note", "not a file")
+	fileData := testPNG
+	if u.fileData != nil {
+		fileData = *u.fileData
+	}
 	for range u.files {
 		fw, _ := mw.CreateFormFile("images", "lesson.png")
-		_, _ = fw.Write([]byte("png-bytes"))
+		_, _ = fw.Write([]byte(fileData))
 	}
 	_ = mw.Close()
 	var reader io.Reader = &body
@@ -387,8 +395,8 @@ func TestCreateJobFormattedMode(t *testing.T) {
 		job.ExportType != nil {
 		t.Fatalf("job %+v", job)
 	}
-	if len(env.gen.images) != 2 || env.gen.creative || env.gen.images[0].ContentType != "application/octet-stream" ||
-		string(env.gen.images[0].Data) != "png-bytes" {
+	if len(env.gen.images) != 2 || env.gen.creative || env.gen.images[0].ContentType != "image/png" ||
+		string(env.gen.images[0].Data) != testPNG {
 		t.Fatalf("generator got %+v", env.gen)
 	}
 }
@@ -502,6 +510,8 @@ func TestCreateJobRequestErrors(t *testing.T) {
 		{"no boundary", upload{token: token, ctype: ptr("multipart/form-data")}, http.StatusBadRequest, "Missing multipart boundary"},
 		{"empty body", upload{token: token, ctype: ptr("multipart/form-data; boundary=xyz"), rawBody: ptr("")}, http.StatusBadRequest, "Malformed multipart body."},
 		{"truncated", upload{token: token, ctype: ptr("multipart/form-data; boundary=xyz"), rawBody: ptr("--xyz\r\nContent-Disposition: form-data; name=\"images\"; filename=\"a.png\"\r\n\r\nabc")}, http.StatusBadRequest, "Malformed multipart body."},
+		{"not an image", upload{token: token, files: 1, fileData: ptr("plain text, named lesson.png")}, http.StatusBadRequest, "Unsupported image type."},
+		{"image type not allowed", upload{token: token, files: 1, fileData: ptr("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>")}, http.StatusBadRequest, "Unsupported image type."},
 		{"no image", upload{token: token}, http.StatusBadRequest, "Image is required."},
 		{"bad creative options", upload{token: token, query: "?isCreative=true&exportType=9"}, http.StatusBadRequest, "Invalid or missing exportType parameter."},
 		{"bad gesture stages", upload{token: token, query: "?isCreative=true&exportType=3&courseType=0&level=1&lessonNumbers=1&gestureStages=7"}, http.StatusBadRequest, "Invalid gestureStages parameter."},
@@ -631,7 +641,7 @@ func TestCreateJobSurvivesClientDisconnect(t *testing.T) {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	fw, _ := mw.CreateFormFile("images", "lesson.png")
-	_, _ = fw.Write([]byte("png-bytes"))
+	_, _ = fw.Write([]byte(testPNG))
 	_ = mw.Close()
 	req := httptest.NewRequest(http.MethodPost, "/api/csv/jobs", &body).WithContext(ctx)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -896,7 +906,7 @@ func TestRetryJobKeepsImagesForAWhile(t *testing.T) {
 	}
 	retried := env.onlyJob(t, "alice")
 	if retried.Creative || retried.ImageCount != 2 || retried.Title != "Anh" || len(env.gen.images) != 2 ||
-		string(env.gen.images[1].Data) != "png-bytes" {
+		string(env.gen.images[1].Data) != testPNG {
 		t.Fatalf("retried job %+v, generator got %+v", retried, env.gen.images)
 	}
 
@@ -988,5 +998,31 @@ func TestRefreshTokenReuseRevokesSessions(t *testing.T) {
 	req.AddCookie(laptop)
 	if rec := env.do(req); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("other session survived reuse detection: %d", rec.Code)
+	}
+}
+
+func TestDetectImageType(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     string
+		wantType string
+		wantOK   bool
+	}{
+		{"png", testPNG, "image/png", true},
+		{"jpeg", "\xff\xd8\xff\xe0jpeg-bytes", "image/jpeg", true},
+		{"webp", "RIFF\x00\x00\x00\x00WEBPVP8 webp-bytes", "image/webp", true},
+		{"gif", "GIF89a gif-bytes", "image/gif", true},
+		{"bmp", "BMbmp-bytes", "", false},
+		{"pdf", "%PDF-1.7", "", false},
+		{"html", "<html><body>x</body></html>", "", false},
+		{"empty", "", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotType, gotOK := detectImageType([]byte(tt.data))
+			if gotType != tt.wantType || gotOK != tt.wantOK {
+				t.Fatalf("detectImageType = %q, %v; want %q, %v", gotType, gotOK, tt.wantType, tt.wantOK)
+			}
+		})
 	}
 }

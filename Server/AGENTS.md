@@ -147,7 +147,9 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   parameter.`, more than `MaxLessons` (5) is 400 `At most 5 lessons per quiz.`, and for a textbook with embedded
   lessons (below) each must be at most its lesson count: 400 `Lesson must be 1 to <M> for <title>.`, e.g.
   `Lesson must be 1 to 15 for 《新HSK教程2》.` Images are optional only in
-  creative mode. The LLM call runs under `LLM_TIMEOUT_SECONDS`; hitting it fails the job with
+  creative mode. Each file part's type is sniffed from its bytes (`detectImageType`), never taken from the part's
+  `Content-Type`: PNG, JPEG, WebP and GIF pass, anything else is 400 `Unsupported image type.`, checked while the
+  body is read, before any query parameter. The LLM call runs under `LLM_TIMEOUT_SECONDS`; hitting it fails the job with
   `errorStatus` 504 ("AI generation timed out."), other LLM failures with 502. The job also gets an
   `errorCode`, the reason the client words its message by: `timeout`, `nothing_to_play` (handler), `interrupted`
   (`store.ExpiredJobCode`), or `csvgen.FailureCode`'s `truncated`, `filtered`, `provider_config`, `overloaded`,
