@@ -1,0 +1,41 @@
+# Render Blueprint: the High intelligence AI server (Server/cmd/ai-server), free. Everything else, the client
+# included, runs on Vercel (vercel.json), whose Go server forwards the creative jobs at High intelligence here
+# (HIGH_INTELLIGENCE_SERVER_URL, set in the Vercel project to this service's URL). Both servers use the same
+# MongoDB and must share JWT_SECRET and the AI rate-limit settings.
+services:
+  - type: web
+    name: kt-quiz-ai-tool-api
+    runtime: go
+    region: singapore
+    # Must stay set: a web service without a plan is created on a paid one. A free instance sleeps after
+    # 15 minutes without requests and takes about a minute to wake; it keeps itself awake while a job runs.
+    plan: free
+    rootDir: Server
+    buildCommand: go build -trimpath -ldflags="-s -w" -o bin/ai-server ./cmd/ai-server
+    startCommand: ./bin/ai-server
+    healthCheckPath: /healthz
+    # No maxShutdownDelaySeconds: a free instance cannot set it, so Render stops it 30 s after SIGTERM. A deploy
+    # cuts off the AI jobs still running then; they are failed as interrupted and their calls given back.
+    buildFilter:
+      paths:
+        - Server/**
+    envVars:
+      # The values the Vercel project has, so both servers read the same jobs and users and accept the same logins.
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      # Proves a request came from the Vercel server; the same value goes in the Vercel project.
+      - key: HIGH_INTELLIGENCE_PROXY_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: LLM_INTELLIGENCE_MODELS
+        sync: false
+      # Where the jobs' images are kept, so an interrupted job can be resumed and a failed one retried.
+      - key: CLOUDINARY_URL
+        sync: false

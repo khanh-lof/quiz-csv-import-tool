@@ -566,7 +566,7 @@ export class AiGeneration {
             this.choicesByLanguage.set(value, this.choicesOf(byLanguage[value]));
           }
         }
-        const shared = (['AIMode'] as const).filter(key => settings?.[key] !== undefined);
+        const shared = (['AIMode', 'intelligence'] as const).filter(key => settings?.[key] !== undefined);
         this.formGroup.patchValue({ language, ...Object.fromEntries(shared.map(key => [key, settings[key]])) }, { emitEvent: false });
         this.shownLanguage = language;
       }
@@ -578,10 +578,11 @@ export class AiGeneration {
   private saveSettings(): void {
     try {
       this.choicesByLanguage.set(this.shownLanguage, this.currentChoices());
-      const { language, AIMode } = this.formGroup.getRawValue();
+      const { language, AIMode, intelligence } = this.formGroup.getRawValue();
       localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({
         language,
         AIMode,
+        intelligence,
         byLanguage: Object.fromEntries(this.choicesByLanguage)
       }));
     } catch {

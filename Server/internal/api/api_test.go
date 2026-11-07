@@ -27,8 +27,8 @@ type fakeGenerator struct {
 	creative bool
 	opts     csvgen.Options
 	err      error
-	// block makes Generate wait for the context to end, like a stalled LLM call.
-	block bool
+	// release, when set, makes Generate wait until it is closed, like a long LLM call.
+	release chan struct{}
 	// result is the CSV Generate answers, empty meaning "a,b", and source the source it answers with it.
 	result, source string
 	// usage is what Generate reports, whether or not it fails.
@@ -43,9 +43,12 @@ func (g *fakeGenerator) GenerateWithProgress(ctx context.Context, images []csvge
 	for _, n := range g.rows {
 		onRows(n)
 	}
-	if g.block {
-		<-ctx.Done()
-		return csvgen.Result{}, ctx.Err()
+	if g.release != nil {
+		select {
+		case <-g.release:
+		case <-ctx.Done():
+			return csvgen.Result{}, ctx.Err()
+		}
 	}
 	if g.result != "" {
 		return csvgen.Result{CSV: g.result, Source: g.source, Usage: g.usage}, g.err
@@ -70,6 +73,7 @@ type testEnv struct {
 	assignments *store.MemoryAssignments
 	clock       *testClock
 	gen         *fakeGenerator
+	images      *fakeImageStore
 }
 
 func newEnv(t *testing.T) *testEnv {
@@ -99,7 +103,9 @@ func newEnv(t *testing.T) *testEnv {
 		LoginWindow:      15 * time.Minute,
 		Logger:           slog.New(slog.DiscardHandler),
 	}
-	env := &testEnv{srv: srv, h: srv.Handler(), users: users, jobs: jobs, assignments: assignments, clock: clock, gen: gen}
+	images := &fakeImageStore{}
+	srv.ImageStore = images
+	env := &testEnv{srv: srv, h: srv.Handler(), users: users, jobs: jobs, assignments: assignments, clock: clock, gen: gen, images: images}
 	env.createUser(t, "alice", "pw", []string{"User"})
 	return env
 }
@@ -602,7 +608,7 @@ func TestCreateJobFailureDoesNotUseQuota(t *testing.T) {
 func TestCreateJobTimeout(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
-	env.gen.block = true
+	env.gen.release = make(chan struct{}) // never closed: the call outlasts its deadline
 	env.srv.LLMTimeout = 10 * time.Millisecond
 	if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusAccepted {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
@@ -611,6 +617,45 @@ func TestCreateJobTimeout(t *testing.T) {
 	if job.Status != store.JobFailed || job.ErrorStatus != http.StatusGatewayTimeout || job.ErrorCode != "timeout" ||
 		job.ErrorMessage != "AI generation timed out." {
 		t.Fatalf("job %+v", job)
+	}
+}
+
+// Without LLMTimeout (the High intelligence server) a generation runs as long as the model takes, recording a
+// heartbeat meanwhile so listJobs does not take it for abandoned.
+func TestLongJobKeepsAHeartbeat(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	env.gen.release = make(chan struct{})
+	env.srv.heartbeatEvery = 5 * time.Millisecond
+
+	uploaded := make(chan *httptest.ResponseRecorder)
+	go func() { uploaded <- env.upload(t, upload{token: token, files: 1}) }()
+
+	var job store.Job
+	for deadline := time.Now().Add(5 * time.Second); ; {
+		if jobs, _ := env.jobs.List(context.Background(), "alice", 10); len(jobs) == 1 && jobs[0].HeartbeatAt != nil {
+			job = jobs[0]
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("no heartbeat recorded while the job runs")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if job.Status != store.JobRunning {
+		t.Fatalf("job %+v", job)
+	}
+	// The listing leaves a job with a fresh heartbeat running.
+	if listed := env.listJobs(t, token); listed[0]["status"] != "running" {
+		t.Fatalf("listed job: %v", listed[0])
+	}
+
+	close(env.gen.release)
+	if rec := <-uploaded; rec.Code != http.StatusAccepted {
+		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
+	}
+	if done := env.onlyJob(t, "alice"); done.Status != store.JobDone {
+		t.Fatalf("job %+v", done)
 	}
 }
 
@@ -715,24 +760,27 @@ func TestListJobsExpiresAbandonedJobs(t *testing.T) {
 	token, _ := env.login(t, "alice", "pw")
 	now := time.Now()
 	env.users.Now = func() time.Time { return now }
-	env.srv.LLMTimeout = time.Minute
 	env.upload(t, upload{token: token, files: 1}) // consumes one of the two calls in the round
 	roundStart := now.UTC()
 
-	// A job whose process died: still running well past the LLM deadline.
+	// A job whose process died: no heartbeat for longer than abandonedAfter.
+	stale := time.Now().Add(-abandonedAfter - time.Minute)
 	err := env.jobs.Create(context.Background(), &store.Job{
 		ID: "stuck", Username: "alice", Status: store.JobRunning, Title: "stuck",
-		RoundStart: roundStart, CreatedAt: time.Now().Add(-10 * time.Minute),
+		RoundStart: roundStart, CreatedAt: time.Now().Add(-time.Hour), HeartbeatAt: &stale,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A recent one is left alone.
-	err = env.jobs.Create(context.Background(), &store.Job{
-		ID: "fresh", Username: "alice", Status: store.JobRunning, Title: "fresh", CreatedAt: time.Now(),
-	})
-	if err != nil {
-		t.Fatal(err)
+	// A recent one is left alone, and so is an old one whose heartbeat is fresh: a generation may take long.
+	beat := time.Now()
+	for _, job := range []*store.Job{
+		{ID: "fresh", Username: "alice", Status: store.JobRunning, Title: "fresh", CreatedAt: time.Now()},
+		{ID: "long", Username: "alice", Status: store.JobRunning, Title: "long", CreatedAt: time.Now().Add(-time.Hour), HeartbeatAt: &beat},
+	} {
+		if err := env.jobs.Create(context.Background(), job); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	byTitle := map[string]map[string]any{}
@@ -740,7 +788,7 @@ func TestListJobsExpiresAbandonedJobs(t *testing.T) {
 		byTitle[j["title"].(string)] = j
 	}
 	if byTitle["stuck"]["status"] != "failed" || byTitle["stuck"]["errorMessage"] != "AI generation was interrupted." ||
-		byTitle["fresh"]["status"] != "running" {
+		byTitle["fresh"]["status"] != "running" || byTitle["long"]["status"] != "running" {
 		t.Fatalf("jobs: %v", byTitle)
 	}
 	// Its call was given back: the round counted the upload above once, and the refund takes it to zero.
@@ -789,7 +837,7 @@ func TestRetryJobSendsTheSameRequestAgain(t *testing.T) {
 	token, _ := env.login(t, "alice", "pw")
 	env.gen.err = errors.New("boom")
 	env.upload(t, upload{token: token, query: "?title=HSK3-Bai2&isCreative=true&exportType=3&courseType=0&hskStandard=3" +
-		"&level=4&lessonNumbers=5,2&intelligence=1&gestureStages=4,6&questionsPerStage=7"})
+		"&level=4&lessonNumbers=5,2&intelligence=2&gestureStages=4,6&questionsPerStage=7"})
 	failed := env.onlyJob(t, "alice")
 	want := env.gen.opts
 	// Without images there is nothing to expire.
@@ -804,7 +852,7 @@ func TestRetryJobSendsTheSameRequestAgain(t *testing.T) {
 		t.Fatalf("retry: %d %q", rec.Code, rec.Body)
 	}
 	if job.Status != store.JobDone || job.Title != "HSK3-Bai2" || !job.Creative || *job.HskStandard != 3 || *job.Level != 4 ||
-		!slices.Equal(job.LessonNumbers, []int{2, 5}) || job.Intelligence != 1 ||
+		!slices.Equal(job.LessonNumbers, []int{2, 5}) || job.Intelligence != 2 ||
 		!slices.Equal(job.GestureStages, []int{4, 6}) || *job.QuestionsPerStage != 7 {
 		t.Fatalf("new job %+v", job)
 	}
@@ -882,7 +930,7 @@ func TestListJobsReturnsLessonNumbers(t *testing.T) {
 	}
 }
 
-func TestRetryJobKeepsImagesForAWhile(t *testing.T) {
+func TestRetryJobSendsTheKeptImagesAgain(t *testing.T) {
 	env := newEnv(t)
 	env.createUser(t, "bob", "pw", []string{"User"})
 	token, _ := env.login(t, "alice", "pw")
@@ -890,27 +938,31 @@ func TestRetryJobKeepsImagesForAWhile(t *testing.T) {
 	env.gen.err = errors.New("boom")
 	env.upload(t, upload{token: token, files: 2, query: "?title=Anh"})
 	failed := env.onlyJob(t, "alice")
+	if len(failed.Images) != 2 || !failed.ImagesStoredAt.Equal(testClockStart) || env.images.stored() != 2 {
+		t.Fatalf("failed job %+v, %d images stored", failed, env.images.stored())
+	}
 	if view := env.listJobs(t, token)[0]; view["retryable"] != true ||
-		view["retryUntil"] != testClockStart.Add(retryImagesTTL).Format(time.RFC3339Nano) {
+		view["retryUntil"] != testClockStart.Add(imagesKeptFor).Format(time.RFC3339Nano) {
 		t.Fatalf("failed job: %v", view)
 	}
 	if rec := env.retry(t, bob, failed.ID); rec.Code != http.StatusNotFound {
 		t.Fatalf("another user's job: %d", rec.Code)
 	}
 
-	// The retry fails too, and its images are kept again, for the full time from this failure.
-	env.clock.Advance(30 * time.Minute)
+	// The retry fails too. It took the images over, without storing them again, until the same time.
+	env.clock.Advance(10 * 24 * time.Hour)
 	env.gen.images = nil
 	if rec := env.retry(t, token, failed.ID); rec.Code != http.StatusAccepted {
 		t.Fatalf("retry: %d %q", rec.Code, rec.Body)
 	}
 	retried := env.onlyJob(t, "alice")
 	if retried.Creative || retried.ImageCount != 2 || retried.Title != "Anh" || len(env.gen.images) != 2 ||
-		string(env.gen.images[1].Data) != testPNG {
+		string(env.gen.images[1].Data) != testPNG || !slices.Equal(retried.Images, failed.Images) ||
+		!retried.ImagesStoredAt.Equal(testClockStart) || env.images.stored() != 2 {
 		t.Fatalf("retried job %+v, generator got %+v", retried, env.gen.images)
 	}
 
-	env.clock.Advance(retryImagesTTL - time.Second)
+	env.clock.Advance(imagesKeptFor - 10*24*time.Hour - time.Second)
 	if view := env.listJobs(t, token)[0]; view["retryable"] != true {
 		t.Fatalf("just before the images expire: %v", view)
 	}
@@ -923,6 +975,18 @@ func TestRetryJobKeepsImagesForAWhile(t *testing.T) {
 	}
 	if env.onlyJob(t, "alice").ID != retried.ID {
 		t.Fatal("a refused retry must keep the failed job")
+	}
+}
+
+func TestRetryJobOfImagesDeletedFromTheStore(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	env.gen.err = errors.New("boom")
+	env.upload(t, upload{token: token, files: 1})
+	failed := env.onlyJob(t, "alice")
+	env.images.forget(failed.Images[0].PublicID)
+	if rec := env.retry(t, token, failed.ID); rec.Code != http.StatusGone || rec.Body.String() != "Images expired." {
+		t.Fatalf("got %d %q", rec.Code, rec.Body)
 	}
 }
 
@@ -962,15 +1026,6 @@ func TestRetryJobRefusals(t *testing.T) {
 		t.Fatalf("the failed job must stay: %v", err)
 	}
 
-	// Deleting the job lets its images go.
-	req := httptest.NewRequest(http.MethodDelete, "/api/csv/jobs/"+failed.ID, nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	if rec := env.do(req); rec.Code != http.StatusNoContent {
-		t.Fatalf("delete: %d", rec.Code)
-	}
-	if _, _, ok := env.srv.retryImages.get(failed.ID, "alice", env.clock.Now()); ok {
-		t.Fatal("images kept after the job was deleted")
-	}
 }
 
 func TestRefreshTokenReuseRevokesSessions(t *testing.T) {

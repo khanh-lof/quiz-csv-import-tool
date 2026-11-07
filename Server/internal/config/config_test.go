@@ -51,6 +51,71 @@ func TestFromEnvAssignmentCollections(t *testing.T) {
 	}
 }
 
+func TestFromEnvHighIntelligenceServer(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+
+	t.Setenv("HIGH_INTELLIGENCE_PROXY_SECRET", strings.Repeat("p", 32))
+	t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", " ")
+	if cfg, err := FromEnv(); err != nil || cfg.HighIntelligenceServer != nil {
+		t.Fatalf("unset: %v %v", cfg.HighIntelligenceServer, err)
+	}
+	t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", " https://ai.example.com/ ")
+	if cfg, err := FromEnv(); err != nil || cfg.HighIntelligenceServer.String() != "https://ai.example.com" {
+		t.Fatalf("set: %v %v", cfg.HighIntelligenceServer, err)
+	}
+	for _, bad := range []string{"ai.example.com", "ftp://ai.example.com", "https://ai.example.com/?x=1", "https://u:p@ai.example.com"} {
+		t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", bad)
+		if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "HIGH_INTELLIGENCE_SERVER_URL") {
+			t.Errorf("%q: %v", bad, err)
+		}
+	}
+}
+
+func TestFromEnvHighIntelligenceProxySecret(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+
+	t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", "")
+	t.Setenv("HIGH_INTELLIGENCE_PROXY_SECRET", "")
+	if _, err := FromEnv(); err != nil {
+		t.Fatalf("neither set: %v", err)
+	}
+
+	t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", "https://ai.example.com")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "HIGH_INTELLIGENCE_PROXY_SECRET is required") {
+		t.Fatalf("server without secret: %v", err)
+	}
+
+	t.Setenv("HIGH_INTELLIGENCE_PROXY_SECRET", "too-short")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "HIGH_INTELLIGENCE_PROXY_SECRET must be at least 32 bytes") {
+		t.Fatalf("short secret: %v", err)
+	}
+
+	t.Setenv("HIGH_INTELLIGENCE_PROXY_SECRET", " "+strings.Repeat("p", 32)+" ")
+	if cfg, err := FromEnv(); err != nil || cfg.HighIntelligenceSecret != strings.Repeat("p", 32) {
+		t.Fatalf("valid: %q %v", cfg.HighIntelligenceSecret, err)
+	}
+}
+
+func TestFromEnvCloudinaryURL(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+
+	t.Setenv("CLOUDINARY_URL", "")
+	if cfg, err := FromEnv(); err != nil || cfg.CloudinaryURL != "" {
+		t.Fatalf("unset: %q %v", cfg.CloudinaryURL, err)
+	}
+	t.Setenv("CLOUDINARY_URL", " cloudinary://123:abc@demo ")
+	if cfg, err := FromEnv(); err != nil || cfg.CloudinaryURL != "cloudinary://123:abc@demo" {
+		t.Fatalf("set: %q %v", cfg.CloudinaryURL, err)
+	}
+	t.Setenv("CLOUDINARY_URL", "https://demo")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "CLOUDINARY_URL") {
+		t.Fatalf("malformed: %v", err)
+	}
+}
+
 func TestFromEnvGameStageSeconds(t *testing.T) {
 	t.Setenv("MONGODB_URI", "mongodb://localhost")
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))

@@ -63,13 +63,46 @@ type Job struct {
 	Usage *JobUsage `bson:"usage,omitempty"`
 
 	// RoundStart is the rate-limit round the job was counted in, so an abandoned job can be refunded.
-	RoundStart time.Time  `bson:"roundStart"`
-	CreatedAt  time.Time  `bson:"createdAt"`
-	FinishedAt *time.Time `bson:"finishedAt,omitempty"`
+	RoundStart time.Time `bson:"roundStart"`
+	CreatedAt  time.Time `bson:"createdAt"`
+	// HeartbeatAt is when the process working on a running job last said it still is; nil until it first does.
+	HeartbeatAt *time.Time `bson:"heartbeatAt,omitempty"`
+	FinishedAt  *time.Time `bson:"finishedAt,omitempty"`
+
+	// Images are where the job's images are kept (the image store), in the order they were sent, so the job can
+	// be sent to the model again; ImagesStoredAt is when they were stored. A retry's job takes them over. Absent
+	// on jobs without images, until they are stored, when storing them failed, and on jobs from before.
+	Images         []JobImage `bson:"images,omitempty"`
+	ImagesStoredAt *time.Time `bson:"imagesStoredAt,omitempty"`
+	// Resumes is how many times a server took the running job over after the process working on it died.
+	Resumes int `bson:"resumes,omitempty"`
+}
+
+// JobImage is one kept image of a job: its URL, its ID in the image store and its media type.
+type JobImage struct {
+	URL         string `bson:"url"`
+	PublicID    string `bson:"publicId"`
+	ContentType string `bson:"contentType"`
+}
+
+// ExpiryCutoffs say when ExpireRunning takes a running job for abandoned: when its last sign of life (the
+// heartbeat, or before the first one its creation) is before Before. A creative job at ResumableIntelligence
+// (zero: none) that has been resumed fewer than MaxResumes times waits until ResumableBefore instead, since a
+// server may still take it over (ClaimInterrupted).
+type ExpiryCutoffs struct {
+	Before                time.Time
+	ResumableIntelligence int
+	MaxResumes            int
+	ResumableBefore       time.Time
+}
+
+// resumable says whether job is one that cutoffs give the longer wait.
+func (c ExpiryCutoffs) resumable(job Job) bool {
+	return c.ResumableIntelligence != 0 && job.Creative && job.Intelligence == c.ResumableIntelligence && job.Resumes < c.MaxResumes
 }
 
 // JobFailure is how a job failed. Code is the stable reason the client words the failure by: one of csvgen's
-// Failure* codes, "timeout", "nothing_to_play", or ExpiredJobCode.
+// Failure* codes, "nothing_to_play", or ExpiredJobCode ("timeout" on jobs from when a generation had a deadline).
 type JobFailure struct {
 	Status  int
 	Code    string
@@ -86,8 +119,8 @@ type JobUsage struct {
 	DurationMs   int64  `bson:"durationMs"`
 }
 
-// Jobs is implemented by MongoJobs (production) and MemoryJobs (tests). Every method is scoped to
-// one user, so a user can never read or change another's jobs.
+// Jobs is implemented by MongoJobs (production) and MemoryJobs (tests). Every method but ClaimInterrupted is
+// scoped to one user, so a user can never read or change another's jobs.
 type Jobs interface {
 	Create(ctx context.Context, job *Job) error
 	// Complete stores the answer of a running job, and the source of a Radicals one. Finished jobs are left alone.
@@ -96,6 +129,8 @@ type Jobs interface {
 	Revise(ctx context.Context, username, id, csv, source string) error
 	// Progress records how many rows a running job has written so far. Finished jobs are left alone.
 	Progress(ctx context.Context, username, id string, rows int) error
+	// Heartbeat records that a running job is still being worked on. Finished jobs are left alone.
+	Heartbeat(ctx context.Context, username, id string) error
 	// Fail marks a running job as failed. Finished jobs are left alone.
 	Fail(ctx context.Context, username, id string, failure JobFailure, usage JobUsage) error
 	// Get returns one job; ErrNotFound when the user has no such job, which includes another user's.
@@ -104,15 +139,22 @@ type Jobs interface {
 	List(ctx context.Context, username string, limit int) ([]Job, error)
 	// Delete removes one job; ErrNotFound when the user has no such job.
 	Delete(ctx context.Context, username, id string) error
-	// ExpireRunning fails the user's jobs that have been running since before the cutoff, which only
-	// happens when the process handling them died, with ExpiredJobStatus, and returns the ones it failed.
-	ExpireRunning(ctx context.Context, username string, before time.Time, message string) ([]Job, error)
+	// SetImages records where a job's images are kept, whatever its status; a missing job is no error.
+	SetImages(ctx context.Context, username, id string, images []JobImage, storedAt time.Time) error
+	// ExpireRunning fails, with ExpiredJobStatus, the user's running jobs that cutoffs take for abandoned,
+	// which only happens when the process handling them died, and returns the ones it failed.
+	ExpireRunning(ctx context.Context, username string, cutoffs ExpiryCutoffs, message string) ([]Job, error)
+	// ClaimInterrupted takes over one running creative job at the given intelligence, of any user, whose last
+	// sign of life is before the cutoff and that was taken over fewer than maxResumes times: it records a
+	// heartbeat now, counts the resume and clears the progress, and returns the job as it now is; nil when
+	// there is none. Two servers claiming at once never get the same job.
+	ClaimInterrupted(ctx context.Context, intelligence int, before time.Time, maxResumes int) (*Job, error)
 	// Prune deletes all but the user's newest keep jobs.
 	Prune(ctx context.Context, username string, keep int) error
 }
 
 // ExpiredJobStatus and ExpiredJobCode are the error status and code of a job ExpireRunning failed: a gateway
-// timeout, like a generation that ran out of time, but interrupted, since the process working on it died.
+// timeout, interrupted since the process working on it died.
 const (
 	ExpiredJobStatus = 504
 	ExpiredJobCode   = "interrupted"
