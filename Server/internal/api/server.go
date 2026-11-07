@@ -46,6 +46,9 @@ type Server struct {
 	// (HighIntelligenceHandler) runs the job, writing it to the same job store and taking it over should its
 	// process die (ResumeJob). Nil runs them here.
 	HighIntelligenceProxy HighIntelligenceServer
+	// HighIntelligenceSecret is what the AI server (HighIntelligenceHandler) requires in the ProxySecretHeader of
+	// every job request, so only the main server's proxy can start one. Empty refuses them all.
+	HighIntelligenceSecret string
 	// ImageStore keeps the images of jobs for imagesKeptFor, so a failed job can be retried and an interrupted one
 	// resumed without an upload, on any server. Nil keeps none: a job with images then cannot be sent again.
 	ImageStore ImageStore

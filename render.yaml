@@ -25,6 +25,9 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      # Proves a request came from the Vercel server; the same value goes in the Vercel project.
+      - key: HIGH_INTELLIGENCE_PROXY_SECRET
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_BASE_URL

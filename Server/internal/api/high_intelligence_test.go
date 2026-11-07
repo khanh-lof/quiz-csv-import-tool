@@ -122,7 +122,8 @@ func TestHighIntelligenceServerRunsOnlyHighIntelligenceJobs(t *testing.T) {
 	failedLow := env.onlyJob(t, "alice")
 	env.gen.err = nil
 
-	env.h = env.srv.HighIntelligenceHandler()
+	env.srv.HighIntelligenceSecret = testProxySecret
+	env.h = withProxySecret(env.srv.HighIntelligenceHandler(), testProxySecret)
 	for _, u := range []upload{{token: token, query: lowQuery}, {token: token, files: 1}} {
 		if rec := env.upload(t, u); rec.Code != http.StatusBadRequest || rec.Body.String() != notHighIntelligence {
 			t.Fatalf("%q: %d %q", u.query, rec.Code, rec.Body)
@@ -164,6 +165,51 @@ func TestHighIntelligenceServerRunsOnlyHighIntelligenceJobs(t *testing.T) {
 	}
 }
 
+const testProxySecret = "test-proxy-secret-of-at-least-32-bytes"
+
+// withProxySecret stands in for the main server's proxy: it adds the secret to every request.
+func withProxySecret(next http.Handler, secret string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if secret != "" {
+			r.Header.Set(ProxySecretHeader, secret)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// A valid token is not enough: a job request that did not come through the main server's proxy is refused, and
+// nothing runs.
+func TestHighIntelligenceServerRefusesRequestsNotFromTheMainServer(t *testing.T) {
+	env := newEnv(t)
+	token, _ := env.login(t, "alice", "pw")
+	env.srv.HighIntelligenceSecret = testProxySecret
+	handler := env.srv.HighIntelligenceHandler()
+
+	for name, secret := range map[string]string{"missing": "", "wrong": "not-the-proxy-secret", "prefix": testProxySecret[:10]} {
+		env.h = withProxySecret(handler, secret)
+		if rec := env.upload(t, upload{token: token, query: highQuery}); rec.Code != http.StatusForbidden {
+			t.Errorf("%s secret, create: %d", name, rec.Code)
+		}
+		if rec := env.retry(t, token, "any"); rec.Code != http.StatusForbidden {
+			t.Errorf("%s secret, retry: %d", name, rec.Code)
+		}
+	}
+	if jobs, _ := env.jobs.List(context.Background(), "alice", 10); len(jobs) != 0 || env.gen.calls != 0 {
+		t.Fatalf("a refused request ran: %+v, %d calls", jobs, env.gen.calls)
+	}
+
+	env.srv.HighIntelligenceSecret = ""
+	env.h = withProxySecret(env.srv.HighIntelligenceHandler(), "")
+	if rec := env.upload(t, upload{token: token, query: highQuery}); rec.Code != http.StatusForbidden {
+		t.Fatalf("server without a secret, no header: %d", rec.Code)
+	}
+
+	env.h = handler
+	if rec := env.do(httptest.NewRequest(http.MethodGet, "/healthz", nil)); rec.Code != http.StatusOK {
+		t.Fatalf("health check without the secret: %d", rec.Code)
+	}
+}
+
 // The real proxy carries the request, body and token included, to a High intelligence server sharing the main
 // server's stores, which runs the job the main server then lists.
 func TestHighIntelligenceProxyReachesTheHighIntelligenceServer(t *testing.T) {
@@ -173,11 +219,12 @@ func TestHighIntelligenceProxyReachesTheHighIntelligenceServer(t *testing.T) {
 	remote := &Server{
 		Users: env.users, Jobs: env.jobs, JWT: env.srv.JWT, Generator: remoteGen,
 		AICallsPerRound: 2, RoundDuration: time.Minute, Logger: slog.New(slog.DiscardHandler),
+		HighIntelligenceSecret: testProxySecret,
 	}
 	aiServer := httptest.NewServer(remote.HighIntelligenceHandler())
 	defer aiServer.Close()
 	target, _ := url.Parse(aiServer.URL)
-	env.srv.HighIntelligenceProxy = NewHighIntelligenceProxy(target, env.srv.Logger)
+	env.srv.HighIntelligenceProxy = NewHighIntelligenceProxy(target, testProxySecret, env.srv.Logger)
 
 	rec := env.upload(t, upload{token: token, query: highQuery, files: 2})
 	if rec.Code != http.StatusAccepted {

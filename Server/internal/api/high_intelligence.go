@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/subtle"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
@@ -52,6 +53,10 @@ type HighIntelligenceServer interface {
 // wakeWait bounds a wake call: the request only has to arrive, and a sleeping server answers once it is up.
 const wakeWait = 3 * time.Second
 
+// ProxySecretHeader carries the secret that proves a request to the High intelligence server came through the
+// main server's HighIntelligenceProxy.
+const ProxySecretHeader = "X-Proxy-Secret"
+
 type highIntelligenceProxy struct {
 	*httputil.ReverseProxy
 	health string
@@ -60,8 +65,8 @@ type highIntelligenceProxy struct {
 
 // NewHighIntelligenceProxy forwards a request to the High intelligence server at target, with its path, query,
 // body and Authorization header unchanged. That server checks the token itself, so both servers must share
-// JWT_SECRET.
-func NewHighIntelligenceProxy(target *url.URL, logger *slog.Logger) HighIntelligenceServer {
+// JWT_SECRET, and it only accepts a request that carries secret, so both must share that too.
+func NewHighIntelligenceProxy(target *url.URL, secret string, logger *slog.Logger) HighIntelligenceServer {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.ResponseHeaderTimeout = highIntelligenceWait
 	return &highIntelligenceProxy{
@@ -69,6 +74,7 @@ func NewHighIntelligenceProxy(target *url.URL, logger *slog.Logger) HighIntellig
 			Rewrite: func(pr *httputil.ProxyRequest) {
 				pr.SetURL(target)
 				pr.SetXForwarded()
+				pr.Out.Header.Set(ProxySecretHeader, secret)
 			},
 			Transport: transport,
 			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
@@ -93,21 +99,36 @@ func (p *highIntelligenceProxy) Wake(ctx context.Context) {
 	}
 }
 
+// fromMainServer lets a request through only when it carries the proxy secret. Without a configured secret it
+// lets nothing through. The health check stays outside it: the main server's wake call and the server's own
+// keep-awake request carry no secret, and it reveals nothing.
+func (s *Server) fromMainServer(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		given := []byte(r.Header.Get(ProxySecretHeader))
+		if s.HighIntelligenceSecret == "" || subtle.ConstantTimeCompare(given, []byte(s.HighIntelligenceSecret)) != 1 {
+			writeText(w, http.StatusForbidden, "Only the main server may call this server.")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // HighIntelligenceHandler is the whole API of the High intelligence server: starting and retrying creative jobs
 // at High intelligence, refusing every other job with 400, and the health check. Logging in, the job list and
-// the rest stay on the main server, whose tokens are checked here with the shared secret.
+// the rest stay on the main server, whose tokens are checked here with the shared secret. The jobs are only
+// taken from the main server's proxy (fromMainServer).
 func (s *Server) HighIntelligenceHandler() http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("POST /api/csv/jobs", s.userRoute(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("POST /api/csv/jobs", s.fromMainServer(s.userRoute(func(w http.ResponseWriter, r *http.Request) {
 		if !isHighIntelligence(r.URL.Query()) {
 			writeText(w, http.StatusBadRequest, notHighIntelligence)
 			return
 		}
 		s.createJob(w, r)
-	}))
-	mux.Handle("POST /api/csv/jobs/{id}/retry", s.userRoute(func(w http.ResponseWriter, r *http.Request) {
+	})))
+	mux.Handle("POST /api/csv/jobs/{id}/retry", s.fromMainServer(s.userRoute(func(w http.ResponseWriter, r *http.Request) {
 		s.retry(w, r, true)
-	}))
+	})))
 	mux.HandleFunc("GET /healthz", healthz)
 	return s.logRequests(mux)
 }

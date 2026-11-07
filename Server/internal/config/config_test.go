@@ -55,6 +55,7 @@ func TestFromEnvHighIntelligenceServer(t *testing.T) {
 	t.Setenv("MONGODB_URI", "mongodb://localhost")
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
 
+	t.Setenv("HIGH_INTELLIGENCE_PROXY_SECRET", strings.Repeat("p", 32))
 	t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", " ")
 	if cfg, err := FromEnv(); err != nil || cfg.HighIntelligenceServer != nil {
 		t.Fatalf("unset: %v %v", cfg.HighIntelligenceServer, err)
@@ -68,6 +69,32 @@ func TestFromEnvHighIntelligenceServer(t *testing.T) {
 		if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "HIGH_INTELLIGENCE_SERVER_URL") {
 			t.Errorf("%q: %v", bad, err)
 		}
+	}
+}
+
+func TestFromEnvHighIntelligenceProxySecret(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+
+	t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", "")
+	t.Setenv("HIGH_INTELLIGENCE_PROXY_SECRET", "")
+	if _, err := FromEnv(); err != nil {
+		t.Fatalf("neither set: %v", err)
+	}
+
+	t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", "https://ai.example.com")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "HIGH_INTELLIGENCE_PROXY_SECRET is required") {
+		t.Fatalf("server without secret: %v", err)
+	}
+
+	t.Setenv("HIGH_INTELLIGENCE_PROXY_SECRET", "too-short")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "HIGH_INTELLIGENCE_PROXY_SECRET must be at least 32 bytes") {
+		t.Fatalf("short secret: %v", err)
+	}
+
+	t.Setenv("HIGH_INTELLIGENCE_PROXY_SECRET", " "+strings.Repeat("p", 32)+" ")
+	if cfg, err := FromEnv(); err != nil || cfg.HighIntelligenceSecret != strings.Repeat("p", 32) {
+		t.Fatalf("valid: %q %v", cfg.HighIntelligenceSecret, err)
 	}
 }
 
