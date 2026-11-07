@@ -85,8 +85,10 @@ Creative AI jobs at High intelligence ("Cao") can run longer than a Vercel funct
 second, AI-only Go server (`Server/cmd/ai-server`) on Render's free plan, which the Vercel server forwards them to:
 
 1. In the Render dashboard choose **New → Blueprint**, pick this repository ([`render.yaml`](render.yaml)), and enter
-   the same `MONGODB_URI`, `JWT_SECRET`, `CLOUDINARY_URL` and LLM settings as the Vercel project.
-2. In the Vercel project, set `HIGH_INTELLIGENCE_SERVER_URL` to the Render service's URL and redeploy.
+   the same `MONGODB_URI`, `JWT_SECRET`, `CLOUDINARY_URL` and LLM settings as the Vercel project, plus a new
+   `HIGH_INTELLIGENCE_PROXY_SECRET` (at least 32 bytes, e.g. `openssl rand -base64 48`).
+2. In the Vercel project, set `HIGH_INTELLIGENCE_SERVER_URL` to the Render service's URL and
+   `HIGH_INTELLIGENCE_PROXY_SECRET` to the same value, then redeploy. Render refuses job requests without it.
 
 Without step 2 every job runs on Vercel. The free Render service sleeps after 15 minutes without requests; the
 first High job after that waits about a minute for it to wake. When Render stops it in the middle of a job (a

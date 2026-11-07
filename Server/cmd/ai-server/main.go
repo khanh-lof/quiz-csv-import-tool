@@ -64,6 +64,9 @@ func run(logger *slog.Logger) error {
 	if missing := cfg.LLM.Missing(); len(missing) > 0 {
 		return fmt.Errorf("configuration: missing %s", strings.Join(missing, ", "))
 	}
+	if cfg.HighIntelligenceSecret == "" {
+		return errors.New("configuration: missing HIGH_INTELLIGENCE_PROXY_SECRET")
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -90,9 +93,10 @@ func run(logger *slog.Logger) error {
 		JWT:   auth.NewJWT(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, cfg.AccessTokenTTL),
 		// No time limit: the call takes as long as the model needs (LLM_TIMEOUT_SECONDS is the main server's).
 		Generator:       csvgen.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.IntelligenceModels, 0, logger),
-		AICallsPerRound: cfg.AICallsPerRound,
-		RoundDuration:   cfg.RoundDuration,
-		Logger:          logger,
+		AICallsPerRound:        cfg.AICallsPerRound,
+		RoundDuration:          cfg.RoundDuration,
+		HighIntelligenceSecret: cfg.HighIntelligenceSecret,
+		Logger:                 logger,
 	}
 
 	if cfg.CloudinaryURL != "" {

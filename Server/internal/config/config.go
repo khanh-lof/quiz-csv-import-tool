@@ -47,6 +47,9 @@ type Config struct {
 	// HighIntelligenceServer is the base URL of the server that runs the creative jobs at High intelligence
 	// (HIGH_INTELLIGENCE_SERVER_URL, cmd/ai-server); nil runs them on this server, under LLM.Timeout.
 	HighIntelligenceServer *url.URL
+	// HighIntelligenceSecret (HIGH_INTELLIGENCE_PROXY_SECRET) is sent by the main server to the AI server, which
+	// refuses every job request without it. Required wherever HighIntelligenceServer is set, and by the AI server.
+	HighIntelligenceSecret string
 	// CloudinaryURL is the Cloudinary account that keeps the images of jobs, so they can be sent again
 	// (CLOUDINARY_URL, cloudinary://<api key>:<api secret>@<cloud name>); empty keeps none.
 	CloudinaryURL string
@@ -172,7 +175,14 @@ func FromEnv() (Config, error) {
 	if cfg.HighIntelligenceServer, err = parseServerURL(os.Getenv("HIGH_INTELLIGENCE_SERVER_URL")); err != nil {
 		errs = append(errs, err)
 	}
-	if cfg.CloudinaryURL = strings.TrimSpace(os.Getenv("CLOUDINARY_URL")); cfg.CloudinaryURL != "" {
+	cfg.HighIntelligenceSecret = strings.TrimSpace(os.Getenv("HIGH_INTELLIGENCE_PROXY_SECRET"))
+	if cfg.HighIntelligenceSecret != "" && len(cfg.HighIntelligenceSecret) < minJWTSecretBytes {
+		errs = append(errs, fmt.Errorf("HIGH_INTELLIGENCE_PROXY_SECRET must be at least %d bytes, got %d", minJWTSecretBytes, len(cfg.HighIntelligenceSecret)))
+	}
+	if cfg.HighIntelligenceServer != nil && cfg.HighIntelligenceSecret == "" {
+		errs = append(errs, errors.New("HIGH_INTELLIGENCE_PROXY_SECRET is required when HIGH_INTELLIGENCE_SERVER_URL is set"))
+	}
+	if cfg.CloudinaryURL =strings.TrimSpace(os.Getenv("CLOUDINARY_URL")); cfg.CloudinaryURL != "" {
 		if _, err := imagestore.NewCloudinary(cfg.CloudinaryURL); err != nil {
 			errs = append(errs, err)
 		}

@@ -33,7 +33,10 @@ and retrying such jobs (`api.Server.HighIntelligenceHandler`, 400 for any other 
 them with no time limit, and writes them to the same MongoDB, so the client follows them through the Vercel
 server's job list like any other. The Vercel project's `HIGH_INTELLIGENCE_SERVER_URL` names the Render service's
 URL (kept out of this public repo); unset, High jobs run on Vercel like the rest, which is also how local
-development runs. Both servers must share `MONGODB_URI`, `JWT_SECRET` and the AI rate-limit settings.
+development runs. Both servers must share `MONGODB_URI`, `JWT_SECRET` and the AI rate-limit settings. The Render
+service is public, so it only accepts job requests that carry the `X-Proxy-Secret` header the Vercel proxy adds
+(`HIGH_INTELLIGENCE_PROXY_SECRET`, ≥ 32 bytes, the same on both; checked by `fromMainServer`, `/healthz` stays
+open). The AI server refuses to start without it, and the main server refuses to start with the URL but no secret.
 
 **Free tier only.** This project is for personal use, so no hosting cost is accepted: every hosted service (Vercel,
 Render, MongoDB, Cloudinary, and any added later) must run on its free tier. Never propose or configure a paid plan,

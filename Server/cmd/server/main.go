@@ -107,7 +107,7 @@ func run(logger *slog.Logger) error {
 		logger.Warn("CLOUDINARY_URL is not set; jobs with images cannot be retried")
 	}
 	if cfg.HighIntelligenceServer != nil {
-		srv.HighIntelligenceProxy = api.NewHighIntelligenceProxy(cfg.HighIntelligenceServer, logger)
+		srv.HighIntelligenceProxy = api.NewHighIntelligenceProxy(cfg.HighIntelligenceServer, cfg.HighIntelligenceSecret, logger)
 		logger.Info("High intelligence jobs go to their own server", "host", cfg.HighIntelligenceServer.Host)
 	}
 
