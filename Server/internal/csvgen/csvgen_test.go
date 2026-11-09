@@ -523,7 +523,7 @@ func TestGenerateCallsChatCompletions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.CSV != "Câu hỏi,Đáp án\na,b" || result.Source != "" {
+	if result.CSV != `"Câu hỏi","Đáp án"`+"\n"+`"a","b"` || result.Source != "" {
 		t.Fatalf("unexpected result %+v", result)
 	}
 	if got["model"] != "gpt-x" || got["max_completion_tokens"] != float64(32000) || got["reasoning_effort"] != "low" {
@@ -534,7 +534,7 @@ func TestGenerateCallsChatCompletions(t *testing.T) {
 func TestGenerateCreativeCallsResponses(t *testing.T) {
 	var got map[string]any
 	reply := `{"status":"completed","output":[{"type":"reasoning"},{"type":"web_search_call","status":"completed"},` +
-		`{"type":"message","content":[{"type":"output_text","text":"` + "```csv\\na,b\\n```" + `"}]}]}`
+		`{"type":"message","content":[{"type":"output_text","text":"` + "```csv\\n\\\"a\\\",\\\"b\\\"\\n```" + `"}]}]}`
 	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/responses" {
 			t.Errorf("unexpected path %s", r.URL.Path)
@@ -551,7 +551,7 @@ func TestGenerateCreativeCallsResponses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.CSV != "a,b" || result.Source != "" {
+	if result.CSV != `"a","b","","","","","","","","",""` || result.Source != "" {
 		t.Fatalf("unexpected result %+v", result)
 	}
 	if got["model"] != "gpt-x" || got["max_output_tokens"] != float64(64000) || got["instructions"] == "" {

@@ -143,7 +143,11 @@ func (c *Client) generate(ctx context.Context, images []Image, creative bool, op
 	if err != nil {
 		return Result{}, err
 	}
-	return Result{CSV: ExtractCSVContent(content)}, nil
+	csv, err := c.checkedCSV(ctx, ExtractCSVContent(content), creative, opts, usage)
+	if err != nil {
+		return Result{}, err
+	}
+	return Result{CSV: csv}, nil
 }
 
 // answerFormat reads the 2xx answer of one endpoint, whole (parse) or streamed (stream).

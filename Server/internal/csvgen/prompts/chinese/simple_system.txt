@@ -3,4 +3,5 @@ Return ONLY a CSV string with exactly two columns named Câu hỏi và Đáp án
 Each row must contain one Chinese word.
 In the Câu hỏi column, write Vietnamese meaning + pinyin + "Chữ Hán là gì?".
 In the Đáp án column, write the Chinese word itself.
+Enclose every cell in double quotes, the header too, for example "Câu hỏi","Đáp án", and write a double quote inside a cell as two double quotes ("").
 Do not include extra explanation, markdown, or code fences.
