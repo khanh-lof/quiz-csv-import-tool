@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const okResponse = `{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"a,b"}]}]}`
+const okResponse = `{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"\"a\",\"b\""}]}]}`
 
 // flakyLLM answers the first len(statuses) calls with those statuses, then succeeds.
 func flakyLLM(t *testing.T, statuses []int, header http.Header) (*Client, *atomic.Int32) {
@@ -41,7 +41,7 @@ func TestGenerateRetriesTransientStatuses(t *testing.T) {
 		http.StatusServiceUnavailable, http.StatusGatewayTimeout} {
 		c, calls := flakyLLM(t, []int{status, status}, nil)
 		got, err := c.Generate(context.Background(), nil, true, Options{})
-		if err != nil || got.CSV != "a,b" || calls.Load() != 3 {
+		if err != nil || got.CSV != `"a","b","","",""` || calls.Load() != 3 {
 			t.Errorf("status %d: got %q, %v after %d calls", status, got.CSV, err, calls.Load())
 		}
 	}
@@ -100,7 +100,11 @@ func TestGenerateRetriesInterruptedGenerations(t *testing.T) {
 	for name, tc := range cases {
 		c, calls := answeringLLM(t, tc.interrupted, tc.done)
 		got, err := c.Generate(context.Background(), nil, tc.creative, Options{})
-		if err != nil || got.CSV != "a,b" || calls.Load() != 2 {
+		want := `"a","b"`
+		if tc.creative {
+			want = `"a","b","","",""`
+		}
+		if err != nil || got.CSV != want || calls.Load() != 2 {
 			t.Errorf("%s: got %q, %v after %d calls", name, got.CSV, err, calls.Load())
 		}
 	}

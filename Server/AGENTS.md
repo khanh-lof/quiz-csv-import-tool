@@ -436,6 +436,15 @@ cookie.
   (`rowCounter`), which `runJob` stores on the job (`Jobs.Progress`, throttled to every 3 s). Non-2xx answers become `*StatusError` (status, `error.code`, `Retry-After`); each
   attempt's `x-request-id` is logged.
 - `ExtractCSVContent` strips code fences / leading prose the model sometimes adds.
+- Every CSV (both modes, not Radicals) is checked before the job stores it (`quoting.go`, `checkedCSV`). The
+  prompts ask for every cell in double quotes; `normalizeCSV` reads the answer leniently (`readCSV`) and writes
+  it back with every cell quoted, fixing on its own only what cannot move text between cells (missing
+  quotes around comma-free cells, bare quotes, spaces, blank rows, extra empty trailing cells, and missing
+  ones only when the row's cells are all quoted, since a short row with a bare cell may hide an unquoted
+  comma). A row it cannot split into the export type's columns (`creativeColumns`, which `exportTypeMessages`
+  also sends; `Câu hỏi,Đáp án` for the simple mode) — an unquoted comma, an unclosed quote — gets one repair call
+  to the same model and endpoint (`prompts/csv_repair.txt`, no tools, counted in `Usage`), skipped when less
+  than `minRepairBudget` (20 s) is left; a CSV still wrong after it fails the job as `bad_output`.
 - The creative mode uses the Responses API because Wayground requests carry the `web_search` tool:
   the model searches Pexels for the Image Link column and builds `images.pexels.com` URLs from the
   photo IDs it finds (Wikimedia is banned; Wayground cannot load it). Other platforms have no image
