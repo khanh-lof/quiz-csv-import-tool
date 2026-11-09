@@ -28,9 +28,16 @@ func (m *MemoryJobs) Create(_ context.Context, job *Job) error {
 	return nil
 }
 
-func (m *MemoryJobs) Complete(_ context.Context, username, id, csv, source string, usage JobUsage) error {
+func (m *MemoryJobs) Complete(_ context.Context, username, id string, result JobResult) error {
 	return m.finish(username, id, func(j *Job) {
-		j.Status, j.CSV, j.Source, j.Usage = JobDone, csv, source, &usage
+		j.Status, j.CSV, j.Source = JobDone, result.CSV, result.Source
+		if result.Usage != nil {
+			usage := *result.Usage
+			j.Usage = &usage
+		}
+		if len(result.BankQuestions) > 0 {
+			j.BankQuestions, j.FromBank = slices.Clone(result.BankQuestions), result.FromBank
+		}
 	})
 }
 

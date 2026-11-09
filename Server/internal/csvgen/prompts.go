@@ -15,6 +15,12 @@ var (
 	// language defines in prompts/<dir>/creative.txt (see language.go).
 	//go:embed prompts/creative_system.txt
 	creativeSystemTemplate string
+	// The guidance on writing questions, a {{define}} block both the creative and the bank system prompts include.
+	//go:embed prompts/quiz_guidance.txt
+	quizGuidanceTemplate string
+	// The question bank's system prompt, which asks for questions as JSON (see WriteQuestions).
+	//go:embed prompts/bank_system.txt
+	bankSystemTemplate string
 	//go:embed prompts/wayground_template.txt
 	waygroundTemplate string
 	// The Game message is built from the framing, a text/template that fills in the chosen stages and the

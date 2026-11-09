@@ -85,11 +85,19 @@ func testJobs(t *testing.T, jobs Jobs) {
 	if j, _ := jobs.Get(ctx, "alice", "new"); j.ProgressRows != 3 {
 		t.Fatalf("progress of a running job: %+v", j)
 	}
-	if err := jobs.Complete(ctx, "bob", "new", "stolen", "", JobUsage{}); err != nil {
+	if err := jobs.Complete(ctx, "bob", "new", JobResult{CSV: "stolen"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := jobs.Complete(ctx, "alice", "new", "a,b", `{"source":1}`, JobUsage{Model: "m", Calls: 2, OutputTokens: 7}); err != nil {
+	if err := jobs.Complete(ctx, "alice", "new", JobResult{CSV: "a,b", Source: `{"source":1}`, Usage: &JobUsage{Model: "m", Calls: 2, OutputTokens: 7}}); err != nil {
 		t.Fatal(err)
+	}
+	// A quiz the question bank answered alone has its questions and no usage.
+	if err := jobs.Complete(ctx, "bob", "bobs", JobResult{CSV: "q", BankQuestions: []string{"q1", "q2"}, FromBank: 2}); err != nil {
+		t.Fatal(err)
+	}
+	if j, _ := jobs.Get(ctx, "bob", "bobs"); j.Status != JobDone || j.Usage != nil || j.FromBank != 2 ||
+		len(j.BankQuestions) != 2 || j.BankQuestions[1] != "q2" {
+		t.Fatalf("job answered by the bank: %+v", j)
 	}
 	if err := jobs.Fail(ctx, "alice", "new", JobFailure{Status: 502, Code: "failed", Message: "late failure"}, JobUsage{}); err != nil { // already done: ignored
 		t.Fatal(err)
@@ -182,7 +190,7 @@ func testJobs(t *testing.T, jobs Jobs) {
 		t.Fatal(err)
 	}
 	// A late answer does not revive an expired job.
-	if err := jobs.Complete(ctx, "alice", "old", "late", "", JobUsage{}); err != nil {
+	if err := jobs.Complete(ctx, "alice", "old", JobResult{CSV: "late", Usage: &JobUsage{}}); err != nil {
 		t.Fatal(err)
 	}
 	list, _ = jobs.List(ctx, "alice", 10)
@@ -295,7 +303,7 @@ func testJobImagesAndResumes(t *testing.T, jobs Jobs) {
 	if err := jobs.Create(ctx, done); err != nil {
 		t.Fatal(err)
 	}
-	_ = jobs.Complete(ctx, "dave", "done", "a,b", "", JobUsage{})
+	_ = jobs.Complete(ctx, "dave", "done", JobResult{CSV: "a,b", Usage: &JobUsage{}})
 
 	claimed := map[string]Job{}
 	for range 5 {

@@ -58,9 +58,14 @@ type Job struct {
 	// ErrorCode says why the job failed (see JobFailure.Code); absent on jobs from before it was stored.
 	ErrorCode    string `bson:"errorCode,omitempty"`
 	ErrorMessage string `bson:"errorMessage"`
-	// Usage is what the generation cost, for the admin; absent on jobs from before it was stored and on jobs
-	// that ExpireRunning failed.
+	// Usage is what the generation cost, for the admin; absent on jobs from before it was stored, on jobs
+	// that ExpireRunning failed and on jobs the question bank answered without the model.
 	Usage *JobUsage `bson:"usage,omitempty"`
+	// BankQuestions are the ids of the question bank's questions the quiz is made of, in its order, and FromBank
+	// how many of them were in the bank before the job (the rest the model wrote for it). Absent on jobs the bank
+	// had no part in.
+	BankQuestions []string `bson:"bankQuestions,omitempty"`
+	FromBank      int      `bson:"fromBank,omitempty"`
 
 	// RoundStart is the rate-limit round the job was counted in, so an abandoned job can be refunded.
 	RoundStart time.Time `bson:"roundStart"`
@@ -109,6 +114,16 @@ type JobFailure struct {
 	Message string
 }
 
+// JobResult is what a finished job stores: the answer (see Job.CSV), the source of a Radicals one, the cost, and the
+// question bank's part in it. A nil Usage means no model was called.
+type JobResult struct {
+	CSV           string
+	Source        string
+	Usage         *JobUsage
+	BankQuestions []string
+	FromBank      int
+}
+
 // JobUsage is the model a generation asked and, over all its attempts, the calls made and the tokens billed.
 type JobUsage struct {
 	Model        string `bson:"model"`
@@ -123,8 +138,8 @@ type JobUsage struct {
 // scoped to one user, so a user can never read or change another's jobs.
 type Jobs interface {
 	Create(ctx context.Context, job *Job) error
-	// Complete stores the answer of a running job, and the source of a Radicals one. Finished jobs are left alone.
-	Complete(ctx context.Context, username, id, csv, source string, usage JobUsage) error
+	// Complete stores the result of a running job. Finished jobs are left alone.
+	Complete(ctx context.Context, username, id string, result JobResult) error
 	// Revise replaces the answer and the source of a done job; ErrNotFound when the user has no done job by that id.
 	Revise(ctx context.Context, username, id, csv, source string) error
 	// Progress records how many rows a running job has written so far. Finished jobs are left alone.

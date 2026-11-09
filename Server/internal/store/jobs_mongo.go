@@ -37,10 +37,16 @@ func (m *MongoJobs) Create(ctx context.Context, job *Job) error {
 	return err
 }
 
-func (m *MongoJobs) Complete(ctx context.Context, username, id, csv, source string, usage JobUsage) error {
-	set := bson.M{"status": JobDone, "csv": csv, "usage": usage}
-	if source != "" {
-		set["source"] = source
+func (m *MongoJobs) Complete(ctx context.Context, username, id string, result JobResult) error {
+	set := bson.M{"status": JobDone, "csv": result.CSV}
+	if result.Source != "" {
+		set["source"] = result.Source
+	}
+	if result.Usage != nil {
+		set["usage"] = *result.Usage
+	}
+	if len(result.BankQuestions) > 0 {
+		set["bankQuestions"], set["fromBank"] = result.BankQuestions, result.FromBank
 	}
 	return m.finish(ctx, username, id, set)
 }

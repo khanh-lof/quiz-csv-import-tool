@@ -63,10 +63,15 @@ func (c *Client) modelFor(opts Options) string {
 
 // Result is what Generate produced: the CSV, which for a Radicals job is the exercise's JSON, and for a Radicals
 // job only, the Source it was built from (see ReviseRadicals). Usage is filled in whether or not Generate failed.
+// A Calls of zero means no model was asked (a quiz the question bank held whole).
 type Result struct {
 	CSV    string
 	Source string
 	Usage  Usage
+	// BankQuestions are the ids of the question bank's questions a quiz built by package bank is made of, and
+	// FromBank how many of them the bank held before (the others the model wrote for it). Empty otherwise.
+	BankQuestions []string
+	FromBank      int
 }
 
 // Usage is the model a generation asked and, over all its attempts, the calls made and the tokens billed.

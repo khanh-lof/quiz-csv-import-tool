@@ -155,6 +155,43 @@ func TestParseNewWordsStopsAtTheNextHeading(t *testing.T) {
 	}
 }
 
+func TestParseNewWordRows(t *testing.T) {
+	doc := "## New words\n| Word | Pinyin | POS | English | Tiếng Việt | Note |\n|---|---|---|---|---|---|\n| 你 | nǐ | pron. | you | bạn | |\n| 好 | hǎo | adj. | good | tốt | ★ |\n"
+	rows, err := parseNewWordRows(doc, 4)
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("got %+v, %v", rows, err)
+	}
+	want := LessonWord{Lesson: 4, Word: "你", Pinyin: "nǐ", POS: "pron.", English: "you", Vietnamese: "bạn"}
+	if rows[0] != want || !rows[1].Star || rows[0].Key() != "你|nǐ|pron." {
+		t.Errorf("rows = %+v, key %q", rows, rows[0].Key())
+	}
+}
+
+func TestLessonVocabularyOfARequest(t *testing.T) {
+	useFixtureLibrary(t)
+	level := 1
+	opts := Options{CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumbers: []int{2, 3}}
+	vocabulary, ok := LessonVocabulary(opts)
+	if !ok || vocabulary.Book != "hsk3-1" || vocabulary.MaxLesson() != 3 {
+		t.Fatalf("got %+v, %v", vocabulary, ok)
+	}
+	// 共同 is in every lesson: it is tested once, as the first lesson's word.
+	var words []string
+	for _, w := range vocabulary.Words {
+		words = append(words, fmt.Sprintf("%s@%d", w.Word, w.Lesson))
+	}
+	if got := strings.Join(words, ","); got != "词hsk3-102a@2,词hsk3-102b@2,共同@2,词hsk3-103a@3,词hsk3-103b@3" {
+		t.Errorf("words = %s", got)
+	}
+	opts.LessonNumbers = []int{16}
+	if _, ok := LessonVocabulary(opts); ok {
+		t.Error("a lesson beyond the book has a vocabulary")
+	}
+	if _, ok := LessonVocabulary(Options{CourseType: Other, LessonNumbers: []int{1}}); ok {
+		t.Error("a course without a textbook has a vocabulary")
+	}
+}
+
 func TestKnownVocabulary(t *testing.T) {
 	useFixtureLibrary(t)
 	find := func(dir string) *textbook {

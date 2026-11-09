@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -16,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"quiz-csv-import-tool/server/internal/bank"
 	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/imagestore"
 	"quiz-csv-import-tool/server/internal/radicals"
@@ -41,6 +43,9 @@ const (
 // client follows the job through listJobs, so it need not stay connected. A creative job at High
 // intelligence goes to HighIntelligenceProxy instead, when there is one.
 func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
+	if s.answerFromBank(w, r) {
+		return
+	}
 	if s.HighIntelligenceProxy != nil && isHighIntelligence(r.URL.Query()) {
 		s.HighIntelligenceProxy.ServeHTTP(w, r)
 		return
@@ -117,6 +122,12 @@ func (s *Server) retry(w http.ResponseWriter, r *http.Request, onlyHigh bool) {
 		writeText(w, http.StatusBadRequest, notHighIntelligence)
 		return
 	}
+	if failed.Creative && failed.ImageCount == 0 {
+		if build := s.bankPlan(r.Context(), user.Username, opts); build != nil &&
+			s.startBankJob(w, r, user.Username, newJob(failed.Title, true, 0, opts), build, failed.ID) {
+			return
+		}
+	}
 	if high && s.HighIntelligenceProxy != nil {
 		s.HighIntelligenceProxy.ServeHTTP(w, r)
 		return
@@ -189,6 +200,13 @@ func (s *Server) startJob(w http.ResponseWriter, r *http.Request, username strin
 		s.internalError(w, r, "creating job failed", err)
 		return false
 	}
+	s.acceptJob(w, r, username, job, replaces)
+	return true
+}
+
+// acceptJob answers 202 with the id of a job just stored, after the housekeeping: the failed job a retry replaces
+// is deleted and the user's oldest jobs pruned.
+func (s *Server) acceptJob(w http.ResponseWriter, r *http.Request, username string, job *store.Job, replaces string) {
 	// Housekeeping must not fail the request: the job exists and will run. At worst a failed job that was
 	// retried stays in the history beside its replacement.
 	if replaces != "" {
@@ -210,6 +228,77 @@ func (s *Server) startJob(w http.ResponseWriter, r *http.Request, username strin
 	_, _ = w.Write(ack)
 	// Best effort: where the answer cannot be flushed early the client simply waits for the result.
 	_ = http.NewResponseController(w).Flush()
+}
+
+// answerFromBank answers a createJob request whose whole quiz the question bank holds, with a job that is done at
+// once, takes no AI call and asks no model, wherever its intelligence would have sent it; it returns false, the
+// body untouched, for any other request, which then goes its usual way (where the bank may still supply part of
+// the quiz, see bank.Generator). A quiz asked with images is the model's: the images show what to focus on.
+func (s *Server) answerFromBank(w http.ResponseWriter, r *http.Request) bool {
+	if s.Bank == nil || !strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("isCreative")), "true") {
+		return false
+	}
+	opts, err := csvgen.ParseCreativeOptions(r.URL.Query())
+	if err != nil {
+		return false
+	}
+	build := s.bankPlan(r.Context(), callerName(r), opts)
+	if build == nil {
+		return false
+	}
+	// The body is read here only to know that it holds no image, and put back for the usual way.
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxUploadBytes))
+	r.Body = io.NopCloser(bytes.NewReader(raw))
+	if err != nil {
+		return false
+	}
+	images, uploadErr := readImages(w, r)
+	r.Body = io.NopCloser(bytes.NewReader(raw))
+	if uploadErr != nil || len(images) > 0 {
+		return false
+	}
+	user, ok := s.jobOwner(w, r)
+	if !ok {
+		return true
+	}
+	return s.startBankJob(w, r, user.Username, newJob(jobTitle(r.URL.Query().Get("title"), true), true, 0, opts), build, "")
+}
+
+// bankPlan is the plan of the quiz of opts when the question bank holds all of it, nil otherwise (or when the bank
+// cannot be read: the model then writes the quiz).
+func (s *Server) bankPlan(ctx context.Context, username string, opts csvgen.Options) *bank.Build {
+	if s.Bank == nil || s.Jobs == nil {
+		return nil
+	}
+	build, ok, err := s.Bank.Prepare(ctx, opts)
+	if err != nil {
+		s.Logger.Warn("question bank unavailable", "user", username, "error", err)
+		return nil
+	}
+	if !ok || !build.Plan.Complete() {
+		return nil
+	}
+	return build
+}
+
+// startBankJob writes the quiz of a complete bank plan and stores it as a job that is already done, counting no AI
+// call, and answers 202 with its id like startJob, so the client follows it the same way. It returns false, having
+// answered nothing, when the quiz cannot be written; the request then goes its usual way.
+func (s *Server) startBankJob(w http.ResponseWriter, r *http.Request, username string, job *store.Job, build *bank.Build, replaces string) bool {
+	result, err := s.Bank.Finish(r.Context(), build, len(build.Plan.Picks))
+	if err != nil {
+		s.Logger.Warn("writing a quiz from the question bank failed", "user", username, "error", err)
+		return false
+	}
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	job.ID, job.Username, job.Status, job.CreatedAt, job.FinishedAt = newID(), username, store.JobDone, now, &now
+	job.CSV, job.BankQuestions, job.FromBank = result.CSV, result.BankQuestions, result.FromBank
+	if err := s.Jobs.Create(r.Context(), job); err != nil {
+		s.internalError(w, r, "creating job failed", err)
+		return true
+	}
+	s.Logger.Info("quiz built from the question bank", "user", username, "job", job.ID, "questions", len(result.BankQuestions))
+	s.acceptJob(w, r, username, job, replaces)
 	return true
 }
 
@@ -217,6 +306,8 @@ func (s *Server) startJob(w http.ResponseWriter, r *http.Request, username strin
 // the request: the client has usually gone away by now (that is the point), and its disconnecting must not cancel
 // the model call.
 func (s *Server) runJob(ctx context.Context, job *store.Job, images []csvgen.Image, opts csvgen.Options) {
+	// The questions the model writes for the question bank name the job.
+	ctx = bank.WithJob(ctx, job.ID)
 	imagesStored := s.storeJobImages(ctx, job, images)
 	generation := ctx
 	if s.LLMTimeout > 0 {
@@ -238,7 +329,9 @@ func (s *Server) runJob(ctx context.Context, job *store.Job, images []csvgen.Ima
 	if err == nil {
 		s.Logger.Info("CSV generation done", logAttrs...)
 		s.recordJob(ctx, func(ctx context.Context) error {
-			return s.Jobs.Complete(ctx, job.Username, job.ID, result.CSV, result.Source, usage)
+			return s.Jobs.Complete(ctx, job.Username, job.ID, store.JobResult{
+				CSV: result.CSV, Source: result.Source, Usage: &usage, BankQuestions: result.BankQuestions, FromBank: result.FromBank,
+			})
 		}, job)
 		return
 	}

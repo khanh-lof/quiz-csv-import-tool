@@ -31,6 +31,11 @@ type Config struct {
 	MongoPlayersCollection     string
 	// MongoLoginAttemptsCollection holds the login attempts counted per username.
 	MongoLoginAttemptsCollection string
+	// MongoQuestionsCollection holds the question bank (MONGODB_QUESTIONS_COLLECTION).
+	MongoQuestionsCollection string
+	// QuestionBank (QUESTION_BANK=on) builds the quizzes of the embedded textbooks from the question bank, the model
+	// writing only the questions it lacks. Off by default: every quiz is the model's.
+	QuestionBank bool
 
 	JWTSecret       []byte
 	JWTIssuer       string // defaults to "quiztool"; always validated
@@ -127,6 +132,7 @@ func FromEnv() (Config, error) {
 		MongoPlayersCollection:     envOr("MONGODB_PLAYERS_COLLECTION", "AssignmentPlayers"),
 
 		MongoLoginAttemptsCollection: envOr("MONGODB_LOGIN_ATTEMPTS_COLLECTION", "LoginAttempts"),
+		MongoQuestionsCollection:     envOr("MONGODB_QUESTIONS_COLLECTION", "QuestionBank"),
 
 		JWTSecret:               []byte(os.Getenv("JWT_SECRET")),
 		JWTIssuer:               envOr("JWT_ISSUER", "quiztool"),
@@ -182,10 +188,13 @@ func FromEnv() (Config, error) {
 	if cfg.HighIntelligenceServer != nil && cfg.HighIntelligenceSecret == "" {
 		errs = append(errs, errors.New("HIGH_INTELLIGENCE_PROXY_SECRET is required when HIGH_INTELLIGENCE_SERVER_URL is set"))
 	}
-	if cfg.CloudinaryURL =strings.TrimSpace(os.Getenv("CLOUDINARY_URL")); cfg.CloudinaryURL != "" {
+	if cfg.CloudinaryURL = strings.TrimSpace(os.Getenv("CLOUDINARY_URL")); cfg.CloudinaryURL != "" {
 		if _, err := imagestore.NewCloudinary(cfg.CloudinaryURL); err != nil {
 			errs = append(errs, err)
 		}
+	}
+	if cfg.QuestionBank, err = parseSwitch("QUESTION_BANK", os.Getenv("QUESTION_BANK")); err != nil {
+		errs = append(errs, err)
 	}
 	if cfg.LoginMaxAttempts < 1 {
 		errs = append(errs, errors.New("LOGIN_MAX_ATTEMPTS must be at least 1"))
@@ -211,6 +220,17 @@ func parseServerURL(raw string) (*url.URL, error) {
 		return nil, fmt.Errorf("HIGH_INTELLIGENCE_SERVER_URL must be an http(s) URL such as https://ai.example.com, got %q", raw)
 	}
 	return u, nil
+}
+
+// parseSwitch reads an on/off setting: on, true or 1, and off, false, 0 or nothing, in any case.
+func parseSwitch(key, raw string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "on", "true", "1":
+		return true, nil
+	case "", "off", "false", "0":
+		return false, nil
+	}
+	return false, fmt.Errorf("%s must be on or off, got %q", key, raw)
 }
 
 func envOr(key, def string) string {

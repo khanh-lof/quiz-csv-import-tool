@@ -23,6 +23,7 @@ import (
 
 	"quiz-csv-import-tool/server/internal/api"
 	"quiz-csv-import-tool/server/internal/auth"
+	"quiz-csv-import-tool/server/internal/bank"
 	"quiz-csv-import-tool/server/internal/config"
 	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/imagestore"
@@ -87,12 +88,22 @@ func run(logger *slog.Logger) error {
 	}
 	db := client.Database(cfg.MongoDatabase)
 
+	// No time limit: the call takes as long as the model needs (LLM_TIMEOUT_SECONDS is the main server's).
+	llm := csvgen.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.IntelligenceModels, 0, logger)
+	var generator api.Generator = llm
+	if cfg.QuestionBank {
+		// The main server answers the quizzes the bank holds whole; the ones that reach this server need the model
+		// for part of them at least, and what it writes goes to the same bank.
+		generator = &bank.Generator{Next: llm, Service: &bank.Service{
+			Store: store.NewMongoQuestionBank(db.Collection(cfg.MongoQuestionsCollection)), Writer: llm, Logger: logger,
+		}}
+	}
+
 	srv := &api.Server{
-		Users: store.NewMongo(db.Collection(cfg.MongoCollection)),
-		Jobs:  store.NewMongoJobs(db.Collection(cfg.MongoJobsCollection)),
-		JWT:   auth.NewJWT(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, cfg.AccessTokenTTL),
-		// No time limit: the call takes as long as the model needs (LLM_TIMEOUT_SECONDS is the main server's).
-		Generator:       csvgen.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.IntelligenceModels, 0, logger),
+		Users:                  store.NewMongo(db.Collection(cfg.MongoCollection)),
+		Jobs:                   store.NewMongoJobs(db.Collection(cfg.MongoJobsCollection)),
+		JWT:                    auth.NewJWT(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, cfg.AccessTokenTTL),
+		Generator:              generator,
 		AICallsPerRound:        cfg.AICallsPerRound,
 		RoundDuration:          cfg.RoundDuration,
 		HighIntelligenceSecret: cfg.HighIntelligenceSecret,

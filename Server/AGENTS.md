@@ -28,9 +28,12 @@ Module `quiz-csv-import-tool/server`, laid out as:
 - `internal/api` — routing (`Server.Handler`) and all handlers.
 - `internal/auth` — JWT issue/parse, PBKDF2 password hashing, and `Service` (login/refresh/logout).
 - `internal/store` — the `User` document, the `Users` interface, `Mongo` (production) and `Memory`
-  (tests) implementations; the same pair for `Jobs` and for `Assignments` ("Giao bài", with its students).
+  (tests) implementations; the same pair for `Jobs`, for `Assignments` ("Giao bài", with its students) and for
+  `QuestionBank` (the question bank's questions).
+- `internal/bank` — the question bank: quizzes of the embedded textbooks built from stored questions, the model
+  asked only for the questions the bank lacks. See "Question bank" below.
 - `internal/csvgen` — creative-mode option parsing, the two system prompts and the per-platform
-  templates (all embedded from `prompts/*.txt`), the embedded lesson documents of four textbooks
+  templates (all embedded from `prompts/*.txt`), the embedded lesson documents of eight textbooks
   (`textbooks/`), and the OpenAI-compatible client
   (`/chat/completions` for the formatted mode, `/responses` for the creative mode). `radicals.go` is the
   "Ghép bộ thủ" platform's side of it: where a lesson's words come from (the textbook's tables, or the model),
@@ -58,7 +61,7 @@ Module `quiz-csv-import-tool/server`, laid out as:
 ```bash
 go build ./...
 go vet ./...
-go test ./...                                    # Mongo integration tests (users, jobs, assignments) are skipped…
+go test ./...                                    # Mongo integration tests (users, jobs, assignments, bank) are skipped…
 MONGODB_TEST_URI=mongodb://localhost:27017 go test ./internal/store/   # …unless this is set
 go run ./cmd/server                              # http://localhost:7071 (reads .env if present)
 docker compose up --build                        # MongoDB + API on 7071
@@ -75,7 +78,11 @@ without them.
   `MONGODB_JOBS_COLLECTION` (default `Jobs`, the AI generation jobs),
   `MONGODB_ASSIGNMENTS_COLLECTION` (default `Assignments`) and `MONGODB_PLAYERS_COLLECTION` (default
   `AssignmentPlayers`): the quizzes teachers handed to students, and the students who joined them with their results,
-  `MONGODB_LOGIN_ATTEMPTS_COLLECTION` (default `LoginAttempts`): the login attempts counted per username
+  `MONGODB_LOGIN_ATTEMPTS_COLLECTION` (default `LoginAttempts`): the login attempts counted per username,
+  `MONGODB_QUESTIONS_COLLECTION` (default `QuestionBank`): the question bank
+- `QUESTION_BANK` (`on`/`off`, default off) — builds the quizzes of the embedded textbooks from the question bank
+  (see "Question bank" below), on both servers; off, every quiz is the model's as before. Any other value stops the
+  server at start
 - `JWT_SECRET` (≥ 32 bytes, RFC 7518 §3.2 for HS256), `JWT_ISSUER` (default `quiztool`),
   `JWT_AUDIENCE` (default `quiztool-api`) — issuer and audience are always set and validated
 - `JWT_ACCESS_TOKEN_EXPIRES_MINUTES` (15), `JWT_REFRESH_TOKEN_EXPIRES_DAYS` (30),
@@ -471,6 +478,48 @@ revived by a late answer; `Prune` never deletes a running job. `ExpireRunning` f
 the `source` out (Mongo projects it away), since the history never needs it.
 `Get(username, id)` returns one job, `ErrNotFound` for another user's too (`createAssignment` is its caller).
 `MongoJobs.EnsureIndexes` (username + createdAt) is, like the users' one, not called on start.
+`Complete(username, id, JobResult)` stores the `csv`, the `source`, the `usage` (left out when nil: a quiz the
+question bank built whole asked no model) and, for a quiz of the question bank, `bankQuestions` (the ids of its
+questions, in order) and `fromBank` (how many of them the bank held before the job); none of these three is sent
+to the client.
+
+Question bank (`internal/bank`, `internal/store/questions*.go`, behind `QUESTION_BANK`): for a creative job on
+GimKit, Blooket, Wayground or the Game whose course has an embedded textbook and that has no images
+(`bank.NewRequest`), the quiz is built from stored questions.
+- **Questions** (`store.Question`, collection `MONGODB_QUESTIONS_COLLECTION`, shared by every user, so not scoped
+  to a username): `book` (the textbook's folder), `language`, `targets` (the keys `word|pinyin|pos` of the words it
+  tests, `csvgen.LessonWord.Key`, so a corrected lesson document simply stops matching old questions), `lessons`,
+  `maxLesson` (the highest lesson of the request it was written for: it is picked only for a request whose highest
+  lesson is at least that, so it never uses a word the learner has not reached), `format` (`mc`, `true_false`,
+  `word_order`, `typed`), `skill` (`meaning` … `visual`), `difficulty` 1–3, the texts with their pinyin, the wrong
+  answers most plausible first, the chunks of a sentence to order, `imageUrl` (visual questions, Wayground only),
+  `intelligence` (a High intelligence quiz takes only High-written questions), `fingerprint` (format, stem and
+  answer; a book holds each once), `status`, `servedCount`/`lastServedAt` (least used first).
+- **Planning** (`bank.PlanQuiz`, pure): the Game has `stages × questionsPerStage` places, each stage taking the
+  format, options, difficulty and skills of its game (`stageSpecs`); the other platforms `QuizSize` places (a
+  quarter more than the words, 10 to 40, one per word beyond 40), 40/40/20% easy/medium/hard, Wayground half of each
+  level visual. It first covers every word (the rarest first; a level may give places to another for that), then
+  fills the places, preferring the least tested words, other skills and less-served questions, with a little
+  randomness per quiz. What it cannot fill is a list of gaps (`csvgen.QuestionSpec`: one word, a format, a level,
+  skills).
+- **The model** (`csvgen.Client.WriteQuestions`, `prompts/bank_system.txt` with the language's `bank.txt` blocks):
+  one `/responses` call with the lessons' material, a numbered word list (`W1`…, so targets map back exactly) and
+  the gaps, plus one more question for each word the bank had none on (at most 80 in all); `web_search` only when a
+  gap is visual. It answers JSON, one question per line (the progress counts them). `bank.Validate` drops a
+  question that breaks a rule (logged), the rest are stored (`Insert` skips known fingerprints), the quiz is planned
+  again and written. Short of half its questions, or of a question in a Game stage, the job fails as `bad_output`.
+- **The shared guidance** of `creative_system.txt` (LESSON SOURCE to VOCABULARY COVERAGE) is the `quiz-guidance`
+  block of `prompts/quiz_guidance.txt`, which both system prompts include; the creative prompt renders as before.
+- **Writing the quiz** (`bank.Render`): exactly `creativeColumns`, checked by `csvgen.CheckRows`, so the client,
+  the extension and `gesturequiz.Parse` read it like the model's.
+- **Where it runs.** `createJob` and `retryJob` first ask `Server.Bank` (`answerFromBank`, `bankPlan`): a quiz the
+  bank holds whole becomes a job stored already `done`, answered `202` like any job, with no AI call counted and no
+  proxying to the High intelligence server (the request body is read only to check that it has no image, and put
+  back). Any other quiz goes its usual way, where `bank.Generator` wraps the model on both servers and writes only
+  the gaps; when the bank cannot be read, the whole quiz is the model's.
+- **Indexes**, like the others not created on start (`MongoQuestionBank.EnsureIndexes`), once by hand:
+  `db.QuestionBank.createIndex({book: 1, language: 1, maxLesson: 1}, {name: "book_language_maxLesson"})` and
+  `db.QuestionBank.createIndex({book: 1, fingerprint: 1}, {name: "book_fingerprint", unique: true})`.
 
 Assignments (`internal/store/assignments*.go`): `store.Assignments` is implemented by `MongoAssignments` and
 `MemoryAssignments` (tests), and holds two kinds of document. An `Assignment` (collection

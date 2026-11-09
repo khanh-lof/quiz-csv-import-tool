@@ -1,0 +1,13 @@
+{{define "bank-option-length" -}}
+at most 8 Chinese characters or about 6 Vietnamese words
+{{- end}}
+
+{{define "bank-pinyin" -}}
+## PINYIN
+
+Every Chinese text has its pinyin beside it: stemPinyin for the stem, answerPinyin for the answer, and the pinyin of each distractor and each chunk. The game shows the pinyin only when the teacher turns it on, so never write pinyin inside a text: the text holds the Chinese characters and the Vietnamese, and its pinyin holds the pinyin of the Chinese words in it, in the same order, with tone marks (nǐ hǎo, never ni3 hao3), one pinyin word per Chinese word, the blank ____ and the punctuation kept where the text has them, and the Vietnamese words left out. For example the stem 我 ____ 学生。 has the pinyin wǒ ____ xuéshēng. and the answer 是 has shì. Leave a pinyin empty when its text has no Chinese character, and leave every pinyin of a question empty when the question is about pinyin itself (skill form: which pinyin or which tone a word has, or which characters a pinyin is), since there the pinyin is what the learner must know. Never write a pinyin that tells the right answer apart from the wrong ones. A true_false answer has no pinyin.
+{{- end}}
+
+{{define "bank-explanation" -}}
+one short Vietnamese sentence shown after the learner answers, for example the tested word with its pinyin and meaning, or why the answer is right. It is the one text that mixes Chinese, pinyin and Vietnamese freely, and it has no pinyin of its own.
+{{- end}}

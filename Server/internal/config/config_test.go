@@ -51,6 +51,27 @@ func TestFromEnvAssignmentCollections(t *testing.T) {
 	}
 }
 
+func TestFromEnvQuestionBank(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+	t.Setenv("MONGODB_QUESTIONS_COLLECTION", "")
+	t.Setenv("QUESTION_BANK", "")
+	cfg, err := FromEnv()
+	if err != nil || cfg.QuestionBank || cfg.MongoQuestionsCollection != "QuestionBank" {
+		t.Fatalf("defaults: %v %q, %v", cfg.QuestionBank, cfg.MongoQuestionsCollection, err)
+	}
+	for _, on := range []string{"on", " ON ", "true", "1"} {
+		t.Setenv("QUESTION_BANK", on)
+		if cfg, err := FromEnv(); err != nil || !cfg.QuestionBank {
+			t.Errorf("QUESTION_BANK=%q: %v, %v", on, cfg.QuestionBank, err)
+		}
+	}
+	t.Setenv("QUESTION_BANK", "yes please")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "QUESTION_BANK must be on or off") {
+		t.Errorf("QUESTION_BANK=yes please: %v", err)
+	}
+}
+
 func TestFromEnvHighIntelligenceServer(t *testing.T) {
 	t.Setenv("MONGODB_URI", "mongodb://localhost")
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"quiz-csv-import-tool/server/internal/auth"
+	"quiz-csv-import-tool/server/internal/bank"
 	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/store"
 )
@@ -31,6 +32,10 @@ type Server struct {
 	JWT  *auth.JWT
 	// Generator is nil when the LLM settings are incomplete; CSV generation then fails with 500.
 	Generator Generator
+	// Bank, when set (QUESTION_BANK), answers a job whose whole quiz the question bank holds at once, with no AI
+	// call (answerFromBank). The quizzes it holds only part of reach it through Generator, which then wraps the
+	// model in a bank.Generator. Nil leaves every quiz to Generator.
+	Bank *bank.Service
 
 	AdminAPIKey     string
 	RefreshTokenTTL time.Duration

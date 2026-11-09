@@ -113,6 +113,17 @@ func normalizeCSV(content string, shape csvShape) (string, *quotingError) {
 	return out.String(), nil
 }
 
+// CheckRows is a creative CSV of the export type normalized as the model's is before it is stored (see
+// normalizeCSV), or why it cannot be: for CSV the server writes itself (package bank), a check that it reads the
+// same as the model's.
+func CheckRows(content string, t ExportType) (string, error) {
+	fixed, problem := normalizeCSV(content, shapeFor(true, Options{ExportType: t}))
+	if problem != nil {
+		return "", problem
+	}
+	return fixed, nil
+}
+
 // csvRow is a row as readCSV found it: the line it starts on, its trimmed cells, whether a quoted cell in it is
 // never closed, and whether a cell with text in it is not quoted.
 type csvRow struct {

@@ -78,7 +78,9 @@ var languagePromptFiles embed.FS
 type languagePrompt struct {
 	simpleSystem string
 	// creativeSystem is filled per call by creativeSystemPrompt, since its TIME LIMIT comes from the config.
-	creativeSystem    *template.Template
+	creativeSystem *template.Template
+	// bankSystem is the question bank's system prompt (see WriteQuestions), filled per call like creativeSystem.
+	bankSystem        *template.Template
 	gestureQuiz       *template.Template
 	gestureStageRules [GestureStageCount]string
 }
@@ -88,7 +90,8 @@ type languagePrompt struct {
 var languagePrompts = loadLanguagePrompts()
 
 func loadLanguagePrompts() [languageCount]languagePrompt {
-	creative := template.Must(template.New("creative").Option("missingkey=error").Parse(normalizePrompt(creativeSystemTemplate)))
+	creative := withGuidance(template.Must(template.New("creative").Option("missingkey=error").Parse(normalizePrompt(creativeSystemTemplate))))
+	bank := withGuidance(template.Must(template.New("bank").Option("missingkey=error").Parse(normalizePrompt(bankSystemTemplate))))
 	gesture := template.Must(template.New("gesture_quiz").Option("missingkey=error").Parse(normalizePrompt(gestureQuizTemplate)))
 	var prompts [languageCount]languagePrompt
 	for l := range languageCount {
@@ -103,14 +106,21 @@ func loadLanguagePrompts() [languageCount]languagePrompt {
 		prompts[l] = languagePrompt{
 			simpleSystem:      file("simple_system.txt"),
 			creativeSystem:    withBlocks(creative, file("creative.txt")),
+			bankSystem:        withBlocks(withBlocks(bank, file("creative.txt")), file("bank.txt")),
 			gestureQuiz:       withBlocks(gesture, file("gesture_quiz.txt")),
 			gestureStageRules: splitGestureStageRules(file("gesture_quiz_stages.txt")),
 		}
 		// Fill it once now, with a time limit so the TIME LIMIT section is checked too, so a broken prompt
 		// panics at start-up rather than on the first request.
 		executePrompt(prompts[l].creativeSystem, creativeSystemData(spec, time.Minute))
+		executePrompt(prompts[l].bankSystem, creativeSystemData(spec, time.Minute))
 	}
 	return prompts
+}
+
+// withGuidance adds the quiz-guidance block (prompts/quiz_guidance.txt) to a system prompt's template.
+func withGuidance(system *template.Template) *template.Template {
+	return template.Must(system.Parse(normalizePrompt(quizGuidanceTemplate)))
 }
 
 // withBlocks is a copy of the shared template with a language's {{define}} blocks added.
@@ -122,6 +132,11 @@ func withBlocks(shared *template.Template, blocks string) *template.Template {
 // one generation call (LLM_TIMEOUT_SECONDS); zero leaves out the TIME LIMIT section.
 func creativeSystemPrompt(language Language, timeLimit time.Duration) string {
 	return executePrompt(languagePrompts[language].creativeSystem, creativeSystemData(languageSpecs[language], timeLimit))
+}
+
+// bankSystemPrompt is the question bank's system prompt for a language, timeLimit as for creativeSystemPrompt.
+func bankSystemPrompt(language Language, timeLimit time.Duration) string {
+	return executePrompt(languagePrompts[language].bankSystem, creativeSystemData(languageSpecs[language], timeLimit))
 }
 
 func creativeSystemData(spec languageSpec, timeLimit time.Duration) map[string]any {

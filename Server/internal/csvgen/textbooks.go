@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"slices"
 	"strings"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // The curated lesson documents of the textbooks QuizTool knows, one markdown file per lesson in
@@ -67,6 +69,8 @@ type textbook struct {
 	docs []string
 	// words holds the Word column of each lesson's New words table, words[0] being lesson 1.
 	words [][]string
+	// rows holds the whole rows of each lesson's New words table, rows[0] being lesson 1.
+	rows [][]LessonWord
 }
 
 // library is the loaded registry, in registry order.
@@ -114,12 +118,13 @@ func loadBooks(fsys fs.FS, specs []bookSpec) (library, error) {
 				return nil, fmt.Errorf("textbook %s lesson %d: %w", spec.dir, n, err)
 			}
 			doc := normalizePrompt(string(raw))
-			words, err := parseNewWords(doc)
+			rows, err := parseNewWordRows(doc, n)
 			if err != nil {
 				return nil, fmt.Errorf("textbook %s lesson %d: %w", spec.dir, n, err)
 			}
 			book.docs = append(book.docs, doc)
-			book.words = append(book.words, words)
+			book.words = append(book.words, wordCells(rows))
+			book.rows = append(book.rows, rows)
 		}
 		// The count is pinned, so a stray file is a lesson the registry does not know about.
 		entries, err := fs.ReadDir(fsys, spec.dir)
@@ -150,12 +155,88 @@ const (
 	properNounsColumns = 4
 )
 
+// LessonWord is one row of a lesson's New words table: the word as the book writes it, its pinyin (empty in
+// an English book), its part of speech (empty in YCT), its English and Vietnamese meanings, and Star when the
+// Note marks it ★, beyond the syllabus. Lesson is the lesson whose table holds the row.
+type LessonWord struct {
+	Lesson     int
+	Word       string
+	Pinyin     string
+	POS        string
+	English    string
+	Vietnamese string
+	Star       bool
+}
+
+// Key names the word within its book: the word, its pinyin and its part of speech, which is how the lesson
+// documents tell homographs apart (上 n. "trên" and 上 v. "lên"), in Unicode NFC. A word repeated by a later
+// lesson, a review lesson's above all, has the same key there.
+func (w LessonWord) Key() string {
+	return norm.NFC.String(w.Word + "|" + w.Pinyin + "|" + w.POS)
+}
+
+// Vocabulary is what a quiz request asks to be tested: the testable words of the lessons it names (every New
+// words row but the ★ ones, each key once, in lesson and table order) and the book they come from, named by
+// its folder, which is also the question bank's name for it.
+type Vocabulary struct {
+	Book    string
+	Lessons []int
+	Words   []LessonWord
+}
+
+// MaxLesson is the highest lesson asked for: the learner knows every word up to it.
+func (v Vocabulary) MaxLesson() int {
+	return v.Lessons[len(v.Lessons)-1]
+}
+
+// LessonVocabulary is the Vocabulary of a creative request, false when its course has no embedded textbook
+// or it names a lesson the book does not have.
+func LessonVocabulary(opts Options) (Vocabulary, bool) {
+	book := textbookFor(opts)
+	if book == nil || len(opts.LessonNumbers) == 0 {
+		return Vocabulary{}, false
+	}
+	vocabulary := Vocabulary{Book: book.dir, Lessons: slices.Clone(opts.LessonNumbers)}
+	seen := map[string]bool{}
+	for _, lesson := range opts.LessonNumbers {
+		if lesson < 1 || lesson > book.lessons {
+			return Vocabulary{}, false
+		}
+		for _, word := range book.rows[lesson-1] {
+			if word.Star || seen[word.Key()] {
+				continue
+			}
+			seen[word.Key()] = true
+			vocabulary.Words = append(vocabulary.Words, word)
+		}
+	}
+	return vocabulary, len(vocabulary.Words) > 0
+}
+
 // parseNewWords returns the Word cell of every row of the "## New words" table of a normalized lesson
-// document: the rows between that heading and the next "## " heading, without the header and its
-// separator. The other columns are for the model alone.
+// document (see parseNewWordRows).
 func parseNewWords(doc string) ([]string, error) {
+	rows, err := parseNewWordRows(doc, 0)
+	if err != nil {
+		return nil, err
+	}
+	return wordCells(rows), nil
+}
+
+func wordCells(rows []LessonWord) []string {
+	words := make([]string, len(rows))
+	for i, row := range rows {
+		words[i] = row.Word
+	}
+	return words
+}
+
+// parseNewWordRows returns every row of the "## New words" table of a normalized lesson document: the rows
+// between that heading and the next "## " heading, without the header and its separator. lesson is the
+// lesson the document is, written on each row.
+func parseNewWordRows(doc string, lesson int) ([]LessonWord, error) {
 	inSection, found := false, false
-	var rows []string
+	var rows []LessonWord
 	seenHeader := false
 	for _, line := range strings.Split(doc, "\n") {
 		line = strings.TrimSpace(line)
@@ -184,7 +265,10 @@ func parseNewWords(doc string) ([]string, error) {
 		if cells[0] == "" || strings.Contains(cells[0], "★") {
 			return nil, fmt.Errorf("New words row %q has an empty Word or one marked with ★", line)
 		}
-		rows = append(rows, cells[0])
+		rows = append(rows, LessonWord{
+			Lesson: lesson, Word: cells[0], Pinyin: cells[1], POS: cells[2], English: cells[3], Vietnamese: cells[4],
+			Star: strings.Contains(cells[newWordsNoteColumn], "★"),
+		})
 	}
 	if !found {
 		return nil, fmt.Errorf("no \"## New words\" section")

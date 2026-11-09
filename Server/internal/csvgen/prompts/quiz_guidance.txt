@@ -1,0 +1,316 @@
+{{/* The guidance on writing the questions of a quiz, shared by the creative prompt, which writes them as CSV rows, and the bank prompt, which writes them as JSON for the question bank. */ -}}
+{{define "quiz-guidance" -}}
+## LESSON SOURCE
+
+The LESSON MATERIAL and the images are both optional. Determine the lesson vocabulary as follows.
+
+When several lesson numbers are given, write one quiz that reviews all of those lessons together. Everything this prompt says about the lesson then applies to the chosen lessons as a whole: the words of all of them are the lesson vocabulary, and the words of the earlier lessons that were not chosen are known to the learner. Without material, rebuild each chosen lesson as described below. Spread the questions over the chosen lessons in proportion to their new words, so that none is left out, and mix them through the set instead of grouping the questions lesson by lesson. When there are more words than questions, prefer the key words of each lesson over the minor ones.
+
+### When a LESSON MATERIAL message is provided
+
+The LESSON MATERIAL is the lesson, taken from the textbook itself, and the only source of its content. Its New words table is the complete list of the lesson's words; material that holds several lessons has one table per lesson, and together they are the list. Never invent lesson words, and never use your own memory or a web search to add, remove, or change a word of the lesson.
+
+* Test only the words of the New words table. When the table has enough rows, test every one of them at least once.
+* Do not make a word marked ★ in the Note column, or a proper noun (the Proper nouns section), the target of a question. They may appear in the context of a question or in an example sentence.
+{{template "material-forms" .}}
+* Build the example sentences, fill-in-the-blank questions, and word-order questions from the Language points and the Texts. Reuse or adapt the sentences of the book.
+* The distractors and the other words of a question come from the lesson's own words or from the Known vocabulary line of the material, which lists the words the learner already knows. Never use a word above them.
+
+When images are provided as well, they show which part of the lesson the teacher wants reviewed. Focus on what the images show, but the material still decides the {{.Forms}}, the meanings, and which words belong to the lesson.
+
+### When only images are provided
+
+The images are the authoritative source. Use the vocabulary visible in them as the primary material, and use the stated course, level, and lesson number only to resolve ambiguity and to calibrate difficulty.
+
+### When neither is provided
+
+{{template "rebuild-lesson" .}}
+
+A quiz built from a best-effort reconstruction of the lesson is always more useful than a refusal. Only an unidentifiable course, see HANDLING UNCLEAR INPUT, justifies not generating questions.
+
+## PRIMARY OBJECTIVE
+
+Analyze the lesson material and generate high-quality review questions that help Vietnamese students:
+
+1. Recognize newly learned vocabulary.
+2. Understand meanings and usage.
+3. Recall vocabulary from memory.
+4. Distinguish similar words or expressions.
+5. Use vocabulary correctly in practical contexts.
+6. Apply vocabulary in simple real-life communication.
+
+Prioritize the vocabulary and language patterns taught in the lesson.
+
+## LANGUAGE RESTRICTIONS
+
+These restrictions are mandatory.
+
+### {{.Lang}} vocabulary
+
+{{.Lang}} words and expressions used in questions, answer choices, answers, explanations, and examples must come only from:
+
+1. Vocabulary belonging to the lesson, whether it comes from the LESSON MATERIAL, from the provided images, or from the lesson rebuilt as described in the LESSON SOURCE section.
+2. Very basic functional {{.Lang}} required to construct a natural question, sentence, or instruction.
+3. Vocabulary appropriate to the stated course level or a lower level of the same course.
+
+Do NOT intentionally introduce vocabulary from higher levels. When the course has no stated level, stay close to the difficulty of the lesson vocabulary itself.
+
+When there is uncertainty about whether a word is allowed, prefer simpler vocabulary or avoid the word entirely.
+
+Do not invent vocabulary that is not supported by the lesson material.
+
+### Vietnamese
+
+The target learners are Vietnamese.
+
+* Vietnamese should be used whenever Vietnamese is required by the CSV format.
+* Explanations must always be in Vietnamese.
+* Vietnamese translations must accurately reflect the meaning and context of the {{.Lang}}.
+* Do not provide explanations in English unless explicitly requested.
+
+### Choosing the language of each question
+
+Choose the language of every part of a question by asking what that part is for. Every piece of {{.Lang}} the learner reads should be something worth practising; everything else should get out of the way.
+
+* {{.Lang}} belongs where it is the thing being tested or practised: the lesson words, the sentence with a blank, the dialogue line, the options the learner must tell apart. Reading it is part of the exercise.
+* The instruction around the task, which only tells the learner what to do, should be in Vietnamese whenever writing it in {{.Lang}} would add nothing to learn. {{.ALangCapital}} frame the learner either cannot read yet or skims past as a fixed formula, repeated row after row, costs time and teaches nothing.
+* Use {{.ALang}} question stem only when reading it is itself useful practice: it is built from lesson vocabulary or words clearly below the course level, and understanding it is part of what the question checks. The higher the course level, the more of the question can reasonably be {{.Lang}}; at beginner levels keep the scaffolding in Vietnamese.
+* Keep each question coherent. When the options are Vietnamese meanings, the stem that asks for the meaning should be Vietnamese too; {{.ALang}} stem that exists only to ask for a Vietnamese answer is scaffolding in the wrong language.
+* Do not settle on one stem and reuse it across the set. If several questions share the same task, vary their wording, and let the tested content, not the wrapper, carry the {{.Lang}}.
+
+Before finalising each row, check it: which {{.Lang}} in this question does the learner actually gain from reading? If the answer is none apart from the options, the stem should be Vietnamese.
+
+## LESSON ANALYSIS
+
+Before generating questions, internally identify:
+
+* All vocabulary of the lesson.
+{{template "analysis-forms" .}}
+* Vietnamese meanings, if visible or provided.
+* Example phrases and sentences.
+* Important grammar patterns.
+* Distinguishable word usages or common confusions.
+* Images or visual information that can be used for questions.
+* When the CSV template has an image field, the image plan described in the IMAGE USAGE section.
+
+Do not output this analysis.
+
+Use the lesson vocabulary as the primary source for question generation.
+
+## QUESTION DESIGN
+
+Aim for a varied set of questions. A set in which every question shares the same shape is much less useful, even when each question is correct.
+
+### Variety guidelines
+
+* Rotate question formats as you go, and try not to repeat the same type many times in a row.
+* Across the whole output, try to use several different question types when the vocabulary and the CSV template allow it.
+* Vary the surface form where it feels natural: question length, translation direction, which part of a sentence is blanked, and whether the prompt is a statement, a question, a dialogue line, or a described situation.
+{{template "distractors" .}}
+* Prefer interleaving question types rather than grouping all questions of one type together.
+* When the CSV template has an image field, visual questions are the norm, not the exception: at least half of the rows are questions that can only be answered by looking at the image, spread evenly through the set, and varied in kind. See the IMAGE USAGE section.
+
+### Question type catalogue
+
+Recognition and meaning:
+
+{{template "recognition-types" .}}
+
+Usage and context:
+
+* Fill in the blank in a sentence.
+* Choose the correct word for a context in which two options are close in meaning.
+* Choose the grammatically correct sentence among similar ones.
+* Complete a dialogue: given speaker A's line, choose B's natural reply.
+* Given a situation described in Vietnamese, choose what you would actually say in {{.Lang}}.
+{{template "function-words" .}}
+* Spot the error: which sentence uses the word incorrectly.
+
+Structure and production:
+
+* Word or sentence ordering: show the shuffled parts in the question and full orderings as options, unless the CSV template defines its own format for ordering questions.
+* Production questions where the learner must type the word, when the CSV template supports a typed answer.
+* Short {{.Lang}} sentence to correct Vietnamese meaning.
+* Short Vietnamese sentence to correct {{.Lang}} sentence.
+
+Discrimination and depth:
+
+* Distinguish easily confused pairs taught in the lesson.
+* The same word used with different meanings in two contexts.
+* Choose the synonym or antonym within the lesson vocabulary.
+* Choose the word that correctly collocates with a given word.
+
+Visual and real-life:
+
+* Look at an image and choose the {{.Lang}} word that describes it.
+* Look at an image and choose the sentence that correctly describes the scene.
+* Infer simple information from an image: quantity, time, place, action, weather, price.
+* Practical scenarios such as ordering food, asking for directions, shopping, or making an appointment.
+
+Do not force a question type that the vocabulary or CSV structure cannot support. When a type does not fit, choose another type instead of degrading the question.
+
+Favor questions that test actual understanding and usage rather than simple memorization.
+
+## QUESTION DIFFICULTY
+
+Create a reasonable mixture of difficulty:
+
+* Easy: direct recognition, meaning, {{.Forms}}, or simple recall.
+* Medium: context, sentence completion, distinguishing words, or applying vocabulary.
+* Hard: practical situations, short dialogues, sentence ordering, or combining multiple lesson vocabulary items.
+
+When the CSV template defines stages, its stage rules replace this mixture: classify every question by its real difficulty and put it in the matching stage.
+
+Hard questions must still respect the vocabulary restrictions.
+
+Do not make questions artificially difficult by introducing unfamiliar vocabulary.
+
+## IMAGE USAGE
+
+Images make a quiz far more engaging and help Vietnamese learners bind {{.ALang}} word directly to its meaning without going through Vietnamese first. But an image is only worth attaching when the question cannot be answered without it: the picture must carry information that the text deliberately leaves out, such as the object, the action, the scene, the number, or the time being asked about.
+
+Never attach an image to a question that can already be answered from its text alone. A picture that merely decorates or repeats what the text says is forbidden. When a question is answerable from the text, either leave its image field empty or rewrite the question so that the picture supplies the missing information.
+
+The test for every illustrated row: imagine the image is hidden. If a learner could still pick the correct answer from the question text and the options, the image does not belong there.
+
+This applies only when the CSV template has an image field, such as the Wayground Image Link column. When the template has no image field, leave that field alone and ignore this section.
+
+### Coverage target
+
+* At least half of the questions must be visual questions, that is questions whose answer depends on the image. Aim for two thirds or more when the lesson vocabulary is concrete, which is the case for most beginner and YCT lessons.
+* Never let two text-only questions sit next to each other when a picturable word is still available.
+* Spread the images across the whole set, from the first row to the last, instead of attaching pictures only to the first few rows.
+
+### Image plan
+
+Before writing any question, build an internal image plan. Do not output it.
+
+1. List every lesson word and decide how it can be pictured, using the three levels below.
+2. For each picturable word, write down a short, generic English keyword and the image URL you will use.
+3. Design the questions around this plan: first write the visual questions for every word that has an image, phrasing each one so that the picture replaces the information the text leaves out, then fill the rest of the set with text-only questions, which carry no image.
+
+A word can usually be pictured at one of three levels. Go down the list before deciding that a word has no image.
+
+1. Directly: concrete nouns, foods, drinks, animals, plants, places, buildings, rooms, furniture, professions, family members, transport, clothing, body parts, school objects, colours, shapes, weather, seasons, numbers shown as objects or fingers, and action verbs such as eat, drink, read, write, run, sleep, buy, cook, swim.
+2. Through a typical scene: adjectives and states (big, small, hot, cold, tall, busy, tired, happy, sick), feelings (like, love, afraid), time words (morning, evening, a clock showing 8 o'clock, a calendar page), greetings and courtesy expressions (waving hello, shaking hands, saying thank you with a gift), and relations such as in front of, behind, on, under, near.
+{{template "image-context-example" .}}
+
+Only words that fail all three levels stay text-only.
+
+### The goal of a visual question
+
+A visual question makes the learner connect {{.ALang}} word or sentence directly to what they see, without the Vietnamese meaning as a crutch. The picture carries the information being tested, and the text deliberately leaves it out. How you phrase the question and which question type you use are up to you, and its language follows the section on choosing the language of each question: choose whatever tests the lesson word best and keeps the set varied, as long as the image stays essential to finding the answer.
+
+### When to leave the image field empty
+
+Leave the image field empty for these reasons:
+
+* The question can be answered from its text alone. This is always a text-only question, however easy the word is to picture.
+* The word fails all three levels of the image plan and the sentence context offers no clear scene either.
+{{template "image-giveaway" .}}
+* No clean, unambiguous picture exists. An ambiguous image makes the question worse than no image.
+* You do not have a real, working URL for a suitable picture, even after trying the fallback sources below.
+
+When you cannot get a real, working URL for a visual question, do not leave the visual question without its picture: it would be unanswerable. Rewrite it as a text-only question that no longer refers to an image.
+
+### Where to find images
+
+Only use images that really exist. Which sources you can use depends on your tools.
+
+Pexels is the preferred source. Always look for a Pexels photo first, and move to another source only when Pexels has nothing suitable for that word.
+
+The web search tool is only for finding illustrations. Never use it to look up the course, the lesson, or its words.
+
+When you have a web search or browsing tool, search for a real, freely usable illustration in this order:
+
+1. Pexels (pexels.com): high-quality free stock photos of objects, food, people, actions, places, and daily-life scenes. This is the default source and should supply most of the images in the set.
+2. Unsplash (images.unsplash.com/) and Pixabay (cdn.pixabay.com/), only when Pexels has no suitable photo and the search result shows the direct image file URL itself.
+3. Openverse (openverse.org) or Flickr Creative Commons (live.staticflickr.com/) as a last resort, under the same condition.
+
+#### Turning a Pexels result into an image link
+
+A search returns Pexels photo pages, not image files. Every photo page URL ends with the numeric photo ID:
+
+https://www.pexels.com/photo/close-up-photo-of-red-apple-4869133/
+
+Build the image link from that ID, replacing both occurrences of <ID>:
+
+https://images.pexels.com/photos/<ID>/pexels-photo-<ID>.jpeg?auto=compress&cs=tinysrgb&w=940
+
+For the example above: https://images.pexels.com/photos/4869133/pexels-photo-4869133.jpeg?auto=compress&cs=tinysrgb&w=940
+
+Take the ID only from a photo page URL that appeared in your search results, and only when the title or description of that result matches the subject you need. Never write the pexels.com/photo/ page URL itself in the image field.
+
+#### Searching efficiently
+
+{{if .TimeLimitSeconds}}The whole answer has a time limit{{else}}Every search makes the answer slower{{end}}, so keep searches few and targeted:
+
+* One search per picture, restricted to Pexels photo pages, for example: site:pexels.com/photo red apple
+* A single search result page usually lists several matching photos. When two questions need similar pictures, such as two different fruits or two family members, take them from the same results where possible.
+* Retry once with a simpler keyword when a search returns nothing usable, then move on. Do not spend more than two searches on one picture.
+
+Never use Wikimedia Commons or any wikimedia.org or wikipedia.org URL, including commons.wikimedia.org, upload.wikimedia.org, and Special:FilePath links: the quiz platform cannot load images from those hosts. This also applies to Openverse results that point to Wikimedia files.
+
+Search with a simple, generic English noun or phrase describing the subject, for example "red apple", "train station platform", "woman drinking tea", "rainy street". If the first search returns nothing usable, broaden or simplify the keyword and try again on Pexels before moving to the next source or giving up on the image.
+
+When you have no web search tool, use only Pexels image URLs you know exactly. Do not reconstruct photo IDs or file names from memory: a guessed URL is almost always broken. When you cannot be sure of a real URL, leave the image field empty.
+
+### Image link requirements
+
+* Must be a URL that returns the image file itself: a direct file URL, normally ending in .jpg, .jpeg, .png, or .webp, optionally followed by size parameters such as the Pexels ?auto=compress&cs=tinysrgb&w=940. Prefer images.pexels.com URLs built as described above.
+* Must not be hosted on wikimedia.org or wikipedia.org.
+* Must use https.
+* Must be hotlinkable and publicly reachable without login, paywall, or consent banner.
+* Avoid search results pages, article pages, gallery pages, photo pages such as pexels.com/photo/, Google or Bing image redirects, and shortened links.
+* Avoid images with heavy watermarks or stock-photo overlays.
+* Avoid images that contain text revealing the answer.
+* Never generate an image yourself, and never invent a URL. A broken link is worse than an empty field.
+
+### Image content requirements
+
+* The image must clearly and unambiguously support the question.
+* One obvious subject, well lit, not cluttered.
+* Culturally appropriate and classroom safe.
+* No content that would make the correct answer look wrong.
+
+A visual question depends on its image, so its link must be reliable. Use only URLs you are confident load, as described above.
+
+### Common mistakes to avoid
+
+{{template "image-mistake" .}}
+* Producing a question set in which fewer than half of the rows are visual questions while picturable words remain. That is a failure to follow this section.
+* Leaving the image field empty on a question that tells the learner to look at a picture.
+* Writing the questions first and trying to attach images afterwards. Plan the images first, then design the questions around them.
+* Treating adjectives, feelings, time words, and measure words as unpicturable. Use a typical scene or the sentence context instead.
+* Giving up on an image after a single search. Try a more generic keyword on Pexels, then the other sources.
+* Using a Wikimedia or Wikipedia image. The quiz platform cannot load them.
+* Reusing the same URL for many questions. Each image question needs its own picture, unless the same scene is deliberately reused for two different questions about it.
+* Inventing a plausible-looking URL. A broken link is worse than an empty field.
+
+## QUESTION QUALITY
+
+Every question must:
+
+* Have one clearly correct answer unless the CSV format explicitly supports multiple correct answers.
+* Be natural and understandable to {{.ALang}} learner.
+* Test the intended vocabulary or grammar.
+* Avoid unnecessary ambiguity.
+* Have answer choices that are plausible when multiple-choice questions are used.
+* Ensure incorrect choices are actually incorrect.
+* Ensure the answer exactly matches the expected format.
+* Avoid duplicate questions unless repetition is clearly useful for learning.
+
+Do not create a question merely to increase the number of rows.
+
+## VOCABULARY COVERAGE
+
+Prioritize newly learned vocabulary from the lesson.
+
+Try to distribute questions across the lesson vocabulary rather than repeatedly testing only the easiest words.
+
+Important vocabulary may be tested more than once using different contexts or question types.
+
+Do not introduce vocabulary from later levels simply to make a question more natural.
+
+{{template "forms-section" .}}
+{{- end}}

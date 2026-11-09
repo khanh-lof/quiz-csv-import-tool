@@ -294,6 +294,22 @@ request carries none.
   fails when a lesson's New words disagree with that book's `vocabulary-index.md`: a missing or extra word, its
   pinyin, or its ★.
 
+## The question bank
+
+With `QUESTION_BANK=on` the quizzes of the textbooks above are built from stored questions instead of written
+whole by the model each time (details in [Server/AGENTS.md](Server/AGENTS.md)). This applies to GimKit, Blooket,
+Wayground and the Game, for a request without images. It is server-only: the client sends and reads the same job as
+before.
+
+- **A quiz the bank holds whole** is a job that is `done` as soon as it is created. It counts no AI call and calls
+  no model, at either intelligence level.
+- **A quiz it holds part of** is an AI job as before, but the model writes only the missing questions. They are
+  checked and stored, and every later quiz on those lessons reuses them.
+- **The bank starts empty** and grows from these jobs. The first quiz of a lesson asks the model for all of it,
+  plus one extra question per word.
+- **What every quiz guarantees.** Each new word of the chosen lessons is tested (a Game tests as many as it has
+  places for), the questions mix easy, medium and hard, and the least used questions come first.
+
 ## The browser extension (Wayground and Gimkit)
 
 Neither Wayground nor Gimkit has a public API for creating quizzes, so `Extension/` drives each one's own
@@ -670,6 +686,8 @@ only as a `403` with a plain-text body from `POST csv/jobs`, which
 `AiGeneration.showGenerationError` turns into a "Hết lượt dùng AI" notification (a `403` with an
 empty body is the role check instead, shown as "Không có quyền"). A job whose generation fails (recorded as
 `502`/`504`) is given back (`RefundAICall`), so resubmitting after a failure does not use up the user's quota.
+A quiz the question bank builds whole (see [The question bank](#the-question-bank)) is not an AI call and is not
+counted.
 
 Login is limited separately, per username (`LOGIN_MAX_ATTEMPTS` per `LOGIN_WINDOW_MINUTES`, see
 [Server/AGENTS.md](Server/AGENTS.md)): beyond it `auth/login` answers `429` with `Retry-After`, which the login
