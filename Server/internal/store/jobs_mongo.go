@@ -37,10 +37,16 @@ func (m *MongoJobs) Create(ctx context.Context, job *Job) error {
 	return err
 }
 
-func (m *MongoJobs) Complete(ctx context.Context, username, id, csv, source string, usage JobUsage) error {
-	set := bson.M{"status": JobDone, "csv": csv, "usage": usage}
-	if source != "" {
-		set["source"] = source
+func (m *MongoJobs) Complete(ctx context.Context, username, id string, result JobResult) error {
+	set := bson.M{"status": JobDone, "csv": result.CSV}
+	if result.Source != "" {
+		set["source"] = result.Source
+	}
+	if result.Usage != nil {
+		set["usage"] = *result.Usage
+	}
+	if len(result.BankQuestions) > 0 {
+		set["bankQuestions"], set["fromBank"] = result.BankQuestions, result.FromBank
 	}
 	return m.finish(ctx, username, id, set)
 }
@@ -68,6 +74,13 @@ func (m *MongoJobs) Progress(ctx context.Context, username, id string, rows int)
 	_, err := m.jobs.UpdateOne(ctx,
 		bson.M{"_id": id, "username": username, "status": JobRunning},
 		bson.M{"$set": bson.M{"progressRows": rows}})
+	return err
+}
+
+func (m *MongoJobs) Heartbeat(ctx context.Context, username, id string) error {
+	_, err := m.jobs.UpdateOne(ctx,
+		bson.M{"_id": id, "username": username, "status": JobRunning},
+		bson.M{"$set": bson.M{"heartbeatAt": m.now().UTC()}})
 	return err
 }
 
@@ -123,12 +136,42 @@ func (m *MongoJobs) Delete(ctx context.Context, username, id string) error {
 	return nil
 }
 
-func (m *MongoJobs) ExpireRunning(ctx context.Context, username string, before time.Time, message string) ([]Job, error) {
+func (m *MongoJobs) SetImages(ctx context.Context, username, id string, images []JobImage, storedAt time.Time) error {
+	_, err := m.jobs.UpdateOne(ctx,
+		bson.M{"_id": id, "username": username},
+		bson.M{"$set": bson.M{"images": images, "imagesStoredAt": storedAt.UTC()}})
+	return err
+}
+
+// lastSignBefore matches a job whose last sign of life, its heartbeat or before the first one its creation,
+// is before t.
+func lastSignBefore(t time.Time) bson.M {
+	return bson.M{"$or": bson.A{
+		bson.M{"heartbeatAt": bson.M{"$lt": t}},
+		bson.M{"heartbeatAt": bson.M{"$exists": false}, "createdAt": bson.M{"$lt": t}},
+	}}
+}
+
+// resumableJob matches a creative job resumed fewer than maxResumes times ($not also matches a job without the
+// field, never resumed).
+func resumableJob(maxResumes int) bson.M {
+	return bson.M{"creative": true, "resumes": bson.M{"$not": bson.M{"$gte": maxResumes}}}
+}
+
+func (m *MongoJobs) ExpireRunning(ctx context.Context, username string, cutoffs ExpiryCutoffs, message string) ([]Job, error) {
+	stale := lastSignBefore(cutoffs.Before)
+	if cutoffs.Resumable {
+		resumable := resumableJob(cutoffs.MaxResumes)
+		stale = bson.M{"$or": bson.A{
+			bson.M{"$and": bson.A{bson.M{"$nor": bson.A{resumable}}, lastSignBefore(cutoffs.Before)}},
+			bson.M{"$and": bson.A{resumable, lastSignBefore(cutoffs.ResumableBefore)}},
+		}}
+	}
 	var expired []Job
 	for {
 		var job Job
 		err := m.jobs.FindOneAndUpdate(ctx,
-			bson.M{"username": username, "status": JobRunning, "createdAt": bson.M{"$lt": before}},
+			bson.M{"username": username, "status": JobRunning, "$and": bson.A{stale}},
 			bson.M{"$set": bson.M{
 				"status": JobFailed, "errorStatus": ExpiredJobStatus, "errorCode": ExpiredJobCode, "errorMessage": message,
 				"finishedAt": m.now().UTC(),
@@ -142,6 +185,21 @@ func (m *MongoJobs) ExpireRunning(ctx context.Context, username string, before t
 		}
 		expired = append(expired, job)
 	}
+}
+
+func (m *MongoJobs) ClaimInterrupted(ctx context.Context, before time.Time, maxResumes int) (*Job, error) {
+	var job Job
+	err := m.jobs.FindOneAndUpdate(ctx,
+		bson.M{"status": JobRunning, "$and": bson.A{resumableJob(maxResumes), lastSignBefore(before)}},
+		bson.M{"$set": bson.M{"heartbeatAt": m.now().UTC(), "progressRows": 0}, "$inc": bson.M{"resumes": 1}},
+		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&job)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &job, nil
 }
 
 func (m *MongoJobs) Prune(ctx context.Context, username string, keep int) error {

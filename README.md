@@ -77,7 +77,22 @@ Both halves deploy together as one Vercel project using
 [Vercel Services](https://vercel.com/docs/services), configured in the root [`vercel.json`](vercel.json):
 `/api/*` and `/healthz` go to the Go `server` service, everything else to the Angular `client` service.
 Set the Vercel project's Root Directory to the repository root and add the server's environment
-variables (see [`Server/.env.example`](Server/.env.example)) to the project.
+variables (see [`Server/.env.example`](Server/.env.example)) to the project, `APP_ORIGIN` being the
+project's own URL and `CLOUDINARY_URL` a free [Cloudinary](https://cloudinary.com) account's API environment
+variable: it keeps each job's images for 30 days, so a failed job can be retried and an interrupted one resumed.
+
+Creative AI jobs (the quizzes the model writes) can run longer than a Vercel function may, so they run on a
+second, AI-only Go server (`Server/cmd/ai-server`) on Render's free plan, which the Vercel server forwards them to:
+
+1. In the Render dashboard choose **New → Blueprint**, pick this repository ([`render.yaml`](render.yaml)), and enter
+   the same `MONGODB_URI`, `JWT_SECRET`, `CLOUDINARY_URL` and LLM settings as the Vercel project, plus a new
+   `AI_SERVER_SECRET` (at least 32 bytes, e.g. `openssl rand -base64 48`).
+2. In the Vercel project, set `AI_SERVER_URL` to the Render service's URL and `AI_SERVER_SECRET` to the same
+   value, then redeploy. Render refuses job requests without it.
+
+Without step 2 every job runs on Vercel. The free Render service sleeps after 15 minutes without requests; the
+first creative job after that waits about a minute for it to wake. When Render stops it in the middle of a job (a
+restart or a deploy), it runs the job again once it is back, by itself.
 
 The server can also run anywhere as a container ([`Server/Dockerfile`](Server/Dockerfile)), behind a
 reverse proxy that serves the client on the same origin over HTTPS.

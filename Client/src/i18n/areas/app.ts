@@ -21,7 +21,7 @@ export const app = {
     guideExport: 'Chọn nền tảng rồi tải file.',
     guideRules: 'Cần ít nhất %minRows% câu, không trùng nhau; dòng trống bị bỏ qua.',
     guideMultipleChoice: '<b>Trắc nghiệm</b>: đáp án sai lấy từ đáp án của các câu khác.',
-    guideWaygroundLead: 'Wayground: có thể dùng',
+    guidePublishLead: 'Wayground, Gimkit: có thể dùng',
     guideDownload: 'tải về',
     guideInstall: 'cách cài',
     noValidRows: 'File không có dòng hợp lệ.',
@@ -37,12 +37,12 @@ export const app = {
     questionTypePlaceholder: 'Chọn loại câu hỏi',
     deleteRow: 'Xóa dòng'
   },
-  wayground: {
+  publish: {
     extensionDelivery: 'Tiện ích tự publish',
     extensionDownloadFailed: 'Không tải được tiện ích',
-    publishFailed: 'Wayground chưa publish được',
+    publishFailed: '%platform% chưa publish được',
     downloadedImportManually: 'Đã tải %fileName%, import bằng tay.',
-    published: 'Đã publish quiz trên Wayground',
+    published: 'Đã publish quiz trên %platform%',
     publishedBody: '"%title%"%copied%: %link%',
     copiedSuffix: ' (đã sao chép)'
   }

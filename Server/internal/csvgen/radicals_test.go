@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"quiz-csv-import-tool/server/internal/radicals"
+	"quiz-csv-import-tool/server/internal/store"
 )
 
 func TestLessonVocabulary(t *testing.T) {
@@ -218,7 +219,7 @@ func fakeRadicalsModel(t *testing.T, vocabulary string) (*httptest.Server, *[]st
 func TestGenerateRadicalsFromTextbook(t *testing.T) {
 	llm, calls := fakeRadicalsModel(t, `{"lessons":[]}`)
 	level := 1
-	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", "", 0, slog.New(slog.DiscardHandler))
 	result, err := c.Generate(context.Background(), nil, true, Options{
 		ExportType: Radicals, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumbers: []int{5, 6},
 	})
@@ -259,7 +260,7 @@ const modelVocabulary = `{"lessons":[{"number":1,"titleZh":"","titleVi":"","word
 
 func TestGenerateRadicalsFromModel(t *testing.T) {
 	llm, calls := fakeRadicalsModel(t, modelVocabulary)
-	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", "", 0, slog.New(slog.DiscardHandler))
 	result, err := c.Generate(context.Background(), nil, true, Options{
 		ExportType: Radicals, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{1},
 	})
@@ -280,7 +281,7 @@ func TestGenerateRadicalsFromModel(t *testing.T) {
 
 func TestGenerateRadicalsWithTooFewWords(t *testing.T) {
 	llm, _ := fakeRadicalsModel(t, `{"lessons":[]}`)
-	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", "", 0, slog.New(slog.DiscardHandler))
 	_, err := c.Generate(context.Background(), nil, true, Options{
 		ExportType: Radicals, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{1},
 	})
@@ -289,5 +290,55 @@ func TestGenerateRadicalsWithTooFewWords(t *testing.T) {
 	}
 	if !errors.Is(err, radicals.ErrNothingToPlay) {
 		t.Fatalf("error = %v, want ErrNothingToPlay", err)
+	}
+}
+
+// failingDetails is a RadicalDetails store that is down.
+type failingDetails struct{}
+
+func (failingDetails) Lookup(context.Context, []string) (map[string]store.RadicalDetail, error) {
+	return nil, errors.New("down")
+}
+func (failingDetails) Save(context.Context, []store.RadicalDetail) error { return errors.New("down") }
+
+func TestGenerateRadicalsReusesStoredNotes(t *testing.T) {
+	llm, calls := fakeRadicalsModel(t, modelVocabulary)
+	details := store.NewMemoryRadicalDetails()
+	opts := Options{ExportType: Radicals, CourseType: Other, CourseName: "Boya", LessonNumbers: []int{1}}
+	run := func(c *Client) radicals.Exercise {
+		t.Helper()
+		result, err := c.Generate(context.Background(), nil, true, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var exercise radicals.Exercise
+		if err := json.Unmarshal([]byte(result.CSV), &exercise); err != nil {
+			t.Fatal(err)
+		}
+		return exercise
+	}
+	countDetails := func() int { return strings.Count(strings.Join(*calls, ","), "details") }
+
+	c := NewClient(llm.URL, "key", "m", "", 0, slog.New(slog.DiscardHandler))
+	c.RadicalDetails = details
+	first := run(c)
+	if countDetails() != 1 || details.Len() == 0 {
+		t.Fatalf("first exercise: calls %v, %d notes stored", *calls, details.Len())
+	}
+	// The second exercise finds every note stored: no details call, the same notes, still marked as the model's.
+	second := run(c)
+	if countDetails() != 1 {
+		t.Fatalf("second exercise asked for notes again: calls %v", *calls)
+	}
+	if !slices.Equal(first.Review.AIChars, second.Review.AIChars) || !slices.Equal(first.Review.AIComponents, second.Review.AIComponents) {
+		t.Errorf("review differs: %v %v, then %v %v", first.Review.AIChars, first.Review.AIComponents,
+			second.Review.AIChars, second.Review.AIComponents)
+	}
+
+	// A store that is down only costs the call.
+	c.RadicalDetails = failingDetails{}
+	run(c)
+	if countDetails() != 2 {
+		t.Fatalf("with the store down: calls %v", *calls)
 	}
 }

@@ -19,7 +19,6 @@ function job(id: string, status: AiJob['status'], overrides: Partial<AiJob> = {}
     creative: true,
     language: 0,
     exportType: 0,
-    intelligence: 1,
     imageCount: 0,
     courseType: null,
     courseName: '',

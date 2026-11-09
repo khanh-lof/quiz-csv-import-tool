@@ -4,14 +4,15 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/gesturequiz"
+	"quiz-csv-import-tool/server/internal/imagestore"
 )
 
 type Config struct {
@@ -29,6 +30,14 @@ type Config struct {
 	MongoPlayersCollection     string
 	// MongoLoginAttemptsCollection holds the login attempts counted per username.
 	MongoLoginAttemptsCollection string
+	// MongoQuestionsCollection holds the question bank (MONGODB_QUESTIONS_COLLECTION).
+	MongoQuestionsCollection string
+	// MongoRadicalDetailsCollection holds the notes the model wrote for Radicals exercises, reused by the next ones
+	// (MONGODB_RADICAL_DETAILS_COLLECTION).
+	MongoRadicalDetailsCollection string
+	// QuestionBank (QUESTION_BANK=on) builds the quizzes of the embedded textbooks from the question bank, the model
+	// writing only the questions it lacks. Off by default: every quiz is the model's.
+	QuestionBank bool
 
 	JWTSecret       []byte
 	JWTIssuer       string // defaults to "quiztool"; always validated
@@ -42,6 +51,15 @@ type Config struct {
 	AdminAPIKey string
 
 	LLM LLMConfig
+	// AIServer is the base URL of the server that runs the creative jobs the model writes (AI_SERVER_URL,
+	// cmd/ai-server); nil runs them on this server, under LLM.Timeout.
+	AIServer *url.URL
+	// AIServerSecret (AI_SERVER_SECRET) is sent by the main server to the AI server, which refuses every job
+	// request without it. Required wherever AIServer is set, and by the AI server.
+	AIServerSecret string
+	// CloudinaryURL is the Cloudinary account that keeps the images of jobs, so they can be sent again
+	// (CLOUDINARY_URL, cloudinary://<api key>:<api secret>@<cloud name>); empty keeps none.
+	CloudinaryURL string
 
 	AICallsPerRound int
 	RoundDuration   time.Duration
@@ -60,12 +78,11 @@ type Config struct {
 type LLMConfig struct {
 	APIKey  string
 	BaseURL string
-	// Model serves the formatted mode, and the creative mode when IntelligenceModels is empty.
+	// Model (LLM_MODEL) serves the formatted mode, and the creative mode when CreativeModel is empty.
 	Model string
-	// IntelligenceModels are the creative-mode models for "Độ thông minh" Thấp and Cao, cheapest first
-	// (LLM_INTELLIGENCE_MODELS, comma-separated). Optional; when set it must list exactly
-	// csvgen.IntelligenceLevels models.
-	IntelligenceModels []string
+	// CreativeModel (LLM_CREATIVE_MODEL) serves the creative mode: the quizzes, the question bank's questions
+	// and the Radicals exercises.
+	CreativeModel string
 	// Timeout bounds one generation call. Its default stays under Vercel's 300 s function limit so
 	// the handler can still answer a clean 504 instead of the platform killing the request.
 	Timeout time.Duration
@@ -116,6 +133,8 @@ func FromEnv() (Config, error) {
 		MongoPlayersCollection:     envOr("MONGODB_PLAYERS_COLLECTION", "AssignmentPlayers"),
 
 		MongoLoginAttemptsCollection: envOr("MONGODB_LOGIN_ATTEMPTS_COLLECTION", "LoginAttempts"),
+		MongoQuestionsCollection:     envOr("MONGODB_QUESTIONS_COLLECTION", "QuestionBank"),
+		MongoRadicalDetailsCollection: envOr("MONGODB_RADICAL_DETAILS_COLLECTION", "RadicalDetails"),
 
 		JWTSecret:               []byte(os.Getenv("JWT_SECRET")),
 		JWTIssuer:               envOr("JWT_ISSUER", "quiztool"),
@@ -127,11 +146,11 @@ func FromEnv() (Config, error) {
 		AdminAPIKey: os.Getenv("ADMIN_API_KEY"),
 
 		LLM: LLMConfig{
-			APIKey:             os.Getenv("OPENAI_API_KEY"),
-			BaseURL:            strings.TrimRight(os.Getenv("OPENAI_BASE_URL"), "/"),
-			Model:              os.Getenv("LLM_MODEL"),
-			IntelligenceModels: splitList(os.Getenv("LLM_INTELLIGENCE_MODELS")),
-			Timeout:            time.Duration(intVar("LLM_TIMEOUT_SECONDS", 280)) * time.Second,
+			APIKey:        os.Getenv("OPENAI_API_KEY"),
+			BaseURL:       strings.TrimRight(os.Getenv("OPENAI_BASE_URL"), "/"),
+			Model:         strings.TrimSpace(os.Getenv("LLM_MODEL")),
+			CreativeModel: strings.TrimSpace(os.Getenv("LLM_CREATIVE_MODEL")),
+			Timeout:       time.Duration(intVar("LLM_TIMEOUT_SECONDS", 280)) * time.Second,
 		},
 
 		AICallsPerRound: intVar("CALL_COUNT_ACCEPTED_IN_A_ROUND", 2),
@@ -153,14 +172,39 @@ func FromEnv() (Config, error) {
 	if cfg.LLM.Timeout <= 0 {
 		errs = append(errs, errors.New("LLM_TIMEOUT_SECONDS must be positive"))
 	}
-	if n := len(cfg.LLM.IntelligenceModels); n != 0 && n != csvgen.IntelligenceLevels {
-		errs = append(errs, fmt.Errorf("LLM_INTELLIGENCE_MODELS must list %d models, got %d", csvgen.IntelligenceLevels, n))
+	// Settings of "Độ thông minh", which is gone: one left set would otherwise be dropped without a word.
+	for _, renamed := range [][2]string{
+		{"LLM_INTELLIGENCE_MODELS", "LLM_CREATIVE_MODEL (one model)"},
+		{"HIGH_INTELLIGENCE_SERVER_URL", "AI_SERVER_URL"},
+		{"HIGH_INTELLIGENCE_PROXY_SECRET", "AI_SERVER_SECRET"},
+	} {
+		if _, set := os.LookupEnv(renamed[0]); set {
+			errs = append(errs, fmt.Errorf("%s is no longer read: set %s instead, and remove it", renamed[0], renamed[1]))
+		}
 	}
 	seconds, err := parseStageSeconds(os.Getenv("GAME_STAGE_SECONDS"))
 	if err != nil {
 		errs = append(errs, err)
 	}
 	cfg.GameStageSeconds = seconds
+	if cfg.AIServer, err = parseServerURL(os.Getenv("AI_SERVER_URL")); err != nil {
+		errs = append(errs, err)
+	}
+	cfg.AIServerSecret = strings.TrimSpace(os.Getenv("AI_SERVER_SECRET"))
+	if cfg.AIServerSecret != "" && len(cfg.AIServerSecret) < minJWTSecretBytes {
+		errs = append(errs, fmt.Errorf("AI_SERVER_SECRET must be at least %d bytes, got %d", minJWTSecretBytes, len(cfg.AIServerSecret)))
+	}
+	if cfg.AIServer != nil && cfg.AIServerSecret == "" {
+		errs = append(errs, errors.New("AI_SERVER_SECRET is required when AI_SERVER_URL is set"))
+	}
+	if cfg.CloudinaryURL = strings.TrimSpace(os.Getenv("CLOUDINARY_URL")); cfg.CloudinaryURL != "" {
+		if _, err := imagestore.NewCloudinary(cfg.CloudinaryURL); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if cfg.QuestionBank, err = parseSwitch("QUESTION_BANK", os.Getenv("QUESTION_BANK")); err != nil {
+		errs = append(errs, err)
+	}
 	if cfg.LoginMaxAttempts < 1 {
 		errs = append(errs, errors.New("LOGIN_MAX_ATTEMPTS must be at least 1"))
 	}
@@ -171,6 +215,31 @@ func FromEnv() (Config, error) {
 		errs = append(errs, errors.New("MAX_REFRESH_TOKENS_PER_USER must be at least 1"))
 	}
 	return cfg, errors.Join(errs...)
+}
+
+// parseServerURL reads AI_SERVER_URL: empty, or an http(s) base URL with nothing after the path.
+func parseServerURL(raw string) (*url.URL, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	u, err := url.Parse(strings.TrimRight(raw, "/"))
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.RawQuery != "" ||
+		u.Fragment != "" || u.User != nil {
+		return nil, fmt.Errorf("AI_SERVER_URL must be an http(s) URL such as https://ai.example.com, got %q", raw)
+	}
+	return u, nil
+}
+
+// parseSwitch reads an on/off setting: on, true or 1, and off, false, 0 or nothing, in any case.
+func parseSwitch(key, raw string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "on", "true", "1":
+		return true, nil
+	case "", "off", "false", "0":
+		return false, nil
+	}
+	return false, fmt.Errorf("%s must be on or off, got %q", key, raw)
 }
 
 func envOr(key, def string) string {
@@ -204,14 +273,4 @@ func parseStageSeconds(raw string) ([]int, error) {
 		seconds[i] = n
 	}
 	return seconds, nil
-}
-
-func splitList(raw string) []string {
-	var out []string
-	for _, part := range strings.Split(raw, ",") {
-		if part = strings.TrimRight(strings.TrimSpace(part), "/"); part != "" {
-			out = append(out, part)
-		}
-	}
-	return out
 }

@@ -4,12 +4,13 @@ import { appLocale } from '../i18n/app-locale';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { WaygroundExtensionService } from './wayground-extension.service';
+import { PublishExtensionService } from './publish-extension.service';
 import { FileExportService } from './file-export.service';
-import { WaygroundDelivery } from '../models/wayground-delivery';
+import { PublishDelivery } from '../models/publish-delivery';
+import { ExportType } from '../models/export-type';
 
-describe('WaygroundExtensionService', () => {
-  let service: WaygroundExtensionService;
+describe('PublishExtensionService', () => {
+  let service: PublishExtensionService;
   let notifications: jasmine.SpyObj<NzNotificationService>;
   let sent: any[];
   let downloadXlsx: jasmine.Spy;
@@ -22,7 +23,7 @@ describe('WaygroundExtensionService', () => {
         useValue: notifications
       }]
     });
-    service = TestBed.inject(WaygroundExtensionService);
+    service = TestBed.inject(PublishExtensionService);
     downloadXlsx = spyOn(TestBed.inject(FileExportService), 'downloadXlsx');
     sent = [];
     spyOn(window, 'postMessage').and.callFake((message: any) => sent.push(message));
@@ -38,7 +39,7 @@ describe('WaygroundExtensionService', () => {
   }
 
   it('sends the file as base64 with a request id', () => {
-    service.sendImport('HSK1-Bai1', 'HSK1-Bai1-Wayground.xlsx', new Uint8Array([80, 75]));
+    service.sendImport('wayground', 'HSK1-Bai1', 'HSK1-Bai1-Wayground.xlsx', new Uint8Array([80, 75]));
 
     expect(sent[0]).toEqual(jasmine.objectContaining(
       {
@@ -51,7 +52,7 @@ describe('WaygroundExtensionService', () => {
   });
 
   it('shows and copies the share link of its own request', async () => {
-    service.sendImport('HSK1-Bai1', 'f.xlsx', new Uint8Array([1]));
+    service.sendImport('wayground', 'HSK1-Bai1', 'f.xlsx', new Uint8Array([1]));
     const shareUrl = 'https://wayground.com/admin/assessment/abc?source=lesson_share';
     reply({
       source: 'quiztool-extension',
@@ -84,7 +85,7 @@ describe('WaygroundExtensionService', () => {
 
   it('reports a failed publish and downloads the file for a manual import', () => {
     const xlsx = new Uint8Array([1]);
-    service.sendImport('<b>x</b>', 'f.xlsx', xlsx);
+    service.sendImport('wayground', '<b>x</b>', 'f.xlsx', xlsx);
     reply({
       source: 'quiztool-extension',
       type: 'wayground-import-result',
@@ -100,7 +101,7 @@ describe('WaygroundExtensionService', () => {
   });
 
   it('does not download the file after a successful publish', async () => {
-    service.sendImport('HSK1-Bai1', 'f.xlsx', new Uint8Array([1]));
+    service.sendImport('wayground', 'HSK1-Bai1', 'f.xlsx', new Uint8Array([1]));
     reply({
       source: 'quiztool-extension',
       type: 'wayground-import-result',
@@ -114,6 +115,67 @@ describe('WaygroundExtensionService', () => {
     expect(downloadXlsx).not.toHaveBeenCalled();
   });
 
+  describe('Gimkit', () => {
+    it('sends the csv under the gimkit type', () => {
+      service.sendImport('gimkit', 'HSK1-Bai1', 'HSK1-Bai1-Gimkit.csv', new Uint8Array([80, 75]));
+
+      expect(sent[0]).toEqual(jasmine.objectContaining(
+        {
+          source: 'quiztool',
+          type: 'gimkit-import',
+          fileName: 'HSK1-Bai1-Gimkit.csv',
+          base64: 'UEs='
+        }));
+    });
+
+    it('shows the platform name and the share link of its own request', async () => {
+      service.sendImport('gimkit', 'HSK1-Bai1', 'f.csv', new Uint8Array([1]));
+      const shareUrl = 'https://www.gimkit.com/view/abc';
+      reply({
+        source: 'quiztool-extension',
+        type: 'gimkit-import-result',
+        requestId: sent[0].requestId,
+        title: 'HSK1-Bai1',
+        ok: true,
+        shareUrl
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(shareUrl);
+      expect(notifications.success).toHaveBeenCalledWith('Đã publish quiz trên Gimkit',
+        jasmine.stringContaining(`href="${shareUrl}"`), jasmine.anything());
+    });
+
+    it('downloads the csv, not an xlsx, after a failed publish', () => {
+      const downloadBlob = spyOn(TestBed.inject(FileExportService), 'downloadBlob');
+      service.sendImport('gimkit', 'x', 'f.csv', new Uint8Array([1]));
+      reply({
+        source: 'quiztool-extension',
+        type: 'gimkit-import-result',
+        requestId: sent[0].requestId,
+        title: 'x',
+        ok: false,
+        error: 'không chọn ảnh bìa được'
+      });
+
+      expect(downloadBlob).toHaveBeenCalledOnceWith('f.csv', jasmine.any(Blob));
+      expect(downloadXlsx).not.toHaveBeenCalled();
+      expect(notifications.error).toHaveBeenCalledWith('Gimkit chưa publish được',
+        jasmine.stringContaining('f.csv'), jasmine.anything());
+    });
+  });
+
+  describe('platformFor', () => {
+    it('maps the platforms the extension can publish to and nothing else', () => {
+      expect(PublishExtensionService.platformFor(ExportType.Wayground)).toBe('wayground');
+      expect(PublishExtensionService.platformFor(ExportType.GimKit)).toBe('gimkit');
+      expect(PublishExtensionService.platformFor(ExportType.Blooket)).toBeNull();
+      expect(PublishExtensionService.platformFor(ExportType.GestureQuiz)).toBeNull();
+      expect(PublishExtensionService.platformFor(null)).toBeNull();
+    });
+  });
+
   describe('delivery choice', () => {
     afterEach(() => {
       delete document.documentElement.dataset['quiztoolExtension'];
@@ -121,21 +183,21 @@ describe('WaygroundExtensionService', () => {
     });
 
     it('is always the download without the extension', () => {
-      service.savePreferredDelivery(WaygroundDelivery.Extension);
+      service.savePreferredDelivery(PublishDelivery.Extension);
 
-      expect(service.preferredDelivery()).toBe(WaygroundDelivery.Download);
-      expect(service.shouldPublish(WaygroundDelivery.Extension)).toBeFalse();
+      expect(service.preferredDelivery()).toBe(PublishDelivery.Download);
+      expect(service.shouldPublish(PublishDelivery.Extension)).toBeFalse();
     });
 
     it('defaults to the extension once installed and remembers a download choice', () => {
       document.documentElement.dataset['quiztoolExtension'] = '0.1.0';
       localStorage.removeItem('wayground-delivery');
-      expect(service.preferredDelivery()).toBe(WaygroundDelivery.Extension);
+      expect(service.preferredDelivery()).toBe(PublishDelivery.Extension);
 
-      service.savePreferredDelivery(WaygroundDelivery.Download);
-      expect(service.preferredDelivery()).toBe(WaygroundDelivery.Download);
-      expect(service.shouldPublish(WaygroundDelivery.Download)).toBeFalse();
-      expect(service.shouldPublish(WaygroundDelivery.Extension)).toBeTrue();
+      service.savePreferredDelivery(PublishDelivery.Download);
+      expect(service.preferredDelivery()).toBe(PublishDelivery.Download);
+      expect(service.shouldPublish(PublishDelivery.Download)).toBeFalse();
+      expect(service.shouldPublish(PublishDelivery.Extension)).toBeTrue();
     });
   });
   describe('extension download', () => {
@@ -147,7 +209,7 @@ describe('WaygroundExtensionService', () => {
       const zip = new Blob(['zip']);
       http.expectOne('/api/extension').flush(zip);
 
-      expect(downloadBlob).toHaveBeenCalledOnceWith('quiztool-wayground-extension.zip', zip);
+      expect(downloadBlob).toHaveBeenCalledOnceWith('quiztool-extension.zip', zip);
       http.verify();
     });
 

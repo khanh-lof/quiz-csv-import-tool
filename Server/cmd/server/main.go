@@ -19,8 +19,10 @@ import (
 
 	"quiz-csv-import-tool/server/internal/api"
 	"quiz-csv-import-tool/server/internal/auth"
+	"quiz-csv-import-tool/server/internal/bank"
 	"quiz-csv-import-tool/server/internal/config"
 	"quiz-csv-import-tool/server/internal/csvgen"
+	"quiz-csv-import-tool/server/internal/imagestore"
 	"quiz-csv-import-tool/server/internal/store"
 )
 
@@ -74,10 +76,20 @@ func run(logger *slog.Logger) error {
 		logger.Warn("ADMIN_API_KEY is not set; POST /api/users rejects every request")
 	}
 	var generator api.Generator
+	var questionBank *bank.Service
 	if missing := cfg.LLM.Missing(); len(missing) > 0 {
 		logger.Warn("CSV generation disabled, missing settings: " + strings.Join(missing, ", "))
 	} else {
-		generator = csvgen.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.IntelligenceModels, cfg.LLM.Timeout, logger)
+		client := csvgen.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.CreativeModel, cfg.LLM.Timeout, logger)
+		client.RadicalDetails = store.NewMongoRadicalDetails(db.Collection(cfg.MongoRadicalDetailsCollection))
+		generator = client
+		if cfg.QuestionBank {
+			questionBank = &bank.Service{
+				Store: store.NewMongoQuestionBank(db.Collection(cfg.MongoQuestionsCollection)), Writer: client, Logger: logger,
+			}
+			generator = &bank.Generator{Next: client, Service: questionBank}
+			logger.Info("textbook quizzes come from the question bank", "collection", cfg.MongoQuestionsCollection)
+		}
 	}
 
 	jwt := auth.NewJWT(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, cfg.AccessTokenTTL)
@@ -89,6 +101,7 @@ func run(logger *slog.Logger) error {
 		Auth:             auth.NewService(users, jwt, cfg.RefreshTokenTTL, cfg.MaxRefreshTokensPerUser),
 		JWT:              jwt,
 		Generator:        generator,
+		Bank:             questionBank,
 		AdminAPIKey:      cfg.AdminAPIKey,
 		RefreshTokenTTL:  cfg.RefreshTokenTTL,
 		AICallsPerRound:  cfg.AICallsPerRound,
@@ -98,6 +111,16 @@ func run(logger *slog.Logger) error {
 		LLMTimeout:       cfg.LLM.Timeout,
 		StageSeconds:     cfg.GameStageSeconds,
 		Logger:           logger,
+	}
+	if cfg.CloudinaryURL != "" {
+		// FromEnv checked it already.
+		srv.ImageStore, _ = imagestore.NewCloudinary(cfg.CloudinaryURL)
+	} else {
+		logger.Warn("CLOUDINARY_URL is not set; jobs with images cannot be retried")
+	}
+	if cfg.AIServer != nil {
+		srv.AIServerProxy = api.NewAIServerProxy(cfg.AIServer, cfg.AIServerSecret, logger)
+		logger.Info("creative jobs go to the AI server", "host", cfg.AIServer.Host)
 	}
 
 	httpServer := &http.Server{

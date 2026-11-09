@@ -38,7 +38,7 @@ import { confirmDelete } from '../../services/confirm-delete';
 import { CsvImportService } from '../../services/csv-import.service';
 import { PendingImportService } from '../../services/pending-import.service';
 import { FileExportService } from '../../services/file-export.service';
-import { WaygroundExtensionService } from '../../services/wayground-extension.service';
+import { PublishExtensionService } from '../../services/publish-extension.service';
 import { RadicalsPageService } from '../../services/radicals-page.service';
 import { AssignDialog } from '../assignments/assign-dialog/assign-dialog';
 import { NzTooltipDirective } from 'ng-zorro-antd/tooltip';
@@ -156,13 +156,13 @@ export class AiJobs implements OnInit {
     private readonly csvImportService: CsvImportService,
     private readonly pendingImportService: PendingImportService,
     private readonly fileExportService: FileExportService,
-    private readonly waygroundExtensionService: WaygroundExtensionService,
+    private readonly publishExtensionService: PublishExtensionService,
     private readonly radicalsPageService: RadicalsPageService,
     private readonly notificationService: NzNotificationService,
     private readonly modalService: NzModalService,
     private readonly router: Router,
   ) {
-    this.extensionInstalled = waygroundExtensionService.isInstalled();
+    this.extensionInstalled = publishExtensionService.isInstalled();
   }
 
   ngOnInit(): void {
@@ -256,7 +256,7 @@ export class AiJobs implements OnInit {
   }
 
   // A creative job is already a whole quiz: build the platform's file, then download it, or (Wayground
-  // only, the user's choice per job) let the extension publish it.
+  // and Gimkit only, the user's choice per job) let the extension publish it.
   protected exportJob(job: AiJob, publish: boolean): void {
     const exportType = job.exportType!;
     const exported = this.fileExportService.exportFileFromCsvContent(
@@ -265,10 +265,11 @@ export class AiJobs implements OnInit {
       this.notificationService.warning(this.messages.get('common.noData'), '');
       return;
     }
-    if (publish && exported.xlsx) {
-      this.waygroundExtensionService.sendImport(job.title, exported.fileName, exported.xlsx);
-      this.notificationService.info(this.messages.get('common.creatingOnWayground'),
-        this.messages.get('common.waygroundLinkHint'));
+    const platform = PublishExtensionService.platformFor(exportType);
+    const bytes = exported.xlsx ?? exported.csv;
+    if (publish && platform && bytes) {
+      this.publishExtensionService.sendImport(platform, job.title, exported.fileName, bytes);
+      this.publishExtensionService.notifyStarted(platform);
     } else if (exportType === ExportType.GestureQuiz) {
       this.notificationService.success(this.messages.get('ai.history.downloaded.title'),
         this.messages.get('ai.history.downloaded.body'));

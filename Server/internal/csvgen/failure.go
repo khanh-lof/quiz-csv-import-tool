@@ -34,6 +34,10 @@ type badOutputError struct{ err error }
 func (e *badOutputError) Error() string { return e.err.Error() }
 func (e *badOutputError) Unwrap() error { return e.err }
 
+// BadOutput marks err as an answer that could not be made into what was asked for, the FailureBadOutput of a
+// generation, for the packages that build quizzes from the model's answers (package bank).
+func BadOutput(err error) error { return &badOutputError{err} }
+
 // FailureCode returns the Failure* code for an error from Generate. A deadline is the caller's to recognise.
 func FailureCode(err error) string {
 	var (

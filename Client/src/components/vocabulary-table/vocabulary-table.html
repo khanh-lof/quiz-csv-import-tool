@@ -12,7 +12,7 @@
             </ol>
             <p>{{ 'app.table.guideRules' | msg: { minRows } }}</p>
             <p [innerHTML]="'app.table.guideMultipleChoice' | msg"></p>
-            <p>{{ 'app.table.guideWaygroundLead' | msg }} <b>{{ 'app.wayground.extensionDelivery' | msg }}</b> (@if (loggedIn) {<a
+            <p>{{ 'app.table.guidePublishLead' | msg }} <b>{{ 'app.publish.extensionDelivery' | msg }}</b> (@if (loggedIn) {<a
               (click)="downloadExtension($event)" href="/api/extension">{{ 'app.table.guideDownload' | msg }}</a>, }<a
               href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
               target="_blank">{{ 'app.table.guideInstall' | msg }}</a>).</p>
@@ -31,14 +31,14 @@
             <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
             <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
           </nz-select>
-          @if (formGroup.get('exportType')?.value === ExportType.Wayground) {
+          @if (publishPlatform) {
             <!-- Without the extension only the download is possible; the disabled option says why. -->
-            <nz-radio-group [formControl]="waygroundDelivery" nzButtonStyle="solid" nzSize="large">
-              <label [nzValue]="WaygroundDelivery.Download" nz-radio-button>Tải file</label>
-              <label [nzDisabled]="!extensionInstalled" [nzValue]="WaygroundDelivery.Extension"
+            <nz-radio-group [formControl]="publishDelivery" nzButtonStyle="solid" nzSize="large">
+              <label [nzValue]="PublishDelivery.Download" nz-radio-button>Tải file</label>
+              <label [nzDisabled]="!extensionInstalled" [nzValue]="PublishDelivery.Extension"
                      nz-tooltip
                      [nzTooltipTitle]="extensionInstalled ? '' : ('common.extensionMissing' | msg)"
-                     nz-radio-button>{{ 'app.wayground.extensionDelivery' | msg }}</label>
+                     nz-radio-button>{{ 'app.publish.extensionDelivery' | msg }}</label>
             </nz-radio-group>
           }
           <!-- Always shown: clicking it explains what is still missing (template, rows) instead of the
@@ -46,7 +46,7 @@
           <button nz-button nzType="primary" type="submit">
             @if (publishesWithExtension) {
               <nz-icon nzType="cloud-upload"/>
-              Publish lên Wayground
+              Publish lên {{ publishPlatformName }}
             } @else {
               <nz-icon nzType="download"/>
               Tải file

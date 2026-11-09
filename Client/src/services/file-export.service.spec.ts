@@ -50,16 +50,31 @@ describe('FileExportService Wayground export', () => {
     expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
   });
 
-  it('returns no bytes for a CSV platform', () => {
+  it('returns the CSV as UTF-8 bytes for Gimkit, for the extension to import', () => {
     const rows = ['一', '二', '三', '四', '五'].map((question, i) =>
       ({
         question,
         answer: `${i + 1}`,
         questionType: QuestionType.MultipleChoice
       }));
-    const exported = service.exportFile('Lesson-Gimkit.csv', rows, ExportType.GimKit);
+    const exported = service.exportFile('Lesson-Gimkit.csv', rows, ExportType.GimKit, false);
 
-    expect(exported).toEqual({ fileName: 'Lesson-Gimkit.csv' });
+    expect(exported?.fileName).toBe('Lesson-Gimkit.csv');
+    expect(exported?.xlsx).toBeUndefined();
+    expect(new TextDecoder().decode(exported?.csv)).toContain('Gimkit Spreadsheet Import Template');
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+  });
+
+  it('returns no bytes for Blooket', () => {
+    const rows = ['一', '二', '三', '四', '五'].map((question, i) =>
+      ({
+        question,
+        answer: `${i + 1}`,
+        questionType: QuestionType.MultipleChoice
+      }));
+    const exported = service.exportFile('Lesson-Blooket.csv', rows, ExportType.Blooket);
+
+    expect(exported).toEqual({ fileName: 'Lesson-Blooket.csv' });
   });
 });
 

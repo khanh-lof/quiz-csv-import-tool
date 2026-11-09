@@ -16,7 +16,6 @@ function job(overrides: Partial<AiJob>): AiJob {
     creative: true,
     language: QuizLanguage.Chinese,
     exportType: ExportType.GimKit,
-    intelligence: 1,
     imageCount: 0,
     courseType: null,
     courseName: '',

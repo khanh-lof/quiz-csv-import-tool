@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"quiz-csv-import-tool/server/internal/store"
 )
 
 // Client calls an OpenAI-compatible /chat/completions endpoint.
@@ -19,10 +21,10 @@ type Client struct {
 	http    *http.Client
 	baseURL string
 	apiKey  string
-	model   string
-	// intelligenceModels are the creative-mode models for "Độ thông minh" 1..IntelligenceLevels.
-	// Empty means every level uses model.
-	intelligenceModels []string
+	// model serves the formatted mode and creativeModel the creative mode, which includes the question bank's
+	// questions and the Radicals exercises.
+	model         string
+	creativeModel string
 	// timeLimit is the deadline the caller gives one call (LLM_TIMEOUT_SECONDS), told to the model in the
 	// creative prompt. The caller's context still enforces it.
 	timeLimit time.Duration
@@ -31,42 +33,43 @@ type Client struct {
 	// stallTimeout is how long a streamed answer may stay silent (see stallTimeout); tests shrink it.
 	stallTimeout time.Duration
 	logger       *slog.Logger
+
+	// RadicalDetails keeps the notes the model wrote for Radicals exercises, for the next ones (radicals_cache.go);
+	// nil keeps none.
+	RadicalDetails store.RadicalDetails
 }
 
-func NewClient(baseURL, apiKey, model string, intelligenceModels []string, timeLimit time.Duration, logger *slog.Logger) *Client {
+// NewClient asks model for the formatted mode and creativeModel for the creative one; an empty creativeModel is model.
+func NewClient(baseURL, apiKey, model, creativeModel string, timeLimit time.Duration, logger *slog.Logger) *Client {
+	if creativeModel == "" {
+		creativeModel = model
+	}
 	return &Client{
 		// No client-level timeout: the caller's context carries the deadline (LLM_TIMEOUT_SECONDS),
 		// so a timeout surfaces as context.DeadlineExceeded rather than an opaque transport error.
-		http:               &http.Client{},
-		baseURL:            strings.TrimRight(baseURL, "/"),
-		apiKey:             apiKey,
-		model:              model,
-		intelligenceModels: intelligenceModels,
-		timeLimit:          timeLimit,
-		baseBackoff:        defaultBaseBackoff,
-		stallTimeout:       stallTimeout,
-		logger:             logger,
+		http:          &http.Client{},
+		baseURL:       strings.TrimRight(baseURL, "/"),
+		apiKey:        apiKey,
+		model:         model,
+		creativeModel: creativeModel,
+		timeLimit:     timeLimit,
+		baseBackoff:   defaultBaseBackoff,
+		stallTimeout:  stallTimeout,
+		logger:        logger,
 	}
-}
-
-// modelFor returns the creative-mode model for the requested intelligence level.
-func (c *Client) modelFor(opts Options) string {
-	if len(c.intelligenceModels) == 0 {
-		return c.model
-	}
-	level := opts.Intelligence
-	if level < 1 || level > len(c.intelligenceModels) {
-		level = DefaultIntelligence
-	}
-	return c.intelligenceModels[level-1]
 }
 
 // Result is what Generate produced: the CSV, which for a Radicals job is the exercise's JSON, and for a Radicals
 // job only, the Source it was built from (see ReviseRadicals). Usage is filled in whether or not Generate failed.
+// A Calls of zero means no model was asked (a quiz the question bank held whole).
 type Result struct {
 	CSV    string
 	Source string
 	Usage  Usage
+	// BankQuestions are the ids of the question bank's questions a quiz built by package bank is made of, and
+	// FromBank how many of them the bank held before (the others the model wrote for it). Empty otherwise.
+	BankQuestions []string
+	FromBank      int
 }
 
 // Usage is the model a generation asked and, over all its attempts, the calls made and the tokens billed.
@@ -120,7 +123,7 @@ func (c *Client) Generate(ctx context.Context, images []Image, creative bool, op
 func (c *Client) GenerateWithProgress(ctx context.Context, images []Image, creative bool, opts Options, onRows func(rows int)) (Result, error) {
 	usage := &Usage{Model: c.model}
 	if creative {
-		usage.Model = c.modelFor(opts)
+		usage.Model = c.creativeModel
 	}
 	result, err := c.generate(ctx, images, creative, opts, usage, onRows)
 	result.Usage = *usage
@@ -143,7 +146,11 @@ func (c *Client) generate(ctx context.Context, images []Image, creative bool, op
 	if err != nil {
 		return Result{}, err
 	}
-	return Result{CSV: ExtractCSVContent(content)}, nil
+	csv, err := c.checkedCSV(ctx, ExtractCSVContent(content), creative, opts, usage)
+	if err != nil {
+		return Result{}, err
+	}
+	return Result{CSV: csv}, nil
 }
 
 // answerFormat reads the 2xx answer of one endpoint, whole (parse) or streamed (stream).

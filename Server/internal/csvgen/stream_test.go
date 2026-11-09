@@ -25,7 +25,7 @@ func sseServer(t *testing.T, write func(n int, w *sseWriter, r *http.Request)) (
 		write(n, &sseWriter{w: w}, r)
 	}))
 	t.Cleanup(llm.Close)
-	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", "", 0, slog.New(slog.DiscardHandler))
 	c.baseBackoff = time.Millisecond
 	return c, &calls
 }
@@ -77,7 +77,7 @@ func TestGenerateStreamsAChatCompletion(t *testing.T) {
 	var rows []int
 	result, err := c.GenerateWithProgress(context.Background(), []Image{{ContentType: "image/png", Data: []byte("x")}}, false, Options{},
 		func(n int) { rows = append(rows, n) })
-	if err != nil || result.CSV != "Câu hỏi,Đáp án\n你,bạn\n好,tốt" {
+	if err != nil || result.CSV != `"Câu hỏi","Đáp án"`+"\n"+`"你","bạn"`+"\n"+`"好","tốt"` {
 		t.Fatalf("got %q, %v", result.CSV, err)
 	}
 	if !slices.Equal(rows, []int{1, 2}) {
@@ -87,6 +87,9 @@ func TestGenerateStreamsAChatCompletion(t *testing.T) {
 		t.Errorf("usage %+v, want %+v", result.Usage, want)
 	}
 }
+
+// quotedA1 is the row a,1 of a GimKit quiz (the zero Options) once normalized.
+const quotedA1 = `"a","1","","",""`
 
 func TestGenerateStreamsAResponse(t *testing.T) {
 	c, _ := sseServer(t, func(_ int, w *sseWriter, r *http.Request) {
@@ -99,14 +102,14 @@ func TestGenerateStreamsAResponse(t *testing.T) {
 		}
 		w.event(map[string]any{"type": "response.created"})
 		w.event(map[string]any{"type": "keep_alive"})
-		w.event(textDelta("a,1\nb,"))
-		w.event(textDelta("2\n"))
-		w.event(completed("a,1\nb,2\n"))
+		w.event(textDelta(`"a","1"` + "\n" + `"b",`))
+		w.event(textDelta(`"2"` + "\n"))
+		w.event(completed(`"a","1"` + "\n" + `"b","2"` + "\n"))
 	})
 
 	var rows []int
 	result, err := c.GenerateWithProgress(context.Background(), nil, true, Options{}, func(n int) { rows = append(rows, n) })
-	if err != nil || result.CSV != "a,1\nb,2" || !slices.Equal(rows, []int{1, 2}) {
+	if err != nil || result.CSV != quotedA1+"\n"+`"b","2","","",""` || !slices.Equal(rows, []int{1, 2}) {
 		t.Fatalf("got %q, %v, rows %v", result.CSV, err, rows)
 	}
 	if result.Usage.InputTokens != 10 || result.Usage.OutputTokens != 4 {
@@ -116,17 +119,17 @@ func TestGenerateStreamsAResponse(t *testing.T) {
 
 func TestStreamedResponseWithoutOutputInTheFinalEventUsesTheDeltas(t *testing.T) {
 	c, _ := sseServer(t, func(_ int, w *sseWriter, _ *http.Request) {
-		w.event(textDelta("a,1\n"))
+		w.event(textDelta(`"a","1"` + "\n"))
 		w.event(map[string]any{"type": "response.completed", "response": map[string]any{"status": "completed"}})
 	})
-	if result, err := c.Generate(context.Background(), nil, true, Options{}); err != nil || result.CSV != "a,1" {
+	if result, err := c.Generate(context.Background(), nil, true, Options{}); err != nil || result.CSV != quotedA1 {
 		t.Fatalf("got %q, %v", result.CSV, err)
 	}
 }
 
 func TestStreamedIncompleteResponseIsTruncated(t *testing.T) {
 	c, calls := sseServer(t, func(_ int, w *sseWriter, _ *http.Request) {
-		w.event(textDelta("a,1\n"))
+		w.event(textDelta(`"a","1"` + "\n"))
 		w.event(map[string]any{"type": "response.incomplete", "response": map[string]any{
 			"status": "incomplete", "incomplete_details": map[string]any{"reason": "max_output_tokens"}}})
 	})
@@ -138,15 +141,15 @@ func TestStreamedIncompleteResponseIsTruncated(t *testing.T) {
 
 func TestStreamThatEndsEarlyIsRetriedAndProgressStartsOver(t *testing.T) {
 	c, calls := sseServer(t, func(n int, w *sseWriter, _ *http.Request) {
-		w.event(textDelta("a,1\n"))
+		w.event(textDelta(`"a","1"` + "\n"))
 		if n == 1 {
 			return // the connection closes before the answer is complete
 		}
-		w.event(completed("a,1\n"))
+		w.event(completed(`"a","1"` + "\n"))
 	})
 	var rows []int
 	result, err := c.GenerateWithProgress(context.Background(), nil, true, Options{}, func(n int) { rows = append(rows, n) })
-	if err != nil || result.CSV != "a,1" || calls.Load() != 2 {
+	if err != nil || result.CSV != quotedA1 || calls.Load() != 2 {
 		t.Fatalf("got %q, %v after %d calls", result.CSV, err, calls.Load())
 	}
 	if !slices.Equal(rows, []int{1, 0, 1}) {
@@ -160,16 +163,16 @@ func TestStreamErrorEventIsRetried(t *testing.T) {
 			w.event(map[string]any{"type": "error", "message": "overloaded"})
 			return
 		}
-		w.event(completed("a,1"))
+		w.event(completed(`"a","1"`))
 	})
-	if result, err := c.Generate(context.Background(), nil, true, Options{}); err != nil || result.CSV != "a,1" || calls.Load() != 2 {
+	if result, err := c.Generate(context.Background(), nil, true, Options{}); err != nil || result.CSV != quotedA1 || calls.Load() != 2 {
 		t.Fatalf("got %q, %v after %d calls", result.CSV, err, calls.Load())
 	}
 }
 
 func TestStalledStreamIsGivenUpAndRetried(t *testing.T) {
 	c, calls := sseServer(t, func(n int, w *sseWriter, r *http.Request) {
-		w.event(textDelta("a,1\n"))
+		w.event(textDelta(`"a","1"` + "\n"))
 		if n == 1 {
 			// Started, then silent but for keep-alives, which no longer count once the model has started.
 			for {
@@ -181,11 +184,11 @@ func TestStalledStreamIsGivenUpAndRetried(t *testing.T) {
 				}
 			}
 		}
-		w.event(completed("a,1"))
+		w.event(completed(`"a","1"`))
 	})
 	c.stallTimeout = 50 * time.Millisecond
 	result, err := c.Generate(context.Background(), nil, true, Options{})
-	if err != nil || result.CSV != "a,1" || calls.Load() != 2 {
+	if err != nil || result.CSV != quotedA1 || calls.Load() != 2 {
 		t.Fatalf("got %q, %v after %d calls", result.CSV, err, calls.Load())
 	}
 }
@@ -197,10 +200,10 @@ func TestKeepAlivesHoldAStreamThatHasNotStarted(t *testing.T) {
 			time.Sleep(15 * time.Millisecond)
 			w.raw(": keep-alive\n\n")
 		}
-		w.event(completed("a,1"))
+		w.event(completed(`"a","1"`))
 	})
 	c.stallTimeout = 50 * time.Millisecond
-	if result, err := c.Generate(context.Background(), nil, true, Options{}); err != nil || result.CSV != "a,1" || calls.Load() != 1 {
+	if result, err := c.Generate(context.Background(), nil, true, Options{}); err != nil || result.CSV != quotedA1 || calls.Load() != 1 {
 		t.Fatalf("got %q, %v after %d calls", result.CSV, err, calls.Load())
 	}
 }

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -10,12 +11,15 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"quiz-csv-import-tool/server/internal/bank"
 	"quiz-csv-import-tool/server/internal/csvgen"
+	"quiz-csv-import-tool/server/internal/imagestore"
 	"quiz-csv-import-tool/server/internal/radicals"
 	"quiz-csv-import-tool/server/internal/store"
 )
@@ -25,18 +29,27 @@ const (
 	// maxJobsPerUser is how many finished jobs a user keeps; older ones are pruned when a new one starts.
 	maxJobsPerUser = 30
 	maxTitleRunes  = 100
-	// abandonedGrace is how long past the LLM deadline a job may still be running before it counts as
-	// abandoned (its process died), which leaves room for the final database write.
-	abandonedGrace = time.Minute
-	// abandonedWithoutTimeout applies when no LLM timeout is configured.
-	abandonedWithoutTimeout = 15 * time.Minute
+	// jobHeartbeatInterval is how often the handler working on a job records that it still is, and
+	// abandonedAfter how long a running job may go without that before listJobs takes its process for dead
+	// (a crash, a deploy, or a Vercel function cut off at its limit). It does not depend on LLMTimeout: a job
+	// of the AI server has no deadline, yet is listed by the main server.
+	jobHeartbeatInterval = 30 * time.Second
+	abandonedAfter       = 3 * time.Minute
 )
 
 // createJob handles POST /api/csv/jobs: a multipart upload of zero or more images, rate-limited per
 // user. It validates the request, stores a running job, answers 202 with the job's id right away and
 // keeps working in this same handler until the model has answered, then stores the result. The
-// client follows the job through listJobs, so it need not stay connected.
+// client follows the job through listJobs, so it need not stay connected. A creative job goes to AIServerProxy
+// instead, when there is one, unless the question bank holds its whole quiz.
 func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
+	if s.answerFromBank(w, r) {
+		return
+	}
+	if s.AIServerProxy != nil && isCreative(r.URL.Query()) {
+		s.AIServerProxy.ServeHTTP(w, r)
+		return
+	}
 	user, ok := s.jobOwner(w, r)
 	if !ok {
 		return
@@ -48,7 +61,7 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	creative := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("isCreative")), "true")
+	creative := isCreative(r.URL.Query())
 	// Creative mode can work from the lesson identifiers alone; the formatted mode has nothing to
 	// read without images.
 	if !creative && len(images) == 0 {
@@ -70,14 +83,20 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 
 	job := newJob(jobTitle(r.URL.Query().Get("title"), creative), creative, len(images), opts)
 	if s.startJob(w, r, user.Username, job, "") {
-		s.runJob(r, job, images, opts)
+		s.runJob(context.WithoutCancel(r.Context()), job, images, opts)
 	}
 }
 
 // retryJob handles POST /api/csv/jobs/{id}/retry ("Tạo lại"): a failed job's request sent again as a new
-// job, which replaces the failed one. The images come from retryImages, so a job sent with images can be
-// retried only while they are kept. Rate-limited and answered like createJob.
+// job, which replaces the failed one. The images come from the image store, so a job sent with images can be
+// retried only while they are kept (imagesKeptFor). Rate-limited and answered like createJob, and a creative job
+// goes to AIServerProxy like there.
 func (s *Server) retryJob(w http.ResponseWriter, r *http.Request) {
+	s.retry(w, r, false)
+}
+
+// retry is retryJob; onlyCreative refuses a formatted job, as the AI server does.
+func (s *Server) retry(w http.ResponseWriter, r *http.Request, onlyCreative bool) {
 	if !s.jobStoreReady(w, r) {
 		return
 	}
@@ -98,17 +117,43 @@ func (s *Server) retryJob(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusConflict, "Job cannot be retried.")
 		return
 	}
+	if onlyCreative && !failed.Creative {
+		writeText(w, http.StatusBadRequest, notCreative)
+		return
+	}
+	if failed.Creative && failed.ImageCount == 0 {
+		if build := s.bankPlan(r.Context(), user.Username, opts); build != nil &&
+			s.startBankJob(w, r, user.Username, newJob(failed.Title, true, 0, opts), build, failed.ID) {
+			return
+		}
+	}
+	if failed.Creative && s.AIServerProxy != nil {
+		s.AIServerProxy.ServeHTTP(w, r)
+		return
+	}
 	var images []csvgen.Image
 	if failed.ImageCount > 0 {
-		if images, _, ok = s.retryImages.get(failed.ID, user.Username, s.now()); !ok {
+		if _, kept := s.imagesKeptUntil(failed); !kept {
 			writeText(w, http.StatusGone, "Images expired.")
+			return
+		}
+		var err error
+		images, err = s.ImageStore.Fetch(r.Context(), failed.Images)
+		if errors.Is(err, imagestore.ErrGone) {
+			writeText(w, http.StatusGone, "Images expired.")
+			return
+		}
+		if err != nil {
+			s.internalError(w, r, "fetching the job's images failed", err)
 			return
 		}
 	}
 
 	job := newJob(failed.Title, failed.Creative, len(images), opts)
+	// The new job keeps the same images, as long as they are kept: they are not stored again.
+	job.Images, job.ImagesStoredAt = failed.Images, failed.ImagesStoredAt
 	if s.startJob(w, r, user.Username, job, failed.ID) {
-		s.runJob(r, job, images, opts)
+		s.runJob(context.WithoutCancel(r.Context()), job, images, opts)
 	}
 }
 
@@ -150,17 +195,23 @@ func (s *Server) startJob(w http.ResponseWriter, r *http.Request, username strin
 	job.ID, job.Username, job.Status, job.RoundStart = newID(), username, store.JobRunning, roundStart
 	job.CreatedAt = time.Now().UTC().Truncate(time.Millisecond)
 	if err := s.Jobs.Create(r.Context(), job); err != nil {
-		s.refundAICall(r, username, roundStart)
+		s.refundAICall(r.Context(), username, roundStart)
 		s.internalError(w, r, "creating job failed", err)
 		return false
 	}
+	s.acceptJob(w, r, username, job, replaces)
+	return true
+}
+
+// acceptJob answers 202 with the id of a job just stored, after the housekeeping: the failed job a retry replaces
+// is deleted and the user's oldest jobs pruned.
+func (s *Server) acceptJob(w http.ResponseWriter, r *http.Request, username string, job *store.Job, replaces string) {
 	// Housekeeping must not fail the request: the job exists and will run. At worst a failed job that was
 	// retried stays in the history beside its replacement.
 	if replaces != "" {
 		if err := s.Jobs.Delete(r.Context(), username, replaces); err != nil && !errors.Is(err, store.ErrNotFound) {
 			s.Logger.Warn("deleting the retried job failed", "user", username, "job", replaces, "error", err)
 		}
-		s.retryImages.drop(replaces)
 	}
 	if err := s.Jobs.Prune(r.Context(), username, maxJobsPerUser); err != nil {
 		s.Logger.Warn("pruning old jobs failed", "user", username, "error", err)
@@ -176,21 +227,99 @@ func (s *Server) startJob(w http.ResponseWriter, r *http.Request, username strin
 	_, _ = w.Write(ack)
 	// Best effort: where the answer cannot be flushed early the client simply waits for the result.
 	_ = http.NewResponseController(w).Flush()
+}
+
+// answerFromBank answers a createJob request whose whole quiz the question bank holds, with a job that is done at
+// once, takes no AI call and asks no model, on whichever server it reached; it returns false, the
+// body untouched, for any other request, which then goes its usual way (where the bank may still supply part of
+// the quiz, see bank.Generator). A quiz asked with images is the model's: the images show what to focus on.
+func (s *Server) answerFromBank(w http.ResponseWriter, r *http.Request) bool {
+	if s.Bank == nil || !isCreative(r.URL.Query()) {
+		return false
+	}
+	opts, err := csvgen.ParseCreativeOptions(r.URL.Query())
+	if err != nil {
+		return false
+	}
+	build := s.bankPlan(r.Context(), callerName(r), opts)
+	if build == nil {
+		return false
+	}
+	// The body is read here only to know that it holds no image, and put back for the usual way.
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxUploadBytes))
+	r.Body = io.NopCloser(bytes.NewReader(raw))
+	if err != nil {
+		return false
+	}
+	images, uploadErr := readImages(w, r)
+	r.Body = io.NopCloser(bytes.NewReader(raw))
+	if uploadErr != nil || len(images) > 0 {
+		return false
+	}
+	user, ok := s.jobOwner(w, r)
+	if !ok {
+		return true
+	}
+	return s.startBankJob(w, r, user.Username, newJob(jobTitle(r.URL.Query().Get("title"), true), true, 0, opts), build, "")
+}
+
+// bankPlan is the plan of the quiz of opts when the question bank holds all of it, nil otherwise (or when the bank
+// cannot be read: the model then writes the quiz).
+func (s *Server) bankPlan(ctx context.Context, username string, opts csvgen.Options) *bank.Build {
+	if s.Bank == nil || s.Jobs == nil {
+		return nil
+	}
+	build, ok, err := s.Bank.Prepare(ctx, opts)
+	if err != nil {
+		s.Logger.Warn("question bank unavailable", "user", username, "error", err)
+		return nil
+	}
+	if !ok || !build.Plan.Complete() {
+		return nil
+	}
+	return build
+}
+
+// startBankJob writes the quiz of a complete bank plan and stores it as a job that is already done, counting no AI
+// call, and answers 202 with its id like startJob, so the client follows it the same way. It returns false, having
+// answered nothing, when the quiz cannot be written; the request then goes its usual way.
+func (s *Server) startBankJob(w http.ResponseWriter, r *http.Request, username string, job *store.Job, build *bank.Build, replaces string) bool {
+	result, err := s.Bank.Finish(r.Context(), build, len(build.Plan.Picks))
+	if err != nil {
+		s.Logger.Warn("writing a quiz from the question bank failed", "user", username, "error", err)
+		return false
+	}
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	job.ID, job.Username, job.Status, job.CreatedAt, job.FinishedAt = newID(), username, store.JobDone, now, &now
+	job.CSV, job.BankQuestions, job.FromBank = result.CSV, result.BankQuestions, result.FromBank
+	if err := s.Jobs.Create(r.Context(), job); err != nil {
+		s.internalError(w, r, "creating job failed", err)
+		return true
+	}
+	s.Logger.Info("quiz built from the question bank", "user", username, "job", job.ID, "questions", len(result.BankQuestions))
+	s.acceptJob(w, r, username, job, replaces)
 	return true
 }
 
-// runJob generates the CSV and records the outcome on the job. It runs detached from the request: the
-// client has usually gone away by now (that is the point), and its disconnecting must not cancel the
-// model call.
-func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, opts csvgen.Options) {
-	ctx := context.WithoutCancel(r.Context())
+// runJob generates the CSV and records the outcome on the job, its images stored meanwhile. ctx is detached from
+// the request: the client has usually gone away by now (that is the point), and its disconnecting must not cancel
+// the model call.
+func (s *Server) runJob(ctx context.Context, job *store.Job, images []csvgen.Image, opts csvgen.Options) {
+	// The questions the model writes for the question bank name the job.
+	ctx = bank.WithJob(ctx, job.ID)
+	imagesStored := s.storeJobImages(ctx, job, images)
+	generation := ctx
 	if s.LLMTimeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, s.LLMTimeout)
+		generation, cancel = context.WithTimeout(ctx, s.LLMTimeout)
 		defer cancel()
 	}
+	stopHeartbeat := s.keepJobAlive(ctx, job)
 	started := time.Now()
-	result, err := s.Generator.GenerateWithProgress(ctx, images, job.Creative, opts, s.jobProgress(r, job))
+	result, err := s.Generator.GenerateWithProgress(generation, images, job.Creative, opts, s.jobProgress(ctx, job))
+	stopHeartbeat()
+	// Before the outcome, so a failed job reads as retryable as soon as it reads as failed.
+	imagesStored()
 	usage := jobUsage(result.Usage, time.Since(started))
 	logAttrs := []any{"user", job.Username, "job", job.ID, "images", len(images), "model", usage.Model, "calls", usage.Calls,
 		"durationMs", usage.DurationMs, "inputTokens", usage.InputTokens, "cachedTokens", usage.CachedTokens,
@@ -198,23 +327,21 @@ func (s *Server) runJob(r *http.Request, job *store.Job, images []csvgen.Image, 
 
 	if err == nil {
 		s.Logger.Info("CSV generation done", logAttrs...)
-		s.recordJob(r, func(ctx context.Context) error {
-			return s.Jobs.Complete(ctx, job.Username, job.ID, result.CSV, result.Source, usage)
+		s.recordJob(ctx, func(ctx context.Context) error {
+			return s.Jobs.Complete(ctx, job.Username, job.ID, store.JobResult{
+				CSV: result.CSV, Source: result.Source, Usage: &usage, BankQuestions: result.BankQuestions, FromBank: result.FromBank,
+			})
 		}, job)
 		return
 	}
-	failure := generationFailure(ctx, err)
+	failure := generationFailure(generation, err)
 	s.Logger.Warn("CSV generation failed", append(logAttrs, "code", failure.Code, "error", err)...)
-	s.recordJob(r, func(ctx context.Context) error {
+	s.recordJob(ctx, func(ctx context.Context) error {
 		return s.Jobs.Fail(ctx, job.Username, job.ID, failure, usage)
 	}, job)
 	// A failed generation produced nothing, so it gives the call back: the user resubmits and must not
-	// run into the rate limit doing so. Its images are kept for a while, so "Tạo lại" need not upload them.
-	s.refundAICall(r, job.Username, job.RoundStart)
-	if len(images) > 0 {
-		now := s.now()
-		s.retryImages.keep(job.ID, job.Username, images, now, now.Add(retryImagesTTL))
-	}
+	// run into the rate limit doing so.
+	s.refundAICall(ctx, job.Username, job.RoundStart)
 }
 
 // Failure codes of the handler's own, beside csvgen's Failure* codes and store.ExpiredJobCode.
@@ -235,6 +362,38 @@ func generationFailure(ctx context.Context, err error) store.JobFailure {
 	return store.JobFailure{Status: http.StatusBadGateway, Code: csvgen.FailureCode(err), Message: "AI generation failed."}
 }
 
+// keepJobAlive records the job's heartbeat every heartbeat interval until the returned stop is called, so
+// listJobs can tell a job whose process died from one that just takes long. A failed write only risks the
+// job being taken for abandoned once abandonedAfter has passed without one.
+func (s *Server) keepJobAlive(ctx context.Context, job *store.Job) (stop func()) {
+	every := s.heartbeatEvery
+	if every <= 0 {
+		every = jobHeartbeatInterval
+	}
+	done, finished := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(finished)
+		ticker := time.NewTicker(every)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+				if err := s.Jobs.Heartbeat(ctx, job.Username, job.ID); err != nil {
+					s.Logger.Warn("recording job heartbeat failed", "user", job.Username, "job", job.ID, "error", err)
+				}
+				cancel()
+			}
+		}
+	}()
+	return func() {
+		close(done)
+		<-finished
+	}
+}
+
 func jobUsage(usage csvgen.Usage, took time.Duration) store.JobUsage {
 	return store.JobUsage{
 		Model: usage.Model, Calls: usage.Calls, InputTokens: usage.InputTokens, CachedTokens: usage.CachedTokens,
@@ -247,14 +406,14 @@ const progressInterval = 3 * time.Second
 
 // jobProgress returns the callback that records the rows the model has written on the job, at most once per
 // progressInterval. A failed write only costs the progress shown.
-func (s *Server) jobProgress(r *http.Request, job *store.Job) func(rows int) {
+func (s *Server) jobProgress(ctx context.Context, job *store.Job) func(rows int) {
 	var lastWrite time.Time
 	return func(rows int) {
 		if time.Since(lastWrite) < progressInterval {
 			return
 		}
 		lastWrite = time.Now()
-		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 3*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 		defer cancel()
 		if err := s.Jobs.Progress(ctx, job.Username, job.ID, rows); err != nil {
 			s.Logger.Warn("recording job progress failed", "user", job.Username, "job", job.ID, "error", err)
@@ -263,8 +422,8 @@ func (s *Server) jobProgress(r *http.Request, job *store.Job) func(rows int) {
 }
 
 // recordJob writes a job's outcome with its own deadline, since the generation's may be used up.
-func (s *Server) recordJob(r *http.Request, write func(context.Context) error, job *store.Job) {
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 10*time.Second)
+func (s *Server) recordJob(ctx context.Context, write func(context.Context) error, job *store.Job) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if err := write(ctx); err != nil {
 		// The job stays running until listJobs expires it as abandoned.
@@ -280,7 +439,6 @@ type jobView struct {
 	Creative      bool       `json:"creative"`
 	Language      int        `json:"language"`
 	ExportType    *int       `json:"exportType"`
-	Intelligence  int        `json:"intelligence"`
 	ImageCount    int        `json:"imageCount"`
 	CourseType    *int       `json:"courseType"`
 	CourseName    string     `json:"courseName"`
@@ -307,25 +465,30 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A job still running long after its deadline lost the process that was working on it; fail it
-	// and give the call back, or the client would poll it forever.
-	patience := abandonedWithoutTimeout
-	if s.LLMTimeout > 0 {
-		patience = s.LLMTimeout + abandonedGrace
+	// A running job whose heartbeat stopped lost the process that was working on it; fail it and give the
+	// call back, or the client would poll it forever. The AI server takes its own, the creative ones, over instead
+	// (ResumeJob), so those are given longer, and that server is woken should it be asleep.
+	now := time.Now()
+	cutoffs := store.ExpiryCutoffs{Before: now.Add(-abandonedAfter)}
+	if s.AIServerProxy != nil {
+		cutoffs.Resumable, cutoffs.MaxResumes, cutoffs.ResumableBefore = true, maxResumes, now.Add(-resumeGiveUp)
 	}
-	expired, err := s.Jobs.ExpireRunning(r.Context(), username, time.Now().Add(-patience), "AI generation was interrupted.")
+	expired, err := s.Jobs.ExpireRunning(r.Context(), username, cutoffs, interruptedMessage)
 	if err != nil {
 		s.Logger.Warn("expiring abandoned jobs failed", "user", username, "error", err)
 	}
 	for _, job := range expired {
 		s.Logger.Warn("job abandoned", "user", username, "job", job.ID)
-		s.refundAICall(r, username, job.RoundStart)
+		s.refundAICall(r.Context(), username, job.RoundStart)
 	}
 
 	jobs, err := s.Jobs.List(r.Context(), username, maxJobsPerUser)
 	if err != nil {
 		s.internalError(w, r, "listing jobs failed", err)
 		return
+	}
+	if s.AIServerProxy != nil && slices.ContainsFunc(jobs, awaitingResume(now)) && s.due(&s.wokeAt, wakeEvery) {
+		s.AIServerProxy.Wake(r.Context())
 	}
 	views := make([]jobView, len(jobs))
 	for i := range jobs {
@@ -339,7 +502,7 @@ func (s *Server) newJobView(j *store.Job) jobView {
 	retryable, retryUntil := s.retryState(j)
 	return jobView{
 		ID: j.ID, Status: string(j.Status), Title: j.Title, Creative: j.Creative, Language: j.Language, ExportType: j.ExportType,
-		Intelligence: j.Intelligence, ImageCount: j.ImageCount, CourseType: j.CourseType, CourseName: j.CourseName,
+		ImageCount: j.ImageCount, CourseType: j.CourseType, CourseName: j.CourseName,
 		HskStandard: j.HskStandard, Level: j.Level, LessonNumbers: j.LessonNumbers, CSV: j.CSV, ProgressRows: j.ProgressRows,
 		ErrorStatus: j.ErrorStatus, ErrorCode: j.ErrorCode, ErrorMessage: j.ErrorMessage, CreatedAt: j.CreatedAt, FinishedAt: j.FinishedAt,
 		Retryable: retryable, RetryUntil: retryUntil,
@@ -360,7 +523,6 @@ func (s *Server) deleteJob(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "deleting job failed", err)
 		return
 	}
-	s.retryImages.drop(r.PathValue("id"))
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -386,7 +548,8 @@ func (s *Server) jobPage(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.WriteString(w, page)
 }
 
-// retryState says whether retryJob would take a job, and until when for one whose images are kept only for a while.
+// retryState says whether retryJob would take a job, and until when for one whose images are kept only for a while
+// (imagesKeptFor).
 func (s *Server) retryState(job *store.Job) (bool, *time.Time) {
 	if job.Status != store.JobFailed {
 		return false, nil
@@ -397,8 +560,7 @@ func (s *Server) retryState(job *store.Job) (bool, *time.Time) {
 	if job.ImageCount == 0 {
 		return true, nil
 	}
-	if _, until, ok := s.retryImages.get(job.ID, job.Username, s.now()); ok {
-		until = until.UTC()
+	if until, kept := s.imagesKeptUntil(job); kept {
 		return true, &until
 	}
 	return false, nil
@@ -425,9 +587,9 @@ func jobTitle(raw string, creative bool) string {
 	return title
 }
 
-func (s *Server) refundAICall(r *http.Request, username string, roundStart time.Time) {
+func (s *Server) refundAICall(ctx context.Context, username string, roundStart time.Time) {
 	// Detached from the request: the refund must happen even if the client has gone away.
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
 	if err := s.Users.RefundAICall(ctx, username, roundStart); err != nil {
 		s.Logger.Warn("refunding AI call failed", "user", username, "error", err)

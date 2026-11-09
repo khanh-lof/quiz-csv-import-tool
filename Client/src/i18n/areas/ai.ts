@@ -46,8 +46,6 @@ export const ai = {
     dropHint: 'Kéo thả, dán (Ctrl+V) hoặc',
     chooseFile: 'chọn file',
     textbookHasBook: 'Có sẵn %title%, không cần ảnh.',
-    intelligenceMaintenance: 'Đang bảo trì.',
-    intelligenceSlower: 'Chậm hơn.',
     needImage: 'Cần ít nhất 1 ảnh',
     notImage: 'Không phải ảnh',
     duplicateImage: 'Ảnh trùng lặp',

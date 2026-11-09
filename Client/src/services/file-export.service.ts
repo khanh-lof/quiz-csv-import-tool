@@ -8,11 +8,13 @@ import { GestureQuizCsvBuilder } from './gesture-quiz-csv-builder';
 import { fileSafeLabel } from './file-name';
 import * as XLSX from 'xlsx';
 
-// What an export built. For Wayground it also carries the .xlsx itself, so the same file (with the
-// same randomly drawn wrong answers) can be handed to the QuizTool browser extension.
+// What an export built. For Wayground it also carries the .xlsx itself and for Gimkit the .csv's UTF-8
+// bytes, so the same file (with the same randomly drawn wrong answers) can be handed to the QuizTool
+// browser extension.
 export interface ExportedFile {
   fileName: string;
   xlsx?: Uint8Array;
+  csv?: Uint8Array;
 }
 
 @Injectable({
@@ -133,7 +135,13 @@ export class FileExportService {
           xlsx
         };
       }
-      case ExportType.GimKit:
+      case ExportType.GimKit: {
+        if (download) this.downloadBlob(filename, new Blob([csvResult], { type: 'text/csv;charset=utf-8' }));
+        return {
+          fileName: filename,
+          csv: new TextEncoder().encode(csvResult)
+        };
+      }
       case ExportType.Blooket:
       case ExportType.GestureQuiz:
       default:

@@ -21,7 +21,6 @@ function job(overrides: Partial<AiJob> = {}): AiJob {
     creative: true,
     language: 0,
     exportType: 3,
-    intelligence: 1,
     imageCount: 0,
     courseType: null,
     courseName: '',

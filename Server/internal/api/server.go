@@ -5,9 +5,11 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"quiz-csv-import-tool/server/internal/auth"
+	"quiz-csv-import-tool/server/internal/bank"
 	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/store"
 )
@@ -30,6 +32,10 @@ type Server struct {
 	JWT  *auth.JWT
 	// Generator is nil when the LLM settings are incomplete; CSV generation then fails with 500.
 	Generator Generator
+	// Bank, when set (QUESTION_BANK), answers a job whose whole quiz the question bank holds at once, with no AI
+	// call (answerFromBank). The quizzes it holds only part of reach it through Generator, which then wraps the
+	// model in a bank.Generator. Nil leaves every quiz to Generator.
+	Bank *bank.Service
 
 	AdminAPIKey     string
 	RefreshTokenTTL time.Duration
@@ -40,6 +46,16 @@ type Server struct {
 	LoginWindow      time.Duration
 	// LLMTimeout bounds each Generator call; zero means no limit.
 	LLMTimeout time.Duration
+	// AIServerProxy, when set, takes the creative jobs the model writes instead of this server: createJob and
+	// retryJob hand such a request to it untouched, and the AI server behind it (AIServerHandler) runs the job,
+	// writing it to the same job store and taking it over should its process die (ResumeJob). Nil runs them here.
+	AIServerProxy AIServer
+	// AIServerSecret is what the AI server (AIServerHandler) requires in the ProxySecretHeader of every job
+	// request, so only the main server's proxy can start one. Empty refuses them all.
+	AIServerSecret string
+	// ImageStore keeps the images of jobs for imagesKeptFor, so a failed job can be retried and an interrupted one
+	// resumed without an upload, on any server. Nil keeps none: a job with images then cannot be sent again.
+	ImageStore ImageStore
 
 	// StageSeconds is how many seconds a question of each Game stage (1 to 6, in order) lasts in the standard
 	// time mode, from the server's own configuration (GAME_STAGE_SECONDS). A shared quiz is timed here and
@@ -53,8 +69,27 @@ type Server struct {
 
 	Logger *slog.Logger
 
-	// retryImages keeps the images of failed jobs for a while, so "Tạo lại" need not upload them again.
-	retryImages retryImages
+	// heartbeatEvery is how often a running job's heartbeat is recorded; zero means jobHeartbeatInterval.
+	// Tests shrink it.
+	heartbeatEvery time.Duration
+
+	// imageCleanupAt is when this process last deleted the images kept too long, and wokeAt when it last woke
+	// the AI server; each is done at most so often.
+	chores         sync.Mutex
+	imageCleanupAt time.Time
+	wokeAt         time.Time
+}
+
+// due says whether a chore last done at *last is due again, every so often, and if so records it as done now.
+func (s *Server) due(last *time.Time, every time.Duration) bool {
+	s.chores.Lock()
+	defer s.chores.Unlock()
+	now := time.Now()
+	if !last.IsZero() && now.Sub(*last) < every {
+		return false
+	}
+	*last = now
+	return true
 }
 
 func (s *Server) now() time.Time {
@@ -71,9 +106,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/auth/logout", s.logout)
 	mux.HandleFunc("POST /api/auth/logout-all", s.logoutAll)
 	mux.Handle("POST /api/users", s.requireAdminKey(http.HandlerFunc(s.createUser)))
-	csvRoute := func(h http.HandlerFunc) http.Handler {
-		return s.authenticate(requireRole(auth.RoleUser, auth.RoleAdmin)(h))
-	}
+	csvRoute := s.userRoute
 	mux.Handle("POST /api/csv/jobs", csvRoute(s.createJob))
 	mux.Handle("GET /api/csv/jobs", csvRoute(s.listJobs))
 	mux.Handle("DELETE /api/csv/jobs/{id}", csvRoute(s.deleteJob))
@@ -98,10 +131,17 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/share/{code}/runs/{runId}/answers", s.answerQuestion)
 	mux.HandleFunc("PATCH /api/share/{code}/player", s.updateSharedPlayer)
 	mux.HandleFunc("GET /api/share/{code}/leaderboard", s.sharedLeaderboard)
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		writeText(w, http.StatusOK, "ok")
-	})
+	mux.HandleFunc("GET /healthz", healthz)
 	return s.logRequests(mux)
+}
+
+// userRoute lets h answer logged-in users (and admins) only.
+func (s *Server) userRoute(h http.HandlerFunc) http.Handler {
+	return s.authenticate(requireRole(auth.RoleUser, auth.RoleAdmin)(h))
+}
+
+func healthz(w http.ResponseWriter, _ *http.Request) {
+	writeText(w, http.StatusOK, "ok")
 }
 
 func (s *Server) logRequests(next http.Handler) http.Handler {

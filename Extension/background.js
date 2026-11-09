@@ -1,9 +1,12 @@
-// Holds each import job until the Wayground tab it opened has finished with it. Jobs are keyed by tab
-// id, so a Wayground page acts only on a job created for its own tab. When the job finishes, the
+// Holds each import job until the platform tab it opened has finished with it. Jobs are keyed by tab
+// id, so a platform page acts only on a job created for its own tab. When the job finishes, the
 // result goes back to the QuizTool tab that asked for it.
 const JOB_TTL_MS = 10 * 60 * 1000;
-// Where Wayground's "create an assessment" flow starts; it redirects to its login first if needed.
-const WAYGROUND_START_URL = 'https://wayground.com/activity/admin/assessment';
+// Where each platform's "create a quiz" flow starts; both redirect to their login first if needed.
+const START_URLS = {
+  wayground: 'https://wayground.com/activity/admin/assessment',
+  gimkit: 'https://www.gimkit.com/create',
+};
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message?.type) {
@@ -20,10 +23,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-async function startImport({requestId, title, fileName, base64}, sourceTabId) {
-  const tab = await chrome.tabs.create({url: WAYGROUND_START_URL});
+async function startImport({platform, requestId, title, fileName, base64}, sourceTabId) {
+  const tab = await chrome.tabs.create({url: START_URLS[platform]});
   await chrome.storage.session.set({
-    [jobKey(tab.id)]: {requestId, title, fileName, base64, sourceTabId, createdAt: Date.now()},
+    [jobKey(tab.id)]: {platform, requestId, title, fileName, base64, sourceTabId, createdAt: Date.now()},
   });
 }
 
@@ -39,18 +42,20 @@ async function getJob(tabId) {
   return job;
 }
 
-// On success the Wayground tab has done its job and is closed, bringing the teacher back to
+// On success the platform tab has done its job and is closed, bringing the teacher back to
 // QuizTool. On failure it stays open, showing where it got stuck, so the teacher can finish there.
 async function finishJob(tabId, {ok, shareUrl, error}) {
   const job = await getJob(tabId);
   if (!job) return;
   await chrome.storage.session.remove(jobKey(tabId));
 
-  const result = {type: 'import-result', requestId: job.requestId, title: job.title, ok: !!ok, shareUrl, error};
+  const result = {
+    type: 'import-result', platform: job.platform, requestId: job.requestId, title: job.title, ok: !!ok, shareUrl, error,
+  };
   try {
     await chrome.tabs.sendMessage(job.sourceTabId, result);
   } catch {
-    // The QuizTool tab was closed or reloaded; the teacher still has the Wayground tab.
+    // The QuizTool tab was closed or reloaded; the teacher still has the platform tab.
     return;
   }
   if (ok) {

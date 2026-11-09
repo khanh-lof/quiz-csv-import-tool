@@ -19,7 +19,6 @@ export interface AiJob {
   language: QuizLanguage;
   // Only creative jobs have a platform; sent by ordinal like everywhere else.
   exportType: ExportType | null;
-  intelligence: number;
   imageCount: number;
   // The lessons a creative job was asked for, ascending. Null on formatted jobs, and on creative jobs made
   // before the server kept these. `hskStandard` is HSK only; `courseName` is for CourseType.Other.

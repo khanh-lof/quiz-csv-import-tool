@@ -11,6 +11,7 @@ import { CourseType } from '../../models/course-type';
 import { HskStandard } from '../../models/hsk-standard';
 import { ExportType } from '../../models/export-type';
 import { QuizLanguage } from '../../models/quiz-language';
+import { AIGenerationMode } from '../../models/aigeneration-mode';
 
 const SETTINGS_STORAGE_KEY = 'ai-generation-settings';
 
@@ -403,12 +404,12 @@ describe('AiGeneration', () => {
       expect(control('AIMode').dirty).toBeTrue();
     });
 
-    it('keeps the mode and the intelligence, which are not a language\'s', () => {
-      page.formGroup.patchValue({ intelligence: 2 });
+    it('keeps the mode, which is not a language\'s', () => {
+      page.formGroup.patchValue({ AIMode: AIGenerationMode.Formatted });
 
       chooseLanguage('Tiếng Anh');
 
-      expect(control('intelligence').value).toBe(2);
+      expect(control('AIMode').value).toBe(AIGenerationMode.Formatted);
     });
 
     it('is sent with the job and remembered', async () => {
@@ -420,8 +421,10 @@ describe('AiGeneration', () => {
       expect(params.get('language')).toBe(String(QuizLanguage.English));
       expect(params.get('courseType')).toBe(String(CourseType.Other));
       expect(params.get('title')).toBe('Global Success6-Bai2');
+      expect(params.has('intelligence')).toBeFalse();
       const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!);
       expect(saved.language).toBe(QuizLanguage.English);
+      expect('intelligence' in saved).toBeFalse();
       expect(saved.byLanguage[QuizLanguage.English].courseName).toBe('Global Success');
       expect(saved.byLanguage[QuizLanguage.Chinese].courseType).toBeNull();
     });
@@ -429,6 +432,7 @@ describe('AiGeneration', () => {
     it('restores the choices of both languages', () => {
       localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({
         language: QuizLanguage.English,
+        // Saved before "Độ thông minh" was removed: it is not read.
         intelligence: 2,
         byLanguage: {
           [QuizLanguage.Chinese]: { courseType: CourseType.Yct, level: 6, lessonNumbers: [3] },
@@ -440,7 +444,7 @@ describe('AiGeneration', () => {
       fixture.detectChanges();
 
       expect(control('language').value).toBe(QuizLanguage.English);
-      expect(control('intelligence').value).toBe(2);
+      expect(page.formGroup.get('intelligence')).toBeNull();
       expect(control('courseName').value).toBe('Solutions');
       chooseLanguage('Tiếng Trung');
       expect(control('courseType').value).toBe(CourseType.Yct);

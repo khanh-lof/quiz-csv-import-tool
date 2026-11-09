@@ -83,7 +83,6 @@ function gestureJob(overrides: Partial<AiJob> = {}): AiJob {
     creative: true,
     language: 0,
     exportType: ExportType.GestureQuiz,
-    intelligence: 1,
     imageCount: 0,
     courseType: null,
     courseName: '',

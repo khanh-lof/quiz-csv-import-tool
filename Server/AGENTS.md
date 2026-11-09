@@ -8,19 +8,35 @@ A Go (`net/http`) HTTP API backed by MongoDB. It issues JWTs for login, and uses
 to convert uploaded images of Chinese vocabulary into a quiz CSV, gated by JWT auth and a per-user
 rate limit stored in MongoDB. It runs as a single standalone binary: the `Dockerfile` image, or the `server`
 service of the root `vercel.json`, where Vercel's Go preset builds `cmd/server` and runs it on
-Fluid compute with `PORT` set — the code has no Vercel-specific parts.
+Fluid compute with `PORT` set — the code has no Vercel-specific parts. A second binary, `cmd/ai-server`, runs
+only the creative jobs the model writes on Render (root `render.yaml`), where a request may run longer than
+a Vercel function; see [../AGENTS.md](../AGENTS.md#what-this-is).
 
 Module `quiz-csv-import-tool/server`, laid out as:
 
 - `cmd/server` — entry point: reads config, connects to MongoDB, wires everything, graceful shutdown.
+- `cmd/ai-server` — the AI server: the same config, MongoDB stores and JWT checks, serving only
+  `api.Server.AIServerHandler` (start and retry a creative job, 400 for a formatted job, and `/healthz`), with no
+  LLM time limit. It refuses to start without the LLM settings, waits up to `shutdownGrace` (25 s, under the 30 s
+  Render leaves a free instance after SIGTERM; `maxShutdownDelaySeconds`
+  needs a paid one) for running jobs on shutdown, so a deploy cuts off a longer job, while any job runs requests
+  its own public URL (`RENDER_EXTERNAL_URL`) every 5 minutes so Render's free instance does not go to sleep under
+  it, and every minute, from boot, takes over and runs again the creative jobs whose process died
+  (`resumeInterrupted`, see [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes)).
 - `cmd/import-users` — one-off tool importing users exported from the old Cosmos DB container.
 - `internal/config` — env-var configuration (`FromEnv`) and a small `.env` loader for local dev.
 - `internal/api` — routing (`Server.Handler`) and all handlers.
 - `internal/auth` — JWT issue/parse, PBKDF2 password hashing, and `Service` (login/refresh/logout).
 - `internal/store` — the `User` document, the `Users` interface, `Mongo` (production) and `Memory`
-  (tests) implementations; the same pair for `Jobs` and for `Assignments` ("Giao bài", with its students).
+  (tests) implementations; the same pair for `Jobs`, for `Assignments` ("Giao bài", with its students) and for
+  `QuestionBank` (the question bank's questions) and for `RadicalDetails` (the notes the model wrote for Radicals
+  exercises: word and character meanings, component names, keyed `kind:key`, first answer kept). An exercise asks
+  the model only for the notes neither the curated pools nor `RadicalDetails` hold (`csvgen/radicals_cache.go`); a
+  store that fails only costs the call. Always on, on both servers; no index needed.
+- `internal/bank` — the question bank: quizzes of the embedded textbooks built from stored questions, the model
+  asked only for the questions the bank lacks. See "Question bank" below.
 - `internal/csvgen` — creative-mode option parsing, the two system prompts and the per-platform
-  templates (all embedded from `prompts/*.txt`), the embedded lesson documents of four textbooks
+  templates (all embedded from `prompts/*.txt`), the embedded lesson documents of eight textbooks
   (`textbooks/`), and the OpenAI-compatible client
   (`/chat/completions` for the formatted mode, `/responses` for the creative mode). `radicals.go` is the
   "Ghép bộ thủ" platform's side of it: where a lesson's words come from (the textbook's tables, or the model),
@@ -48,7 +64,7 @@ Module `quiz-csv-import-tool/server`, laid out as:
 ```bash
 go build ./...
 go vet ./...
-go test ./...                                    # Mongo integration tests (users, jobs, assignments) are skipped…
+go test ./...                                    # Mongo integration tests (users, jobs, assignments, bank) are skipped…
 MONGODB_TEST_URI=mongodb://localhost:27017 go test ./internal/store/   # …unless this is set
 go run ./cmd/server                              # http://localhost:7071 (reads .env if present)
 docker compose up --build                        # MongoDB + API on 7071
@@ -65,20 +81,39 @@ without them.
   `MONGODB_JOBS_COLLECTION` (default `Jobs`, the AI generation jobs),
   `MONGODB_ASSIGNMENTS_COLLECTION` (default `Assignments`) and `MONGODB_PLAYERS_COLLECTION` (default
   `AssignmentPlayers`): the quizzes teachers handed to students, and the students who joined them with their results,
-  `MONGODB_LOGIN_ATTEMPTS_COLLECTION` (default `LoginAttempts`): the login attempts counted per username
+  `MONGODB_LOGIN_ATTEMPTS_COLLECTION` (default `LoginAttempts`): the login attempts counted per username,
+  `MONGODB_RADICAL_DETAILS_COLLECTION` (default `RadicalDetails`): the Radicals notes kept for reuse,
+  `MONGODB_QUESTIONS_COLLECTION` (default `QuestionBank`): the question bank
+- `QUESTION_BANK` (`on`/`off`, default off) — builds the quizzes of the embedded textbooks from the question bank
+  (see "Question bank" below), on both servers; off, every quiz is the model's as before. Any other value stops the
+  server at start
 - `JWT_SECRET` (≥ 32 bytes, RFC 7518 §3.2 for HS256), `JWT_ISSUER` (default `quiztool`),
   `JWT_AUDIENCE` (default `quiztool-api`) — issuer and audience are always set and validated
 - `JWT_ACCESS_TOKEN_EXPIRES_MINUTES` (15), `JWT_REFRESH_TOKEN_EXPIRES_DAYS` (30),
   `MAX_REFRESH_TOKENS_PER_USER` (5 — oldest session evicted beyond this)
 - `ADMIN_API_KEY` — required in the `X-Admin-Key` header by `POST /api/users`; empty rejects every call
+- `APP_ORIGIN` — QuizTool's public URL, added to the origins the downloadable Wayground extension runs on
+  when its zip is packed (`go generate` at build time, or the first download); empty leaves only
+  `http://localhost:4200`, and a value that is not an `http(s)://host` origin fails the pack
+- `AI_SERVER_URL` — the base URL of `cmd/ai-server`; when set, `createJob` and `retryJob` hand it every creative
+  job but a quiz the question bank holds whole (`AIServerProxy`, path, query, body and token unchanged, up to
+  2 minutes for its `202`, 502 `The AI server is unavailable.` when it cannot be reached). Empty runs those jobs
+  here. The AI server ignores it. `AI_SERVER_SECRET` (≥ 32 bytes, the same on both servers) is required with it,
+  and by the AI server
+- `CLOUDINARY_URL` — `cloudinary://<api key>:<api secret>@<cloud name>`: where both servers keep the images of jobs
+  for 30 days (`imagestore.Cloudinary`, Basic-auth calls to the Upload and Admin APIs), so a failed job can be
+  retried and an interrupted one resumed; empty keeps none, and a malformed value stops the server at start
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LLM_MODEL` — if any is missing the server still starts, but
   CSV generation answers 500. `LLM_MODEL` serves the formatted mode (sent with `reasoning_effort: low`)
-- `LLM_INTELLIGENCE_MODELS` — optional, exactly 2 comma-separated models: the creative-mode model for
-  the client's "Độ thông minh" Thấp / Cao (`intelligence` query param 1 or 2, default 1).
-  Empty means both use `LLM_MODEL`
-- `LLM_TIMEOUT_SECONDS` (280) — per-call LLM deadline; kept under Vercel's 300 s function limit so
-  the handler answers 504 itself. The HTTP server's write timeout is derived from it, and the creative
-  system prompt's TIME LIMIT section tells the model this number (`{{.TimeLimitSeconds}}`)
+- `LLM_CREATIVE_MODEL` — optional: the model of the creative mode (the quizzes, the question bank's questions and
+  the Radicals exercises). Empty means `LLM_MODEL`. The settings of the removed "Độ thông minh"
+  (`LLM_INTELLIGENCE_MODELS`, `HIGH_INTELLIGENCE_SERVER_URL`, `HIGH_INTELLIGENCE_PROXY_SECRET`) stop the server at
+  start while they are set, even empty, naming what replaced them; an `intelligence` query parameter an older page
+  still sends is ignored
+- `LLM_TIMEOUT_SECONDS` (280) — per-call LLM deadline of `cmd/server`; kept under Vercel's 300 s function limit
+  so the handler answers 504 itself. The HTTP server's write timeout is derived from it, and the creative
+  system prompt's TIME LIMIT section tells the model this number (`{{.TimeLimitSeconds}}`). `cmd/ai-server`
+  has no deadline: its prompt has no TIME LIMIT section, and its search guidance does not mention one
 - `CALL_COUNT_ACCEPTED_IN_A_ROUND` (2), `ROUND_MINUTES` (1) — AI-call rate limit per user
 - `LOGIN_MAX_ATTEMPTS` (5), `LOGIN_WINDOW_MINUTES` (15) — login limit per username, see Auth below
 - `GAME_STAGE_SECONDS` (`12,12,15,15,20,45`) — the seconds per question of the Game's stages 1–6, in order, for
@@ -110,9 +145,9 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
 - **Users** (`auth_handlers.go`): `users`, admin-only via `X-Admin-Key` (replaces the Azure Functions
   admin key), enforced by the `requireAdminKey` middleware. 409 if the user exists.
 - **Extension** (`extension_handler.go`): `GET extension`, behind the same `authenticate` + `requireRole` as the
-  CSV jobs, answers the Wayground extension's zip from `internal/extension` (embedded when `go generate
+  CSV jobs, answers the extension's zip (Wayground and Gimkit) from `internal/extension` (embedded when `go generate
   ./internal/extension` ran before the build, as the Vercel `buildCommand` does; otherwise packed from
-  `../Extension` on first use), or 404 `Extension not available.`. See [../AGENTS.md](../AGENTS.md#the-wayground-browser-extension).
+  `../Extension` on first use), or 404 `Extension not available.`. See [../AGENTS.md](../AGENTS.md#the-browser-extension-wayground-and-gimkit).
 - **CSV jobs** (`csv_handler.go`): `POST csv/jobs`, `GET csv/jobs`, `DELETE csv/jobs/{id}`,
   `POST csv/jobs/{id}/retry`, `GET csv/jobs/{id}/page` (the page of a finished Radicals job, `text/html`, drawn
   from the job's exercise JSON on each request; 404 `Job not found`, 409 `Job is not a finished radicals
@@ -128,15 +163,23 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   stores a running `store.Job`, prunes the user's jobs to the newest 30, answers `202 {"id"}` (flushed
   early, `Connection: close`) and keeps running in the same handler: `runJob` calls the generator on a
   context detached from the request (`context.WithoutCancel`), so the client leaving does not cancel it,
-  and records the outcome with `Jobs.Complete` / `Jobs.Fail`; a failed job's images go to `retryImages`
-  (`retry_images.go`, in memory, for `retryImagesTTL`, one hour). `retryJob` ("Tạo lại") rebuilds the failed
-  job's request with `retryOptions`, takes its images from `retryImages` and goes through the same `startJob`
+  and records the outcome with `Jobs.Complete` / `Jobs.Fail`; meanwhile `storeJobImages` stores the images in the
+  `ImageStore` (Cloudinary) and records them with `Jobs.SetImages` (`job_images.go`, kept for `imagesKeptFor`, 30
+  days). `retryJob` ("Tạo lại") rebuilds the failed job's request with `retryOptions`, fetches its images from the
+  `ImageStore` (410 once they are not kept) and goes through the same `startJob`
   (rate limit, store, prune, `202`) and `runJob`, deleting the failed job before it answers; its refusals are
   in [../AGENTS.md](../AGENTS.md#retrying-ai-requests). Validation, auth and rate-limit
   errors are still answered synchronously with the plain-text bodies below. `title` (query, capped at
   100 runes) names the job. `listJobs` returns the user's jobs newest first (JSON `{"jobs": [...]}`,
-  the CSV included, and `retryable`/`retryUntil` from `retryState`) after failing any job running past `LLM_TIMEOUT_SECONDS` + 1 min as abandoned (and
-  refunding its call). Both modes take an optional `language` (`csvgen.ParseLanguage`, see
+  the CSV included, and `retryable`/`retryUntil` from `retryState`) after failing as abandoned any running job
+  whose heartbeat is older than `abandonedAfter` (3 min; and refunding its call), giving a creative job
+  `resumeGiveUp` (10 min) when there is an AI server, which takes it over (`resume.go`), and waking that server
+  when such a job waits (`AIServer.Wake`, at most once a minute). While `runJob` works,
+  `keepJobAlive` records the job's heartbeat (`Jobs.Heartbeat`) every `jobHeartbeatInterval` (30 s), so only a job
+  whose process died is failed, whichever server ran it and however long it takes. A creative job goes to
+  `AIServerProxy` before any of this when one is set (`isCreative`, from the query; `retryJob` decides from the
+  failed job, before looking for its images), unless the question bank holds its whole quiz. Both modes take an
+  optional `language` (`csvgen.ParseLanguage`, see
   [Chinese and English](../AGENTS.md#chinese-and-english)), which picks the prompts and is kept on the job.
   `isCreative=true` switches to the creative prompt and requires `exportType`,
   `courseType` (one of the language's courses), `lessonNumbers`, plus `level` (HSK/YCT) or `courseName` (`Other`), and for GestureQuiz the
@@ -408,6 +451,15 @@ cookie.
   (`rowCounter`), which `runJob` stores on the job (`Jobs.Progress`, throttled to every 3 s). Non-2xx answers become `*StatusError` (status, `error.code`, `Retry-After`); each
   attempt's `x-request-id` is logged.
 - `ExtractCSVContent` strips code fences / leading prose the model sometimes adds.
+- Every CSV (both modes, not Radicals) is checked before the job stores it (`quoting.go`, `checkedCSV`). The
+  prompts ask for every cell in double quotes; `normalizeCSV` reads the answer leniently (`readCSV`) and writes
+  it back with every cell quoted, fixing on its own only what cannot move text between cells (missing
+  quotes around comma-free cells, bare quotes, spaces, blank rows, extra empty trailing cells, and missing
+  ones only when the row's cells are all quoted, since a short row with a bare cell may hide an unquoted
+  comma). A row it cannot split into the export type's columns (`creativeColumns`, which `exportTypeMessages`
+  also sends; `Câu hỏi,Đáp án` for the simple mode) — an unquoted comma, an unclosed quote — gets one repair call
+  to the same model and endpoint (`prompts/csv_repair.txt`, no tools, counted in `Usage`), skipped when less
+  than `minRepairBudget` (20 s) is left; a CSV still wrong after it fails the job as `bad_output`.
 - The creative mode uses the Responses API because Wayground requests carry the `web_search` tool:
   the model searches Pexels for the Image Link column and builds `images.pexels.com` URLs from the
   photo IDs it finds (Wikimedia is banned; Wayground cannot load it). Other platforms have no image
@@ -421,17 +473,61 @@ cookie.
 
 Jobs (`internal/store/jobs*.go`): `store.Jobs` is implemented by `MongoJobs` (collection
 `MONGODB_JOBS_COLLECTION`) and `MemoryJobs` (tests), and every method is scoped to a username. A `Job`
-holds the request's metadata (title, mode, export type ordinal, intelligence, image count — never the
+holds the request's metadata (title, mode, export type ordinal, image count — never the
 images — and, for a creative job, the lesson: course type ordinal, course name, HSK standard, level and
 lesson numbers (`lessonNumbers`), which `listJobs` returns so the client can filter by them, and for a GestureQuiz job its
 `gestureStages` and `questionsPerStage`, kept so `retryJob` can ask for the same quiz again), `status` (`running`/`done`/`failed`), the raw model `csv`, for a Radicals job its `source` (what csvgen rebuilds the exercise from), `errorStatus`/`errorCode`/`errorMessage`,
 `usage` (model, calls including retries, input/cached/output tokens, duration; stored for the admin, never sent
-to the client), the rate-limit `roundStart` (for refunds) and timestamps. `Complete`/`Fail` only touch a job that is still
-`running`, so an expired job is never revived by a late answer; `Prune` never deletes a running job.
+to the client), the rate-limit `roundStart` (for refunds), `heartbeatAt` (see `listJobs` above) and timestamps.
+`Complete`/`Fail`/`Progress`/`Heartbeat` only touch a job that is still `running`, so an expired job is never
+revived by a late answer; `Prune` never deletes a running job. `ExpireRunning` fails the running jobs whose
+`heartbeatAt` (or, before the first heartbeat, `createdAt`) is before the cutoff.
 `Revise(username, id, csv, source)` replaces the result of a `done` job only (`ErrNotFound` otherwise). `List` leaves
 the `source` out (Mongo projects it away), since the history never needs it.
 `Get(username, id)` returns one job, `ErrNotFound` for another user's too (`createAssignment` is its caller).
 `MongoJobs.EnsureIndexes` (username + createdAt) is, like the users' one, not called on start.
+`Complete(username, id, JobResult)` stores the `csv`, the `source`, the `usage` (left out when nil: a quiz the
+question bank built whole asked no model) and, for a quiz of the question bank, `bankQuestions` (the ids of its
+questions, in order) and `fromBank` (how many of them the bank held before the job); none of these three is sent
+to the client.
+
+Question bank (`internal/bank`, `internal/store/questions*.go`, behind `QUESTION_BANK`): for a creative job on
+GimKit, Blooket, Wayground or the Game whose course has an embedded textbook and that has no images
+(`bank.NewRequest`), the quiz is built from stored questions.
+- **Questions** (`store.Question`, collection `MONGODB_QUESTIONS_COLLECTION`, shared by every user, so not scoped
+  to a username): `book` (the textbook's folder), `language`, `targets` (the keys `word|pinyin|pos` of the words it
+  tests, `csvgen.LessonWord.Key`, so a corrected lesson document simply stops matching old questions), `lessons`,
+  `maxLesson` (the highest lesson of the request it was written for: it is picked only for a request whose highest
+  lesson is at least that, so it never uses a word the learner has not reached), `format` (`mc`, `true_false`,
+  `word_order`, `typed`), `skill` (`meaning` … `visual`), `difficulty` 1–3, the texts with their pinyin, the wrong
+  answers most plausible first, the chunks of a sentence to order, `imageUrl` (visual questions, Wayground only),
+  `fingerprint` (format, stem and
+  answer; a book holds each once), `status`, `servedCount`/`lastServedAt` (least used first).
+- **Planning** (`bank.PlanQuiz`, pure): the Game has `stages × questionsPerStage` places, each stage taking the
+  format, options, difficulty and skills of its game (`stageSpecs`); the other platforms `QuizSize` places (a
+  quarter more than the words, 10 to 40, one per word beyond 40), 40/40/20% easy/medium/hard, Wayground half of each
+  level visual. It first covers every word (the rarest first; a level may give places to another for that), then
+  fills the places, preferring the least tested words, other skills and less-served questions, with a little
+  randomness per quiz. What it cannot fill is a list of gaps (`csvgen.QuestionSpec`: one word, a format, a level,
+  skills).
+- **The model** (`csvgen.Client.WriteQuestions`, `prompts/bank_system.txt` with the language's `bank.txt` blocks):
+  one `/responses` call with the lessons' material, a numbered word list (`W1`…, so targets map back exactly) and
+  the gaps, plus one more question for each word the bank had none on (at most 80 in all); `web_search` only when a
+  gap is visual. It answers JSON, one question per line (the progress counts them). `bank.Validate` drops a
+  question that breaks a rule (logged), the rest are stored (`Insert` skips known fingerprints), the quiz is planned
+  again and written. Short of half its questions, or of a question in a Game stage, the job fails as `bad_output`.
+- **The shared guidance** of `creative_system.txt` (LESSON SOURCE to VOCABULARY COVERAGE) is the `quiz-guidance`
+  block of `prompts/quiz_guidance.txt`, which both system prompts include; the creative prompt renders as before.
+- **Writing the quiz** (`bank.Render`): exactly `creativeColumns`, checked by `csvgen.CheckRows`, so the client,
+  the extension and `gesturequiz.Parse` read it like the model's.
+- **Where it runs.** `createJob` and `retryJob` first ask `Server.Bank` (`answerFromBank`, `bankPlan`): a quiz the
+  bank holds whole becomes a job stored already `done`, answered `202` like any job, with no AI call counted and no
+  proxying to the AI server (the request body is read only to check that it has no image, and put
+  back). Any other quiz goes its usual way, where `bank.Generator` wraps the model on both servers and writes only
+  the gaps; when the bank cannot be read, the whole quiz is the model's.
+- **Indexes**, like the others not created on start (`MongoQuestionBank.EnsureIndexes`), once by hand:
+  `db.QuestionBank.createIndex({book: 1, language: 1, maxLesson: 1}, {name: "book_language_maxLesson"})` and
+  `db.QuestionBank.createIndex({book: 1, fingerprint: 1}, {name: "book_fingerprint", unique: true})`.
 
 Assignments (`internal/store/assignments*.go`): `store.Assignments` is implemented by `MongoAssignments` and
 `MemoryAssignments` (tests), and holds two kinds of document. An `Assignment` (collection

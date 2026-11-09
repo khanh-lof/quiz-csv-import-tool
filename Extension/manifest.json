@@ -1,22 +1,27 @@
 {
   "manifest_version": 3,
-  "name": "QuizTool → Wayground",
-  "version": "0.1.0",
-  "description": "Imports the Wayground file QuizTool generates straight into your own Wayground account.",
+  "name": "QuizTool → Wayground & Gimkit",
+  "version": "0.2.0",
+  "description": "Publishes the quiz QuizTool generates straight into your own Wayground or Gimkit account.",
   "permissions": ["storage"],
-  "host_permissions": ["https://wayground.com/*"],
+  "host_permissions": ["https://wayground.com/*", "https://www.gimkit.com/*"],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://kt-quiz-csv-import-tool.vercel.app/*", "http://localhost:4200/*"],
+      "matches": ["http://localhost:4200/*"],
       "js": ["bridge.js"],
       "run_at": "document_start"
     },
     {
       "matches": ["https://wayground.com/*"],
-      "js": ["selectors.js", "wayground.js"],
+      "js": ["common.js", "selectors.js", "wayground.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.gimkit.com/*"],
+      "js": ["common.js", "gimkit-selectors.js", "gimkit.js"],
       "run_at": "document_idle"
     }
   ]

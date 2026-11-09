@@ -17,15 +17,15 @@ func TestJobOptionsRoundTrip(t *testing.T) {
 		"formatted": {false, csvgen.Options{Language: csvgen.English}},
 		"hsk wayground": {true, csvgen.Options{
 			ExportType: csvgen.Wayground, CourseType: csvgen.Hsk, HskStandard: csvgen.Hsk3, Level: &level,
-			LessonNumbers: []int{2, 3}, Intelligence: 2,
+			LessonNumbers: []int{2, 3},
 		}},
 		"other blooket": {true, csvgen.Options{
 			Language: csvgen.English, ExportType: csvgen.Blooket, CourseType: csvgen.Other, CourseName: "Unit book",
-			LessonNumbers: []int{1}, Intelligence: 1,
+			LessonNumbers: []int{1},
 		}},
 		"yct game": {true, csvgen.Options{
 			ExportType: csvgen.GestureQuiz, CourseType: csvgen.Yct, Level: &level, LessonNumbers: []int{4},
-			Intelligence: 1, GestureStages: []int{4, 6}, QuestionsPerStage: 7,
+			GestureStages: []int{4, 6}, QuestionsPerStage: 7,
 		}},
 	}
 	for name, c := range cases {

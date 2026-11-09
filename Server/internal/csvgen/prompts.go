@@ -15,6 +15,12 @@ var (
 	// language defines in prompts/<dir>/creative.txt (see language.go).
 	//go:embed prompts/creative_system.txt
 	creativeSystemTemplate string
+	// The guidance on writing questions, a {{define}} block both the creative and the bank system prompts include.
+	//go:embed prompts/quiz_guidance.txt
+	quizGuidanceTemplate string
+	// The question bank's system prompt, which asks for questions as JSON (see WriteQuestions).
+	//go:embed prompts/bank_system.txt
+	bankSystemTemplate string
 	//go:embed prompts/wayground_template.txt
 	waygroundTemplate string
 	// The Game message is built from the framing, a text/template that fills in the chosen stages and the
@@ -140,8 +146,8 @@ func buildCreativeRequest(model string, timeLimit time.Duration, images []Image,
 		texts = append(texts, material)
 	}
 	content := inputParts(texts, images)
-	// No reasoning effort: the model is picked by "Độ thông minh" and some of them (gpt-6-astra) have
-	// no effort levels, so each runs at its own default.
+	// No reasoning effort: the model is LLM_CREATIVE_MODEL, and some models (gpt-6-astra) have no effort
+	// levels, so it runs at its own default.
 	req := responsesRequest{
 		Model:           model,
 		Instructions:    creativeSystemPrompt(opts.Language, timeLimit),
@@ -192,15 +198,14 @@ func courseMessage(opts Options) string {
 // CsvHeader of the corresponding client-side CsvBuilder, or for GestureQuiz the columns the game's
 // own CSV parser reads. The options only matter to GestureQuiz, whose stages the teacher chooses.
 func exportTypeMessages(opts Options) []string {
+	columns := "CSV columns: " + creativeColumns(opts.ExportType)
 	switch opts.ExportType {
-	case GimKit:
-		return []string{"CSV columns: Question,Correct Answer,Incorrect Answer 1,Incorrect Answer 2 (Optional),Incorrect Answer 3 (Optional)"}
-	case Blooket:
-		return []string{"CSV columns: Question #,Question Text,Answer 1,Answer 2,Answer 3,Answer 4,Time Limit (sec),Correct Answer(s)"}
+	case GimKit, Blooket:
+		return []string{columns}
 	case Wayground:
 		return []string{
-			"CSV columns: Question Text,Question Type,Option 1,Option 2,Option 3,Option 4,Option 5,Correct Answer,Time in seconds,Image Link,Answer explanation",
-			`Question type will be ""Multiple Choice"" or ""Fill-in-the-Blank"". The option 2-5 must be empty for ""Fill-in-the-Blank"", the option 1 is the correct answer`,
+			columns,
+			`Question type will be "Multiple Choice" or "Fill-in-the-Blank". The option 2-5 must be empty for "Fill-in-the-Blank", the option 1 is the correct answer`,
 			normalizePrompt(waygroundTemplate),
 			"Image Link: fill it only for questions that cannot be answered without the image, and make at least half of the rows such visual questions, following the IMAGE USAGE section. Plan the images before writing the questions.",
 		}
@@ -208,7 +213,7 @@ func exportTypeMessages(opts Options) []string {
 		// The stage rules carry the whole format, including how many rows to write, so unlike
 		// Wayground there is no message after the template.
 		return []string{
-			"CSV columns: Stage,Question,Question Pinyin,Correct Answer,Correct Answer Pinyin,Wrong Answer 1,Wrong Answer 1 Pinyin,Wrong Answer 2,Wrong Answer 2 Pinyin,Wrong Answer 3,Wrong Answer 3 Pinyin,Explanation",
+			columns,
 			buildGestureQuizMessage(opts),
 		}
 	}

@@ -28,9 +28,16 @@ func (m *MemoryJobs) Create(_ context.Context, job *Job) error {
 	return nil
 }
 
-func (m *MemoryJobs) Complete(_ context.Context, username, id, csv, source string, usage JobUsage) error {
+func (m *MemoryJobs) Complete(_ context.Context, username, id string, result JobResult) error {
 	return m.finish(username, id, func(j *Job) {
-		j.Status, j.CSV, j.Source, j.Usage = JobDone, csv, source, &usage
+		j.Status, j.CSV, j.Source = JobDone, result.CSV, result.Source
+		if result.Usage != nil {
+			usage := *result.Usage
+			j.Usage = &usage
+		}
+		if len(result.BankQuestions) > 0 {
+			j.BankQuestions, j.FromBank = slices.Clone(result.BankQuestions), result.FromBank
+		}
 	})
 }
 
@@ -57,6 +64,17 @@ func (m *MemoryJobs) Progress(_ context.Context, username, id string, rows int) 
 	defer m.mu.Unlock()
 	if j, ok := m.jobs[id]; ok && j.Username == username && j.Status == JobRunning {
 		j.ProgressRows = rows
+		m.jobs[id] = j
+	}
+	return nil
+}
+
+func (m *MemoryJobs) Heartbeat(_ context.Context, username, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if j, ok := m.jobs[id]; ok && j.Username == username && j.Status == JobRunning {
+		now := m.Now().UTC()
+		j.HeartbeatAt = &now
 		m.jobs[id] = j
 	}
 	return nil
@@ -118,19 +136,48 @@ func (m *MemoryJobs) Delete(_ context.Context, username, id string) error {
 	return nil
 }
 
-func (m *MemoryJobs) ExpireRunning(_ context.Context, username string, before time.Time, message string) ([]Job, error) {
+func (m *MemoryJobs) SetImages(_ context.Context, username, id string, images []JobImage, storedAt time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if j, ok := m.jobs[id]; ok && j.Username == username {
+		storedAt = storedAt.UTC().Truncate(time.Millisecond)
+		j.Images, j.ImagesStoredAt = images, &storedAt
+		m.jobs[id] = j
+	}
+	return nil
+}
+
+func (m *MemoryJobs) ExpireRunning(_ context.Context, username string, cutoffs ExpiryCutoffs, message string) ([]Job, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	var expired []Job
 	now := m.Now().UTC()
 	for id, j := range m.jobs {
-		if j.Username == username && j.Status == JobRunning && j.CreatedAt.Before(before) {
+		before := cutoffs.Before
+		if cutoffs.resumable(j) {
+			before = cutoffs.ResumableBefore
+		}
+		if j.Username == username && j.Status == JobRunning && lastSign(j).Before(before) {
 			j.Status, j.ErrorStatus, j.ErrorCode, j.ErrorMessage, j.FinishedAt = JobFailed, ExpiredJobStatus, ExpiredJobCode, message, &now
 			m.jobs[id] = j
 			expired = append(expired, j)
 		}
 	}
 	return expired, nil
+}
+
+func (m *MemoryJobs) ClaimInterrupted(_ context.Context, before time.Time, maxResumes int) (*Job, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, j := range m.jobs {
+		if j.Status == JobRunning && j.Creative && j.Resumes < maxResumes && lastSign(j).Before(before) {
+			now := m.Now().UTC()
+			j.HeartbeatAt, j.Resumes, j.ProgressRows = &now, j.Resumes+1, 0
+			m.jobs[id] = j
+			return &j, nil
+		}
+	}
+	return nil, nil
 }
 
 func (m *MemoryJobs) Prune(_ context.Context, username string, keep int) error {
@@ -145,4 +192,12 @@ func (m *MemoryJobs) Prune(_ context.Context, username string, keep int) error {
 		}
 	}
 	return nil
+}
+
+// lastSign is when a running job last showed that its process was alive.
+func lastSign(j Job) time.Time {
+	if j.HeartbeatAt != nil {
+		return *j.HeartbeatAt
+	}
+	return j.CreatedAt
 }

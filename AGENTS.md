@@ -16,7 +16,7 @@ and independently deployed projects, plus an optional browser extension:
 - `Server/` — Go (`net/http`) API with MongoDB persistence. Runs as a standalone binary / Docker
   image (`Server/Dockerfile`).
 - `Extension/` — Chrome extension (plain JS, loaded unpacked, not deployed) that imports and
-  publishes the Wayground `.xlsx` in the user's own Wayground tab. See [Extension/AGENTS.md](Extension/AGENTS.md).
+  publishes the quiz in the user's own Wayground or Gimkit tab: one extension, one download, for both. See [Extension/AGENTS.md](Extension/AGENTS.md).
 
 Both deploy together as one Vercel project via [Vercel Services](https://vercel.com/docs/services),
 configured in the root `vercel.json`: the `client` service (Angular preset, SPA fallback to
@@ -25,6 +25,31 @@ configured in the root `vercel.json`: the `client` service (Angular preset, SPA 
 the Go mux still sees `/api/...` — and everything else to `client`. The Vercel project's Root
 Directory must be the repo root, and the server's env vars (`MONGODB_URI`, `JWT_SECRET`, …) are set
 in the same project.
+
+One kind of request does not run on Vercel: a creative AI job the model writes, which can take longer than a Vercel
+function may run (300 s). The Vercel server forwards it, server side, to a second Go server, `Server/cmd/ai-server`,
+a free Render web service defined in the root `render.yaml`: it serves only starting and retrying creative jobs
+(`api.Server.AIServerHandler`, 400 for a formatted job) and the health check, runs them with no time limit, and
+writes them to the same MongoDB, so the client follows them through the Vercel server's job list like any other. The
+formatted jobs and the quizzes the question bank holds whole (they ask no model) stay on Vercel. The Vercel project's
+`AI_SERVER_URL` names the Render service's URL (kept out of this public repo); unset, creative jobs run on Vercel
+like the rest, which is also how local development runs. Both servers must share `MONGODB_URI`, `JWT_SECRET` and the
+AI rate-limit settings. The Render service is public, so it only accepts job requests that carry the
+`X-Proxy-Secret` header the Vercel proxy adds (`AI_SERVER_SECRET`, ≥ 32 bytes, the same on both; checked by
+`fromMainServer`, `/healthz` stays open). The AI server refuses to start without it, and the main server refuses to
+start with the URL but no secret.
+
+**Models.** Every creative job asks one model, `LLM_CREATIVE_MODEL` (the quizzes, the question bank's questions and
+the Radicals exercises), and the formatted mode its own, `LLM_MODEL`, which the creative mode also uses when
+`LLM_CREATIVE_MODEL` is empty. There is no "Độ thông minh" choice any more: with the question bank
+(`QUESTION_BANK`) building most quizzes without the model, one model is enough. The settings it had
+(`LLM_INTELLIGENCE_MODELS`, `HIGH_INTELLIGENCE_SERVER_URL`, `HIGH_INTELLIGENCE_PROXY_SECRET`) stop either server at
+start while they are still set, naming what replaced them.
+
+**Free tier only.** This project is for personal use, so no hosting cost is accepted: every hosted service (Vercel,
+Render, MongoDB, Cloudinary, and any added later) must run on its free tier. Never propose or configure a paid plan,
+add-on or instance, and set the plan explicitly where a platform would otherwise default to a paid one (`plan: free`
+in `render.yaml`).
 
 Each project has its own `AGENTS.md` with the detail for that side — read
 [Client/AGENTS.md](Client/AGENTS.md), [Server/AGENTS.md](Server/AGENTS.md) or
@@ -93,7 +118,7 @@ no configurable backend URL:
 | `SharedPlayService.startRun` | `POST share/{code}/runs` (`internal/api/run_handlers.go`, anonymous, `X-Player-Token` header) |
 | `SharedPlayService.nextQuestion` / `.answer` | `POST share/{code}/runs/{runId}/next`, `POST share/{code}/runs/{runId}/answers` (`run_handlers.go`, anonymous, `X-Player-Token` header) |
 | `SharedPlayService.setAvatar` | `PATCH share/{code}/player` (`share_handlers.go`, anonymous, `X-Player-Token` header) |
-| `WaygroundExtensionService.downloadExtension` | `GET extension` (`internal/api/extension_handler.go`) |
+| `PublishExtensionService.downloadExtension` | `GET extension` (`internal/api/extension_handler.go`) |
 | `RadicalsPageService.page` | `GET csv/jobs/{id}/page` (`csv_handler.go`) |
 | `RadicalsPageService.edit` / `.revise` | `GET csv/jobs/{id}/radicals`, `PUT csv/jobs/{id}/radicals` (`internal/api/radicals_handlers.go`) |
 | `SharedPlayService.leaderboard` | `GET share/{code}/leaderboard` (`share_handlers.go`, anonymous, optional `X-Player-Token` header) |
@@ -101,7 +126,8 @@ no configurable backend URL:
 Three things make the wiring non-obvious:
 
 - **Same-origin everywhere, no CORS.** On Vercel the SPA and API are services of one deployment
-  (every preview included); locally the `ng serve` proxy puts them on one origin too. The server
+  (every preview included); locally the `ng serve` proxy puts them on one origin too. The browser never calls
+  the AI server on Render: the Vercel server forwards the creative jobs to it. The server
   therefore has no CORS handling, and the refresh token is an `HttpOnly; Secure; SameSite=Strict`
   cookie (`Secure` is accepted on `http://localhost`). Serving the SPA and API from different
   origins is not supported: the browser would block the calls and never send the cookie, breaking
@@ -188,9 +214,21 @@ Consequences to keep in mind when changing anything here:
 - A job outlives the connection that started it only if the host keeps the process alive after the
   client leaves. The handler flushes its `202` early with `Connection: close` and goes on working;
   where the platform buffers the response until the handler ends (Vercel's behaviour for a Go
-  service is unverified), the client just gets the `202` late and polling still shows the job. A job
-  still `running` well past the LLM deadline (its process died) is failed as "interrupted" and its
-  call refunded the next time its owner lists jobs.
+  service is unverified), the client just gets the `202` late and polling still shows the job. While it works
+  the handler records a heartbeat on the job every 30 s; a job still `running` with no heartbeat for 3 minutes
+  (its process died, or Vercel cut its function off) is failed as "interrupted" and its call refunded the next
+  time its owner lists jobs. The heartbeat, not a deadline, is what tells: a job on the Render AI server
+  has none, yet is listed by the Vercel server. Render puts its free instance to sleep after 15 minutes
+  without a request, so `cmd/ai-server` requests its own public URL (`RENDER_EXTERNAL_URL`) every 5 minutes
+  while a job runs.
+- Render may still stop that server mid-job (it restarts a free instance at will, and a deploy cuts off what
+  still runs 30 s in), so a creative job is **resumed** rather than failed: `cmd/ai-server` looks every
+  minute while it is up, starting at boot, for creative jobs with no heartbeat for 90 s
+  (`Jobs.ClaimInterrupted`, `api.Server.ClaimInterruptedJob`) and runs each again from the start, the same job
+  with the options and kept images it was made with, its AI call still counted (`ResumeJob`), at most twice per
+  job. Meanwhile the Vercel server gives such a job 10 minutes before failing it (`store.ExpiryCutoffs`), and
+  when its job list shows one waiting it requests the Render server's health check (at most once a minute) to
+  wake it. The client sees the job keep running, its progress starting over.
 - Export output format is per-platform: GimKit, Blooket and Game download as `.csv`, Wayground is
   converted to `.xlsx` via `xlsx` before download (`FileExportService.download`).
 
@@ -264,35 +302,56 @@ request carries none.
   fails when a lesson's New words disagree with that book's `vocabulary-index.md`: a missing or extra word, its
   pinyin, or its ★.
 
-## The Wayground browser extension
+## The question bank
 
-Wayground has no public API for creating quizzes, so `Extension/` drives Wayground's own spreadsheet
-import and Publish in the user's logged-in tab, then hands the quiz's share link back. The SPA side
-is `WaygroundExtensionService`:
-- On the vocabulary table, when Wayground is the chosen platform, the page offers a `WaygroundDelivery`
-  choice: **Tải file** (download the `.xlsx` for a manual import) or **Tiện ích tự publish** (hand it to
-  the extension), remembered in `localStorage` (`wayground-delivery`) and defaulting to the extension when
-  it is installed. In `Auto` mode there is no such setting: the AI jobs table shows both buttons on a
-  finished Wayground job. The extension is unavailable unless `<html data-quiztool-extension>` is present.
-- With the extension chosen, `FileExportService` builds the `.xlsx` without downloading it and the
-  service `postMessage`s
-  `{source: 'quiztool', type: 'wayground-import', requestId, title, fileName, base64}` to the
+With `QUESTION_BANK=on` the quizzes of the textbooks above are built from stored questions instead of written
+whole by the model each time (details in [Server/AGENTS.md](Server/AGENTS.md)). This applies to GimKit, Blooket,
+Wayground and the Game, for a request without images. It is server-only: the client sends and reads the same job as
+before.
+
+- **A quiz the bank holds whole** is a job that is `done` as soon as it is created. It counts no AI call, calls
+  no model, and stays on the Vercel server.
+- **A quiz it holds part of** is an AI job as before, but the model writes only the missing questions. They are
+  checked and stored, and every later quiz on those lessons reuses them.
+- **The bank starts empty** and grows from these jobs. The first quiz of a lesson asks the model for all of it,
+  plus one extra question per word.
+- **What every quiz guarantees.** Each new word of the chosen lessons is tested (a Game tests as many as it has
+  places for), the questions mix easy, medium and hard, and the least used questions come first.
+
+## The browser extension (Wayground and Gimkit)
+
+Neither Wayground nor Gimkit has a public API for creating quizzes, so `Extension/` drives each one's own
+import UI in the user's logged-in tab (Wayground: spreadsheet import and Publish; Gimkit: New Kit, Import from
+Spreadsheet and All Done), then hands the quiz's share link back. The SPA side is `PublishExtensionService`
+(`PublishPlatform` is `'wayground' | 'gimkit'`, `platformFor(exportType)` maps an export type to one, `null` for
+Blooket and the games):
+- On the vocabulary table, when Wayground or Gimkit is the chosen platform, the page offers a `PublishDelivery`
+  choice: **Tải file** (download the file for a manual import) or **Tiện ích tự publish** (hand it to
+  the extension), remembered in `localStorage` (`wayground-delivery`, one choice for both platforms) and
+  defaulting to the extension when it is installed. In `Auto` mode there is no such setting: the AI jobs
+  table shows both buttons on a finished Wayground or Gimkit job. The extension is unavailable unless
+  `<html data-quiztool-extension>` is present.
+- With the extension chosen, `FileExportService` builds the file without downloading it (`ExportedFile.xlsx`
+  for Wayground, `.csv` UTF-8 bytes for Gimkit) and the service `postMessage`s
+  `{source: 'quiztool', type: '<platform>-import', requestId, title, fileName, base64}` to the
   extension's content script.
 - The extension answers, possibly minutes later, with
-  `{source: 'quiztool-extension', type: 'wayground-import-result', requestId, title, ok, shareUrl, error}`.
+  `{source: 'quiztool-extension', type: '<platform>-import-result', requestId, title, ok, shareUrl, error}`.
   The service shows it as its own notification (the share link, also copied to the clipboard) and
   ignores request ids it didn't send. On a failed result it downloads the file it kept for that
-  request, so the user can finish the import by hand.
+  request (`.xlsx` or `.csv`), so the user can finish the import by hand.
 
-The message shapes and the QuizTool origins the
-extension listens on (`Extension/manifest.json`: production `https://kt-quiz-csv-import-tool.vercel.app`
-and `http://localhost:4200`; Vercel preview URLs are not included) are hand-kept in step on both
-sides. Quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in
-`Extension/selectors.js`).
+The message shapes are hand-kept in step on both sides. The QuizTool origins the extension listens on are
+`http://localhost:4200` in `Extension/manifest.json`, plus the production URL, which is not in the repo: packing
+the zip (`extension.Pack`) adds the server's `APP_ORIGIN` (the Vercel URL, set in the Vercel project) to the bridge
+script's `matches`, and refuses a value that is not an `http(s)://host` origin. Vercel preview URLs are not
+included. Wayground quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in
+`Extension/selectors.js`); Gimkit kits are public by default and filed under `GIMKIT_SETTINGS` in
+`Extension/gimkit-selectors.js`.
 
 Logged-in users download the extension from the web app: `GET api/extension` (authenticated like
 `csv/jobs`) answers the zip of `Extension/` (without `AGENTS.md`, under a `QuizTool-Extension/` folder), and
-the usage guides of the AI and table pages fetch it with the token (`WaygroundExtensionService.downloadExtension`;
+the usage guides of the AI and table pages fetch it with the token (`PublishExtensionService.downloadExtension`;
 the table, open to anonymous users, shows the link only when logged in). The Go build cannot reach outside
 `Server/`, so the zip is never committed: the server service's `buildCommand` in `vercel.json` runs `go generate
 ./internal/extension` (with `GOOS`/`GOARCH` cleared, so the generator runs on the build machine) and then the
@@ -581,7 +640,7 @@ component missing from a character, and the learner picks the six missing compon
 port of a Python toolkit, the "GhepBoThu KIT", which kept a model with code execution busy for minutes. Here the
 model only answers what needs language knowledge, and `Server/internal/radicals` (pure Go, no LLM) does the rest.
 
-- **The request.** Only the form fields of every `Auto` platform (course, level, lessons, photos, intelligence): the
+- **The request.** Only the form fields of every `Auto` platform (course, level, lessons, photos): the
   platform has no option of its own. The page uses the engine's default colours (`jade`), and each lesson makes its
   own groups (earlier lessons of the exercise never fill one in).
 - **Where the words come from**, per lesson (`csvgen.gatherRadicalsLessons`): the textbook lesson's New words and
@@ -635,6 +694,8 @@ only as a `403` with a plain-text body from `POST csv/jobs`, which
 `AiGeneration.showGenerationError` turns into a "Hết lượt dùng AI" notification (a `403` with an
 empty body is the role check instead, shown as "Không có quyền"). A job whose generation fails (recorded as
 `502`/`504`) is given back (`RefundAICall`), so resubmitting after a failure does not use up the user's quota.
+A quiz the question bank builds whole (see [The question bank](#the-question-bank)) is not an AI call and is not
+counted.
 
 Login is limited separately, per username (`LOGIN_MAX_ATTEMPTS` per `LOGIN_WINDOW_MINUTES`, see
 [Server/AGENTS.md](Server/AGENTS.md)): beyond it `auth/login` answers `429` with `Retry-After`, which the login
@@ -651,7 +712,9 @@ two sides guard against both:
   (400 `Unsupported image type.`), so the JPEG the client sends always passes.
 - The server bounds each LLM call with `LLM_TIMEOUT_SECONDS` (default 280, under Vercel's limit); hitting
   it fails the job with `504 AI generation timed out.` and refunds the call. The upload itself is a
-  separate, short request, so only the generation can hit the time limit.
+  separate, short request, so only the generation can hit the time limit. A creative job forwarded to
+  the Render server has no time limit (its system prompt has no TIME LIMIT section either); the forwarding
+  waits up to 2 minutes for that server's `202`, enough to wake a sleeping free instance.
 - `AiGeneration.showGenerationError` maps 413 (or the client's own refusal) to a message asking the user to
   send fewer images; a failed job is announced by `AiJobService` with `failedJobMessage`, which words it by the
   job's `errorCode` (e.g. `timeout`, `truncated`, `overloaded`, `provider_config`; see Server/AGENTS.md).
@@ -676,21 +739,27 @@ body, DeepSeek's keep-alive blank lines only, counts as interrupted). An answer 
 (`finish_reason` `length`/`content_filter`, a response `incomplete`) fails the job without a retry,
 like the other statuses (400/401/402/403/404/413/422). All attempts share the `LLM_TIMEOUT_SECONDS`
 deadline, and a retry is skipped when less than 30 s would be left, so this never pushes past Vercel's
-limit (one invocation cannot outlive 300 s).
+limit (one invocation cannot outlive 300 s). On the AI server there is no deadline over the
+attempts.
 
 The client submits each generation once (`AiCsvService` has no retry): a job that used the whole deadline
 fails as `504`, and the user sends it again with **"Tạo lại"** on the failed job in the history table, or from
 the page. "Tạo lại" (`AiJobService.retry`) is `POST csv/jobs/{id}/retry` (`retryJob`): the server starts a new job
-with the request the failed one was made from (`retryOptions`: title, mode, platform, intelligence, the lesson and,
+with the request the failed one was made from (`retryOptions`: title, mode, platform, the lesson and,
 for a Game, its games and question count) and its images, and deletes the failed one, which the new one replaces.
 It uses a call of the rate limit like any submission. The refusals, in order: 404 `Job not found`, 409 `Job has not
 failed.`, 409 `Job cannot be retried.` (a job from before the server kept its lesson or its games), 410 `Images
-expired.`, then the rate limit's 403. The database never holds images, so `runJob` keeps a failed job's images in
-the server's memory (`retryImages`, `Server/internal/api/retry_images.go`) for **one hour** from the failure
-(`retryImagesTTL`); deleting or retrying the job drops them. `GET csv/jobs` tells the client, per job, whether a
-retry would be taken (`retryable`) and, for a job with images, until when (`retryUntil`): the menu item shows that
-time, survives a reload, and is disabled once it is past. A job without images has no deadline. The images live in
-one process only: a restart, or a request that reaches another instance of the server (on Vercel an instance can
-be stopped or replaced at any time), finds none, and the job then reads as not retryable; the user submits again
-from the AI page. Only a failed *upload* (status 0, before the job exists) needs the user's retry for a connection
-reason; once the server answers `202`, a dropped connection no longer matters.
+expired.`, then the rate limit's 403. The database never holds images: while a job runs, `runJob` stores its images
+in Cloudinary (`Server/internal/imagestore`, `CLOUDINARY_URL`, public assets under random IDs prefixed
+`quiztool-jobs/`) and records their URLs on the job (`Job.Images`, `ImagesStoredAt`), before the outcome, so a failed
+job reads as retryable as soon as it reads as failed. They can be sent again for **30 days** (`imagesKeptFor`), by
+any server and any instance of it; a retry's job takes the same images over and keeps the same deadline. Cloudinary
+has no expiry of its own, so storing images also deletes, at most once a day per process, the ones stored more
+than 31 days ago (`DeleteStoredBefore`). Deleting a job does not delete its images: they go with the rest. `GET
+csv/jobs` tells the client, per job, whether a retry would be taken (`retryable`) and, for a job with images, until
+when (`retryUntil`): the menu item shows that day, survives a reload, and is disabled once it is past. A job without
+images has no deadline. Without `CLOUDINARY_URL`, or when storing the images failed, a job with images reads as not
+retryable, and the user submits again from the AI page. A failed creative job is retried on the Render
+server (the Vercel server forwards the retry), which fetches the images from Cloudinary like Vercel would. Only a
+failed *upload* (status 0, before the job exists) needs the user's retry for a connection reason; once the server
+answers `202`, a dropped connection no longer matters.

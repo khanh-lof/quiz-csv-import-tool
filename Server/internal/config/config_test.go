@@ -51,6 +51,124 @@ func TestFromEnvAssignmentCollections(t *testing.T) {
 	}
 }
 
+func TestFromEnvQuestionBank(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+	t.Setenv("MONGODB_QUESTIONS_COLLECTION", "")
+	t.Setenv("QUESTION_BANK", "")
+	cfg, err := FromEnv()
+	if err != nil || cfg.QuestionBank || cfg.MongoQuestionsCollection != "QuestionBank" {
+		t.Fatalf("defaults: %v %q, %v", cfg.QuestionBank, cfg.MongoQuestionsCollection, err)
+	}
+	for _, on := range []string{"on", " ON ", "true", "1"} {
+		t.Setenv("QUESTION_BANK", on)
+		if cfg, err := FromEnv(); err != nil || !cfg.QuestionBank {
+			t.Errorf("QUESTION_BANK=%q: %v, %v", on, cfg.QuestionBank, err)
+		}
+	}
+	t.Setenv("QUESTION_BANK", "yes please")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "QUESTION_BANK must be on or off") {
+		t.Errorf("QUESTION_BANK=yes please: %v", err)
+	}
+}
+
+func TestFromEnvAIServer(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+
+	t.Setenv("AI_SERVER_SECRET", strings.Repeat("p", 32))
+	t.Setenv("AI_SERVER_URL", " ")
+	if cfg, err := FromEnv(); err != nil || cfg.AIServer != nil {
+		t.Fatalf("unset: %v %v", cfg.AIServer, err)
+	}
+	t.Setenv("AI_SERVER_URL", " https://ai.example.com/ ")
+	if cfg, err := FromEnv(); err != nil || cfg.AIServer.String() != "https://ai.example.com" {
+		t.Fatalf("set: %v %v", cfg.AIServer, err)
+	}
+	for _, bad := range []string{"ai.example.com", "ftp://ai.example.com", "https://ai.example.com/?x=1", "https://u:p@ai.example.com"} {
+		t.Setenv("AI_SERVER_URL", bad)
+		if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "AI_SERVER_URL") {
+			t.Errorf("%q: %v", bad, err)
+		}
+	}
+}
+
+func TestFromEnvAIServerSecret(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+
+	t.Setenv("AI_SERVER_URL", "")
+	t.Setenv("AI_SERVER_SECRET", "")
+	if _, err := FromEnv(); err != nil {
+		t.Fatalf("neither set: %v", err)
+	}
+
+	t.Setenv("AI_SERVER_URL", "https://ai.example.com")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "AI_SERVER_SECRET is required") {
+		t.Fatalf("server without secret: %v", err)
+	}
+
+	t.Setenv("AI_SERVER_SECRET", "too-short")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "AI_SERVER_SECRET must be at least 32 bytes") {
+		t.Fatalf("short secret: %v", err)
+	}
+
+	t.Setenv("AI_SERVER_SECRET", " "+strings.Repeat("p", 32)+" ")
+	if cfg, err := FromEnv(); err != nil || cfg.AIServerSecret != strings.Repeat("p", 32) {
+		t.Fatalf("valid: %q %v", cfg.AIServerSecret, err)
+	}
+}
+
+func TestFromEnvModels(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+	t.Setenv("LLM_MODEL", " formatted ")
+	t.Setenv("LLM_CREATIVE_MODEL", "")
+	if cfg, err := FromEnv(); err != nil || cfg.LLM.Model != "formatted" || cfg.LLM.CreativeModel != "" {
+		t.Fatalf("no creative model: %+v %v", cfg.LLM, err)
+	}
+	t.Setenv("LLM_CREATIVE_MODEL", " creative ")
+	if cfg, err := FromEnv(); err != nil || cfg.LLM.Model != "formatted" || cfg.LLM.CreativeModel != "creative" {
+		t.Fatalf("creative model: %+v %v", cfg.LLM, err)
+	}
+}
+
+// The settings of "Độ thông minh" stop the server while they are still set, even empty, naming what replaced them.
+func TestFromEnvRenamedSettings(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+	for old, now := range map[string]string{
+		"LLM_INTELLIGENCE_MODELS":        "set LLM_CREATIVE_MODEL (one model) instead",
+		"HIGH_INTELLIGENCE_SERVER_URL":   "set AI_SERVER_URL instead",
+		"HIGH_INTELLIGENCE_PROXY_SECRET": "set AI_SERVER_SECRET instead",
+	} {
+		t.Run(old, func(t *testing.T) {
+			t.Setenv(old, "")
+			if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), old+" is no longer read: "+now) {
+				t.Errorf("%v", err)
+			}
+		})
+	}
+}
+
+func TestFromEnvCloudinaryURL(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+
+	t.Setenv("CLOUDINARY_URL", "")
+	if cfg, err := FromEnv(); err != nil || cfg.CloudinaryURL != "" {
+		t.Fatalf("unset: %q %v", cfg.CloudinaryURL, err)
+	}
+	t.Setenv("CLOUDINARY_URL", " cloudinary://123:abc@demo ")
+	if cfg, err := FromEnv(); err != nil || cfg.CloudinaryURL != "cloudinary://123:abc@demo" {
+		t.Fatalf("set: %q %v", cfg.CloudinaryURL, err)
+	}
+	t.Setenv("CLOUDINARY_URL", "https://demo")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "CLOUDINARY_URL") {
+		t.Fatalf("malformed: %v", err)
+	}
+}
+
 func TestFromEnvGameStageSeconds(t *testing.T) {
 	t.Setenv("MONGODB_URI", "mongodb://localhost")
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
