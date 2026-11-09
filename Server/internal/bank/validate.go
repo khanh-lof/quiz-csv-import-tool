@@ -13,15 +13,14 @@ import (
 	"quiz-csv-import-tool/server/internal/store"
 )
 
-// Origin is where the drafts of one model answer come from: the request's vocabulary and language, the
-// intelligence level and model that wrote them, and the job they were written for.
+// Origin is where the drafts of one model answer come from: the request's vocabulary and language, the model that
+// wrote them, and the job they were written for.
 type Origin struct {
-	Vocabulary   csvgen.Vocabulary
-	Language     csvgen.Language
-	Intelligence int
-	Model        string
-	JobID        string
-	Now          time.Time
+	Vocabulary csvgen.Vocabulary
+	Language   csvgen.Language
+	Model      string
+	JobID      string
+	Now        time.Time
 }
 
 // The most a question keeps: wrong answers, and characters in its typed answer.
@@ -42,7 +41,7 @@ func Validate(d csvgen.QuestionDraft, origin Origin, id string) (store.Question,
 		Format: strings.TrimSpace(d.Format), Skill: strings.TrimSpace(d.Skill), Difficulty: d.Difficulty,
 		Stem:        store.Text{Text: clean(d.Stem), Pinyin: clean(d.StemPinyin)},
 		Answer:      store.Text{Text: clean(d.Answer), Pinyin: clean(d.AnswerPinyin)},
-		Explanation: clean(d.Explanation), ImageURL: strings.TrimSpace(d.ImageURL), Intelligence: origin.Intelligence,
+		Explanation: clean(d.Explanation), ImageURL: strings.TrimSpace(d.ImageURL),
 		Model: origin.Model, JobID: origin.JobID, Status: store.QuestionActive, CreatedAt: origin.Now,
 	}
 	if !slices.Contains(Formats, q.Format) {

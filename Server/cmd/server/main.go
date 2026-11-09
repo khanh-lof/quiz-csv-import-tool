@@ -80,7 +80,8 @@ func run(logger *slog.Logger) error {
 	if missing := cfg.LLM.Missing(); len(missing) > 0 {
 		logger.Warn("CSV generation disabled, missing settings: " + strings.Join(missing, ", "))
 	} else {
-		client := csvgen.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.IntelligenceModels, cfg.LLM.Timeout, logger)
+		client := csvgen.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.CreativeModel, cfg.LLM.Timeout, logger)
+		client.RadicalDetails = store.NewMongoRadicalDetails(db.Collection(cfg.MongoRadicalDetailsCollection))
 		generator = client
 		if cfg.QuestionBank {
 			questionBank = &bank.Service{
@@ -117,9 +118,9 @@ func run(logger *slog.Logger) error {
 	} else {
 		logger.Warn("CLOUDINARY_URL is not set; jobs with images cannot be retried")
 	}
-	if cfg.HighIntelligenceServer != nil {
-		srv.HighIntelligenceProxy = api.NewHighIntelligenceProxy(cfg.HighIntelligenceServer, cfg.HighIntelligenceSecret, logger)
-		logger.Info("High intelligence jobs go to their own server", "host", cfg.HighIntelligenceServer.Host)
+	if cfg.AIServer != nil {
+		srv.AIServerProxy = api.NewAIServerProxy(cfg.AIServer, cfg.AIServerSecret, logger)
+		logger.Info("creative jobs go to the AI server", "host", cfg.AIServer.Host)
 	}
 
 	httpServer := &http.Server{

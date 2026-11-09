@@ -235,13 +235,13 @@ func testJobs(t *testing.T, jobs Jobs) {
 func testJobImagesAndResumes(t *testing.T, jobs Jobs) {
 	ctx := context.Background()
 	base := time.Now().UTC().Truncate(time.Millisecond)
-	job := func(id, username string, intelligence int, age time.Duration, resumes int) *Job {
-		return &Job{ID: id, Username: username, Status: JobRunning, Title: id, Creative: true, Intelligence: intelligence,
+	job := func(id, username string, creative bool, age time.Duration, resumes int) *Job {
+		return &Job{ID: id, Username: username, Status: JobRunning, Title: id, Creative: creative,
 			ImageCount: 1, CreatedAt: base.Add(-age), Resumes: resumes, ProgressRows: 7}
 	}
 
 	// SetImages records the images on the owner's job only, whatever its status.
-	if err := jobs.Create(ctx, job("pic", "carol", 1, 0, 0)); err != nil {
+	if err := jobs.Create(ctx, job("pic", "carol", true, 0, 0)); err != nil {
 		t.Fatal(err)
 	}
 	images := []JobImage{{URL: "https://img/1", PublicID: "quiztool-jobs/1", ContentType: "image/jpeg"}}
@@ -265,41 +265,41 @@ func testJobImagesAndResumes(t *testing.T, jobs Jobs) {
 	// A job some server may still resume waits longer before it is taken for abandoned; one resumed too often
 	// does not.
 	for _, j := range []*Job{
-		job("low-stale", "carol", 1, 10*time.Minute, 0),
-		job("high-stale", "carol", 2, 5*time.Minute, 0),
-		job("high-dead", "carol", 2, 15*time.Minute, 0),
-		job("high-exhausted", "carol", 2, 5*time.Minute, 2),
+		job("formatted-stale", "carol", false, 10*time.Minute, 0),
+		job("creative-stale", "carol", true, 5*time.Minute, 0),
+		job("creative-dead", "carol", true, 15*time.Minute, 0),
+		job("creative-exhausted", "carol", true, 5*time.Minute, 2),
 	} {
 		if err := jobs.Create(ctx, j); err != nil {
 			t.Fatal(err)
 		}
 	}
-	cutoffs := ExpiryCutoffs{Before: base.Add(-3 * time.Minute), ResumableIntelligence: 2, MaxResumes: 2, ResumableBefore: base.Add(-10 * time.Minute)}
+	cutoffs := ExpiryCutoffs{Before: base.Add(-3 * time.Minute), Resumable: true, MaxResumes: 2, ResumableBefore: base.Add(-10 * time.Minute)}
 	expired, err := jobs.ExpireRunning(ctx, "carol", cutoffs, "interrupted")
 	got := map[string]bool{}
 	for _, j := range expired {
 		got[j.ID] = true
 	}
-	if err != nil || len(expired) != 3 || !got["low-stale"] || !got["high-dead"] || !got["high-exhausted"] {
+	if err != nil || len(expired) != 3 || !got["formatted-stale"] || !got["creative-dead"] || !got["creative-exhausted"] {
 		t.Fatalf("ExpireRunning with a resumable cutoff: %v %v", got, err)
 	}
-	if err := jobs.Delete(ctx, "carol", "high-stale"); err != nil {
+	if err := jobs.Delete(ctx, "carol", "creative-stale"); err != nil {
 		t.Fatal(err)
 	}
 
-	// ClaimInterrupted takes over each stale running job at the intelligence that may still be resumed, once.
+	// ClaimInterrupted takes over each stale running creative job that may still be resumed, once.
 	for _, j := range []*Job{
-		job("resume-me", "dave", 2, 5*time.Minute, 0),
-		job("resume-again", "erin", 2, 5*time.Minute, 1),
-		job("resumed-enough", "dave", 2, 5*time.Minute, 2),
-		job("fresh", "dave", 2, 0, 0),
-		job("low", "dave", 1, 5*time.Minute, 0),
+		job("resume-me", "dave", true, 5*time.Minute, 0),
+		job("resume-again", "erin", true, 5*time.Minute, 1),
+		job("resumed-enough", "dave", true, 5*time.Minute, 2),
+		job("fresh", "dave", true, 0, 0),
+		job("formatted", "dave", false, 5*time.Minute, 0),
 	} {
 		if err := jobs.Create(ctx, j); err != nil {
 			t.Fatal(err)
 		}
 	}
-	done := job("done", "dave", 2, 5*time.Minute, 0)
+	done := job("done", "dave", true, 5*time.Minute, 0)
 	if err := jobs.Create(ctx, done); err != nil {
 		t.Fatal(err)
 	}
@@ -307,7 +307,7 @@ func testJobImagesAndResumes(t *testing.T, jobs Jobs) {
 
 	claimed := map[string]Job{}
 	for range 5 {
-		j, err := jobs.ClaimInterrupted(ctx, 2, base.Add(-90*time.Second), 2)
+		j, err := jobs.ClaimInterrupted(ctx, base.Add(-90*time.Second), 2)
 		if err != nil {
 			t.Fatal(err)
 		}

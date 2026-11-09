@@ -166,12 +166,11 @@ func (m *MemoryJobs) ExpireRunning(_ context.Context, username string, cutoffs E
 	return expired, nil
 }
 
-func (m *MemoryJobs) ClaimInterrupted(_ context.Context, intelligence int, before time.Time, maxResumes int) (*Job, error) {
+func (m *MemoryJobs) ClaimInterrupted(_ context.Context, before time.Time, maxResumes int) (*Job, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for id, j := range m.jobs {
-		if j.Status == JobRunning && j.Creative && j.Intelligence == intelligence && j.Resumes < maxResumes &&
-			lastSign(j).Before(before) {
+		if j.Status == JobRunning && j.Creative && j.Resumes < maxResumes && lastSign(j).Before(before) {
 			now := m.Now().UTC()
 			j.HeartbeatAt, j.Resumes, j.ProgressRows = &now, j.Resumes+1, 0
 			m.jobs[id] = j

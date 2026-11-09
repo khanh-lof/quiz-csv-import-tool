@@ -26,17 +26,25 @@ the Go mux still sees `/api/...` — and everything else to `client`. The Vercel
 Directory must be the repo root, and the server's env vars (`MONGODB_URI`, `JWT_SECRET`, …) are set
 in the same project.
 
-One kind of request does not run on Vercel: a creative AI job at High intelligence ("Độ thông minh" Cao), which
-can take longer than a Vercel function may run (300 s). The Vercel server forwards it, server side, to a second Go
-server, `Server/cmd/ai-server`, a free Render web service defined in the root `render.yaml`: it serves only starting
-and retrying such jobs (`api.Server.HighIntelligenceHandler`, 400 for any other job) and the health check, runs
-them with no time limit, and writes them to the same MongoDB, so the client follows them through the Vercel
-server's job list like any other. The Vercel project's `HIGH_INTELLIGENCE_SERVER_URL` names the Render service's
-URL (kept out of this public repo); unset, High jobs run on Vercel like the rest, which is also how local
-development runs. Both servers must share `MONGODB_URI`, `JWT_SECRET` and the AI rate-limit settings. The Render
-service is public, so it only accepts job requests that carry the `X-Proxy-Secret` header the Vercel proxy adds
-(`HIGH_INTELLIGENCE_PROXY_SECRET`, ≥ 32 bytes, the same on both; checked by `fromMainServer`, `/healthz` stays
-open). The AI server refuses to start without it, and the main server refuses to start with the URL but no secret.
+One kind of request does not run on Vercel: a creative AI job the model writes, which can take longer than a Vercel
+function may run (300 s). The Vercel server forwards it, server side, to a second Go server, `Server/cmd/ai-server`,
+a free Render web service defined in the root `render.yaml`: it serves only starting and retrying creative jobs
+(`api.Server.AIServerHandler`, 400 for a formatted job) and the health check, runs them with no time limit, and
+writes them to the same MongoDB, so the client follows them through the Vercel server's job list like any other. The
+formatted jobs and the quizzes the question bank holds whole (they ask no model) stay on Vercel. The Vercel project's
+`AI_SERVER_URL` names the Render service's URL (kept out of this public repo); unset, creative jobs run on Vercel
+like the rest, which is also how local development runs. Both servers must share `MONGODB_URI`, `JWT_SECRET` and the
+AI rate-limit settings. The Render service is public, so it only accepts job requests that carry the
+`X-Proxy-Secret` header the Vercel proxy adds (`AI_SERVER_SECRET`, ≥ 32 bytes, the same on both; checked by
+`fromMainServer`, `/healthz` stays open). The AI server refuses to start without it, and the main server refuses to
+start with the URL but no secret.
+
+**Models.** Every creative job asks one model, `LLM_CREATIVE_MODEL` (the quizzes, the question bank's questions and
+the Radicals exercises), and the formatted mode its own, `LLM_MODEL`, which the creative mode also uses when
+`LLM_CREATIVE_MODEL` is empty. There is no "Độ thông minh" choice any more: with the question bank
+(`QUESTION_BANK`) building most quizzes without the model, one model is enough. The settings it had
+(`LLM_INTELLIGENCE_MODELS`, `HIGH_INTELLIGENCE_SERVER_URL`, `HIGH_INTELLIGENCE_PROXY_SECRET`) stop either server at
+start while they are still set, naming what replaced them.
 
 **Free tier only.** This project is for personal use, so no hosting cost is accepted: every hosted service (Vercel,
 Render, MongoDB, Cloudinary, and any added later) must run on its free tier. Never propose or configure a paid plan,
@@ -119,7 +127,7 @@ Three things make the wiring non-obvious:
 
 - **Same-origin everywhere, no CORS.** On Vercel the SPA and API are services of one deployment
   (every preview included); locally the `ng serve` proxy puts them on one origin too. The browser never calls
-  the High intelligence server on Render: the Vercel server forwards those jobs to it. The server
+  the AI server on Render: the Vercel server forwards the creative jobs to it. The server
   therefore has no CORS handling, and the refresh token is an `HttpOnly; Secure; SameSite=Strict`
   cookie (`Secure` is accepted on `http://localhost`). Serving the SPA and API from different
   origins is not supported: the browser would block the calls and never send the cookie, breaking
@@ -209,13 +217,13 @@ Consequences to keep in mind when changing anything here:
   service is unverified), the client just gets the `202` late and polling still shows the job. While it works
   the handler records a heartbeat on the job every 30 s; a job still `running` with no heartbeat for 3 minutes
   (its process died, or Vercel cut its function off) is failed as "interrupted" and its call refunded the next
-  time its owner lists jobs. The heartbeat, not a deadline, is what tells: a High intelligence job on Render
+  time its owner lists jobs. The heartbeat, not a deadline, is what tells: a job on the Render AI server
   has none, yet is listed by the Vercel server. Render puts its free instance to sleep after 15 minutes
   without a request, so `cmd/ai-server` requests its own public URL (`RENDER_EXTERNAL_URL`) every 5 minutes
   while a job runs.
 - Render may still stop that server mid-job (it restarts a free instance at will, and a deploy cuts off what
-  still runs 30 s in), so a High intelligence job is **resumed** rather than failed: `cmd/ai-server` looks every
-  minute while it is up, starting at boot, for High intelligence jobs with no heartbeat for 90 s
+  still runs 30 s in), so a creative job is **resumed** rather than failed: `cmd/ai-server` looks every
+  minute while it is up, starting at boot, for creative jobs with no heartbeat for 90 s
   (`Jobs.ClaimInterrupted`, `api.Server.ClaimInterruptedJob`) and runs each again from the start, the same job
   with the options and kept images it was made with, its AI call still counted (`ResumeJob`), at most twice per
   job. Meanwhile the Vercel server gives such a job 10 minutes before failing it (`store.ExpiryCutoffs`), and
@@ -301,8 +309,8 @@ whole by the model each time (details in [Server/AGENTS.md](Server/AGENTS.md)). 
 Wayground and the Game, for a request without images. It is server-only: the client sends and reads the same job as
 before.
 
-- **A quiz the bank holds whole** is a job that is `done` as soon as it is created. It counts no AI call and calls
-  no model, at either intelligence level.
+- **A quiz the bank holds whole** is a job that is `done` as soon as it is created. It counts no AI call, calls
+  no model, and stays on the Vercel server.
 - **A quiz it holds part of** is an AI job as before, but the model writes only the missing questions. They are
   checked and stored, and every later quiz on those lessons reuses them.
 - **The bank starts empty** and grows from these jobs. The first quiz of a lesson asks the model for all of it,
@@ -632,7 +640,7 @@ component missing from a character, and the learner picks the six missing compon
 port of a Python toolkit, the "GhepBoThu KIT", which kept a model with code execution busy for minutes. Here the
 model only answers what needs language knowledge, and `Server/internal/radicals` (pure Go, no LLM) does the rest.
 
-- **The request.** Only the form fields of every `Auto` platform (course, level, lessons, photos, intelligence): the
+- **The request.** Only the form fields of every `Auto` platform (course, level, lessons, photos): the
   platform has no option of its own. The page uses the engine's default colours (`jade`), and each lesson makes its
   own groups (earlier lessons of the exercise never fill one in).
 - **Where the words come from**, per lesson (`csvgen.gatherRadicalsLessons`): the textbook lesson's New words and
@@ -704,7 +712,7 @@ two sides guard against both:
   (400 `Unsupported image type.`), so the JPEG the client sends always passes.
 - The server bounds each LLM call with `LLM_TIMEOUT_SECONDS` (default 280, under Vercel's limit); hitting
   it fails the job with `504 AI generation timed out.` and refunds the call. The upload itself is a
-  separate, short request, so only the generation can hit the time limit. A High intelligence job forwarded to
+  separate, short request, so only the generation can hit the time limit. A creative job forwarded to
   the Render server has no time limit (its system prompt has no TIME LIMIT section either); the forwarding
   waits up to 2 minutes for that server's `202`, enough to wake a sleeping free instance.
 - `AiGeneration.showGenerationError` maps 413 (or the client's own refusal) to a message asking the user to
@@ -731,13 +739,13 @@ body, DeepSeek's keep-alive blank lines only, counts as interrupted). An answer 
 (`finish_reason` `length`/`content_filter`, a response `incomplete`) fails the job without a retry,
 like the other statuses (400/401/402/403/404/413/422). All attempts share the `LLM_TIMEOUT_SECONDS`
 deadline, and a retry is skipped when less than 30 s would be left, so this never pushes past Vercel's
-limit (one invocation cannot outlive 300 s). On the High intelligence server there is no deadline over the
+limit (one invocation cannot outlive 300 s). On the AI server there is no deadline over the
 attempts.
 
 The client submits each generation once (`AiCsvService` has no retry): a job that used the whole deadline
 fails as `504`, and the user sends it again with **"Tạo lại"** on the failed job in the history table, or from
 the page. "Tạo lại" (`AiJobService.retry`) is `POST csv/jobs/{id}/retry` (`retryJob`): the server starts a new job
-with the request the failed one was made from (`retryOptions`: title, mode, platform, intelligence, the lesson and,
+with the request the failed one was made from (`retryOptions`: title, mode, platform, the lesson and,
 for a Game, its games and question count) and its images, and deletes the failed one, which the new one replaces.
 It uses a call of the rate limit like any submission. The refusals, in order: 404 `Job not found`, 409 `Job has not
 failed.`, 409 `Job cannot be retried.` (a job from before the server kept its lesson or its games), 410 `Images
@@ -751,7 +759,7 @@ than 31 days ago (`DeleteStoredBefore`). Deleting a job does not delete its imag
 csv/jobs` tells the client, per job, whether a retry would be taken (`retryable`) and, for a job with images, until
 when (`retryUntil`): the menu item shows that day, survives a reload, and is disabled once it is past. A job without
 images has no deadline. Without `CLOUDINARY_URL`, or when storing the images failed, a job with images reads as not
-retryable, and the user submits again from the AI page. A failed High intelligence job is retried on the Render
+retryable, and the user submits again from the AI page. A failed creative job is retried on the Render
 server (the Vercel server forwards the retry), which fetches the images from Cloudinary like Vercel would. Only a
 failed *upload* (status 0, before the job exists) needs the user's retry for a connection reason; once the server
 answers `202`, a dropped connection no longer matters.

@@ -17,7 +17,7 @@ func newJob(title string, creative bool, imageCount int, opts csvgen.Options) *s
 	}
 	exportType := int(opts.ExportType)
 	courseType := int(opts.CourseType)
-	job.ExportType, job.Intelligence, job.CourseType = &exportType, opts.Intelligence, &courseType
+	job.ExportType, job.CourseType = &exportType, &courseType
 	job.Level, job.LessonNumbers = opts.Level, opts.LessonNumbers
 	if opts.CourseType == csvgen.Hsk {
 		hskStandard := int(opts.HskStandard)
@@ -45,7 +45,7 @@ func retryOptions(job *store.Job) (csvgen.Options, bool) {
 	opts := csvgen.Options{
 		Language:   csvgen.Language(job.Language),
 		ExportType: csvgen.ExportType(*job.ExportType), CourseType: csvgen.CourseType(*job.CourseType),
-		CourseName: job.CourseName, Level: job.Level, LessonNumbers: job.LessonNumbers, Intelligence: job.Intelligence,
+		CourseName: job.CourseName, Level: job.Level, LessonNumbers: job.LessonNumbers,
 	}
 	if opts.CourseType == csvgen.Hsk {
 		opts.HskStandard = csvgen.Hsk2

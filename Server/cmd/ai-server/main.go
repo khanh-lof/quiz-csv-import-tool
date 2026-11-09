@@ -1,6 +1,7 @@
-// Command ai-server runs the creative AI jobs at High intelligence ("Cao") on a long-lived host (Render), where
-// a generation has no time limit. The main server (cmd/server, on Vercel) forwards those jobs here and serves
-// everything else, the job list included; both share the MongoDB jobs and users and the JWT secret.
+// Command ai-server runs the creative jobs the model writes on a long-lived host (Render), where a generation has
+// no time limit. The main server (cmd/server, on Vercel) forwards those jobs here and serves everything else: the
+// job list, the formatted jobs and the quizzes the question bank holds whole. Both share the MongoDB jobs and users
+// and the JWT secret.
 package main
 
 import (
@@ -65,8 +66,8 @@ func run(logger *slog.Logger) error {
 	if missing := cfg.LLM.Missing(); len(missing) > 0 {
 		return fmt.Errorf("configuration: missing %s", strings.Join(missing, ", "))
 	}
-	if cfg.HighIntelligenceSecret == "" {
-		return errors.New("configuration: missing HIGH_INTELLIGENCE_PROXY_SECRET")
+	if cfg.AIServerSecret == "" {
+		return errors.New("configuration: missing AI_SERVER_SECRET")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -89,7 +90,8 @@ func run(logger *slog.Logger) error {
 	db := client.Database(cfg.MongoDatabase)
 
 	// No time limit: the call takes as long as the model needs (LLM_TIMEOUT_SECONDS is the main server's).
-	llm := csvgen.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.IntelligenceModels, 0, logger)
+	llm := csvgen.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.CreativeModel, 0, logger)
+	llm.RadicalDetails = store.NewMongoRadicalDetails(db.Collection(cfg.MongoRadicalDetailsCollection))
 	var generator api.Generator = llm
 	if cfg.QuestionBank {
 		// The main server answers the quizzes the bank holds whole; the ones that reach this server need the model
@@ -100,14 +102,14 @@ func run(logger *slog.Logger) error {
 	}
 
 	srv := &api.Server{
-		Users:                  store.NewMongo(db.Collection(cfg.MongoCollection)),
-		Jobs:                   store.NewMongoJobs(db.Collection(cfg.MongoJobsCollection)),
-		JWT:                    auth.NewJWT(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, cfg.AccessTokenTTL),
-		Generator:              generator,
-		AICallsPerRound:        cfg.AICallsPerRound,
-		RoundDuration:          cfg.RoundDuration,
-		HighIntelligenceSecret: cfg.HighIntelligenceSecret,
-		Logger:                 logger,
+		Users:           store.NewMongo(db.Collection(cfg.MongoCollection)),
+		Jobs:            store.NewMongoJobs(db.Collection(cfg.MongoJobsCollection)),
+		JWT:             auth.NewJWT(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, cfg.AccessTokenTTL),
+		Generator:       generator,
+		AICallsPerRound: cfg.AICallsPerRound,
+		RoundDuration:   cfg.RoundDuration,
+		AIServerSecret:  cfg.AIServerSecret,
+		Logger:          logger,
 	}
 
 	if cfg.CloudinaryURL != "" {
@@ -125,7 +127,7 @@ func run(logger *slog.Logger) error {
 
 	httpServer := &http.Server{
 		Addr:              net.JoinHostPort("", cfg.Port),
-		Handler:           jobs.track(srv.HighIntelligenceHandler()),
+		Handler:           jobs.track(srv.AIServerHandler()),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       2 * time.Minute,
 		// Bounds writing a response; a job's handler goes on generating after its 202 is written, unaffected.
@@ -179,7 +181,7 @@ type jobResumer interface {
 	ResumeJob(ctx context.Context, job *store.Job)
 }
 
-// resumeInterrupted takes over every High intelligence job whose process died, at once and then every interval
+// resumeInterrupted takes over every creative job whose process died, at once and then every interval
 // until ctx ends, and runs each in the background. Right after a restart or a deploy, that is the jobs the
 // previous instance was running.
 func (a *activity) resumeInterrupted(ctx context.Context, jobs jobResumer, every time.Duration, logger *slog.Logger) {

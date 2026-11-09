@@ -9,19 +9,19 @@ to convert uploaded images of Chinese vocabulary into a quiz CSV, gated by JWT a
 rate limit stored in MongoDB. It runs as a single standalone binary: the `Dockerfile` image, or the `server`
 service of the root `vercel.json`, where Vercel's Go preset builds `cmd/server` and runs it on
 Fluid compute with `PORT` set — the code has no Vercel-specific parts. A second binary, `cmd/ai-server`, runs
-only the creative jobs at High intelligence on Render (root `render.yaml`), where a request may run longer than
+only the creative jobs the model writes on Render (root `render.yaml`), where a request may run longer than
 a Vercel function; see [../AGENTS.md](../AGENTS.md#what-this-is).
 
 Module `quiz-csv-import-tool/server`, laid out as:
 
 - `cmd/server` — entry point: reads config, connects to MongoDB, wires everything, graceful shutdown.
-- `cmd/ai-server` — the High intelligence AI server: the same config, MongoDB stores and JWT checks, serving
-  only `api.Server.HighIntelligenceHandler` (start and retry a creative job at High intelligence, 400 for any
-  other job, and `/healthz`), with no LLM time limit. It refuses to start without the LLM settings, waits up to
-  `shutdownGrace` (25 s, under the 30 s Render leaves a free instance after SIGTERM; `maxShutdownDelaySeconds`
+- `cmd/ai-server` — the AI server: the same config, MongoDB stores and JWT checks, serving only
+  `api.Server.AIServerHandler` (start and retry a creative job, 400 for a formatted job, and `/healthz`), with no
+  LLM time limit. It refuses to start without the LLM settings, waits up to `shutdownGrace` (25 s, under the 30 s
+  Render leaves a free instance after SIGTERM; `maxShutdownDelaySeconds`
   needs a paid one) for running jobs on shutdown, so a deploy cuts off a longer job, while any job runs requests
   its own public URL (`RENDER_EXTERNAL_URL`) every 5 minutes so Render's free instance does not go to sleep under
-  it, and every minute, from boot, takes over and runs again the High intelligence jobs whose process died
+  it, and every minute, from boot, takes over and runs again the creative jobs whose process died
   (`resumeInterrupted`, see [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes)).
 - `cmd/import-users` — one-off tool importing users exported from the old Cosmos DB container.
 - `internal/config` — env-var configuration (`FromEnv`) and a small `.env` loader for local dev.
@@ -29,7 +29,10 @@ Module `quiz-csv-import-tool/server`, laid out as:
 - `internal/auth` — JWT issue/parse, PBKDF2 password hashing, and `Service` (login/refresh/logout).
 - `internal/store` — the `User` document, the `Users` interface, `Mongo` (production) and `Memory`
   (tests) implementations; the same pair for `Jobs`, for `Assignments` ("Giao bài", with its students) and for
-  `QuestionBank` (the question bank's questions).
+  `QuestionBank` (the question bank's questions) and for `RadicalDetails` (the notes the model wrote for Radicals
+  exercises: word and character meanings, component names, keyed `kind:key`, first answer kept). An exercise asks
+  the model only for the notes neither the curated pools nor `RadicalDetails` hold (`csvgen/radicals_cache.go`); a
+  store that fails only costs the call. Always on, on both servers; no index needed.
 - `internal/bank` — the question bank: quizzes of the embedded textbooks built from stored questions, the model
   asked only for the questions the bank lacks. See "Question bank" below.
 - `internal/csvgen` — creative-mode option parsing, the two system prompts and the per-platform
@@ -79,6 +82,7 @@ without them.
   `MONGODB_ASSIGNMENTS_COLLECTION` (default `Assignments`) and `MONGODB_PLAYERS_COLLECTION` (default
   `AssignmentPlayers`): the quizzes teachers handed to students, and the students who joined them with their results,
   `MONGODB_LOGIN_ATTEMPTS_COLLECTION` (default `LoginAttempts`): the login attempts counted per username,
+  `MONGODB_RADICAL_DETAILS_COLLECTION` (default `RadicalDetails`): the Radicals notes kept for reuse,
   `MONGODB_QUESTIONS_COLLECTION` (default `QuestionBank`): the question bank
 - `QUESTION_BANK` (`on`/`off`, default off) — builds the quizzes of the embedded textbooks from the question bank
   (see "Question bank" below), on both servers; off, every quiz is the model's as before. Any other value stops the
@@ -91,18 +95,21 @@ without them.
 - `APP_ORIGIN` — QuizTool's public URL, added to the origins the downloadable Wayground extension runs on
   when its zip is packed (`go generate` at build time, or the first download); empty leaves only
   `http://localhost:4200`, and a value that is not an `http(s)://host` origin fails the pack
-- `HIGH_INTELLIGENCE_SERVER_URL` — the base URL of `cmd/ai-server`; when set, `createJob` and `retryJob` hand a
-  creative job at High intelligence to it (`HighIntelligenceProxy`, path, query, body and token unchanged, up to
-  2 minutes for its `202`, 502 `The High intelligence AI server is unavailable.` when it cannot be reached).
-  Empty runs those jobs here. The AI server ignores it
+- `AI_SERVER_URL` — the base URL of `cmd/ai-server`; when set, `createJob` and `retryJob` hand it every creative
+  job but a quiz the question bank holds whole (`AIServerProxy`, path, query, body and token unchanged, up to
+  2 minutes for its `202`, 502 `The AI server is unavailable.` when it cannot be reached). Empty runs those jobs
+  here. The AI server ignores it. `AI_SERVER_SECRET` (≥ 32 bytes, the same on both servers) is required with it,
+  and by the AI server
 - `CLOUDINARY_URL` — `cloudinary://<api key>:<api secret>@<cloud name>`: where both servers keep the images of jobs
   for 30 days (`imagestore.Cloudinary`, Basic-auth calls to the Upload and Admin APIs), so a failed job can be
   retried and an interrupted one resumed; empty keeps none, and a malformed value stops the server at start
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LLM_MODEL` — if any is missing the server still starts, but
   CSV generation answers 500. `LLM_MODEL` serves the formatted mode (sent with `reasoning_effort: low`)
-- `LLM_INTELLIGENCE_MODELS` — optional, exactly 2 comma-separated models: the creative-mode model for
-  the client's "Độ thông minh" Thấp / Cao (`intelligence` query param 1 or 2, default 1).
-  Empty means both use `LLM_MODEL`
+- `LLM_CREATIVE_MODEL` — optional: the model of the creative mode (the quizzes, the question bank's questions and
+  the Radicals exercises). Empty means `LLM_MODEL`. The settings of the removed "Độ thông minh"
+  (`LLM_INTELLIGENCE_MODELS`, `HIGH_INTELLIGENCE_SERVER_URL`, `HIGH_INTELLIGENCE_PROXY_SECRET`) stop the server at
+  start while they are set, even empty, naming what replaced them; an `intelligence` query parameter an older page
+  still sends is ignored
 - `LLM_TIMEOUT_SECONDS` (280) — per-call LLM deadline of `cmd/server`; kept under Vercel's 300 s function limit
   so the handler answers 504 itself. The HTTP server's write timeout is derived from it, and the creative
   system prompt's TIME LIMIT section tells the model this number (`{{.TimeLimitSeconds}}`). `cmd/ai-server`
@@ -165,13 +172,14 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   errors are still answered synchronously with the plain-text bodies below. `title` (query, capped at
   100 runes) names the job. `listJobs` returns the user's jobs newest first (JSON `{"jobs": [...]}`,
   the CSV included, and `retryable`/`retryUntil` from `retryState`) after failing as abandoned any running job
-  whose heartbeat is older than `abandonedAfter` (3 min; and refunding its call), giving a High intelligence job
-  `resumeGiveUp` (10 min) when there is a High intelligence server, which takes it over (`resume.go`), and waking
-  that server when such a job waits (`HighIntelligenceServer.Wake`, at most once a minute). While `runJob` works,
+  whose heartbeat is older than `abandonedAfter` (3 min; and refunding its call), giving a creative job
+  `resumeGiveUp` (10 min) when there is an AI server, which takes it over (`resume.go`), and waking that server
+  when such a job waits (`AIServer.Wake`, at most once a minute). While `runJob` works,
   `keepJobAlive` records the job's heartbeat (`Jobs.Heartbeat`) every `jobHeartbeatInterval` (30 s), so only a job
-  whose process died is failed, whichever server ran it and however long it takes. A creative job at High
-  intelligence goes to `HighIntelligenceProxy` before any of this when one is set (`isHighIntelligence`, from the
-  query; `retryJob` decides from the failed job, before looking for its images). Both modes take an optional `language` (`csvgen.ParseLanguage`, see
+  whose process died is failed, whichever server ran it and however long it takes. A creative job goes to
+  `AIServerProxy` before any of this when one is set (`isCreative`, from the query; `retryJob` decides from the
+  failed job, before looking for its images), unless the question bank holds its whole quiz. Both modes take an
+  optional `language` (`csvgen.ParseLanguage`, see
   [Chinese and English](../AGENTS.md#chinese-and-english)), which picks the prompts and is kept on the job.
   `isCreative=true` switches to the creative prompt and requires `exportType`,
   `courseType` (one of the language's courses), `lessonNumbers`, plus `level` (HSK/YCT) or `courseName` (`Other`), and for GestureQuiz the
@@ -465,7 +473,7 @@ cookie.
 
 Jobs (`internal/store/jobs*.go`): `store.Jobs` is implemented by `MongoJobs` (collection
 `MONGODB_JOBS_COLLECTION`) and `MemoryJobs` (tests), and every method is scoped to a username. A `Job`
-holds the request's metadata (title, mode, export type ordinal, intelligence, image count — never the
+holds the request's metadata (title, mode, export type ordinal, image count — never the
 images — and, for a creative job, the lesson: course type ordinal, course name, HSK standard, level and
 lesson numbers (`lessonNumbers`), which `listJobs` returns so the client can filter by them, and for a GestureQuiz job its
 `gestureStages` and `questionsPerStage`, kept so `retryJob` can ask for the same quiz again), `status` (`running`/`done`/`failed`), the raw model `csv`, for a Radicals job its `source` (what csvgen rebuilds the exercise from), `errorStatus`/`errorCode`/`errorMessage`,
@@ -493,7 +501,7 @@ GimKit, Blooket, Wayground or the Game whose course has an embedded textbook and
   lesson is at least that, so it never uses a word the learner has not reached), `format` (`mc`, `true_false`,
   `word_order`, `typed`), `skill` (`meaning` … `visual`), `difficulty` 1–3, the texts with their pinyin, the wrong
   answers most plausible first, the chunks of a sentence to order, `imageUrl` (visual questions, Wayground only),
-  `intelligence` (a High intelligence quiz takes only High-written questions), `fingerprint` (format, stem and
+  `fingerprint` (format, stem and
   answer; a book holds each once), `status`, `servedCount`/`lastServedAt` (least used first).
 - **Planning** (`bank.PlanQuiz`, pure): the Game has `stages × questionsPerStage` places, each stage taking the
   format, options, difficulty and skills of its game (`stageSpecs`); the other platforms `QuizSize` places (a
@@ -514,7 +522,7 @@ GimKit, Blooket, Wayground or the Game whose course has an embedded textbook and
   the extension and `gesturequiz.Parse` read it like the model's.
 - **Where it runs.** `createJob` and `retryJob` first ask `Server.Bank` (`answerFromBank`, `bankPlan`): a quiz the
   bank holds whole becomes a job stored already `done`, answered `202` like any job, with no AI call counted and no
-  proxying to the High intelligence server (the request body is read only to check that it has no image, and put
+  proxying to the AI server (the request body is read only to check that it has no image, and put
   back). Any other quiz goes its usual way, where `bank.Generator` wraps the model on both servers and writes only
   the gaps; when the bank cannot be read, the whole quiz is the model's.
 - **Indexes**, like the others not created on start (`MongoQuestionBank.EnsureIndexes`), once by hand:

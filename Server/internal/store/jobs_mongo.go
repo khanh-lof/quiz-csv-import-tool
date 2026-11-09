@@ -152,16 +152,16 @@ func lastSignBefore(t time.Time) bson.M {
 	}}
 }
 
-// resumableJob matches a creative job at intelligence resumed fewer than maxResumes times ($not also
-// matches a job without the field, never resumed).
-func resumableJob(intelligence, maxResumes int) bson.M {
-	return bson.M{"creative": true, "intelligence": intelligence, "resumes": bson.M{"$not": bson.M{"$gte": maxResumes}}}
+// resumableJob matches a creative job resumed fewer than maxResumes times ($not also matches a job without the
+// field, never resumed).
+func resumableJob(maxResumes int) bson.M {
+	return bson.M{"creative": true, "resumes": bson.M{"$not": bson.M{"$gte": maxResumes}}}
 }
 
 func (m *MongoJobs) ExpireRunning(ctx context.Context, username string, cutoffs ExpiryCutoffs, message string) ([]Job, error) {
 	stale := lastSignBefore(cutoffs.Before)
-	if cutoffs.ResumableIntelligence != 0 {
-		resumable := resumableJob(cutoffs.ResumableIntelligence, cutoffs.MaxResumes)
+	if cutoffs.Resumable {
+		resumable := resumableJob(cutoffs.MaxResumes)
 		stale = bson.M{"$or": bson.A{
 			bson.M{"$and": bson.A{bson.M{"$nor": bson.A{resumable}}, lastSignBefore(cutoffs.Before)}},
 			bson.M{"$and": bson.A{resumable, lastSignBefore(cutoffs.ResumableBefore)}},
@@ -187,10 +187,10 @@ func (m *MongoJobs) ExpireRunning(ctx context.Context, username string, cutoffs 
 	}
 }
 
-func (m *MongoJobs) ClaimInterrupted(ctx context.Context, intelligence int, before time.Time, maxResumes int) (*Job, error) {
+func (m *MongoJobs) ClaimInterrupted(ctx context.Context, before time.Time, maxResumes int) (*Job, error) {
 	var job Job
 	err := m.jobs.FindOneAndUpdate(ctx,
-		bson.M{"status": JobRunning, "$and": bson.A{resumableJob(intelligence, maxResumes), lastSignBefore(before)}},
+		bson.M{"status": JobRunning, "$and": bson.A{resumableJob(maxResumes), lastSignBefore(before)}},
 		bson.M{"$set": bson.M{"heartbeatAt": m.now().UTC(), "progressRows": 0}, "$inc": bson.M{"resumes": 1}},
 		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&job)
 	if errors.Is(err, mongo.ErrNoDocuments) {

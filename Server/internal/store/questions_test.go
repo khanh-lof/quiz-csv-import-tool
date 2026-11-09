@@ -43,7 +43,7 @@ func testQuestionBank(t *testing.T, bank QuestionBank) {
 		return Question{
 			ID: id, Book: book, Lessons: []int{maxLesson}, MaxLesson: maxLesson, Targets: []string{"你|nǐ|pron."},
 			Format: "mc", Skill: "meaning", Difficulty: 1, Stem: Text{Text: "你"}, Answer: Text{Text: "bạn"},
-			Distractors: []Text{{Text: "tôi"}, {Text: "nó"}, {Text: "họ"}}, Explanation: "e", Intelligence: 1,
+			Distractors: []Text{{Text: "tôi"}, {Text: "nó"}, {Text: "họ"}}, Explanation: "e",
 			Fingerprint: fingerprint, Status: QuestionActive, CreatedAt: time.Now(),
 		}
 	}

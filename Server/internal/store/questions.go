@@ -33,8 +33,6 @@ type Question struct {
 	Chunks      []Text `bson:"chunks,omitempty"`
 	Explanation string `bson:"explanation"`
 	ImageURL    string `bson:"imageUrl,omitempty"`
-	// Intelligence is the "Độ thông minh" level whose model wrote it.
-	Intelligence int `bson:"intelligence"`
 	// Fingerprint identifies the question's content (package bank's Fingerprint); a book holds each one once.
 	Fingerprint string `bson:"fingerprint"`
 	// Model and JobID say where it came from.

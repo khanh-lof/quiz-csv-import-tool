@@ -32,7 +32,7 @@ const (
 	// jobHeartbeatInterval is how often the handler working on a job records that it still is, and
 	// abandonedAfter how long a running job may go without that before listJobs takes its process for dead
 	// (a crash, a deploy, or a Vercel function cut off at its limit). It does not depend on LLMTimeout: a job
-	// of the High intelligence server has no deadline, yet is listed by the main server.
+	// of the AI server has no deadline, yet is listed by the main server.
 	jobHeartbeatInterval = 30 * time.Second
 	abandonedAfter       = 3 * time.Minute
 )
@@ -40,14 +40,14 @@ const (
 // createJob handles POST /api/csv/jobs: a multipart upload of zero or more images, rate-limited per
 // user. It validates the request, stores a running job, answers 202 with the job's id right away and
 // keeps working in this same handler until the model has answered, then stores the result. The
-// client follows the job through listJobs, so it need not stay connected. A creative job at High
-// intelligence goes to HighIntelligenceProxy instead, when there is one.
+// client follows the job through listJobs, so it need not stay connected. A creative job goes to AIServerProxy
+// instead, when there is one, unless the question bank holds its whole quiz.
 func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 	if s.answerFromBank(w, r) {
 		return
 	}
-	if s.HighIntelligenceProxy != nil && isHighIntelligence(r.URL.Query()) {
-		s.HighIntelligenceProxy.ServeHTTP(w, r)
+	if s.AIServerProxy != nil && isCreative(r.URL.Query()) {
+		s.AIServerProxy.ServeHTTP(w, r)
 		return
 	}
 	user, ok := s.jobOwner(w, r)
@@ -61,7 +61,7 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	creative := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("isCreative")), "true")
+	creative := isCreative(r.URL.Query())
 	// Creative mode can work from the lesson identifiers alone; the formatted mode has nothing to
 	// read without images.
 	if !creative && len(images) == 0 {
@@ -89,14 +89,14 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 
 // retryJob handles POST /api/csv/jobs/{id}/retry ("Tạo lại"): a failed job's request sent again as a new
 // job, which replaces the failed one. The images come from the image store, so a job sent with images can be
-// retried only while they are kept (imagesKeptFor). Rate-limited and answered like createJob, and a job at High
-// intelligence goes to HighIntelligenceProxy like there.
+// retried only while they are kept (imagesKeptFor). Rate-limited and answered like createJob, and a creative job
+// goes to AIServerProxy like there.
 func (s *Server) retryJob(w http.ResponseWriter, r *http.Request) {
 	s.retry(w, r, false)
 }
 
-// retry is retryJob; onlyHigh refuses every job but one at High intelligence, as the High intelligence server does.
-func (s *Server) retry(w http.ResponseWriter, r *http.Request, onlyHigh bool) {
+// retry is retryJob; onlyCreative refuses a formatted job, as the AI server does.
+func (s *Server) retry(w http.ResponseWriter, r *http.Request, onlyCreative bool) {
 	if !s.jobStoreReady(w, r) {
 		return
 	}
@@ -117,9 +117,8 @@ func (s *Server) retry(w http.ResponseWriter, r *http.Request, onlyHigh bool) {
 		writeText(w, http.StatusConflict, "Job cannot be retried.")
 		return
 	}
-	high := isHighIntelligenceJob(failed, opts)
-	if onlyHigh && !high {
-		writeText(w, http.StatusBadRequest, notHighIntelligence)
+	if onlyCreative && !failed.Creative {
+		writeText(w, http.StatusBadRequest, notCreative)
 		return
 	}
 	if failed.Creative && failed.ImageCount == 0 {
@@ -128,8 +127,8 @@ func (s *Server) retry(w http.ResponseWriter, r *http.Request, onlyHigh bool) {
 			return
 		}
 	}
-	if high && s.HighIntelligenceProxy != nil {
-		s.HighIntelligenceProxy.ServeHTTP(w, r)
+	if failed.Creative && s.AIServerProxy != nil {
+		s.AIServerProxy.ServeHTTP(w, r)
 		return
 	}
 	var images []csvgen.Image
@@ -231,11 +230,11 @@ func (s *Server) acceptJob(w http.ResponseWriter, r *http.Request, username stri
 }
 
 // answerFromBank answers a createJob request whose whole quiz the question bank holds, with a job that is done at
-// once, takes no AI call and asks no model, wherever its intelligence would have sent it; it returns false, the
+// once, takes no AI call and asks no model, on whichever server it reached; it returns false, the
 // body untouched, for any other request, which then goes its usual way (where the bank may still supply part of
 // the quiz, see bank.Generator). A quiz asked with images is the model's: the images show what to focus on.
 func (s *Server) answerFromBank(w http.ResponseWriter, r *http.Request) bool {
-	if s.Bank == nil || !strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("isCreative")), "true") {
+	if s.Bank == nil || !isCreative(r.URL.Query()) {
 		return false
 	}
 	opts, err := csvgen.ParseCreativeOptions(r.URL.Query())
@@ -440,7 +439,6 @@ type jobView struct {
 	Creative      bool       `json:"creative"`
 	Language      int        `json:"language"`
 	ExportType    *int       `json:"exportType"`
-	Intelligence  int        `json:"intelligence"`
 	ImageCount    int        `json:"imageCount"`
 	CourseType    *int       `json:"courseType"`
 	CourseName    string     `json:"courseName"`
@@ -468,12 +466,12 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// A running job whose heartbeat stopped lost the process that was working on it; fail it and give the
-	// call back, or the client would poll it forever. The High intelligence server takes its own over instead
+	// call back, or the client would poll it forever. The AI server takes its own, the creative ones, over instead
 	// (ResumeJob), so those are given longer, and that server is woken should it be asleep.
 	now := time.Now()
 	cutoffs := store.ExpiryCutoffs{Before: now.Add(-abandonedAfter)}
-	if s.HighIntelligenceProxy != nil {
-		cutoffs.ResumableIntelligence, cutoffs.MaxResumes, cutoffs.ResumableBefore = csvgen.HighIntelligence, maxResumes, now.Add(-resumeGiveUp)
+	if s.AIServerProxy != nil {
+		cutoffs.Resumable, cutoffs.MaxResumes, cutoffs.ResumableBefore = true, maxResumes, now.Add(-resumeGiveUp)
 	}
 	expired, err := s.Jobs.ExpireRunning(r.Context(), username, cutoffs, interruptedMessage)
 	if err != nil {
@@ -489,8 +487,8 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "listing jobs failed", err)
 		return
 	}
-	if s.HighIntelligenceProxy != nil && slices.ContainsFunc(jobs, awaitingResume(now)) && s.due(&s.wokeAt, wakeEvery) {
-		s.HighIntelligenceProxy.Wake(r.Context())
+	if s.AIServerProxy != nil && slices.ContainsFunc(jobs, awaitingResume(now)) && s.due(&s.wokeAt, wakeEvery) {
+		s.AIServerProxy.Wake(r.Context())
 	}
 	views := make([]jobView, len(jobs))
 	for i := range jobs {
@@ -504,7 +502,7 @@ func (s *Server) newJobView(j *store.Job) jobView {
 	retryable, retryUntil := s.retryState(j)
 	return jobView{
 		ID: j.ID, Status: string(j.Status), Title: j.Title, Creative: j.Creative, Language: j.Language, ExportType: j.ExportType,
-		Intelligence: j.Intelligence, ImageCount: j.ImageCount, CourseType: j.CourseType, CourseName: j.CourseName,
+		ImageCount: j.ImageCount, CourseType: j.CourseType, CourseName: j.CourseName,
 		HskStandard: j.HskStandard, Level: j.Level, LessonNumbers: j.LessonNumbers, CSV: j.CSV, ProgressRows: j.ProgressRows,
 		ErrorStatus: j.ErrorStatus, ErrorCode: j.ErrorCode, ErrorMessage: j.ErrorMessage, CreatedAt: j.CreatedAt, FinishedAt: j.FinishedAt,
 		Retryable: retryable, RetryUntil: retryUntil,

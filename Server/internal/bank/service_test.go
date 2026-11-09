@@ -89,7 +89,7 @@ func hskOptions(platform csvgen.ExportType, lessons ...int) csvgen.Options {
 	level := 1
 	return csvgen.Options{
 		Language: csvgen.Chinese, ExportType: platform, CourseType: csvgen.Hsk, HskStandard: csvgen.Hsk3, Level: &level,
-		LessonNumbers: lessons, Intelligence: 1,
+		LessonNumbers: lessons,
 	}
 }
 

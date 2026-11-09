@@ -48,7 +48,6 @@ describe('AiCsvService', () => {
       lessonNumbers: [5],
       AIMode: AIGenerationMode.Auto,
       exportType: ExportType.Wayground,
-      intelligence: 2,
       gestureStages: [1, 3],
       questionsPerStage: 7,
     }, 'HSK3.0-4-Bai5').subscribe();
@@ -63,7 +62,7 @@ describe('AiCsvService', () => {
     expect(params.get('level')).toBe('4');
     expect(params.get('lessonNumbers')).toBe('5');
     expect(params.has('lessonNumber')).toBeFalse();
-    expect(params.get('intelligence')).toBe('2');
+    expect(params.has('intelligence')).toBeFalse();
     expect(params.has('courseName')).toBeFalse();
   });
 
@@ -77,7 +76,6 @@ describe('AiCsvService', () => {
       lessonNumbers: [2],
       AIMode: AIGenerationMode.Auto,
       exportType: ExportType.GestureQuiz,
-      intelligence: 1,
       gestureStages: null,
       questionsPerStage: null,
     }, 'Global Success6-Bai2').subscribe();
@@ -100,7 +98,6 @@ describe('AiCsvService', () => {
       lessonNumbers,
       AIMode: AIGenerationMode.Auto,
       exportType: ExportType.Wayground,
-      intelligence: 1,
       gestureStages: null,
       questionsPerStage: null,
     });
@@ -130,7 +127,6 @@ describe('AiCsvService', () => {
       lessonNumbers: [3],
       AIMode: AIGenerationMode.Auto,
       exportType,
-      intelligence: 1,
       gestureStages,
       questionsPerStage,
     });
@@ -218,7 +214,6 @@ describe('AiCsvService', () => {
       lessonNumbers: [3, 4],
       AIMode: AIGenerationMode.Auto,
       exportType: ExportType.Radicals,
-      intelligence: 1,
       gestureStages: [1],
       questionsPerStage: 5,
     }, 'Boya-Bai3-4').subscribe();

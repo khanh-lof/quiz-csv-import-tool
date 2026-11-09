@@ -132,12 +132,7 @@ func TestPlanLeavesOutQuestionsItMayNotUse(t *testing.T) {
 	add(func(q *store.Question) { q.Status = store.QuestionRetired })
 	add(func(q *store.Question) { q.Targets = []string{"其他|qítā|pron."} }) // no word of the lessons
 	add(func(q *store.Question) { q.Skill = SkillVisual })                 // an image GimKit cannot show
-	add(func(q *store.Question) { q.Intelligence = 1 })                    // fine for a Standard request only
-	high := request(csvgen.GimKit, v)
-	high.Intelligence = 2
-	if plan := PlanQuiz(high, pool, 1); len(plan.Picks) != 0 {
-		t.Errorf("picked %v", plan.IDs())
-	}
+	add(func(*store.Question) {})                                          // fine
 	if plan := PlanQuiz(request(csvgen.GimKit, v), pool, 1); !slices.Equal(plan.IDs(), []string{"q6"}) {
 		t.Errorf("picked %v, want only q6", plan.IDs())
 	}

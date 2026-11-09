@@ -9,15 +9,14 @@ import (
 	"quiz-csv-import-tool/server/internal/store"
 )
 
-// Request is what a quiz is planned for: the platform, the words to test, the intelligence level asked for, and
-// for the Game its stages and how many questions each gets.
+// Request is what a quiz is planned for: the platform, the words to test, and for the Game its stages and how many
+// questions each gets.
 type Request struct {
-	Platform     csvgen.ExportType
-	Language     csvgen.Language
-	Vocabulary   csvgen.Vocabulary
-	Intelligence int
-	Stages       []int
-	PerStage     int
+	Platform   csvgen.ExportType
+	Language   csvgen.Language
+	Vocabulary csvgen.Vocabulary
+	Stages     []int
+	PerStage   int
 }
 
 // NewRequest is the Request of a creative job's options, false when the bank does not build that quiz: another
@@ -30,10 +29,7 @@ func NewRequest(opts csvgen.Options) (Request, bool) {
 	if !ok {
 		return Request{}, false
 	}
-	req := Request{Platform: opts.ExportType, Language: opts.Language, Vocabulary: vocabulary, Intelligence: opts.Intelligence}
-	if req.Intelligence < 1 {
-		req.Intelligence = csvgen.DefaultIntelligence
-	}
+	req := Request{Platform: opts.ExportType, Language: opts.Language, Vocabulary: vocabulary}
 	if opts.ExportType == csvgen.GestureQuiz {
 		req.Stages, req.PerStage = opts.GestureQuizStages(), opts.GestureQuizQuestions()
 	}
@@ -185,7 +181,7 @@ func PlanQuiz(req Request, pool []store.Question, seed uint64) Plan {
 		q := &pool[i]
 		// The store's Pool already keeps to the book, the language and the lessons; the plan does not rely on it.
 		if q.Book != req.Vocabulary.Book || q.Language != int(req.Language) || q.MaxLesson > req.Vocabulary.MaxLesson() ||
-			q.Status != store.QuestionActive || q.Intelligence < req.Intelligence || !accepts(req.Platform, q) ||
+			q.Status != store.QuestionActive || !accepts(req.Platform, q) ||
 			!slices.ContainsFunc(q.Targets, func(t string) bool { return p.inV[t] }) {
 			continue
 		}

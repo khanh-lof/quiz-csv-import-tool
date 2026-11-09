@@ -15,8 +15,6 @@ export interface AiGenerationRequest {
   lessonNumbers: number[] | null;
   AIMode: AIGenerationMode | null;
   exportType: ExportType | null;
-  // "Độ thông minh" 1 = Thấp, 2 = Cao, only used in Auto mode; the server maps it to a model (LLM_INTELLIGENCE_MODELS).
-  intelligence: number | null;
   // The two below only apply to a Game (ExportType.GestureQuiz) and are sent for it alone.
   // The stage numbers (1-6) of the games the quiz should have; null asks for all six.
   gestureStages: number[] | null;

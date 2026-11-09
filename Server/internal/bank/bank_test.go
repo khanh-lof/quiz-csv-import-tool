@@ -31,7 +31,7 @@ func mc(id string, v csvgen.Vocabulary, word, difficulty int, skill string) stor
 		Format: FormatMC, Skill: skill, Difficulty: difficulty,
 		Stem: store.Text{Text: id + " " + w.Word + " nghĩa là gì?", Pinyin: w.Pinyin}, Answer: store.Text{Text: w.Vietnamese},
 		Distractors: []store.Text{{Text: "sai 1"}, {Text: "sai 2"}, {Text: "sai 3"}}, Explanation: "Giải thích.",
-		Intelligence: 1, Fingerprint: id, Status: store.QuestionActive, CreatedAt: time.Now(),
+		Fingerprint: id, Status: store.QuestionActive, CreatedAt: time.Now(),
 	}
 }
 
@@ -53,9 +53,9 @@ func wordOrder(id string, v csvgen.Vocabulary, word int) store.Question {
 }
 
 func gameRequest(v csvgen.Vocabulary, stages []int, perStage int) Request {
-	return Request{Platform: csvgen.GestureQuiz, Vocabulary: v, Intelligence: 1, Stages: stages, PerStage: perStage}
+	return Request{Platform: csvgen.GestureQuiz, Vocabulary: v, Stages: stages, PerStage: perStage}
 }
 
 func request(platform csvgen.ExportType, v csvgen.Vocabulary) Request {
-	return Request{Platform: platform, Vocabulary: v, Intelligence: 1}
+	return Request{Platform: platform, Vocabulary: v}
 }

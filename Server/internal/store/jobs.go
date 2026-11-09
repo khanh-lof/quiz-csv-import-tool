@@ -27,9 +27,8 @@ type Job struct {
 	// from before English and on every Chinese job.
 	Language int `bson:"language,omitempty"`
 	// ExportType is the csvgen.ExportType ordinal; only creative jobs have one.
-	ExportType   *int `bson:"exportType,omitempty"`
-	Intelligence int  `bson:"intelligence"`
-	ImageCount   int  `bson:"imageCount"`
+	ExportType *int `bson:"exportType,omitempty"`
+	ImageCount int  `bson:"imageCount"`
 
 	// The lesson a creative job was asked for, kept so the client can filter by it. CourseType is the
 	// csvgen.CourseType ordinal and HskStandard the standard itself (2 or 3, HSK only); Level and
@@ -91,19 +90,19 @@ type JobImage struct {
 }
 
 // ExpiryCutoffs say when ExpireRunning takes a running job for abandoned: when its last sign of life (the
-// heartbeat, or before the first one its creation) is before Before. A creative job at ResumableIntelligence
-// (zero: none) that has been resumed fewer than MaxResumes times waits until ResumableBefore instead, since a
-// server may still take it over (ClaimInterrupted).
+// heartbeat, or before the first one its creation) is before Before. When Resumable, a creative job that has been
+// resumed fewer than MaxResumes times waits until ResumableBefore instead, since a server may still take it over
+// (ClaimInterrupted).
 type ExpiryCutoffs struct {
-	Before                time.Time
-	ResumableIntelligence int
-	MaxResumes            int
-	ResumableBefore       time.Time
+	Before          time.Time
+	Resumable       bool
+	MaxResumes      int
+	ResumableBefore time.Time
 }
 
 // resumable says whether job is one that cutoffs give the longer wait.
 func (c ExpiryCutoffs) resumable(job Job) bool {
-	return c.ResumableIntelligence != 0 && job.Creative && job.Intelligence == c.ResumableIntelligence && job.Resumes < c.MaxResumes
+	return c.Resumable && job.Creative && job.Resumes < c.MaxResumes
 }
 
 // JobFailure is how a job failed. Code is the stable reason the client words the failure by: one of csvgen's
@@ -159,11 +158,10 @@ type Jobs interface {
 	// ExpireRunning fails, with ExpiredJobStatus, the user's running jobs that cutoffs take for abandoned,
 	// which only happens when the process handling them died, and returns the ones it failed.
 	ExpireRunning(ctx context.Context, username string, cutoffs ExpiryCutoffs, message string) ([]Job, error)
-	// ClaimInterrupted takes over one running creative job at the given intelligence, of any user, whose last
-	// sign of life is before the cutoff and that was taken over fewer than maxResumes times: it records a
+	// ClaimInterrupted takes over one running creative job, of any user, whose last sign of life is before the cutoff and that was taken over fewer than maxResumes times: it records a
 	// heartbeat now, counts the resume and clears the progress, and returns the job as it now is; nil when
 	// there is none. Two servers claiming at once never get the same job.
-	ClaimInterrupted(ctx context.Context, intelligence int, before time.Time, maxResumes int) (*Job, error)
+	ClaimInterrupted(ctx context.Context, before time.Time, maxResumes int) (*Job, error)
 	// Prune deletes all but the user's newest keep jobs.
 	Prune(ctx context.Context, username string, keep int) error
 }

@@ -98,16 +98,23 @@ func (c *Client) generateRadicals(ctx context.Context, images []Image, opts Opti
 	if err != nil {
 		return Result{}, err
 	}
-	if needs := draft.Needs(); len(needs.Words)+len(needs.Chars)+len(needs.Components) > 0 {
-		text, err := c.respond(ctx, buildRadicalsDetailsRequest(model, needs), usage, nil)
-		if err != nil {
-			return Result{}, err
+	if needs := draft.Needs(); needCount(needs) > 0 {
+		// Notes written for an earlier exercise are the model's too: addDetails marks them so, and the review
+		// shows them to the teacher like the ones written now.
+		stored, left := c.cachedDetails(ctx, needs)
+		src.addDetails(stored, needs)
+		if needCount(left) > 0 {
+			text, err := c.respond(ctx, buildRadicalsDetailsRequest(model, left), usage, nil)
+			if err != nil {
+				return Result{}, err
+			}
+			var answer detailsAnswer
+			if err := decodeJSONAnswer(text, &answer); err != nil {
+				return Result{}, err
+			}
+			src.addDetails(answer, left)
+			c.saveDetails(ctx, answer, left, model)
 		}
-		var answer detailsAnswer
-		if err := decodeJSONAnswer(text, &answer); err != nil {
-			return Result{}, err
-		}
-		src.addDetails(answer, needs)
 	}
 	return src.build(draft)
 }

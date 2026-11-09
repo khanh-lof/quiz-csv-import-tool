@@ -79,8 +79,7 @@ func (s *Service) Fill(ctx context.Context, b *Build, jobID string, onRows func(
 		return csvgen.Result{Usage: usage}, err
 	}
 	origin := Origin{
-		Vocabulary: b.Request.Vocabulary, Language: b.Request.Language, Intelligence: b.Request.Intelligence,
-		Model: usage.Model, JobID: jobID, Now: s.now(),
+		Vocabulary: b.Request.Vocabulary, Language: b.Request.Language, Model: usage.Model, JobID: jobID, Now: s.now(),
 	}
 	var written []store.Question
 	for i, draft := range drafts {

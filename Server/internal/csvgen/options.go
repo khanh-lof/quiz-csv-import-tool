@@ -70,16 +70,6 @@ func (s HskStandard) MaxLevel() int {
 	return 6
 }
 
-// IntelligenceLevels is how many "Độ thông minh" levels the GUI offers (1 = Thấp, 2 = Cao); each
-// picks one model from LLM_INTELLIGENCE_MODELS, cheapest first.
-const IntelligenceLevels = 2
-
-// DefaultIntelligence is used when the client sends none; it matches the GUI default (Thấp).
-const DefaultIntelligence = 1
-
-// HighIntelligence is "Cao", the level whose jobs may run on a server of their own (api.HighIntelligenceProxy).
-const HighIntelligence = 2
-
 // GestureStageCount is how many games (stages) a Game can have. A stage's number, 1 to
 // GestureStageCount, is the identity of its game in the CSV, so it never changes when a quiz leaves
 // other stages out. Keep in step with STAGES in Client/src/game/stages.ts.
@@ -123,8 +113,6 @@ type Options struct {
 	// LessonNumbers are the lessons one quiz covers together (ascending, unique, 1 to MaxLessons of them).
 	// ParseCreativeOptions always fills them.
 	LessonNumbers []int
-	// Intelligence is 1..IntelligenceLevels and selects the model, see Client.modelFor.
-	Intelligence int
 	// GestureStages (ascending, unique, each 1..GestureStageCount) and QuestionsPerStage describe the
 	// quiz of the GestureQuiz platform and stay zero for the other platforms. ParseCreativeOptions
 	// always fills them for GestureQuiz; the accessors below also give a hand-built Options its defaults.
@@ -246,15 +234,6 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 	// teacher's word, since the model only reads them as positions in a book it recalls.
 	if book := textbookFor(opts); book != nil && lessons[len(lessons)-1] > book.lessons {
 		return Options{}, fmt.Errorf("Lesson must be 1 to %d for %s.", book.lessons, book.title)
-	}
-
-	opts.Intelligence = DefaultIntelligence
-	if raw := strings.TrimSpace(q.Get("intelligence")); raw != "" {
-		intelligence, err := strconv.Atoi(raw)
-		if err != nil || intelligence < 1 || intelligence > IntelligenceLevels {
-			return Options{}, errors.New("Invalid intelligence parameter.")
-		}
-		opts.Intelligence = intelligence
 	}
 
 	// The two gesture quiz settings belong to that platform alone: for the others they are ignored,

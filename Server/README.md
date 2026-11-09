@@ -54,8 +54,8 @@ same origin as the web client (the refresh cookie is `SameSite=Strict`).
 On Vercel, the API deploys together with the client as the `server` service of the root
 `vercel.json` (Go preset, `cmd/server`). Set the env vars above in the Vercel project.
 
-The creative jobs at High intelligence run on `cmd/ai-server`, the free Render web service of the root
-`render.yaml`, when the Vercel project's `HIGH_INTELLIGENCE_SERVER_URL` names it. It needs the same
+The creative jobs the model writes run on `cmd/ai-server`, the free Render web service of the root
+`render.yaml`, when the Vercel project's `AI_SERVER_URL` names it. It needs the same
 `MONGODB_URI`, `JWT_SECRET`, `CLOUDINARY_URL` and LLM settings, serves nothing but those jobs, has no LLM time
 limit, and runs again by itself a job it was stopped in the middle of.
 

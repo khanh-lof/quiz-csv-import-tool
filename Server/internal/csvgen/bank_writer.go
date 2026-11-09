@@ -55,7 +55,7 @@ type DraftText struct {
 // is filled in whether or not it failed. onRows is told how many lines of the answer have streamed in: one per
 // question, since the prompt asks for each on a line of its own.
 func (c *Client) WriteQuestions(ctx context.Context, opts Options, vocabulary Vocabulary, specs []QuestionSpec, onRows func(int)) ([]QuestionDraft, Usage, error) {
-	usage := Usage{Model: c.modelFor(opts)}
+	usage := Usage{Model: c.creativeModel}
 	req, ids, err := buildBankRequest(usage.Model, c.timeLimit, opts, vocabulary, specs)
 	if err != nil {
 		return nil, usage, err

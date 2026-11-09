@@ -72,50 +72,82 @@ func TestFromEnvQuestionBank(t *testing.T) {
 	}
 }
 
-func TestFromEnvHighIntelligenceServer(t *testing.T) {
+func TestFromEnvAIServer(t *testing.T) {
 	t.Setenv("MONGODB_URI", "mongodb://localhost")
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
 
-	t.Setenv("HIGH_INTELLIGENCE_PROXY_SECRET", strings.Repeat("p", 32))
-	t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", " ")
-	if cfg, err := FromEnv(); err != nil || cfg.HighIntelligenceServer != nil {
-		t.Fatalf("unset: %v %v", cfg.HighIntelligenceServer, err)
+	t.Setenv("AI_SERVER_SECRET", strings.Repeat("p", 32))
+	t.Setenv("AI_SERVER_URL", " ")
+	if cfg, err := FromEnv(); err != nil || cfg.AIServer != nil {
+		t.Fatalf("unset: %v %v", cfg.AIServer, err)
 	}
-	t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", " https://ai.example.com/ ")
-	if cfg, err := FromEnv(); err != nil || cfg.HighIntelligenceServer.String() != "https://ai.example.com" {
-		t.Fatalf("set: %v %v", cfg.HighIntelligenceServer, err)
+	t.Setenv("AI_SERVER_URL", " https://ai.example.com/ ")
+	if cfg, err := FromEnv(); err != nil || cfg.AIServer.String() != "https://ai.example.com" {
+		t.Fatalf("set: %v %v", cfg.AIServer, err)
 	}
 	for _, bad := range []string{"ai.example.com", "ftp://ai.example.com", "https://ai.example.com/?x=1", "https://u:p@ai.example.com"} {
-		t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", bad)
-		if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "HIGH_INTELLIGENCE_SERVER_URL") {
+		t.Setenv("AI_SERVER_URL", bad)
+		if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "AI_SERVER_URL") {
 			t.Errorf("%q: %v", bad, err)
 		}
 	}
 }
 
-func TestFromEnvHighIntelligenceProxySecret(t *testing.T) {
+func TestFromEnvAIServerSecret(t *testing.T) {
 	t.Setenv("MONGODB_URI", "mongodb://localhost")
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
 
-	t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", "")
-	t.Setenv("HIGH_INTELLIGENCE_PROXY_SECRET", "")
+	t.Setenv("AI_SERVER_URL", "")
+	t.Setenv("AI_SERVER_SECRET", "")
 	if _, err := FromEnv(); err != nil {
 		t.Fatalf("neither set: %v", err)
 	}
 
-	t.Setenv("HIGH_INTELLIGENCE_SERVER_URL", "https://ai.example.com")
-	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "HIGH_INTELLIGENCE_PROXY_SECRET is required") {
+	t.Setenv("AI_SERVER_URL", "https://ai.example.com")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "AI_SERVER_SECRET is required") {
 		t.Fatalf("server without secret: %v", err)
 	}
 
-	t.Setenv("HIGH_INTELLIGENCE_PROXY_SECRET", "too-short")
-	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "HIGH_INTELLIGENCE_PROXY_SECRET must be at least 32 bytes") {
+	t.Setenv("AI_SERVER_SECRET", "too-short")
+	if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), "AI_SERVER_SECRET must be at least 32 bytes") {
 		t.Fatalf("short secret: %v", err)
 	}
 
-	t.Setenv("HIGH_INTELLIGENCE_PROXY_SECRET", " "+strings.Repeat("p", 32)+" ")
-	if cfg, err := FromEnv(); err != nil || cfg.HighIntelligenceSecret != strings.Repeat("p", 32) {
-		t.Fatalf("valid: %q %v", cfg.HighIntelligenceSecret, err)
+	t.Setenv("AI_SERVER_SECRET", " "+strings.Repeat("p", 32)+" ")
+	if cfg, err := FromEnv(); err != nil || cfg.AIServerSecret != strings.Repeat("p", 32) {
+		t.Fatalf("valid: %q %v", cfg.AIServerSecret, err)
+	}
+}
+
+func TestFromEnvModels(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+	t.Setenv("LLM_MODEL", " formatted ")
+	t.Setenv("LLM_CREATIVE_MODEL", "")
+	if cfg, err := FromEnv(); err != nil || cfg.LLM.Model != "formatted" || cfg.LLM.CreativeModel != "" {
+		t.Fatalf("no creative model: %+v %v", cfg.LLM, err)
+	}
+	t.Setenv("LLM_CREATIVE_MODEL", " creative ")
+	if cfg, err := FromEnv(); err != nil || cfg.LLM.Model != "formatted" || cfg.LLM.CreativeModel != "creative" {
+		t.Fatalf("creative model: %+v %v", cfg.LLM, err)
+	}
+}
+
+// The settings of "Độ thông minh" stop the server while they are still set, even empty, naming what replaced them.
+func TestFromEnvRenamedSettings(t *testing.T) {
+	t.Setenv("MONGODB_URI", "mongodb://localhost")
+	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+	for old, now := range map[string]string{
+		"LLM_INTELLIGENCE_MODELS":        "set LLM_CREATIVE_MODEL (one model) instead",
+		"HIGH_INTELLIGENCE_SERVER_URL":   "set AI_SERVER_URL instead",
+		"HIGH_INTELLIGENCE_PROXY_SECRET": "set AI_SERVER_SECRET instead",
+	} {
+		t.Run(old, func(t *testing.T) {
+			t.Setenv(old, "")
+			if _, err := FromEnv(); err == nil || !strings.Contains(err.Error(), old+" is no longer read: "+now) {
+				t.Errorf("%v", err)
+			}
+		})
 	}
 }
 

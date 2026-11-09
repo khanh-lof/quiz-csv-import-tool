@@ -8,42 +8,43 @@ import (
 	"quiz-csv-import-tool/server/internal/store"
 )
 
-// A High intelligence job runs on a host that may stop it at any time (Render restarts a free instance at will,
-// and a deploy cuts off what still runs 30 s in). The High intelligence server checks for such jobs every minute
-// while it is up (ClaimInterruptedJob) and runs them again (ResumeJob); the main server, meanwhile, gives them
-// longer before failing them (resumeGiveUp) and wakes that server when it sees one waiting (listJobs).
+// A job of the AI server runs on a host that may stop it at any time (Render restarts a free instance at will, and a
+// deploy cuts off what still runs 30 s in). The AI server checks for such jobs every minute while it is up
+// (ClaimInterruptedJob) and runs them again (ResumeJob); the main server, meanwhile, gives them longer before
+// failing them (resumeGiveUp) and wakes that server when it sees one waiting (listJobs). Its jobs are the creative
+// ones: with an AI server, no creative job runs anywhere else.
 const (
-	// resumeAfter is how long a High intelligence job goes without a heartbeat before it is taken over: three
+	// resumeAfter is how long a creative job goes without a heartbeat before it is taken over: three
 	// heartbeats missed, so the process working on it is gone.
 	resumeAfter = 3 * jobHeartbeatInterval
 	// maxResumes is how many times a job is taken over; one interrupted again after that is failed instead.
 	maxResumes = 2
-	// resumeGiveUp is how long the main server waits for the High intelligence server to take an interrupted
+	// resumeGiveUp is how long the main server waits for the AI server to take an interrupted
 	// job over before failing it as interrupted: time for that server to wake, or to be deployed again.
 	resumeGiveUp = 10 * time.Minute
-	// wakeEvery is how often the main server wakes the High intelligence server at most.
+	// wakeEvery is how often the main server wakes the AI server at most.
 	wakeEvery = time.Minute
 )
 
 // interruptedMessage is the error message of a job failed because the process working on it died.
 const interruptedMessage = "AI generation was interrupted."
 
-// awaitingResume matches a running High intelligence job that the High intelligence server has yet to take over.
+// awaitingResume matches a running creative job that the AI server has yet to take over.
 func awaitingResume(now time.Time) func(store.Job) bool {
 	return func(job store.Job) bool {
 		lastSign := job.CreatedAt
 		if job.HeartbeatAt != nil {
 			lastSign = *job.HeartbeatAt
 		}
-		return job.Status == store.JobRunning && job.Creative && job.Intelligence == csvgen.HighIntelligence &&
-			job.Resumes < maxResumes && lastSign.Before(now.Add(-resumeAfter))
+		return job.Status == store.JobRunning && job.Creative && job.Resumes < maxResumes &&
+			lastSign.Before(now.Add(-resumeAfter))
 	}
 }
 
-// ClaimInterruptedJob takes over one High intelligence job, of any user, whose process died, for ResumeJob to run;
-// nil when there is none. The High intelligence server calls it until it returns nil.
+// ClaimInterruptedJob takes over one creative job, of any user, whose process died, for ResumeJob to run; nil when
+// there is none. The AI server calls it until it returns nil.
 func (s *Server) ClaimInterruptedJob(ctx context.Context) (*store.Job, error) {
-	return s.Jobs.ClaimInterrupted(ctx, csvgen.HighIntelligence, time.Now().Add(-resumeAfter), maxResumes)
+	return s.Jobs.ClaimInterrupted(ctx, time.Now().Add(-resumeAfter), maxResumes)
 }
 
 // ResumeJob runs a job ClaimInterruptedJob took over from the start, with the options and the kept images it was

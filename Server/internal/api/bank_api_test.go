@@ -32,9 +32,8 @@ func (e *testEnv) useBank() *store.MemoryQuestionBank {
 	return questions
 }
 
-// fillBank stores an easy, a medium and a hard question on every word of the lessons of opts, written at the
-// intelligence level.
-func fillBank(t *testing.T, questions store.QuestionBank, opts csvgen.Options, intelligence int) {
+// fillBank stores an easy, a medium and a hard question on every word of the lessons of opts.
+func fillBank(t *testing.T, questions store.QuestionBank, opts csvgen.Options) {
 	t.Helper()
 	vocabulary, ok := csvgen.LessonVocabulary(opts)
 	if !ok {
@@ -48,7 +47,7 @@ func fillBank(t *testing.T, questions store.QuestionBank, opts csvgen.Options, i
 				ID: id, Book: vocabulary.Book, Lessons: []int{w.Lesson}, MaxLesson: vocabulary.MaxLesson(), Targets: []string{w.Key()},
 				Format: bank.FormatMC, Skill: skill, Difficulty: level, Stem: store.Text{Text: w.Word + "?", Pinyin: w.Pinyin},
 				Answer: store.Text{Text: w.Vietnamese}, Distractors: []store.Text{{Text: "x"}, {Text: "y"}, {Text: "z"}},
-				Explanation: "e", Intelligence: intelligence, Fingerprint: id, Status: store.QuestionActive, CreatedAt: time.Now(),
+				Explanation: "e", Fingerprint: id, Status: store.QuestionActive, CreatedAt: time.Now(),
 			})
 		}
 	}
@@ -60,7 +59,7 @@ func fillBank(t *testing.T, questions store.QuestionBank, opts csvgen.Options, i
 func TestCreateJobFromTheQuestionBank(t *testing.T) {
 	env := newEnv(t)
 	questions := env.useBank()
-	fillBank(t, questions, bankLessonOptions(), 1)
+	fillBank(t, questions, bankLessonOptions())
 	token, _ := env.login(t, "alice", "pw")
 	vocabulary, _ := csvgen.LessonVocabulary(bankLessonOptions())
 
@@ -102,15 +101,13 @@ func TestCreateJobFromTheQuestionBank(t *testing.T) {
 func TestQuestionBankLeavesOtherQuizzesToTheModel(t *testing.T) {
 	env := newEnv(t)
 	env.srv.AICallsPerRound = 5
-	fillBank(t, env.useBank(), bankLessonOptions(), 1)
+	fillBank(t, env.useBank(), bankLessonOptions())
 	token, _ := env.login(t, "alice", "pw")
 
 	for name, u := range map[string]upload{
 		"images":         {token: token, query: bankLesson, files: 1},
 		"another lesson": {token: token, query: strings.Replace(bankLesson, "lessonNumbers=3", "lessonNumbers=4", 1)},
 		"no textbook":    {token: token, query: "?isCreative=true&exportType=0&courseType=2&courseName=Boya&lessonNumbers=3"},
-		// The bank's questions were written at Standard intelligence; a High intelligence quiz wants better.
-		"high intelligence": {token: token, query: bankLesson + "&intelligence=2"},
 	} {
 		calls := env.gen.calls
 		if rec := env.upload(t, u); rec.Code != http.StatusAccepted || env.gen.calls != calls+1 {
@@ -122,7 +119,7 @@ func TestQuestionBankLeavesOtherQuizzesToTheModel(t *testing.T) {
 	}
 }
 
-// recordingProxy stands in for the High intelligence server.
+// recordingProxy stands in for the AI server.
 type recordingProxy struct {
 	mu    sync.Mutex
 	calls int
@@ -137,23 +134,31 @@ func (p *recordingProxy) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 
 func (p *recordingProxy) Wake(context.Context) {}
 
-func TestHighIntelligenceQuizFromTheBankStaysHere(t *testing.T) {
+// A quiz the bank holds whole is built on the main server; any quiz the model has a part in goes to the AI server.
+func TestQuizFromTheBankStaysOnTheMainServer(t *testing.T) {
 	env := newEnv(t)
 	proxy := &recordingProxy{}
-	env.srv.HighIntelligenceProxy = proxy
-	fillBank(t, env.useBank(), bankLessonOptions(), 2)
+	env.srv.AIServerProxy = proxy
+	fillBank(t, env.useBank(), bankLessonOptions())
 	token, _ := env.login(t, "alice", "pw")
 
-	if rec := env.upload(t, upload{token: token, query: bankLesson + "&intelligence=2"}); rec.Code != http.StatusAccepted || proxy.calls != 0 {
+	if rec := env.upload(t, upload{token: token, query: bankLesson}); rec.Code != http.StatusAccepted || proxy.calls != 0 {
 		t.Fatalf("%d %q, proxied %d times", rec.Code, rec.Body, proxy.calls)
 	}
-	if job := env.onlyJob(t, "alice"); job.Status != store.JobDone || job.Intelligence != 2 {
+	if job := env.onlyJob(t, "alice"); job.Status != store.JobDone || len(job.BankQuestions) == 0 {
 		t.Errorf("job %+v", job)
 	}
-	// With images the job is the model's, on the High intelligence server, its body intact.
-	if rec := env.upload(t, upload{token: token, query: bankLesson + "&intelligence=2", files: 1}); rec.Code != http.StatusAccepted ||
+	// With images the job is the model's, on the AI server, its body intact; so is a lesson the bank lacks.
+	if rec := env.upload(t, upload{token: token, query: bankLesson, files: 1}); rec.Code != http.StatusAccepted ||
 		proxy.calls != 1 {
-		t.Errorf("%d %q, proxied %d times", rec.Code, rec.Body, proxy.calls)
+		t.Errorf("images: %d %q, proxied %d times", rec.Code, rec.Body, proxy.calls)
+	}
+	another := strings.Replace(bankLesson, "lessonNumbers=3", "lessonNumbers=4", 1)
+	if rec := env.upload(t, upload{token: token, query: another}); rec.Code != http.StatusAccepted || proxy.calls != 2 {
+		t.Errorf("another lesson: %d %q, proxied %d times", rec.Code, rec.Body, proxy.calls)
+	}
+	if env.gen.calls != 0 {
+		t.Errorf("the main server asked the model %d times", env.gen.calls)
 	}
 }
 
@@ -169,7 +174,7 @@ func TestRetryJobFromTheQuestionBank(t *testing.T) {
 	}
 
 	// The bank has the lesson by the time the teacher retries.
-	fillBank(t, questions, bankLessonOptions(), 1)
+	fillBank(t, questions, bankLessonOptions())
 	rec := env.retry(t, token, failed.ID)
 	job := env.onlyJob(t, "alice")
 	if rec.Code != http.StatusAccepted || job.ID == failed.ID || job.Status != store.JobDone || job.Title != "HSK-B3" ||

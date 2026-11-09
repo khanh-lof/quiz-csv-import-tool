@@ -231,7 +231,7 @@ func recordingLLM(t *testing.T, answers ...string) (*Client, *[]map[string]any) 
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":` + string(text) + `},"finish_reason":"stop"}]}`))
 	}))
 	t.Cleanup(llm.Close)
-	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", "", 0, slog.New(slog.DiscardHandler))
 	c.baseBackoff = time.Millisecond
 	return c, &requests
 }

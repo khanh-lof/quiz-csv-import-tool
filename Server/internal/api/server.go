@@ -46,14 +46,13 @@ type Server struct {
 	LoginWindow      time.Duration
 	// LLMTimeout bounds each Generator call; zero means no limit.
 	LLMTimeout time.Duration
-	// HighIntelligenceProxy, when set, takes the creative jobs at High intelligence ("Cao") instead of this
-	// server: createJob and retryJob hand such a request to it untouched, and the AI server behind it
-	// (HighIntelligenceHandler) runs the job, writing it to the same job store and taking it over should its
-	// process die (ResumeJob). Nil runs them here.
-	HighIntelligenceProxy HighIntelligenceServer
-	// HighIntelligenceSecret is what the AI server (HighIntelligenceHandler) requires in the ProxySecretHeader of
-	// every job request, so only the main server's proxy can start one. Empty refuses them all.
-	HighIntelligenceSecret string
+	// AIServerProxy, when set, takes the creative jobs the model writes instead of this server: createJob and
+	// retryJob hand such a request to it untouched, and the AI server behind it (AIServerHandler) runs the job,
+	// writing it to the same job store and taking it over should its process die (ResumeJob). Nil runs them here.
+	AIServerProxy AIServer
+	// AIServerSecret is what the AI server (AIServerHandler) requires in the ProxySecretHeader of every job
+	// request, so only the main server's proxy can start one. Empty refuses them all.
+	AIServerSecret string
 	// ImageStore keeps the images of jobs for imagesKeptFor, so a failed job can be retried and an interrupted one
 	// resumed without an upload, on any server. Nil keeps none: a job with images then cannot be sent again.
 	ImageStore ImageStore
@@ -75,7 +74,7 @@ type Server struct {
 	heartbeatEvery time.Duration
 
 	// imageCleanupAt is when this process last deleted the images kept too long, and wokeAt when it last woke
-	// the High intelligence server; each is done at most so often.
+	// the AI server; each is done at most so often.
 	chores         sync.Mutex
 	imageCleanupAt time.Time
 	wokeAt         time.Time

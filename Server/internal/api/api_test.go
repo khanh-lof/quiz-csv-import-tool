@@ -421,8 +421,7 @@ func TestCreateJobCreativeModeWithoutImages(t *testing.T) {
 		t.Fatalf("generator got %+v", env.gen)
 	}
 	job := env.onlyJob(t, "alice")
-	if !job.Creative || job.ExportType == nil || *job.ExportType != int(csvgen.Blooket) || job.Title != "AI tự nghĩ câu hỏi" ||
-		job.Intelligence != csvgen.DefaultIntelligence {
+	if !job.Creative || job.ExportType == nil || *job.ExportType != int(csvgen.Blooket) || job.Title != "AI tự nghĩ câu hỏi" {
 		t.Fatalf("job %+v", job)
 	}
 	if job.CourseType == nil || *job.CourseType != int(csvgen.Other) || job.CourseName != "Boya" ||
@@ -620,7 +619,7 @@ func TestCreateJobTimeout(t *testing.T) {
 	}
 }
 
-// Without LLMTimeout (the High intelligence server) a generation runs as long as the model takes, recording a
+// Without LLMTimeout (the AI server) a generation runs as long as the model takes, recording a
 // heartbeat meanwhile so listJobs does not take it for abandoned.
 func TestLongJobKeepsAHeartbeat(t *testing.T) {
 	env := newEnv(t)
@@ -837,7 +836,7 @@ func TestRetryJobSendsTheSameRequestAgain(t *testing.T) {
 	token, _ := env.login(t, "alice", "pw")
 	env.gen.err = errors.New("boom")
 	env.upload(t, upload{token: token, query: "?title=HSK3-Bai2&isCreative=true&exportType=3&courseType=0&hskStandard=3" +
-		"&level=4&lessonNumbers=5,2&intelligence=2&gestureStages=4,6&questionsPerStage=7"})
+		"&level=4&lessonNumbers=5,2&gestureStages=4,6&questionsPerStage=7"})
 	failed := env.onlyJob(t, "alice")
 	want := env.gen.opts
 	// Without images there is nothing to expire.
@@ -852,7 +851,7 @@ func TestRetryJobSendsTheSameRequestAgain(t *testing.T) {
 		t.Fatalf("retry: %d %q", rec.Code, rec.Body)
 	}
 	if job.Status != store.JobDone || job.Title != "HSK3-Bai2" || !job.Creative || *job.HskStandard != 3 || *job.Level != 4 ||
-		!slices.Equal(job.LessonNumbers, []int{2, 5}) || job.Intelligence != 2 ||
+		!slices.Equal(job.LessonNumbers, []int{2, 5}) ||
 		!slices.Equal(job.GestureStages, []int{4, 6}) || *job.QuestionsPerStage != 7 {
 		t.Fatalf("new job %+v", job)
 	}

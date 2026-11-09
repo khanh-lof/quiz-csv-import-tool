@@ -35,7 +35,7 @@ func TestParseCreativeOptions(t *testing.T) {
 		{query: "exportType=2&courseType=0&level=4&lessonNumbers=7", check: func(o Options) bool {
 			return o.ExportType == Wayground && o.CourseType == Hsk && *o.Level == 4 && slices.Equal(o.LessonNumbers, []int{7}) &&
 				o.HskStandard == Hsk2 && // HSK 2.0 when no standard is sent
-				o.CourseDisplayName() == "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)" && o.Intelligence == 1
+				o.CourseDisplayName() == "HSK 2.0 (the six-level standard), taught from 《HSK标准教程》 HSK Standard Course (Giáo trình chuẩn HSK)"
 		}},
 		{query: "exportType=0&courseType=0&hskStandard=3&level=9&lessonNumbers=1", check: func(o Options) bool {
 			return o.HskStandard == Hsk3 && *o.Level == 9 && strings.HasPrefix(o.CourseDisplayName(), "HSK 3.0 ")
@@ -43,11 +43,9 @@ func TestParseCreativeOptions(t *testing.T) {
 		{query: "exportType=0&courseType=1&hskStandard=x&level=1&lessonNumbers=1", check: func(o Options) bool {
 			return o.HskStandard == 0 // hskStandard only applies to HSK
 		}},
-		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=1", check: func(o Options) bool {
-			return o.Intelligence == 1
-		}},
-		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=2", check: func(o Options) bool {
-			return o.Intelligence == 2
+		// "Độ thông minh" is gone; what an older page still sends is ignored, whatever it is.
+		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=x", check: func(o Options) bool {
+			return slices.Equal(o.LessonNumbers, []int{1})
 		}},
 		{query: "exportType=Blooket&courseType=yct&level=1&lessonNumbers=2", check: func(o Options) bool {
 			return o.ExportType == Blooket && o.CourseType == Yct
@@ -118,9 +116,6 @@ func TestParseCreativeOptions(t *testing.T) {
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=0", wantErr: "Invalid or missing lessonNumbers parameter."},
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=-3", wantErr: "Invalid or missing lessonNumbers parameter."},
 		{query: "exportType=0&courseType=2&courseName=Boya&lessonNumbers=0", wantErr: "Invalid or missing lessonNumbers parameter."},
-		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=0", wantErr: "Invalid intelligence parameter."},
-		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=3", wantErr: "Invalid intelligence parameter."},
-		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1&intelligence=x", wantErr: "Invalid intelligence parameter."},
 		// The language: Chinese when absent, by ordinal or name, and the course must be one of its own.
 		{query: "exportType=0&courseType=0&level=1&lessonNumbers=1", check: func(o Options) bool { return o.Language == Chinese }},
 		{query: "language=1&exportType=3&courseType=2&courseName=Global Success&level=6&lessonNumbers=2", check: func(o Options) bool {
@@ -169,7 +164,6 @@ func TestParseCreativeOptionsLessonNumbers(t *testing.T) {
 		{query: course + "lessonNumber=6", wantErr: invalid},
 		{query: course + "lessonNumbers=", wantErr: invalid},
 		{query: course + "lessonNumbers=+", wantErr: invalid},
-		{query: course + "intelligence=1", wantErr: invalid},
 		{query: course + "lessonNumbers=,", wantErr: invalid},
 		{query: course + "lessonNumbers=3,,4", wantErr: invalid},
 		{query: course + "lessonNumbers=3,", wantErr: invalid},
@@ -186,11 +180,8 @@ func TestParseCreativeOptionsLessonNumbers(t *testing.T) {
 		// A repeat or a bad element is reported before the count, whatever the length of the list.
 		{query: course + "lessonNumbers=1,1,2,3,4,5", wantErr: invalid},
 		{query: course + "lessonNumbers=1,2,3,4,5,x", wantErr: invalid},
-		// The list is checked after the level and before the intelligence, where the lesson always was.
+		// The list is checked after the level, where the lesson always was.
 		{query: "exportType=0&courseType=0&level=7&lessonNumbers=0", wantErr: "HSK 2.0 has levels 1 to 6."},
-		{query: course + "lessonNumbers=0&intelligence=9", wantErr: invalid},
-		{query: course + "lessonNumbers=1,2,3,4,5,6&intelligence=9", wantErr: tooMany},
-		{query: course + "lessonNumbers=1,2&intelligence=9", wantErr: "Invalid intelligence parameter."},
 	}
 	for _, tt := range tests {
 		q, _ := url.ParseQuery(tt.query)
@@ -518,7 +509,7 @@ func TestGenerateCallsChatCompletions(t *testing.T) {
 	}))
 	defer llm.Close()
 
-	c := NewClient(llm.URL+"/v1/", "key", "gpt-x", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL+"/v1/", "key", "gpt-x", "", 0, slog.New(slog.DiscardHandler))
 	result, err := c.Generate(context.Background(), []Image{{ContentType: "image/jpeg", Data: []byte("img")}}, false, Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -546,7 +537,7 @@ func TestGenerateCreativeCallsResponses(t *testing.T) {
 	defer llm.Close()
 
 	level, lesson := 1, 1
-	c := NewClient(llm.URL+"/v1", "key", "gpt-x", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL+"/v1", "key", "gpt-x", "", 0, slog.New(slog.DiscardHandler))
 	result, err := c.Generate(context.Background(), nil, true, Options{ExportType: Wayground, CourseType: Hsk, Level: &level, LessonNumbers: []int{lesson}})
 	if err != nil {
 		t.Fatal(err)
@@ -564,7 +555,7 @@ func TestGenerateFailsOnIncompleteResponse(t *testing.T) {
 		_, _ = io.WriteString(w, `{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"output":[{"type":"message","content":[{"type":"output_text","text":"a,b"}]}]}`)
 	}))
 	defer llm.Close()
-	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", "", 0, slog.New(slog.DiscardHandler))
 	if _, err := c.Generate(context.Background(), nil, true, Options{}); err == nil || !strings.Contains(err.Error(), "max_output_tokens") {
 		t.Fatalf("want incomplete error, got %v", err)
 	}
@@ -575,22 +566,31 @@ func TestGenerateFailsOnErrorStatus(t *testing.T) {
 		http.Error(w, "nope", http.StatusBadRequest)
 	}))
 	defer llm.Close()
-	c := NewClient(llm.URL, "key", "m", nil, 0, slog.New(slog.DiscardHandler))
+	c := NewClient(llm.URL, "key", "m", "", 0, slog.New(slog.DiscardHandler))
 	if _, err := c.Generate(context.Background(), nil, true, Options{}); err == nil {
 		t.Fatal("want error on non-2xx status")
 	}
 }
 
-func TestModelForIntelligence(t *testing.T) {
-	models := []string{"m1", "m2"}
-	c := NewClient("http://x", "key", "base", models, 0, slog.New(slog.DiscardHandler))
-	for level, want := range map[int]string{1: "m1", 2: "m2", 0: "m1", 3: "m1"} {
-		if got := c.modelFor(Options{Intelligence: level}); got != want {
-			t.Errorf("intelligence %d: want %q, got %q", level, want, got)
+// The formatted mode asks the base model and the creative mode its own, the base model when none is set.
+func TestModelPerMode(t *testing.T) {
+	for _, tt := range []struct{ creativeModel, wantCreative string }{{"creative", "creative"}, {"", "base"}} {
+		var asked []string
+		llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body struct{ Model string }
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			asked = append(asked, body.Model)
+			http.Error(w, "nope", http.StatusBadRequest)
+		}))
+		c := NewClient(llm.URL, "key", "base", tt.creativeModel, 0, slog.New(slog.DiscardHandler))
+		formatted, _ := c.Generate(context.Background(), []Image{{ContentType: "image/png", Data: []byte{1}}}, false, Options{})
+		creative, _ := c.Generate(context.Background(), nil, true, Options{})
+		llm.Close()
+		if formatted.Usage.Model != "base" || creative.Usage.Model != tt.wantCreative ||
+			!slices.Equal(asked, []string{"base", tt.wantCreative}) {
+			t.Errorf("creative model %q: formatted %q, creative %q, asked %v", tt.creativeModel, formatted.Usage.Model,
+				creative.Usage.Model, asked)
 		}
-	}
-	if got := NewClient("http://x", "key", "base", nil, 0, slog.New(slog.DiscardHandler)).modelFor(Options{Intelligence: 2}); got != "base" {
-		t.Errorf("without intelligence models want the base model, got %q", got)
 	}
 }
 

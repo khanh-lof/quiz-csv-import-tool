@@ -79,8 +79,8 @@ interface ImageItem {
 // re-enter the course, level and platform every time.
 const SETTINGS_STORAGE_KEY = 'ai-generation-settings';
 
-// The choices each language keeps for itself, so switching language and back loses nothing. The mode and the
-// intelligence stay the teacher's whatever the language.
+// The choices each language keeps for itself, so switching language and back loses nothing. The mode stays the
+// teacher's whatever the language.
 const LANGUAGE_CHOICES = ['courseType', 'courseName', 'hskStandard', 'level', 'lessonNumbers', 'exportType', 'gestureStages',
   'questionsPerStage'] as const;
 
@@ -93,7 +93,6 @@ interface AiGenerationForm {
   lessonNumbers: FormControl<number[] | null>;
   AIMode: FormControl<AIGenerationMode | null>;
   exportType: FormControl<ExportType | null>;
-  intelligence: FormControl<number | null>;
   // Only for a Game: the stage numbers of the games the quiz has, and the questions each gets.
   gestureStages: FormControl<number[] | null>;
   questionsPerStage: FormControl<number | null>;
@@ -196,7 +195,6 @@ export class AiGeneration {
       level: formBuilder.control<number | null>(null),
       lessonNumbers: formBuilder.control<number[] | null>([]),
       exportType: formBuilder.control<ExportType | null>(null),
-      intelligence: formBuilder.control<number | null>(1),
       gestureStages: formBuilder.control<number[] | null>([...ALL_GESTURE_STAGES]),
       questionsPerStage: formBuilder.control<number | null>(QUESTIONS_PER_STAGE_DEFAULT),
     }, {
@@ -440,7 +438,6 @@ export class AiGeneration {
         AIMode: this.formGroup.controls.AIMode.value,
         lessonNumbers: this.formGroup.controls.lessonNumbers.value,
         exportType: this.formGroup.controls.exportType.value,
-        intelligence: this.formGroup.controls.intelligence.value,
         gestureStages: this.formGroup.controls.gestureStages.value,
         questionsPerStage: this.formGroup.controls.questionsPerStage.value,
       } satisfies AiGenerationRequest, this.lessonLabel());
@@ -566,8 +563,9 @@ export class AiGeneration {
             this.choicesByLanguage.set(value, this.choicesOf(byLanguage[value]));
           }
         }
-        const shared = (['AIMode', 'intelligence'] as const).filter(key => settings?.[key] !== undefined);
-        this.formGroup.patchValue({ language, ...Object.fromEntries(shared.map(key => [key, settings[key]])) }, { emitEvent: false });
+        // An older save also holds the intelligence, which is gone and simply not read.
+        const AIMode = settings?.AIMode;
+        this.formGroup.patchValue({ language, ...(AIMode !== undefined ? { AIMode } : {}) }, { emitEvent: false });
         this.shownLanguage = language;
       }
     } catch {
@@ -578,11 +576,10 @@ export class AiGeneration {
   private saveSettings(): void {
     try {
       this.choicesByLanguage.set(this.shownLanguage, this.currentChoices());
-      const { language, AIMode, intelligence } = this.formGroup.getRawValue();
+      const { language, AIMode } = this.formGroup.getRawValue();
       localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({
         language,
         AIMode,
-        intelligence,
         byLanguage: Object.fromEntries(this.choicesByLanguage)
       }));
     } catch {

@@ -507,17 +507,6 @@
   padding: 8px 16px;
 }
 
-.intelligence {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-}
-
-.intelligence-warning {
-  color: #c2410c;
-}
-
 .submit-button {
   display: flex;
   align-items: center;

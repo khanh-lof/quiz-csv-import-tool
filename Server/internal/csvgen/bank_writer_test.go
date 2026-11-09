@@ -15,7 +15,7 @@ import (
 
 func bankOptions(lessons ...int) Options {
 	level := 1
-	return Options{Language: Chinese, ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumbers: lessons, Intelligence: 1}
+	return Options{Language: Chinese, ExportType: GimKit, CourseType: Hsk, HskStandard: Hsk3, Level: &level, LessonNumbers: lessons}
 }
 
 func TestBuildBankRequest(t *testing.T) {
@@ -113,14 +113,13 @@ func TestWriteQuestions(t *testing.T) {
 		_, _ = w.Write(reply)
 	}))
 	t.Cleanup(llm.Close)
-	c := NewClient(llm.URL, "key", "base", []string{"low", "high"}, 0, slog.New(slog.DiscardHandler))
-	opts.Intelligence = 2
+	c := NewClient(llm.URL, "key", "base", "creative", 0, slog.New(slog.DiscardHandler))
 	drafts, usage, err := c.WriteQuestions(context.Background(), opts, vocabulary,
 		[]QuestionSpec{{Word: vocabulary.Words[1].Key(), Format: "mc", Difficulty: 2}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if asked.Model != "high" || usage.Model != "high" || usage.Calls != 1 || usage.OutputTokens != 5 {
+	if asked.Model != "creative" || usage.Model != "creative" || usage.Calls != 1 || usage.OutputTokens != 5 {
 		t.Errorf("model %q, usage %+v", asked.Model, usage)
 	}
 	// The question naming no word of the list is left out; ids turn into keys, unknown ones dropped.

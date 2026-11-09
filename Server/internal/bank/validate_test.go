@@ -11,7 +11,7 @@ import (
 )
 
 func testOrigin() Origin {
-	return Origin{Vocabulary: testVocabulary(4, 2), Language: csvgen.Chinese, Intelligence: 2, Model: "m", JobID: "job", Now: time.Unix(1, 0)}
+	return Origin{Vocabulary: testVocabulary(4, 2), Language: csvgen.Chinese, Model: "m", JobID: "job", Now: time.Unix(1, 0)}
 }
 
 // goodDraft is a valid multiple-choice draft on the first two words.
@@ -31,7 +31,7 @@ func TestValidateKeepsAGoodDraft(t *testing.T) {
 		t.Fatal(err)
 	}
 	if q.Stem.Text != "词2 和 词1 是什么？" || q.Book != "test-1" || q.MaxLesson != 2 || !slices.Equal(q.Lessons, []int{1, 2}) ||
-		q.Intelligence != 2 || q.Model != "m" || q.JobID != "job" || q.Status != store.QuestionActive || q.ID != "id1" {
+		q.Model != "m" || q.JobID != "job" || q.Status != store.QuestionActive || q.ID != "id1" {
 		t.Errorf("question %+v", q)
 	}
 	// The empty wrong answer, the repeated one and the one that reads as the answer are dropped.

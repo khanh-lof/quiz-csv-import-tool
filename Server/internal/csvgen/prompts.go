@@ -146,8 +146,8 @@ func buildCreativeRequest(model string, timeLimit time.Duration, images []Image,
 		texts = append(texts, material)
 	}
 	content := inputParts(texts, images)
-	// No reasoning effort: the model is picked by "Độ thông minh" and some of them (gpt-6-astra) have
-	// no effort levels, so each runs at its own default.
+	// No reasoning effort: the model is LLM_CREATIVE_MODEL, and some models (gpt-6-astra) have no effort
+	// levels, so it runs at its own default.
 	req := responsesRequest{
 		Model:           model,
 		Instructions:    creativeSystemPrompt(opts.Language, timeLimit),

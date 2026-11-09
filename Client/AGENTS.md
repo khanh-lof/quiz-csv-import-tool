@@ -132,7 +132,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
 **Layout.** The toolbar holds the language and the mode switches. The form is two `.qt-panel` sections, "Bài học"
 (course fields, with the photos beside them on a wide section) and "Tạo cho" (one tile per platform, `PLATFORMS` in
 `ai-generation.ts`: native radios bound to `exportType`, then the Game options: the question count on the games'
-label line and the six cards in one row), and a sticky action bar with the intelligence and the send button. The
+label line and the six cards in one row), and a sticky action bar with the send button. The
 formatted mode shows only the photos and the button. With the Game options open the page fits a 14" laptop's
 browser (1280×650) without scrolling, the menu open and the "Khác" course included; keep it so when adding to the form.
 
@@ -140,11 +140,11 @@ browser (1280×650) without scrolling, the menu open and the "Khác" course incl
 each option with its tag ("中", "EN"), is the `language` control: `models/quiz-language.ts` (`QuizLanguage`,
 `LANGUAGES` with each language's tag, courses and the formatted mode's name, `teachesCourse`, `offersExportType`)
 decides the course options (each language's, then "Khác") and hides "Ghép bộ thủ" for English. Each language keeps its
-own `LANGUAGE_CHOICES` (course, name, standard, level, lessons, platform and the Game options; the mode and the
-intelligence are shared): switching saves the shown language's choices in `choicesByLanguage` and puts the other's
-back, as pristine fields. The saved settings are `{language, AIMode, intelligence, byLanguage}`; a save from before
-reads as its language's choices. `fitChoicesToLanguage` then clears a course or platform of the other language and
-picks "Khác" for a language with no course of its own (English for now).
+own `LANGUAGE_CHOICES` (course, name, standard, level, lessons, platform and the Game options; the mode is
+shared): switching saves the shown language's choices in `choicesByLanguage` and puts the other's
+back, as pristine fields. The saved settings are `{language, AIMode, byLanguage}` (an older save's `intelligence`
+is not read); a save from before reads as its language's choices. `fitChoicesToLanguage` then clears a course or
+platform of the other language and picks "Khác" for a language with no course of its own (English for now).
 Both `AiCsvService` submits send it; the history table names the formatted mode by the job's language and filters by
 it. See [../AGENTS.md](../AGENTS.md#chinese-and-english).
 
@@ -199,7 +199,7 @@ share link it sends back (see [../AGENTS.md](../AGENTS.md#the-browser-extension-
 
 The exercise page the AI page can build instead of a quiz; the contract and the server's half are in
 [../AGENTS.md](../AGENTS.md#ghép-bộ-thủ-the-radicals-exercise).
-- **Form.** "Ghép bộ thủ" has no field of its own: the course, level, lessons, photos and intelligence, like every
+- **Form.** "Ghép bộ thủ" has no field of its own: the course, level, lessons and photos, like every
   `Auto` platform, and `AiCsvService.submitCreative` sends nothing more for it.
 - **History.** A finished job has "Chơi ngay" (`/ai-history/radicals/<id>`) and "Tải file" (`RadicalsPageService`
   fetches `GET csv/jobs/{id}/page` and saves `<title>-GhepBoThu.html`), and no "Xem kết quả": its `csv` is the
