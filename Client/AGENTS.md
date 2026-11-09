@@ -184,15 +184,16 @@ a distinct wrong answer" loop can spin/repeat. `Utils.escapeCsvField` handles qu
 generated CSV (not the same code path as the import parser). `FileExportService.buildFile` then
 picks the output format per platform: GimKit/Blooket/Game download as `.csv` directly; Wayground is
 converted to `.xlsx` via the `xlsx` package first (`FileExportService.buildXlsx`). Both export methods
-return an `ExportedFile` (`fileName`, plus the `xlsx` bytes for Wayground) and take a `download` flag.
+return an `ExportedFile` (`fileName`, plus the `xlsx` bytes for Wayground and the `csv` bytes for Gimkit) and take a
+`download` flag.
 `buildFileName` makes `<label>-<platform>.csv` with spaces turned into dashes in the platform's name too
 (`platformName` of Game is "Game", so `HSK3-Bai5-Game.csv`).
-For Wayground the table page shows a `WaygroundDelivery` radio (download vs. extension, preference held
-by `WaygroundExtensionService.preferredDelivery`); the AI jobs table has no such setting and offers both
-buttons on each finished Wayground job, the extension one disabled without `../Extension`. When the
-extension is used, the file is not downloaded and `WaygroundExtensionService.sendImport` hands the bytes to it. The
-extension imports and publishes the quiz in the user's Wayground tab, and the service later shows the
-share link it sends back (see [../AGENTS.md](../AGENTS.md#the-wayground-browser-extension)).
+For Wayground and Gimkit the table page shows a `PublishDelivery` radio (download vs. extension, preference held
+by `PublishExtensionService.preferredDelivery`); the AI jobs table has no such setting and offers both
+buttons on each finished Wayground or Gimkit job, the extension one disabled without `../Extension`. When the
+extension is used, the file is not downloaded and `PublishExtensionService.sendImport` hands the bytes to it. The
+extension imports and publishes the quiz in the user's Wayground or Gimkit tab, and the service later shows the
+share link it sends back (see [../AGENTS.md](../AGENTS.md#the-browser-extension-wayground-and-gimkit)).
 
 ### Ghép bộ thủ (`ExportType.Radicals`)
 

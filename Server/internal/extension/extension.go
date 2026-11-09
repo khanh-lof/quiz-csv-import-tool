@@ -23,10 +23,10 @@ import (
 	"time"
 )
 
-//go:generate go run ../../cmd/pack-extension ../../../Extension packed/quiztool-wayground-extension.zip
+//go:generate go run ../../cmd/pack-extension ../../../Extension packed/quiztool-extension.zip
 
 // FileName is the name the download is saved under.
-const FileName = "quiztool-wayground-extension.zip"
+const FileName = "quiztool-extension.zip"
 
 // ExtensionDir is where a build without the packed zip looks for the extension: Extension/ next to
 // Server/, the working directory of `go run ./cmd/server`. Tests elsewhere point it at the repo's folder.

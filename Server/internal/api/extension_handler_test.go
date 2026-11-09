@@ -35,7 +35,7 @@ func TestDownloadExtensionSendsTheZip(t *testing.T) {
 	if got := rec.Header().Get("Content-Type"); got != "application/zip" {
 		t.Errorf("Content-Type %q", got)
 	}
-	if got := rec.Header().Get("Content-Disposition"); got != `attachment; filename="quiztool-wayground-extension.zip"` {
+	if got := rec.Header().Get("Content-Disposition"); got != `attachment; filename="quiztool-extension.zip"` {
 		t.Errorf("Content-Disposition %q", got)
 	}
 	want, err := extension.Zip()

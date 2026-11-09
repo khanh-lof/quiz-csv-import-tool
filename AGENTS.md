@@ -16,7 +16,7 @@ and independently deployed projects, plus an optional browser extension:
 - `Server/` — Go (`net/http`) API with MongoDB persistence. Runs as a standalone binary / Docker
   image (`Server/Dockerfile`).
 - `Extension/` — Chrome extension (plain JS, loaded unpacked, not deployed) that imports and
-  publishes the Wayground `.xlsx` in the user's own Wayground tab. See [Extension/AGENTS.md](Extension/AGENTS.md).
+  publishes the quiz in the user's own Wayground or Gimkit tab: one extension, one download, for both. See [Extension/AGENTS.md](Extension/AGENTS.md).
 
 Both deploy together as one Vercel project via [Vercel Services](https://vercel.com/docs/services),
 configured in the root `vercel.json`: the `client` service (Angular preset, SPA fallback to
@@ -110,7 +110,7 @@ no configurable backend URL:
 | `SharedPlayService.startRun` | `POST share/{code}/runs` (`internal/api/run_handlers.go`, anonymous, `X-Player-Token` header) |
 | `SharedPlayService.nextQuestion` / `.answer` | `POST share/{code}/runs/{runId}/next`, `POST share/{code}/runs/{runId}/answers` (`run_handlers.go`, anonymous, `X-Player-Token` header) |
 | `SharedPlayService.setAvatar` | `PATCH share/{code}/player` (`share_handlers.go`, anonymous, `X-Player-Token` header) |
-| `WaygroundExtensionService.downloadExtension` | `GET extension` (`internal/api/extension_handler.go`) |
+| `PublishExtensionService.downloadExtension` | `GET extension` (`internal/api/extension_handler.go`) |
 | `RadicalsPageService.page` | `GET csv/jobs/{id}/page` (`csv_handler.go`) |
 | `RadicalsPageService.edit` / `.revise` | `GET csv/jobs/{id}/radicals`, `PUT csv/jobs/{id}/radicals` (`internal/api/radicals_handlers.go`) |
 | `SharedPlayService.leaderboard` | `GET share/{code}/leaderboard` (`share_handlers.go`, anonymous, optional `X-Player-Token` header) |
@@ -294,35 +294,40 @@ request carries none.
   fails when a lesson's New words disagree with that book's `vocabulary-index.md`: a missing or extra word, its
   pinyin, or its ★.
 
-## The Wayground browser extension
+## The browser extension (Wayground and Gimkit)
 
-Wayground has no public API for creating quizzes, so `Extension/` drives Wayground's own spreadsheet
-import and Publish in the user's logged-in tab, then hands the quiz's share link back. The SPA side
-is `WaygroundExtensionService`:
-- On the vocabulary table, when Wayground is the chosen platform, the page offers a `WaygroundDelivery`
-  choice: **Tải file** (download the `.xlsx` for a manual import) or **Tiện ích tự publish** (hand it to
-  the extension), remembered in `localStorage` (`wayground-delivery`) and defaulting to the extension when
-  it is installed. In `Auto` mode there is no such setting: the AI jobs table shows both buttons on a
-  finished Wayground job. The extension is unavailable unless `<html data-quiztool-extension>` is present.
-- With the extension chosen, `FileExportService` builds the `.xlsx` without downloading it and the
-  service `postMessage`s
-  `{source: 'quiztool', type: 'wayground-import', requestId, title, fileName, base64}` to the
+Neither Wayground nor Gimkit has a public API for creating quizzes, so `Extension/` drives each one's own
+import UI in the user's logged-in tab (Wayground: spreadsheet import and Publish; Gimkit: New Kit, Import from
+Spreadsheet and All Done), then hands the quiz's share link back. The SPA side is `PublishExtensionService`
+(`PublishPlatform` is `'wayground' | 'gimkit'`, `platformFor(exportType)` maps an export type to one, `null` for
+Blooket and the games):
+- On the vocabulary table, when Wayground or Gimkit is the chosen platform, the page offers a `PublishDelivery`
+  choice: **Tải file** (download the file for a manual import) or **Tiện ích tự publish** (hand it to
+  the extension), remembered in `localStorage` (`wayground-delivery`, one choice for both platforms) and
+  defaulting to the extension when it is installed. In `Auto` mode there is no such setting: the AI jobs
+  table shows both buttons on a finished Wayground or Gimkit job. The extension is unavailable unless
+  `<html data-quiztool-extension>` is present.
+- With the extension chosen, `FileExportService` builds the file without downloading it (`ExportedFile.xlsx`
+  for Wayground, `.csv` UTF-8 bytes for Gimkit) and the service `postMessage`s
+  `{source: 'quiztool', type: '<platform>-import', requestId, title, fileName, base64}` to the
   extension's content script.
 - The extension answers, possibly minutes later, with
-  `{source: 'quiztool-extension', type: 'wayground-import-result', requestId, title, ok, shareUrl, error}`.
+  `{source: 'quiztool-extension', type: '<platform>-import-result', requestId, title, ok, shareUrl, error}`.
   The service shows it as its own notification (the share link, also copied to the clipboard) and
   ignores request ids it didn't send. On a failed result it downloads the file it kept for that
-  request, so the user can finish the import by hand.
+  request (`.xlsx` or `.csv`), so the user can finish the import by hand.
 
 The message shapes are hand-kept in step on both sides. The QuizTool origins the extension listens on are
 `http://localhost:4200` in `Extension/manifest.json`, plus the production URL, which is not in the repo: packing
 the zip (`extension.Pack`) adds the server's `APP_ORIGIN` (the Vercel URL, set in the Vercel project) to the bridge
 script's `matches`, and refuses a value that is not an `http(s)://host` origin. Vercel preview URLs are not
-included. Quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in `Extension/selectors.js`).
+included. Wayground quizzes are published publicly with fixed settings (`PUBLISH_SETTINGS` in
+`Extension/selectors.js`); Gimkit kits are public by default and filed under `GIMKIT_SETTINGS` in
+`Extension/gimkit-selectors.js`.
 
 Logged-in users download the extension from the web app: `GET api/extension` (authenticated like
 `csv/jobs`) answers the zip of `Extension/` (without `AGENTS.md`, under a `QuizTool-Extension/` folder), and
-the usage guides of the AI and table pages fetch it with the token (`WaygroundExtensionService.downloadExtension`;
+the usage guides of the AI and table pages fetch it with the token (`PublishExtensionService.downloadExtension`;
 the table, open to anonymous users, shows the link only when logged in). The Go build cannot reach outside
 `Server/`, so the zip is never committed: the server service's `buildCommand` in `vercel.json` runs `go generate
 ./internal/extension` (with `GOOS`/`GOARCH` cleared, so the generator runs on the build machine) and then the

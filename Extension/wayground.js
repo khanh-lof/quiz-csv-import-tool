@@ -2,14 +2,14 @@
 // Wayground's own UI: Start from scratch → Spreadsheet import → Publish (name, Subject, Grade,
 // Language) → reports the quiz's share link back to QuizTool, and the background closes the tab.
 // When a step gets stuck, the tab stays open with a banner so the teacher can finish by hand.
-class StepTimeout extends Error {}
+// The helpers (waitFor, showBanner, ...) are in common.js.
 
 // What the runner is doing, named in the banner if it gets stuck.
 let step = '';
 
 (async () => {
   const job = await chrome.runtime.sendMessage({type: 'get-job'});
-  if (!job) return;
+  if (job?.platform !== 'wayground') return;
 
   // Wayground sends a logged-out user to its login page and back afterwards; wait there.
   if (WAYGROUND.loginPath.test(location.pathname)) {
@@ -59,12 +59,8 @@ async function importSpreadsheet(job) {
 
   step = 'chọn file';
   const fileInput = await waitFor(() => document.querySelector(WAYGROUND.importFileInput));
-  const transfer = new DataTransfer();
-  transfer.items.add(fileFromJob(job));
-  fileInput.files = transfer.files;
-  // Fired in the order a real file picker fires them; Wayground reads the file on `input`.
-  fileInput.dispatchEvent(new Event('input', {bubbles: true}));
-  fileInput.dispatchEvent(new Event('change', {bubbles: true}));
+  // Wayground reads the file on `input`; the helper fires the events in the order a real file picker does.
+  setInputFile(fileInput, fileFromJob(job));
 
   // Wayground parses the spreadsheet before it enables Import: about 5 s for its 6-row sample, longer
   // for a full lesson.
@@ -110,65 +106,9 @@ async function choose(selectSelector, optionText) {
   await waitFor(() => select.innerText.trim() === optionText, 5_000);
 }
 
-// Resolves with the first truthy value of `find`, checking on every DOM change.
-function waitFor(find, timeoutMs = 20_000) {
-  return new Promise((resolve, reject) => {
-    const check = () => {
-      const found = find();
-      if (!found) return false;
-      observer.disconnect();
-      clearTimeout(timer);
-      resolve(found);
-      return true;
-    };
-    const observer = new MutationObserver(check);
-    const timer = setTimeout(() => {
-      observer.disconnect();
-      reject(new StepTimeout());
-    }, timeoutMs);
-    if (!check()) observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true});
-  });
-}
-
 // Wayground's cards react to a click on their text, not always on the outer element.
 function clickDeepest(root, text) {
   const target = [...root.querySelectorAll('*')]
     .find(el => el.childElementCount === 0 && el.textContent.trim() === text) ?? root;
   target.click();
-}
-
-// Wayground's inputs are Vue v-model bindings, which update on the `input` event.
-function setInputValue(input, value) {
-  input.focus();
-  input.value = value;
-  input.dispatchEvent(new Event('input', {bubbles: true}));
-  input.dispatchEvent(new Event('change', {bubbles: true}));
-}
-
-function fileFromJob(job) {
-  const binary = atob(job.base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new File([bytes], job.fileName,
-    {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-}
-
-function showBanner(text, kind = 'info') {
-  let banner = document.getElementById('quiztool-banner');
-  if (!banner) {
-    banner = document.createElement('div');
-    banner.id = 'quiztool-banner';
-    banner.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483647;' +
-      'max-width:560px;padding:12px 40px 12px 16px;border-radius:8px;font:14px/1.4 system-ui,sans-serif;' +
-      'color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.25)';
-    const close = document.createElement('button');
-    close.textContent = '×';
-    close.setAttribute('aria-label', 'Đóng');
-    close.style.cssText = 'position:absolute;top:6px;right:10px;border:0;background:none;color:inherit;font-size:18px;cursor:pointer';
-    close.onclick = () => banner.remove();
-    banner.append(document.createElement('span'), close);
-    document.body.append(banner);
-  }
-  banner.style.background = {info: '#6b3fa0', done: '#1f8a4c', error: '#b3261e'}[kind];
-  banner.firstChild.textContent = text;
 }

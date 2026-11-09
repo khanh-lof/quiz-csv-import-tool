@@ -39,10 +39,10 @@ import { QuestionType } from '../../models/question-type';
 import { CdkTextareaAutosize } from '@angular/cdk/text-field';
 import { debounceTime } from 'rxjs';
 import { PendingImportService } from '../../services/pending-import.service';
-import { WaygroundExtensionService } from '../../services/wayground-extension.service';
+import { PublishExtensionService, PublishPlatform } from '../../services/publish-extension.service';
 import { AuthService } from '../../services/auth.service';
 import { UsageGuide } from '../usage-guide/usage-guide';
-import { WaygroundDelivery } from '../../models/wayground-delivery';
+import { PublishDelivery } from '../../models/publish-delivery';
 import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { NzContentComponent, NzLayoutComponent } from 'ng-zorro-antd/layout';
 import { NzTooltipDirective } from 'ng-zorro-antd/tooltip';
@@ -89,10 +89,10 @@ export class VocabularyTable implements OnInit {
   @ViewChildren('rowSourceInputs') rowSourceInputs!: QueryList<ElementRef>;
   protected listOfData: FormGroup<QuestionDefinitionForm>[];
   protected readonly ExportType = ExportType;
-  protected readonly WaygroundDelivery = WaygroundDelivery;
+  protected readonly PublishDelivery = PublishDelivery;
   protected readonly extensionInstalled: boolean;
   // Outside the form group: it is a preference shared with the AI page, not part of the table's draft.
-  protected readonly waygroundDelivery: FormControl<WaygroundDelivery>;
+  protected readonly publishDelivery: FormControl<PublishDelivery>;
   protected readonly minRows = 4;
   protected readonly duplicateErrorKey = 'duplicate';
   protected readonly QuestionType = QuestionType;
@@ -103,7 +103,7 @@ export class VocabularyTable implements OnInit {
               private readonly modalService: NzModalService,
               private readonly destroyRef: DestroyRef,
               private readonly pendingImportService: PendingImportService,
-              private readonly waygroundExtensionService: WaygroundExtensionService,
+              private readonly publishExtensionService: PublishExtensionService,
               private readonly authService: AuthService,
               private readonly messages: Messages,
               formBuilder: FormBuilder) {
@@ -115,10 +115,10 @@ export class VocabularyTable implements OnInit {
     this.listOfData = this.questionForms.controls;
     this.formGroup.valueChanges.pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.saveDraft());
-    this.extensionInstalled = waygroundExtensionService.isInstalled();
-    this.waygroundDelivery = new FormControl(waygroundExtensionService.preferredDelivery(), { nonNullable: true });
-    this.waygroundDelivery.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(delivery => waygroundExtensionService.savePreferredDelivery(delivery));
+    this.extensionInstalled = publishExtensionService.isInstalled();
+    this.publishDelivery = new FormControl(publishExtensionService.preferredDelivery(), { nonNullable: true });
+    this.publishDelivery.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(delivery => publishExtensionService.savePreferredDelivery(delivery));
   }
 
   // The server serves the extension to logged-in users only.
@@ -128,17 +128,27 @@ export class VocabularyTable implements OnInit {
 
   protected downloadExtension(event: Event): void {
     event.preventDefault();
-    this.waygroundExtensionService.downloadExtension();
+    this.publishExtensionService.downloadExtension();
   }
 
   protected get questionForms() {
     return this.formGroup.get('listOfData') as FormArray<FormGroup<QuestionDefinitionForm>>;
   }
 
+  // The platform the extension can publish the chosen export type to; null for Blooket or no choice yet.
+  protected get publishPlatform(): PublishPlatform | null {
+    return PublishExtensionService.platformFor(this.formGroup.get('exportType')?.value);
+  }
+
+  // The platform's name for the publish button, which is only shown when the extension publishes.
+  protected get publishPlatformName(): string {
+    return FileExportService.platformName(this.formGroup.get('exportType')?.value);
+  }
+
   // Whether exporting hands the quiz to the extension to publish instead of downloading the file.
   protected get publishesWithExtension(): boolean {
-    return this.formGroup.get('exportType')?.value === ExportType.Wayground
-      && this.waygroundExtensionService.shouldPublish(this.waygroundDelivery.value);
+    return this.publishPlatform !== null
+      && this.publishExtensionService.shouldPublish(this.publishDelivery.value);
   }
 
   // Rows the AI page generated in its formatted mode arrive here to be reviewed before export.
@@ -223,10 +233,11 @@ export class VocabularyTable implements OnInit {
     const exported = this.fileExportService.exportFile(
       FileExportService.buildFileName(title, exportType), this.currentRows(), exportType, !publish);
     if (!exported) return;
-    if (publish && exported.xlsx) {
-      this.waygroundExtensionService.sendImport(title, exported.fileName, exported.xlsx);
-      this.notificationService.info(this.messages.get('common.creatingOnWayground'),
-        this.messages.get('common.waygroundLinkHint'));
+    const platform = this.publishPlatform;
+    const bytes = exported.xlsx ?? exported.csv;
+    if (publish && platform && bytes) {
+      this.publishExtensionService.sendImport(platform, title, exported.fileName, bytes);
+      this.publishExtensionService.notifyStarted(platform);
       return;
     }
   }

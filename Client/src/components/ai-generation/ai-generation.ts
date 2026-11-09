@@ -64,7 +64,7 @@ import { NzSpinComponent } from 'ng-zorro-antd/spin';
 import { HttpStatusCode } from '@angular/common/http';
 import { ImageCompressionService, UploadTooLargeError } from '../../services/image-compression.service';
 import { UsageGuide } from '../usage-guide/usage-guide';
-import { WaygroundExtensionService } from '../../services/wayground-extension.service';
+import { PublishExtensionService } from '../../services/publish-extension.service';
 import { escapeHtml } from '../../services/escape-html';
 import { NzContentComponent, NzLayoutComponent } from 'ng-zorro-antd/layout';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
@@ -183,7 +183,7 @@ export class AiGeneration {
     private readonly imageCompressionService: ImageCompressionService,
     private readonly notificationService: NzNotificationService,
     private readonly destroyRef: DestroyRef,
-    private readonly waygroundExtensionService: WaygroundExtensionService,
+    private readonly publishExtensionService: PublishExtensionService,
     formBuilder: FormBuilder
   ) {
     this.formGroup = formBuilder.group<AiGenerationForm>({
@@ -227,7 +227,7 @@ export class AiGeneration {
 
   protected downloadExtension(event: Event): void {
     event.preventDefault();
-    this.waygroundExtensionService.downloadExtension();
+    this.publishExtensionService.downloadExtension();
   }
 
   protected get submitButtonLabel(): string {

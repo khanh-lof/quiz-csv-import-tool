@@ -28,6 +28,34 @@ func TestPackHoldsTheExtension(t *testing.T) {
 	if names["QuizTool-Extension/AGENTS.md"] {
 		t.Error("zip includes AGENTS.md")
 	}
+
+	// Chrome refuses to load an extension whose manifest names a script the folder lacks.
+	manifest := manifestIn(t, data)
+	var scripts []string
+	if background, ok := manifest["background"].(map[string]any); ok {
+		scripts = append(scripts, fmt.Sprint(background["service_worker"]))
+	}
+	contentScripts, _ := manifest["content_scripts"].([]any)
+	for _, entry := range contentScripts {
+		files, _ := entry.(map[string]any)["js"].([]any)
+		for _, file := range files {
+			scripts = append(scripts, fmt.Sprint(file))
+		}
+	}
+	for _, name := range []string{"gimkit.js", "wayground.js", "common.js"} {
+		found := false
+		for _, script := range scripts {
+			found = found || script == name
+		}
+		if !found {
+			t.Errorf("manifest.json does not load %s: %v", name, scripts)
+		}
+	}
+	for _, script := range scripts {
+		if !names["QuizTool-Extension/"+script] {
+			t.Errorf("manifest.json names %s, which the zip lacks", script)
+		}
+	}
 }
 
 func TestPackIsReproducible(t *testing.T) {
@@ -87,7 +115,7 @@ func TestPackAddsTheAppOrigin(t *testing.T) {
 	if got := fmt.Sprint(bridgeMatches(manifest)); got != "[https://quiztool.example.com/* http://localhost:4200/*]" {
 		t.Errorf("matches with APP_ORIGIN: %s", got)
 	}
-	if manifest["name"] != "QuizTool → Wayground" || manifest["manifest_version"] != float64(3) {
+	if manifest["name"] != "QuizTool → Wayground & Gimkit" || manifest["manifest_version"] != float64(3) {
 		t.Errorf("the rest of the manifest changed: %v", manifest)
 	}
 }

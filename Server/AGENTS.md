@@ -131,9 +131,9 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
 - **Users** (`auth_handlers.go`): `users`, admin-only via `X-Admin-Key` (replaces the Azure Functions
   admin key), enforced by the `requireAdminKey` middleware. 409 if the user exists.
 - **Extension** (`extension_handler.go`): `GET extension`, behind the same `authenticate` + `requireRole` as the
-  CSV jobs, answers the Wayground extension's zip from `internal/extension` (embedded when `go generate
+  CSV jobs, answers the extension's zip (Wayground and Gimkit) from `internal/extension` (embedded when `go generate
   ./internal/extension` ran before the build, as the Vercel `buildCommand` does; otherwise packed from
-  `../Extension` on first use), or 404 `Extension not available.`. See [../AGENTS.md](../AGENTS.md#the-wayground-browser-extension).
+  `../Extension` on first use), or 404 `Extension not available.`. See [../AGENTS.md](../AGENTS.md#the-browser-extension-wayground-and-gimkit).
 - **CSV jobs** (`csv_handler.go`): `POST csv/jobs`, `GET csv/jobs`, `DELETE csv/jobs/{id}`,
   `POST csv/jobs/{id}/retry`, `GET csv/jobs/{id}/page` (the page of a finished Radicals job, `text/html`, drawn
   from the job's exercise JSON on each request; 404 `Job not found`, 409 `Job is not a finished radicals

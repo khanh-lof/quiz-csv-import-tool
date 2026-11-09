@@ -139,8 +139,8 @@
                         <nz-icon nzTheme="outline" nzType="download"/>
                         Tải file
                       </li>
-                      @if (job.exportType === ExportType.Wayground) {
-                        <!-- The extension imports and publishes the quiz in the user's Wayground tab; without it the
+                      @if (job.exportType === ExportType.Wayground || job.exportType === ExportType.GimKit) {
+                        <!-- The extension imports and publishes the quiz in the user's Wayground or Gimkit tab; without it the
                              download above is the only way, and the title says why. -->
                         <li (click)="exportJob(job, true)" [nzDisabled]="!extensionInstalled"
                             nz-tooltip
