@@ -38,7 +38,7 @@
       <th>{{ 'common.status' | msg }}</th>
       <th>Học sinh</th>
       <th>Lúc giao</th>
-      <th nzWidth="40px"></th>
+      <th nzRight nzWidth="40px"></th>
     </tr>
     </thead>
     <tbody>
@@ -56,7 +56,7 @@
           </td>
           <td>{{ assignment.playerCount }}</td>
           <td>{{ assignment.createdAt | date:'dd/MM HH:mm' }}</td>
-          <td class="assignment-actions">
+          <td class="assignment-actions" nzRight>
             <button [nzDropdownMenu]="assignmentMenu" [attr.aria-label]="'assignments.list.actions' | msg" nz-button nz-dropdown nzPlacement="bottomRight" nzSize="small"
                     nzTrigger="click" nzType="text" [title]="'assignments.list.actions' | msg" type="button">
               <nz-icon nzTheme="twotone" nzTwotoneColor="#ff8ecb" nzType="control"/>

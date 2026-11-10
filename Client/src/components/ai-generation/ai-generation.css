@@ -524,4 +524,23 @@
   .submit-button {
     width: 100%;
   }
+
+  /* Each switch takes a row of its own, its options sharing it evenly, so none breaks onto a second line. */
+  .page-choices,
+  .page-choices nz-radio-group {
+    display: flex;
+    width: 100%;
+  }
+
+  .page-choices label[nz-radio-button] {
+    flex: 1;
+    padding-inline: 8px;
+    font-size: 15px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .platforms {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

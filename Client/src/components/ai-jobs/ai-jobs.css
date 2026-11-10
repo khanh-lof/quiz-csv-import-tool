@@ -60,9 +60,51 @@
 }
 
 @media (max-width: 767px) {
-  .filter-select {
-    flex: 1 1 140px;
-    width: auto;
+  .jobs {
+    padding: 12px;
+  }
+
+  /* Two filters a row, the search across both, so the list starts within the first screen. */
+  .jobs-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .search-input {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .filter-select,
+  .filter-number {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Cells keep their words on one line and the table scrolls sideways, instead of breaking every word. */
+  .jobs-table th,
+  .jobs-table td {
+    white-space: nowrap;
+  }
+
+  .jobs-table .job-title {
+    min-width: 150px;
+    white-space: normal;
+  }
+
+  /* The row's actions stay in reach at the right edge while the rest scrolls under them. */
+  .jobs-table .actions-col,
+  .jobs-table .job-actions {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    background: var(--qt-sheet);
+    box-shadow: -6px 0 8px -6px rgba(47, 42, 61, 0.2);
+  }
+
+  .jobs-table .actions-col {
+    background: var(--qt-surface-head);
   }
 
   /* A wide table scrolls inside its box rather than the page. */

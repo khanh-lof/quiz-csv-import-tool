@@ -112,9 +112,16 @@
   padding: 4px 0;
 }
 
-.page-head {
+.page-bar {
   flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin: 2px 0 12px;
+}
+
+.page-head {
+  min-width: 0;
 }
 
 .workspace-breadcrumb {
@@ -131,15 +138,15 @@
   color: var(--qt-text);
 }
 
-/* A phone cannot spare 40px a side, nor 220px for the menu: the padding shrinks, the menu stays collapsed
-   beside the page and, when opened, lies over the page instead of pushing it aside. */
+/* A phone cannot spare 40px a side, nor even an 80px rail: the menu hides behind a button beside the title and
+   opens as a drawer over the page. */
 @media (max-width: 767px) {
   :host {
-    padding: 12px 12px 12px 0;
+    padding: 12px;
   }
 
   .workspace-shell {
-    gap: 12px;
+    gap: 0;
   }
 
   .page-title {
@@ -148,14 +155,43 @@
 
   .sidebar-slot,
   .sidebar-slot.collapsed {
-    width: 80px;
+    width: 0;
+  }
+
+  .sidebar.collapsed {
+    display: none;
   }
 
   .sidebar:not(.collapsed) {
-    position: absolute;
-    top: 0;
+    position: fixed;
+    top: 12px;
+    bottom: 12px;
     left: 0;
-    z-index: 10;
-    width: 220px;
+    z-index: 1001;
+    width: min(260px, 80vw);
+    height: auto;
+    box-shadow: 0 12px 40px rgba(47, 42, 61, 0.25);
+  }
+
+  .menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(47, 42, 61, 0.3);
+  }
+
+  .menu-open {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--qt-border-strong);
+    border-radius: var(--qt-radius);
+    background: var(--qt-sheet);
+    color: var(--qt-text);
+    font-size: 18px;
+    cursor: pointer;
   }
 }

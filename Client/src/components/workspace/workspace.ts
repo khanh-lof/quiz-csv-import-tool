@@ -145,7 +145,7 @@ export class Workspace {
   protected readonly mode = computed(() => this.modeOf(this.url()));
   protected readonly breadcrumb = computed(() => breadcrumbFor(this.url()));
 
-  private readonly narrow = matchMedia(NARROW_QUERY).matches;
+  protected readonly narrow = matchMedia(NARROW_QUERY).matches;
   protected readonly collapsed = signal(this.narrow || this.storedCollapsed());
 
   // The router puts a mode's page on screen before its first change detection, which runs a task later.

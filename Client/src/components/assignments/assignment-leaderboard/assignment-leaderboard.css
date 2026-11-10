@@ -356,6 +356,22 @@ nz-card {
   .qr-title {
     font-size: 22px;
   }
+
+  /* Two even buttons a row instead of ragged wrapping; the link, the main action, takes a row of its own. */
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .actions > [nz-button] {
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .actions > [nz-button]:first-child,
+  .actions > .pinyin-switch {
+    grid-column: 1 / -1;
+  }
 }
 
 /* A narrower board leaves the name its room by dropping the attempts and the time (the CSV still has them). */

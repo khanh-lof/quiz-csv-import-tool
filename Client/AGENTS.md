@@ -77,8 +77,8 @@ assignment's leaderboard, which is why that page has no back link) and the title
 `nzMatchRouter`, "Chơi game" never is because it leaves the frame for the full-screen `/play` page (see
 [Gesture quiz](#gesture-quiz-play)). The groups are open whenever the menu is; collapsed, the menu shows only
 icons and the groups become fly-outs. The wide layout remembers the collapse in `localStorage`
-(`workspace-nav-collapsed`); under 768px the menu always starts collapsed and, opened, lies over the page
-until a page is picked. The menu navigates between its child routes
+(`workspace-nav-collapsed`); under 768px the menu is hidden behind a button beside the title and opens as a
+drawer over the page (with a backdrop that closes it) until a page is picked. The menu navigates between its child routes
 `/quiz` (`VocabularyTable`), `/ai` (`AiGeneration`, `src/components/ai-generation/`), `/ai-history` (`AiJobs`, below) and the teacher's
 `/assignments` pages (see [Giao bài](#giao-bài-assignments)); `WorkspaceMode` knows all four, and logging out
 on any page but `/quiz`, which all need a login, falls back to `/quiz`. The AI

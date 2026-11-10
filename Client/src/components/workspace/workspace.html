@@ -59,26 +59,38 @@
     </nav>
   </div>
 
+  @if (narrow && !collapsed()) {
+    <div (click)="toggleCollapsed()" aria-hidden="true" class="menu-backdrop"></div>
+  }
+
   <div class="center-container">
-    <!-- The page's title is the breadcrumb's last crumb; the crumbs before it, when there are any, sit above it. -->
-    @if (breadcrumb().length) {
-      <header class="page-head">
-        @if (breadcrumb().length > 1) {
-          <nz-breadcrumb class="workspace-breadcrumb">
-            @for (crumb of breadcrumb().slice(0, -1); track $index) {
-              <nz-breadcrumb-item>
-                @if (crumb.link) {
-                  <a [routerLink]="crumb.link">{{ crumb.label }}</a>
-                } @else {
-                  {{ crumb.label }}
-                }
-              </nz-breadcrumb-item>
-            }
-          </nz-breadcrumb>
-        }
-        <h1 class="page-title">{{ breadcrumb().at(-1)?.label }}</h1>
-      </header>
-    }
+    <div class="page-bar">
+      @if (narrow) {
+        <button (click)="toggleCollapsed()" [attr.aria-expanded]="!collapsed()" [attr.aria-label]="'app.workspace.expandMenu' | msg"
+                class="menu-open" type="button">
+          <nz-icon nzTheme="outline" nzType="menu"/>
+        </button>
+      }
+      <!-- The page's title is the breadcrumb's last crumb; the crumbs before it, when there are any, sit above it. -->
+      @if (breadcrumb().length) {
+        <header class="page-head">
+          @if (breadcrumb().length > 1) {
+            <nz-breadcrumb class="workspace-breadcrumb">
+              @for (crumb of breadcrumb().slice(0, -1); track $index) {
+                <nz-breadcrumb-item>
+                  @if (crumb.link) {
+                    <a [routerLink]="crumb.link">{{ crumb.label }}</a>
+                  } @else {
+                    {{ crumb.label }}
+                  }
+                </nz-breadcrumb-item>
+              }
+            </nz-breadcrumb>
+          }
+          <h1 class="page-title">{{ breadcrumb().at(-1)?.label }}</h1>
+        </header>
+      }
+    </div>
     <router-outlet (activate)="onPageActivate()"/>
   </div>
 </div>

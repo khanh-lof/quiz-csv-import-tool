@@ -490,3 +490,35 @@
     font-size: 14px;
   }
 }
+
+/* A phone held sideways is under 500px tall: the bars around the stage shrink so the header, the HUD, the stage
+   and the feedback all fit on one screen without scrolling. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .topbar {
+    padding: 4px 12px;
+  }
+
+  .preview-banner {
+    margin: 0 12px 4px;
+    padding-block: 2px;
+  }
+
+  .content {
+    padding: 0 12px 8px;
+  }
+
+  .content.is-playing {
+    gap: 4px;
+  }
+
+  .stage {
+    min-height: 150px;
+  }
+
+  .feedback {
+    height: auto;
+    min-height: 44px;
+    max-height: 22dvh;
+    padding: 4px 12px;
+  }
+}
