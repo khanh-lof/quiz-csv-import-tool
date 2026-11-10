@@ -280,7 +280,7 @@ func (c *Client) repairCSV(ctx context.Context, content string, shape csvShape, 
 			Instructions:    system,
 			Input:           []responsesInput{{Role: "user", Content: inputParts([]string{user}, nil)}},
 			MaxOutputTokens: maxOutputTokensLarge,
-		}, usage, nil)
+		}, usage)
 	}
-	return c.complete(ctx, newRequest(usage.Model, system, "low", []contentPart{textPart(user)}), usage, nil)
+	return c.complete(ctx, newRequest(usage.Model, system, "low", []contentPart{textPart(user)}), usage)
 }

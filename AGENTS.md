@@ -718,8 +718,9 @@ two sides guard against both:
 - `AiGeneration.showGenerationError` maps 413 (or the client's own refusal) to a message asking the user to
   send fewer images; a failed job is announced by `AiJobService` with `failedJobMessage`, which words it by the
   job's `errorCode` (e.g. `timeout`, `truncated`, `overloaded`, `provider_config`; see Server/AGENTS.md).
-- While a job runs, the server writes the CSV rows the model has written so far on it (`progressRows`, at
-  most every 3 s, starting over on a retry), and the history table shows "Đang chạy · 12 dòng".
+- A running job shows only "Đang chạy" in the history table: the server records no progress while the model writes
+  (a quiz the question bank builds would count the model's questions, not the quiz's rows). The row count
+  ("Xong · 12 dòng") appears once the job is done, read from its CSV.
 - Each LLM attempt is logged in one line (model, attempt, duration, status, request id, tokens); the response
   body only when the attempt failed, cut to 2 KB. A job's totals are stored on it as `usage`.
 

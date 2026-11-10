@@ -27,7 +27,6 @@ function job(overrides: Partial<AiJob>): AiJob {
     csv: '',
     errorStatus: 0,
     errorCode: '',
-    progressRows: 0,
     errorMessage: '',
     createdAt: '2026-10-13T00:00:00Z',
     finishedAt: null,

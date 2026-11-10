@@ -7,13 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"regexp"
 	"strings"
 	"time"
 )
 
-// The calls stream (stream: true): the answer arrives as server-sent events, which shows progress while the model
-// writes and lets a silent generation be given up long before the deadline. A provider that ignores the flag
+// The calls stream (stream: true): the answer arrives as server-sent events, which lets a silent generation be given up
+// long before the deadline. A provider that ignores the flag
 // answers with plain JSON, which is read as before.
 
 // stallTimeout is how long a streaming answer may go without an event once the model has started. Before that,
@@ -92,7 +91,7 @@ func readEvents(body io.Reader, seen func(real bool), onEvent func(data []byte) 
 
 // streamCompletion reads a streamed chat completion: content deltas, a finish_reason, and usage in the last chunk
 // (stream_options.include_usage), then [DONE].
-func streamCompletion(body io.Reader, seen func(bool), rows *rowCounter) (string, tokenUsage, error) {
+func streamCompletion(body io.Reader, seen func(bool)) (string, tokenUsage, error) {
 	var (
 		text   strings.Builder
 		tokens tokenUsage
@@ -127,7 +126,6 @@ func streamCompletion(body io.Reader, seen func(bool), rows *rowCounter) (string
 		if len(chunk.Choices) > 0 {
 			choice := chunk.Choices[0]
 			text.WriteString(choice.Delta.Content)
-			rows.write(choice.Delta.Content)
 			if choice.FinishReason != nil && *choice.FinishReason != "" {
 				finish = *choice.FinishReason
 			}
@@ -144,9 +142,9 @@ func streamCompletion(body io.Reader, seen func(bool), rows *rowCounter) (string
 	return content, tokens, err
 }
 
-// streamResponse reads a streamed /responses answer: output_text deltas for progress, then a response.completed,
+// streamResponse reads a streamed /responses answer: output_text deltas, then a response.completed,
 // .incomplete or .failed event whose response is read like a non-streamed one.
-func streamResponse(body io.Reader, seen func(bool), rows *rowCounter) (string, tokenUsage, error) {
+func streamResponse(body io.Reader, seen func(bool)) (string, tokenUsage, error) {
 	var (
 		text  strings.Builder
 		final json.RawMessage
@@ -169,7 +167,6 @@ func streamResponse(body io.Reader, seen func(bool), rows *rowCounter) (string, 
 			return &interruptedError{"stream error: " + event.Message}
 		case "response.output_text.delta":
 			text.WriteString(event.Delta)
-			rows.write(event.Delta)
 		case "response.completed", "response.incomplete", "response.failed":
 			final = event.Response
 		}
@@ -188,34 +185,4 @@ func streamResponse(body io.Reader, seen func(bool), rows *rowCounter) (string, 
 		answer = text.String()
 	}
 	return answer, tokens, err
-}
-
-// rowCounter counts the rows of a CSV answer as it streams in, for progress: complete lines that are not
-// empty, a markdown fence, or the simple mode's header. A nil rowCounter counts nothing.
-type rowCounter struct {
-	partial string
-	rows    int
-	report  func(rows int)
-}
-
-var simpleHeaderLine = regexp.MustCompile(`(?i)^Câu hỏi\s*,\s*Đáp án`)
-
-func (r *rowCounter) write(delta string) {
-	if r == nil {
-		return
-	}
-	for {
-		i := strings.IndexByte(delta, '\n')
-		if i < 0 {
-			r.partial += delta
-			return
-		}
-		line := strings.TrimSpace(r.partial + delta[:i])
-		r.partial, delta = "", delta[i+1:]
-		if line == "" || strings.HasPrefix(line, "```") || simpleHeaderLine.MatchString(line) {
-			continue
-		}
-		r.rows++
-		r.report(r.rows)
-	}
 }

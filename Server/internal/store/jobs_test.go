@@ -75,16 +75,6 @@ func testJobs(t *testing.T, jobs Jobs) {
 	}
 
 	// Complete and Fail finish a running job once, and only for its owner.
-	// Progress is recorded on the owner's running job only.
-	if err := jobs.Progress(ctx, "bob", "new", 9); err != nil {
-		t.Fatal(err)
-	}
-	if err := jobs.Progress(ctx, "alice", "new", 3); err != nil {
-		t.Fatal(err)
-	}
-	if j, _ := jobs.Get(ctx, "alice", "new"); j.ProgressRows != 3 {
-		t.Fatalf("progress of a running job: %+v", j)
-	}
 	if err := jobs.Complete(ctx, "bob", "new", JobResult{CSV: "stolen"}); err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +227,7 @@ func testJobImagesAndResumes(t *testing.T, jobs Jobs) {
 	base := time.Now().UTC().Truncate(time.Millisecond)
 	job := func(id, username string, creative bool, age time.Duration, resumes int) *Job {
 		return &Job{ID: id, Username: username, Status: JobRunning, Title: id, Creative: creative,
-			ImageCount: 1, CreatedAt: base.Add(-age), Resumes: resumes, ProgressRows: 7}
+			ImageCount: 1, CreatedAt: base.Add(-age), Resumes: resumes}
 	}
 
 	// SetImages records the images on the owner's job only, whatever its status.
@@ -321,7 +311,7 @@ func testJobImagesAndResumes(t *testing.T, jobs Jobs) {
 	}
 	for id, resumes := range map[string]int{"resume-me": 1, "resume-again": 2} {
 		j, ok := claimed[id]
-		if !ok || j.Resumes != resumes || j.ProgressRows != 0 || j.HeartbeatAt == nil || j.HeartbeatAt.Before(base.Add(-time.Second)) {
+		if !ok || j.Resumes != resumes || j.HeartbeatAt == nil || j.HeartbeatAt.Before(base.Add(-time.Second)) {
 			t.Fatalf("claimed %s: %+v", id, j)
 		}
 	}

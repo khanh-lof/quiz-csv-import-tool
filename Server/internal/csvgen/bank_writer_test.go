@@ -115,7 +115,7 @@ func TestWriteQuestions(t *testing.T) {
 	t.Cleanup(llm.Close)
 	c := NewClient(llm.URL, "key", "base", "creative", 0, slog.New(slog.DiscardHandler))
 	drafts, usage, err := c.WriteQuestions(context.Background(), opts, vocabulary,
-		[]QuestionSpec{{Word: vocabulary.Words[1].Key(), Format: "mc", Difficulty: 2}}, nil)
+		[]QuestionSpec{{Word: vocabulary.Words[1].Key(), Format: "mc", Difficulty: 2}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,11 +133,11 @@ func TestWriteQuestions(t *testing.T) {
 	}
 
 	answer = `{"questions":[{"targets":["W999"],"format":"mc"}]}`
-	if _, _, err := c.WriteQuestions(context.Background(), opts, vocabulary, []QuestionSpec{{Word: vocabulary.Words[0].Key()}}, nil); FailureCode(err) != FailureBadOutput {
+	if _, _, err := c.WriteQuestions(context.Background(), opts, vocabulary, []QuestionSpec{{Word: vocabulary.Words[0].Key()}}); FailureCode(err) != FailureBadOutput {
 		t.Errorf("an answer without usable questions: %v", err)
 	}
 	answer = `not json`
-	if _, _, err := c.WriteQuestions(context.Background(), opts, vocabulary, []QuestionSpec{{Word: vocabulary.Words[0].Key()}}, nil); FailureCode(err) != FailureBadOutput {
+	if _, _, err := c.WriteQuestions(context.Background(), opts, vocabulary, []QuestionSpec{{Word: vocabulary.Words[0].Key()}}); FailureCode(err) != FailureBadOutput {
 		t.Errorf("an answer that is not JSON: %v", err)
 	}
 }

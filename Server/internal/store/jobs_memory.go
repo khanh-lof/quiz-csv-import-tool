@@ -59,16 +59,6 @@ func (m *MemoryJobs) Fail(_ context.Context, username, id string, failure JobFai
 	})
 }
 
-func (m *MemoryJobs) Progress(_ context.Context, username, id string, rows int) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if j, ok := m.jobs[id]; ok && j.Username == username && j.Status == JobRunning {
-		j.ProgressRows = rows
-		m.jobs[id] = j
-	}
-	return nil
-}
-
 func (m *MemoryJobs) Heartbeat(_ context.Context, username, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -172,7 +162,7 @@ func (m *MemoryJobs) ClaimInterrupted(_ context.Context, before time.Time, maxRe
 	for id, j := range m.jobs {
 		if j.Status == JobRunning && j.Creative && j.Resumes < maxResumes && lastSign(j).Before(before) {
 			now := m.Now().UTC()
-			j.HeartbeatAt, j.Resumes, j.ProgressRows = &now, j.Resumes+1, 0
+			j.HeartbeatAt, j.Resumes = &now, j.Resumes+1
 			m.jobs[id] = j
 			return &j, nil
 		}

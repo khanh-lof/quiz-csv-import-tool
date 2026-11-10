@@ -84,7 +84,7 @@
               @case ('running') {
                 <nz-tag nzColor="processing">
                   <nz-icon nzSpin nzTheme="outline" nzType="sync"/>
-                  {{ statusLabel(job) }}@if (job.progressRows > 0) { · {{ job.progressRows }} dòng}
+                  {{ statusLabel(job) }}
                 </nz-tag>
               }
               @case ('done') {

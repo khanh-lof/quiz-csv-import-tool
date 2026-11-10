@@ -33,16 +33,11 @@ type fakeGenerator struct {
 	result, source string
 	// usage is what Generate reports, whether or not it fails.
 	usage csvgen.Usage
-	// rows are the progress Generate reports before it answers.
-	rows []int
 }
 
-func (g *fakeGenerator) GenerateWithProgress(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options, onRows func(int)) (csvgen.Result, error) {
+func (g *fakeGenerator) Generate(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (csvgen.Result, error) {
 	g.calls++
 	g.images, g.creative, g.opts = images, creative, opts
-	for _, n := range g.rows {
-		onRows(n)
-	}
 	if g.release != nil {
 		select {
 		case <-g.release:
@@ -655,23 +650,6 @@ func TestLongJobKeepsAHeartbeat(t *testing.T) {
 	}
 	if done := env.onlyJob(t, "alice"); done.Status != store.JobDone {
 		t.Fatalf("job %+v", done)
-	}
-}
-
-func TestCreateJobRecordsProgress(t *testing.T) {
-	env := newEnv(t)
-	token, _ := env.login(t, "alice", "pw")
-	// The second report comes within progressInterval of the first, so only the first is written.
-	env.gen.rows = []int{4, 5}
-	env.gen.err = errors.New("boom")
-	if rec := env.upload(t, upload{token: token, files: 1}); rec.Code != http.StatusAccepted {
-		t.Fatalf("got %d", rec.Code)
-	}
-	if job := env.onlyJob(t, "alice"); job.ProgressRows != 4 {
-		t.Fatalf("job %+v", job)
-	}
-	if listed := env.listJobs(t, token); listed[0]["progressRows"] != float64(4) {
-		t.Fatalf("listed job: %v", listed[0])
 	}
 }
 

@@ -23,7 +23,7 @@ type fakeWriter struct {
 	n     int
 }
 
-func (f *fakeWriter) WriteQuestions(_ context.Context, opts csvgen.Options, v csvgen.Vocabulary, specs []csvgen.QuestionSpec, onRows func(int)) ([]csvgen.QuestionDraft, csvgen.Usage, error) {
+func (f *fakeWriter) WriteQuestions(_ context.Context, opts csvgen.Options, v csvgen.Vocabulary, specs []csvgen.QuestionSpec) ([]csvgen.QuestionDraft, csvgen.Usage, error) {
 	f.calls++
 	f.specs = specs
 	usage := csvgen.Usage{Model: "fake", Calls: 1, OutputTokens: 100}
@@ -66,15 +66,12 @@ func (f *fakeWriter) WriteQuestions(_ context.Context, opts csvgen.Options, v cs
 		}
 		drafts = append(drafts, d)
 	}
-	if onRows != nil {
-		onRows(len(drafts))
-	}
 	return drafts, usage, nil
 }
 
 type fakeNext struct{ calls int }
 
-func (f *fakeNext) GenerateWithProgress(context.Context, []csvgen.Image, bool, csvgen.Options, func(int)) (csvgen.Result, error) {
+func (f *fakeNext) Generate(context.Context, []csvgen.Image, bool, csvgen.Options) (csvgen.Result, error) {
 	f.calls++
 	return csvgen.Result{CSV: "from the model", Usage: csvgen.Usage{Calls: 1}}, nil
 }
@@ -109,15 +106,14 @@ func TestGeneratorFillsTheBankThenUsesItAlone(t *testing.T) {
 	vocabulary, _ := csvgen.LessonVocabulary(opts)
 	ctx := WithJob(context.Background(), "job1")
 
-	rows := 0
-	first, err := gen.GenerateWithProgress(ctx, nil, true, opts, func(n int) { rows = n })
+	first, err := gen.Generate(ctx, nil, true, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
 	size := QuizSize(len(vocabulary.Words))
-	if writer.calls != 1 || next.calls != 0 || first.FromBank != 0 || len(first.BankQuestions) != size || first.Usage.Calls != 1 || rows == 0 {
-		t.Fatalf("first quiz: writer %d, next %d, from bank %d of %d, usage %+v, rows %d",
-			writer.calls, next.calls, first.FromBank, len(first.BankQuestions), first.Usage, rows)
+	if writer.calls != 1 || next.calls != 0 || first.FromBank != 0 || len(first.BankQuestions) != size || first.Usage.Calls != 1 {
+		t.Fatalf("first quiz: writer %d, next %d, from bank %d of %d, usage %+v",
+			writer.calls, next.calls, first.FromBank, len(first.BankQuestions), first.Usage)
 	}
 	// The gaps are the whole quiz, and every word gets one more question at another level.
 	if len(writer.specs) != size+len(vocabulary.Words) {
@@ -133,7 +129,7 @@ func TestGeneratorFillsTheBankThenUsesItAlone(t *testing.T) {
 		t.Errorf("%d rows, want %d", got, size)
 	}
 
-	second, err := gen.GenerateWithProgress(ctx, nil, true, opts, nil)
+	second, err := gen.Generate(ctx, nil, true, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,12 +142,12 @@ func TestGeneratorAsksOnlyForWhatTheBankLacks(t *testing.T) {
 	bank, writer := store.NewMemoryQuestionBank(), &fakeWriter{}
 	gen := &Generator{Next: &fakeNext{}, Service: newTestService(bank, writer)}
 	ctx := context.Background()
-	if _, err := gen.GenerateWithProgress(ctx, nil, true, hskOptions(csvgen.GimKit, 3), nil); err != nil {
+	if _, err := gen.Generate(ctx, nil, true, hskOptions(csvgen.GimKit, 3)); err != nil {
 		t.Fatal(err)
 	}
 	// Lessons 3 and 4 together: the bank covers lesson 3 already, so only lesson 4's words are new.
 	opts := hskOptions(csvgen.GimKit, 3, 4)
-	result, err := gen.GenerateWithProgress(ctx, nil, true, opts, nil)
+	result, err := gen.Generate(ctx, nil, true, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +184,7 @@ func TestGeneratorBuildsAGame(t *testing.T) {
 	gen := &Generator{Next: &fakeNext{}, Service: newTestService(bank, writer)}
 	opts := hskOptions(csvgen.GestureQuiz, 5)
 	opts.GestureStages, opts.QuestionsPerStage = []int{1, 4, 6}, 4
-	result, err := gen.GenerateWithProgress(context.Background(), nil, true, opts, nil)
+	result, err := gen.Generate(context.Background(), nil, true, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +193,7 @@ func TestGeneratorBuildsAGame(t *testing.T) {
 		t.Errorf("the game read %v, skipped %d:\n%s", quiz.StageCounts(), quiz.Skipped, result.CSV)
 	}
 	// Built again from the bank alone.
-	if result, err = gen.GenerateWithProgress(context.Background(), nil, true, opts, nil); err != nil || writer.calls != 1 ||
+	if result, err = gen.Generate(context.Background(), nil, true, opts); err != nil || writer.calls != 1 ||
 		gesturequiz.Parse(result.CSV).Total() != 12 {
 		t.Errorf("second game: writer %d, %v", writer.calls, err)
 	}
@@ -209,14 +205,14 @@ func TestGeneratorFailures(t *testing.T) {
 	// The model's failure is the job's, with nothing stored.
 	bank := store.NewMemoryQuestionBank()
 	writer := &fakeWriter{err: csvgen.BadOutput(errors.New("not JSON"))}
-	_, err := (&Generator{Next: &fakeNext{}, Service: newTestService(bank, writer)}).GenerateWithProgress(context.Background(), nil, true, opts, nil)
+	_, err := (&Generator{Next: &fakeNext{}, Service: newTestService(bank, writer)}).Generate(context.Background(), nil, true, opts)
 	if csvgen.FailureCode(err) != csvgen.FailureBadOutput || bank.Len() != 0 {
 		t.Errorf("got %v, %d stored", err, bank.Len())
 	}
 
 	// Questions that all fail Validate leave the quiz without questions.
 	writer = &fakeWriter{spoil: func(d *csvgen.QuestionDraft) { d.Explanation = "" }}
-	result, err := (&Generator{Next: &fakeNext{}, Service: newTestService(bank, writer)}).GenerateWithProgress(context.Background(), nil, true, opts, nil)
+	result, err := (&Generator{Next: &fakeNext{}, Service: newTestService(bank, writer)}).Generate(context.Background(), nil, true, opts)
 	if csvgen.FailureCode(err) != csvgen.FailureBadOutput || bank.Len() != 0 || result.Usage.Calls != 1 {
 		t.Errorf("got %v, %d stored, usage %+v", err, bank.Len(), result.Usage)
 	}
@@ -240,7 +236,7 @@ func TestGeneratorLeavesOtherJobsToTheModel(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			next, writer := &fakeNext{}, &fakeWriter{}
 			gen := &Generator{Next: next, Service: newTestService(call.bank, writer)}
-			result, err := gen.GenerateWithProgress(context.Background(), call.images, call.creative, call.opts, nil)
+			result, err := gen.Generate(context.Background(), call.images, call.creative, call.opts)
 			if err != nil || next.calls != 1 || writer.calls != 0 || result.CSV != "from the model" {
 				t.Errorf("next %d, writer %d, %q, %v", next.calls, writer.calls, result.CSV, err)
 			}

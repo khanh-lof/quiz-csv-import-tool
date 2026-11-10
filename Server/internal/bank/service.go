@@ -16,7 +16,7 @@ import (
 
 // Writer asks the model for questions; implemented by *csvgen.Client.
 type Writer interface {
-	WriteQuestions(ctx context.Context, opts csvgen.Options, vocabulary csvgen.Vocabulary, specs []csvgen.QuestionSpec, onRows func(int)) ([]csvgen.QuestionDraft, csvgen.Usage, error)
+	WriteQuestions(ctx context.Context, opts csvgen.Options, vocabulary csvgen.Vocabulary, specs []csvgen.QuestionSpec) ([]csvgen.QuestionDraft, csvgen.Usage, error)
 }
 
 // Service builds quizzes from the bank, asking Writer for what the bank lacks.
@@ -73,8 +73,8 @@ func (s *Service) Finish(ctx context.Context, b *Build, fromBank int) (csvgen.Re
 // Fill asks the model for the questions the build's plan lacks, and a few more for the words the bank had no
 // question on, stores the ones that pass Validate, plans the quiz again with them and writes it. A plan still
 // short of half its questions (or of a Game stage) after that fails as bad output.
-func (s *Service) Fill(ctx context.Context, b *Build, jobID string, onRows func(int)) (csvgen.Result, error) {
-	drafts, usage, err := s.Writer.WriteQuestions(ctx, b.Options, b.Request.Vocabulary, specsFor(b.Plan), onRows)
+func (s *Service) Fill(ctx context.Context, b *Build, jobID string) (csvgen.Result, error) {
+	drafts, usage, err := s.Writer.WriteQuestions(ctx, b.Options, b.Request.Vocabulary, specsFor(b.Plan))
 	if err != nil {
 		return csvgen.Result{Usage: usage}, err
 	}
@@ -189,25 +189,25 @@ func jobOf(ctx context.Context) string {
 // every quiz while the bank cannot be read, goes to Next as before.
 type Generator struct {
 	Next interface {
-		GenerateWithProgress(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options, onRows func(rows int)) (csvgen.Result, error)
+		Generate(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (csvgen.Result, error)
 	}
 	Service *Service
 }
 
-func (g *Generator) GenerateWithProgress(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options, onRows func(rows int)) (csvgen.Result, error) {
+func (g *Generator) Generate(ctx context.Context, images []csvgen.Image, creative bool, opts csvgen.Options) (csvgen.Result, error) {
 	if !creative || len(images) > 0 {
-		return g.Next.GenerateWithProgress(ctx, images, creative, opts, onRows)
+		return g.Next.Generate(ctx, images, creative, opts)
 	}
 	build, ok, err := g.Service.Prepare(ctx, opts)
 	if !ok {
-		return g.Next.GenerateWithProgress(ctx, images, creative, opts, onRows)
+		return g.Next.Generate(ctx, images, creative, opts)
 	}
 	if err != nil {
 		g.Service.Logger.Warn("question bank unavailable, generating the whole quiz", "job", jobOf(ctx), "error", err)
-		return g.Next.GenerateWithProgress(ctx, images, creative, opts, onRows)
+		return g.Next.Generate(ctx, images, creative, opts)
 	}
 	if build.Plan.Complete() {
 		return g.Service.Finish(ctx, build, len(build.Plan.Picks))
 	}
-	return g.Service.Fill(ctx, build, jobOf(ctx), onRows)
+	return g.Service.Fill(ctx, build, jobOf(ctx))
 }

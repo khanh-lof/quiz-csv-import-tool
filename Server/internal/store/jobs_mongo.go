@@ -70,13 +70,6 @@ func (m *MongoJobs) Fail(ctx context.Context, username, id string, failure JobFa
 	})
 }
 
-func (m *MongoJobs) Progress(ctx context.Context, username, id string, rows int) error {
-	_, err := m.jobs.UpdateOne(ctx,
-		bson.M{"_id": id, "username": username, "status": JobRunning},
-		bson.M{"$set": bson.M{"progressRows": rows}})
-	return err
-}
-
 func (m *MongoJobs) Heartbeat(ctx context.Context, username, id string) error {
 	_, err := m.jobs.UpdateOne(ctx,
 		bson.M{"_id": id, "username": username, "status": JobRunning},
@@ -191,7 +184,7 @@ func (m *MongoJobs) ClaimInterrupted(ctx context.Context, before time.Time, maxR
 	var job Job
 	err := m.jobs.FindOneAndUpdate(ctx,
 		bson.M{"status": JobRunning, "$and": bson.A{resumableJob(maxResumes), lastSignBefore(before)}},
-		bson.M{"$set": bson.M{"heartbeatAt": m.now().UTC(), "progressRows": 0}, "$inc": bson.M{"resumes": 1}},
+		bson.M{"$set": bson.M{"heartbeatAt": m.now().UTC()}, "$inc": bson.M{"resumes": 1}},
 		options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&job)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil

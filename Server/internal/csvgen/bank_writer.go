@@ -52,15 +52,14 @@ type DraftText struct {
 
 // WriteQuestions asks the model, in one call, for the questions specs describes, about the lessons of opts, and
 // returns them with their targets as word keys. A question naming no word of the list is left out, logged. Usage
-// is filled in whether or not it failed. onRows is told how many lines of the answer have streamed in: one per
-// question, since the prompt asks for each on a line of its own.
-func (c *Client) WriteQuestions(ctx context.Context, opts Options, vocabulary Vocabulary, specs []QuestionSpec, onRows func(int)) ([]QuestionDraft, Usage, error) {
+// is filled in whether or not it failed.
+func (c *Client) WriteQuestions(ctx context.Context, opts Options, vocabulary Vocabulary, specs []QuestionSpec) ([]QuestionDraft, Usage, error) {
 	usage := Usage{Model: c.creativeModel}
 	req, ids, err := buildBankRequest(usage.Model, c.timeLimit, opts, vocabulary, specs)
 	if err != nil {
 		return nil, usage, err
 	}
-	text, err := c.respond(ctx, req, &usage, onRows)
+	text, err := c.respond(ctx, req, &usage)
 	if err != nil {
 		return nil, usage, err
 	}

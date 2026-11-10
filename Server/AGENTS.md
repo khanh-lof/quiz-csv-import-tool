@@ -447,8 +447,8 @@ cookie.
   (the client does not re-send) — see `retry.go` and [../AGENTS.md](../AGENTS.md#retrying-ai-requests).
   Both endpoints are called with `stream: true` (`stream.go`: `streamCompletion`, `streamResponse`); a
   `text/event-stream` answer is read event by event, anything else whole (`parseCompletion`,
-  `parseResponse`), in each attempt. `GenerateWithProgress` reports the CSV rows written so far
-  (`rowCounter`), which `runJob` stores on the job (`Jobs.Progress`, throttled to every 3 s). Non-2xx answers become `*StatusError` (status, `error.code`, `Retry-After`); each
+  `parseResponse`), in each attempt. The stream serves only to give up a stalled generation (and retry it); no
+  progress is reported from it, and a running job stores none. Non-2xx answers become `*StatusError` (status, `error.code`, `Retry-After`); each
   attempt's `x-request-id` is logged.
 - `ExtractCSVContent` strips code fences / leading prose the model sometimes adds.
 - Every CSV (both modes, not Radicals) is checked before the job stores it (`quoting.go`, `checkedCSV`). The

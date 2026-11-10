@@ -74,14 +74,9 @@ func TestGenerateStreamsAChatCompletion(t *testing.T) {
 		w.raw("data: [DONE]\n\n")
 	})
 
-	var rows []int
-	result, err := c.GenerateWithProgress(context.Background(), []Image{{ContentType: "image/png", Data: []byte("x")}}, false, Options{},
-		func(n int) { rows = append(rows, n) })
+	result, err := c.Generate(context.Background(), []Image{{ContentType: "image/png", Data: []byte("x")}}, false, Options{})
 	if err != nil || result.CSV != `"Câu hỏi","Đáp án"`+"\n"+`"你","bạn"`+"\n"+`"好","tốt"` {
 		t.Fatalf("got %q, %v", result.CSV, err)
-	}
-	if !slices.Equal(rows, []int{1, 2}) {
-		t.Errorf("rows reported %v, want [1 2]", rows)
 	}
 	if want := (Usage{Model: "m", Calls: 1, InputTokens: 7, OutputTokens: 3}); result.Usage != want {
 		t.Errorf("usage %+v, want %+v", result.Usage, want)
@@ -107,10 +102,9 @@ func TestGenerateStreamsAResponse(t *testing.T) {
 		w.event(completed(`"a","1"` + "\n" + `"b","2"` + "\n"))
 	})
 
-	var rows []int
-	result, err := c.GenerateWithProgress(context.Background(), nil, true, Options{}, func(n int) { rows = append(rows, n) })
-	if err != nil || result.CSV != quotedA1+"\n"+`"b","2","","",""` || !slices.Equal(rows, []int{1, 2}) {
-		t.Fatalf("got %q, %v, rows %v", result.CSV, err, rows)
+	result, err := c.Generate(context.Background(), nil, true, Options{})
+	if err != nil || result.CSV != quotedA1+"\n"+`"b","2","","",""` {
+		t.Fatalf("got %q, %v", result.CSV, err)
 	}
 	if result.Usage.InputTokens != 10 || result.Usage.OutputTokens != 4 {
 		t.Errorf("usage %+v", result.Usage)
@@ -139,7 +133,7 @@ func TestStreamedIncompleteResponseIsTruncated(t *testing.T) {
 	}
 }
 
-func TestStreamThatEndsEarlyIsRetriedAndProgressStartsOver(t *testing.T) {
+func TestStreamThatEndsEarlyIsRetried(t *testing.T) {
 	c, calls := sseServer(t, func(n int, w *sseWriter, _ *http.Request) {
 		w.event(textDelta(`"a","1"` + "\n"))
 		if n == 1 {
@@ -147,13 +141,9 @@ func TestStreamThatEndsEarlyIsRetriedAndProgressStartsOver(t *testing.T) {
 		}
 		w.event(completed(`"a","1"` + "\n"))
 	})
-	var rows []int
-	result, err := c.GenerateWithProgress(context.Background(), nil, true, Options{}, func(n int) { rows = append(rows, n) })
+	result, err := c.Generate(context.Background(), nil, true, Options{})
 	if err != nil || result.CSV != quotedA1 || calls.Load() != 2 {
 		t.Fatalf("got %q, %v after %d calls", result.CSV, err, calls.Load())
-	}
-	if !slices.Equal(rows, []int{1, 0, 1}) {
-		t.Errorf("rows reported %v, want [1 0 1]", rows)
 	}
 }
 
@@ -223,17 +213,4 @@ func TestReadEventsJoinsDataLinesAndSkipsComments(t *testing.T) {
 	if err != nil || !slices.Equal(events, []string{"one\ntwo", "three"}) || keepAlives != 1 {
 		t.Fatalf("events %q, keep-alives %d, %v", events, keepAlives, err)
 	}
-}
-
-func TestRowCounterSkipsFencesBlankLinesAndTheHeader(t *testing.T) {
-	var got []int
-	counter := &rowCounter{report: func(n int) { got = append(got, n) }}
-	for _, delta := range []string{"```", "csv\n\nCâu hỏi, Đáp án\n", "a,", "1\n", "\n", "b,2\n```\n", "c,3"} {
-		counter.write(delta)
-	}
-	if !slices.Equal(got, []int{1, 2}) {
-		t.Fatalf("rows %v, want [1 2]", got)
-	}
-	var nilCounter *rowCounter
-	nilCounter.write("a\n") // counts nothing, and does not panic
 }

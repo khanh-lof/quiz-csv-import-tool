@@ -22,7 +22,7 @@ func interruptedJob(t *testing.T, env *testEnv, id string, creative bool, age ti
 	job := &store.Job{
 		ID: id, Username: "alice", Status: store.JobRunning, Title: id, Creative: creative, ExportType: ptr(0),
 		CourseType: ptr(1), Level: ptr(6), LessonNumbers: []int{1}, ImageCount: 1, Images: refs, ImagesStoredAt: &storedAt,
-		ProgressRows: 5, RoundStart: roundStart, CreatedAt: time.Now().Add(-age).UTC().Truncate(time.Millisecond),
+		RoundStart: roundStart, CreatedAt: time.Now().Add(-age).UTC().Truncate(time.Millisecond),
 	}
 	if err := env.jobs.Create(ctx, job); err != nil {
 		t.Fatal(err)
@@ -48,7 +48,7 @@ func TestResumeJobRunsAnInterruptedJobAgain(t *testing.T) {
 	interruptedJob(t, env, "fresh", true, 0, roundStart)
 
 	job, err := env.srv.ClaimInterruptedJob(ctx)
-	if err != nil || job == nil || job.ID != "stuck" || job.Resumes != 1 || job.ProgressRows != 0 {
+	if err != nil || job == nil || job.ID != "stuck" || job.Resumes != 1 {
 		t.Fatalf("claimed %+v %v", job, err)
 	}
 	if again, err := env.srv.ClaimInterruptedJob(ctx); err != nil || again != nil {

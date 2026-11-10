@@ -115,22 +115,16 @@ func (t tokenUsage) cached() int {
 // simple mode stays on /chat/completions. A Radicals exercise is not a CSV: Generate returns its JSON
 // (see generateRadicals).
 func (c *Client) Generate(ctx context.Context, images []Image, creative bool, opts Options) (Result, error) {
-	return c.GenerateWithProgress(ctx, images, creative, opts, nil)
-}
-
-// GenerateWithProgress is Generate that also reports, through onRows when it is not nil, how many rows of the CSV
-// the model has written so far; a retry starts again from 0. A Radicals exercise reports none.
-func (c *Client) GenerateWithProgress(ctx context.Context, images []Image, creative bool, opts Options, onRows func(rows int)) (Result, error) {
 	usage := &Usage{Model: c.model}
 	if creative {
 		usage.Model = c.creativeModel
 	}
-	result, err := c.generate(ctx, images, creative, opts, usage, onRows)
+	result, err := c.generate(ctx, images, creative, opts, usage)
 	result.Usage = *usage
 	return result, err
 }
 
-func (c *Client) generate(ctx context.Context, images []Image, creative bool, opts Options, usage *Usage, onRows func(int)) (Result, error) {
+func (c *Client) generate(ctx context.Context, images []Image, creative bool, opts Options, usage *Usage) (Result, error) {
 	if creative && opts.ExportType == Radicals {
 		return c.generateRadicals(ctx, images, opts, usage)
 	}
@@ -139,9 +133,9 @@ func (c *Client) generate(ctx context.Context, images []Image, creative bool, op
 		err     error
 	)
 	if creative {
-		content, err = c.respond(ctx, buildCreativeRequest(usage.Model, c.timeLimit, images, opts), usage, onRows)
+		content, err = c.respond(ctx, buildCreativeRequest(usage.Model, c.timeLimit, images, opts), usage)
 	} else {
-		content, err = c.complete(ctx, buildSimpleRequest(usage.Model, images, opts.Language), usage, onRows)
+		content, err = c.complete(ctx, buildSimpleRequest(usage.Model, images, opts.Language), usage)
 	}
 	if err != nil {
 		return Result{}, err
@@ -156,7 +150,7 @@ func (c *Client) generate(ctx context.Context, images []Image, creative bool, op
 // answerFormat reads the 2xx answer of one endpoint, whole (parse) or streamed (stream).
 type answerFormat struct {
 	parse  func([]byte) (string, tokenUsage, error)
-	stream func(body io.Reader, seen func(real bool), rows *rowCounter) (string, tokenUsage, error)
+	stream func(body io.Reader, seen func(real bool)) (string, tokenUsage, error)
 }
 
 var (
@@ -168,26 +162,15 @@ var (
 // generation interrupted or stalled inside a 2xx answer (see withRetry), which is why the answer is read in each
 // attempt. Every attempt is counted in usage and logged in one line, with the start of the body only when the
 // attempt failed, or at Debug.
-func (c *Client) post(ctx context.Context, path string, req any, format answerFormat, usage *Usage, onRows func(int)) (string, error) {
+func (c *Client) post(ctx context.Context, path string, req any, format answerFormat, usage *Usage) (string, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return "", err
 	}
-	reported := false
 	return c.withRetry(ctx, path, func() (string, error) {
 		usage.Calls++
-		var rows *rowCounter
-		if onRows != nil {
-			if reported {
-				onRows(0)
-			}
-			rows = &rowCounter{report: func(n int) {
-				reported = true
-				onRows(n)
-			}}
-		}
 		started := time.Now()
-		text, tokens, reply, err := c.postOnce(ctx, path, body, format, rows)
+		text, tokens, reply, err := c.postOnce(ctx, path, body, format)
 		usage.add(tokens)
 		attrs := []any{"path", path, "model", usage.Model, "attempt", usage.Calls, "durationMs", time.Since(started).Milliseconds()}
 		if reply != nil {
@@ -247,7 +230,7 @@ func (h *headRecorder) Read(p []byte) (int, error) {
 // postOnce makes one attempt and reads its answer: the model's text and the tokens billed, and the reply for the
 // log whenever there was one. A streamed answer that goes silent for stallTimeout is given up as interrupted, so
 // the retry can try again while time is left.
-func (c *Client) postOnce(ctx context.Context, path string, body []byte, format answerFormat, rows *rowCounter) (string, tokenUsage, *llmReply, error) {
+func (c *Client) postOnce(ctx context.Context, path string, body []byte, format answerFormat) (string, tokenUsage, *llmReply, error) {
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(body))
@@ -288,7 +271,7 @@ func (c *Client) postOnce(ctx context.Context, path string, body []byte, format 
 	if reply.streamed {
 		watchdog := newStallWatchdog(c.stallTimeout, func() { cancel(errStalled) })
 		defer watchdog.stop()
-		text, tokens, err := format.stream(recorder, watchdog.seen, rows)
+		text, tokens, err := format.stream(recorder, watchdog.seen)
 		if err != nil && errors.Is(context.Cause(ctx), errStalled) {
 			err = &interruptedError{errStalled.Error()}
 		}
@@ -307,9 +290,9 @@ func (c *Client) postOnce(ctx context.Context, path string, body []byte, format 
 	return text, tokens, reply, err
 }
 
-func (c *Client) complete(ctx context.Context, req chatRequest, usage *Usage, onRows func(int)) (string, error) {
+func (c *Client) complete(ctx context.Context, req chatRequest, usage *Usage) (string, error) {
 	req.Stream, req.StreamOptions = true, &streamOptions{IncludeUsage: true}
-	return c.post(ctx, "/chat/completions", req, completionFormat, usage, onRows)
+	return c.post(ctx, "/chat/completions", req, completionFormat, usage)
 }
 
 func parseCompletion(respBody []byte) (string, tokenUsage, error) {
@@ -350,9 +333,9 @@ func completionOutcome(content, finish string) (string, error) {
 	return content, nil
 }
 
-func (c *Client) respond(ctx context.Context, req responsesRequest, usage *Usage, onRows func(int)) (string, error) {
+func (c *Client) respond(ctx context.Context, req responsesRequest, usage *Usage) (string, error) {
 	req.Stream = true
-	return c.post(ctx, "/responses", req, responseFormat, usage, onRows)
+	return c.post(ctx, "/responses", req, responseFormat, usage)
 }
 
 func parseResponse(respBody []byte) (string, tokenUsage, error) {

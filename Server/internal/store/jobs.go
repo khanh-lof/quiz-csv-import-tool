@@ -44,9 +44,6 @@ type Job struct {
 	GestureStages     []int `bson:"gestureStages,omitempty"`
 	QuestionsPerStage *int  `bson:"questionsPerStage,omitempty"`
 
-	// ProgressRows is how many rows of the CSV the model had written when last told, while the job runs; it is
-	// left as it was when the job finishes.
-	ProgressRows int `bson:"progressRows,omitempty"`
 	// CSV is the model's answer; for a Radicals job it is the exercise's JSON (radicals.Exercise).
 	CSV string `bson:"csv"`
 	// Source is, for a Radicals job, what csvgen builds the exercise from (JSON), kept so the teacher's corrections
@@ -141,8 +138,6 @@ type Jobs interface {
 	Complete(ctx context.Context, username, id string, result JobResult) error
 	// Revise replaces the answer and the source of a done job; ErrNotFound when the user has no done job by that id.
 	Revise(ctx context.Context, username, id, csv, source string) error
-	// Progress records how many rows a running job has written so far. Finished jobs are left alone.
-	Progress(ctx context.Context, username, id string, rows int) error
 	// Heartbeat records that a running job is still being worked on. Finished jobs are left alone.
 	Heartbeat(ctx context.Context, username, id string) error
 	// Fail marks a running job as failed. Finished jobs are left alone.
@@ -159,7 +154,7 @@ type Jobs interface {
 	// which only happens when the process handling them died, and returns the ones it failed.
 	ExpireRunning(ctx context.Context, username string, cutoffs ExpiryCutoffs, message string) ([]Job, error)
 	// ClaimInterrupted takes over one running creative job, of any user, whose last sign of life is before the cutoff and that was taken over fewer than maxResumes times: it records a
-	// heartbeat now, counts the resume and clears the progress, and returns the job as it now is; nil when
+	// heartbeat now, counts the resume, and returns the job as it now is; nil when
 	// there is none. Two servers claiming at once never get the same job.
 	ClaimInterrupted(ctx context.Context, before time.Time, maxResumes int) (*Job, error)
 	// Prune deletes all but the user's newest keep jobs.
