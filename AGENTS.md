@@ -758,16 +758,14 @@ with its `fields` (API key, timestamp, `public_id`, `allowed_formats`, SHA-1 sig
 without the access token, `AiCsvService` posting through `HttpBackend`), and the job request names them in
 `imageId` fields instead of sending files. The server reads them back from `res.cloudinary.com` for the model (400
 for a public ID it would not sign, one not uploaded, or one not an image) and records them on the job at once. A
-server without `CLOUDINARY_URL` answers 404 to the signing, and the browser then sends the files with the job,
-which `runJob` stores in Cloudinary meanwhile, before the outcome, so a failed job reads as retryable as soon as it
-reads as failed. They can be sent again for **30 days** (`imagesKeptFor`), by
+server without `CLOUDINARY_URL` answers 404 to the signing, and the browser then sends the files with the job;
+the server keeps no copy of files sent that way, so such a job cannot be retried. Uploaded images can be sent again for **30 days** (`imagesKeptFor`), by
 any server and any instance of it; a retry's job takes the same images over and keeps the same deadline. Cloudinary
-has no expiry of its own, so storing or receiving images also deletes, at most once a day per process, the ones stored more
+has no expiry of its own, so receiving uploaded images also deletes, at most once a day per process, the ones stored more
 than 31 days ago (`DeleteStoredBefore`). Deleting a job does not delete its images: they go with the rest. `GET
 csv/jobs` tells the client, per job, whether a retry would be taken (`retryable`) and, for a job with images, until
 when (`retryUntil`): the menu item shows that day, survives a reload, and is disabled once it is past. A job without
-images has no deadline. Without `CLOUDINARY_URL`, or when storing the images failed, a job with images reads as not
-retryable, and the user submits again from the AI page. A failed creative job is retried on the Render
+images has no deadline. Without `CLOUDINARY_URL`, a job with images reads as not retryable, and the user submits again from the AI page. A failed creative job is retried on the Render
 server (the Vercel server forwards the retry), which fetches the images from Cloudinary like Vercel would. Only a
 failed *upload* (status 0, before the job exists) needs the user's retry for a connection reason; once the server
 answers `202`, a dropped connection no longer matters.

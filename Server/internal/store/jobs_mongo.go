@@ -129,13 +129,6 @@ func (m *MongoJobs) Delete(ctx context.Context, username, id string) error {
 	return nil
 }
 
-func (m *MongoJobs) SetImages(ctx context.Context, username, id string, images []JobImage, storedAt time.Time) error {
-	_, err := m.jobs.UpdateOne(ctx,
-		bson.M{"_id": id, "username": username},
-		bson.M{"$set": bson.M{"images": images, "imagesStoredAt": storedAt.UTC()}})
-	return err
-}
-
 // lastSignBefore matches a job whose last sign of life, its heartbeat or before the first one its creation,
 // is before t.
 func lastSignBefore(t time.Time) bson.M {

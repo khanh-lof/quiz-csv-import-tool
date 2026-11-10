@@ -126,17 +126,6 @@ func (m *MemoryJobs) Delete(_ context.Context, username, id string) error {
 	return nil
 }
 
-func (m *MemoryJobs) SetImages(_ context.Context, username, id string, images []JobImage, storedAt time.Time) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if j, ok := m.jobs[id]; ok && j.Username == username {
-		storedAt = storedAt.UTC().Truncate(time.Millisecond)
-		j.Images, j.ImagesStoredAt = images, &storedAt
-		m.jobs[id] = j
-	}
-	return nil
-}
-
 func (m *MemoryJobs) ExpireRunning(_ context.Context, username string, cutoffs ExpiryCutoffs, message string) ([]Job, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

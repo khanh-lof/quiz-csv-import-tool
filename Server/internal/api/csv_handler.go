@@ -313,13 +313,12 @@ func (s *Server) startBankJob(w http.ResponseWriter, r *http.Request, username s
 	return true
 }
 
-// runJob generates the CSV and records the outcome on the job, its images stored meanwhile. ctx is detached from
+// runJob generates the CSV and records the outcome on the job. ctx is detached from
 // the request: the client has usually gone away by now (that is the point), and its disconnecting must not cancel
 // the model call.
 func (s *Server) runJob(ctx context.Context, job *store.Job, images []csvgen.Image, opts csvgen.Options) {
 	// The questions the model writes for the question bank name the job.
 	ctx = bank.WithJob(ctx, job.ID)
-	imagesStored := s.storeJobImages(ctx, job, images)
 	generation := ctx
 	if s.LLMTimeout > 0 {
 		var cancel context.CancelFunc
@@ -330,8 +329,6 @@ func (s *Server) runJob(ctx context.Context, job *store.Job, images []csvgen.Ima
 	started := time.Now()
 	result, err := s.Generator.Generate(generation, images, job.Creative, opts)
 	stopHeartbeat()
-	// Before the outcome, so a failed job reads as retryable as soon as it reads as failed.
-	imagesStored()
 	usage := jobUsage(result.Usage, time.Since(started))
 	logAttrs := []any{"user", job.Username, "job", job.ID, "images", len(images), "model", usage.Model, "calls", usage.Calls,
 		"durationMs", usage.DurationMs, "inputTokens", usage.InputTokens, "cachedTokens", usage.CachedTokens,

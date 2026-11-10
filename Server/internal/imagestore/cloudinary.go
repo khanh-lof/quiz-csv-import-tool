@@ -1,10 +1,9 @@
 // Package imagestore keeps the images of AI jobs in Cloudinary, so a failed or interrupted job can be sent to the
 // model again without the user uploading them again, from any server and any instance of it. The browser uploads
-// them itself, with signatures from SignUploads; Store is for a server given the images.
+// them itself, with signatures from SignUploads.
 package imagestore
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha1"
@@ -13,9 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
-	"net/textproto"
 	"net/url"
 	"regexp"
 	"slices"
@@ -45,8 +42,8 @@ var ErrUnknownImage = errors.New("not an image of a job")
 
 var publicIDPattern = regexp.MustCompile(`^` + regexp.QuoteMeta(prefix) + `[0-9a-f]{32}$`)
 
-// Cloudinary stores images in one Cloudinary account, authenticating every call with the API key and secret
-// (HTTP Basic auth, which the Upload and Admin APIs both take). Images are public "upload" assets under
+// Cloudinary keeps images in one Cloudinary account, authenticating every Admin API call with the API key and
+// secret (HTTP Basic auth). Images are public "upload" assets under
 // random public IDs: their URLs are only ever in the job store.
 type Cloudinary struct {
 	key, secret string
@@ -136,55 +133,6 @@ func newPublicID() string {
 	id := make([]byte, 16)
 	_, _ = rand.Read(id)
 	return prefix + hex.EncodeToString(id)
-}
-
-// Store uploads the images, all at once, and returns where each is kept, in order. On an error nothing is
-// returned, though some images may have been stored: the cleanup deletes them with the rest.
-func (c *Cloudinary) Store(ctx context.Context, images []csvgen.Image) ([]store.JobImage, error) {
-	refs := make([]store.JobImage, len(images))
-	errs := make([]error, len(images))
-	var wg sync.WaitGroup
-	for i, image := range images {
-		wg.Go(func() {
-			refs[i], errs[i] = c.upload(ctx, image)
-		})
-	}
-	wg.Wait()
-	if err := errors.Join(errs...); err != nil {
-		return nil, err
-	}
-	return refs, nil
-}
-
-func (c *Cloudinary) upload(ctx context.Context, image csvgen.Image) (store.JobImage, error) {
-	publicID := newPublicID()
-
-	var body bytes.Buffer
-	form := multipart.NewWriter(&body)
-	_ = form.WriteField("public_id", publicID)
-	header := textproto.MIMEHeader{}
-	header.Set("Content-Disposition", `form-data; name="file"; filename="image"`)
-	header.Set("Content-Type", image.ContentType)
-	part, _ := form.CreatePart(header)
-	_, _ = part.Write(image.Data)
-	_ = form.Close()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiBase+"/image/upload", &body)
-	if err != nil {
-		return store.JobImage{}, err
-	}
-	req.Header.Set("Content-Type", form.FormDataContentType())
-	var uploaded struct {
-		PublicID  string `json:"public_id"`
-		SecureURL string `json:"secure_url"`
-	}
-	if err := c.call(req, &uploaded); err != nil {
-		return store.JobImage{}, fmt.Errorf("uploading an image: %w", err)
-	}
-	if uploaded.PublicID == "" || uploaded.SecureURL == "" {
-		return store.JobImage{}, errors.New("uploading an image: the answer names no public ID or URL")
-	}
-	return store.JobImage{URL: uploaded.SecureURL, PublicID: uploaded.PublicID, ContentType: image.ContentType}, nil
 }
 
 // Fetch downloads the images, in order; ErrGone when one is no longer kept.

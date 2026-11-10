@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -13,11 +12,9 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"quiz-csv-import-tool/server/internal/csvgen"
 )
 
-// fakeCloudinary answers the four calls the store makes, the way Cloudinary does, and keeps the images.
+// fakeCloudinary answers the three calls the store makes, the way Cloudinary does, and keeps the images.
 type fakeCloudinary struct {
 	t       *testing.T
 	server  *httptest.Server
@@ -40,6 +37,7 @@ func newFakeCloudinary(t *testing.T) (*fakeCloudinary, *Cloudinary) {
 		t.Fatal(err)
 	}
 	c.apiBase = f.server.URL + "/v1_1/demo"
+	c.deliveryBase = f.server.URL + "/cdn/"
 	return f, c
 }
 
@@ -61,16 +59,6 @@ func (f *fakeCloudinary) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch {
-	case r.Method == http.MethodPost && r.URL.Path == "/v1_1/demo/image/upload":
-		file, header, err := r.FormFile("file")
-		publicID := r.FormValue("public_id")
-		if err != nil || !strings.HasPrefix(publicID, prefix) || header.Header.Get("Content-Type") == "" {
-			http.Error(w, `{"error":{"message":"bad upload"}}`, http.StatusBadRequest)
-			return
-		}
-		data, _ := io.ReadAll(file)
-		f.images[publicID] = fakeImage{data: data, createdAt: time.Now().UTC()}
-		_ = json.NewEncoder(w).Encode(map[string]string{"public_id": publicID, "secure_url": f.server.URL + "/cdn/" + publicID})
 	case r.Method == http.MethodGet && r.URL.Path == "/v1_1/demo/resources/image/upload":
 		if r.URL.Query().Get("prefix") != prefix {
 			http.Error(w, `{"error":{"message":"bad prefix"}}`, http.StatusBadRequest)
@@ -118,30 +106,33 @@ func TestNewCloudinaryReadsTheURL(t *testing.T) {
 	}
 }
 
-func TestStoreThenFetch(t *testing.T) {
-	_, c := newFakeCloudinary(t)
-	images := []csvgen.Image{{ContentType: "image/jpeg", Data: []byte("first")}, {ContentType: "image/png", Data: []byte("second")}}
-	refs, err := c.Store(context.Background(), images)
-	if err != nil || len(refs) != 2 || refs[0].PublicID == refs[1].PublicID || !strings.HasPrefix(refs[0].PublicID, prefix) ||
-		refs[1].ContentType != "image/png" {
-		t.Fatalf("stored %+v %v", refs, err)
+func TestFetchReadsWhatTheBrowserUploaded(t *testing.T) {
+	f, c := newFakeCloudinary(t)
+	grant := c.SignUploads(2, time.Now())
+	ids := []string{grant.Uploads[0].PublicID, grant.Uploads[1].PublicID}
+	f.images[ids[0]] = fakeImage{data: []byte("first")}
+	f.images[ids[1]] = fakeImage{data: []byte("second")}
+	refs, err := c.Refs(ids)
+	if err != nil {
+		t.Fatal(err)
 	}
+	refs[1].ContentType = "image/png"
 	fetched, err := c.Fetch(context.Background(), refs)
 	if err != nil || len(fetched) != 2 || string(fetched[0].Data) != "first" || fetched[1].ContentType != "image/png" ||
 		string(fetched[1].Data) != "second" {
 		t.Fatalf("fetched %+v %v", fetched, err)
 	}
 
-	refs[1].URL += "-gone"
+	delete(f.images, ids[1])
 	if _, err := c.Fetch(context.Background(), refs); !errors.Is(err, ErrGone) {
 		t.Fatalf("a deleted image: %v", err)
 	}
 }
 
-func TestStoreReportsCloudinarysError(t *testing.T) {
+func TestDeleteStoredBeforeReportsCloudinarysError(t *testing.T) {
 	_, c := newFakeCloudinary(t)
 	c.secret = "wrong"
-	_, err := c.Store(context.Background(), []csvgen.Image{{ContentType: "image/jpeg", Data: []byte("x")}})
+	_, err := c.DeleteStoredBefore(context.Background(), time.Now())
 	if err == nil || !strings.Contains(err.Error(), "status 401: Invalid credentials") {
 		t.Fatalf("got %v", err)
 	}

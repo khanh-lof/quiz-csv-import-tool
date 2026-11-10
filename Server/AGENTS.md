@@ -105,8 +105,8 @@ without them.
   here. The AI server ignores it. `AI_SERVER_SECRET` (≥ 32 bytes, the same on both servers) is required with it,
   and by the AI server
 - `CLOUDINARY_URL` — `cloudinary://<api key>:<api secret>@<cloud name>`: where both servers keep the images of jobs
-  for 30 days (`imagestore.Cloudinary`, Basic-auth calls to the Upload and Admin APIs, and `SignUploads` for the
-  browser's own signed uploads, `POST /api/csv/uploads`), so a failed job can be retried and an interrupted one
+  for 30 days (`imagestore.Cloudinary`, `SignUploads` for the browser's own signed uploads,
+  `POST /api/csv/uploads`, `Fetch` to read them back, and Basic-auth Admin API calls to delete the old ones), so a failed job can be retried and an interrupted one
   resumed; empty keeps none, and a malformed value stops the server at start
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LLM_MODEL` — if any is missing the server still starts, but
   CSV generation answers 500. `LLM_MODEL` serves the formatted mode (sent with `reasoning_effort: low`)
@@ -169,9 +169,8 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   stores a running `store.Job`, prunes the user's jobs to the newest 30, answers `202 {"id"}` (flushed
   early, `Connection: close`) and keeps running in the same handler: `runJob` calls the generator on a
   context detached from the request (`context.WithoutCancel`), so the client leaving does not cancel it,
-  and records the outcome with `Jobs.Complete` / `Jobs.Fail`; meanwhile `storeJobImages` stores sent files in the
-  `ImageStore` (Cloudinary) and records them with `Jobs.SetImages` (`job_images.go`, kept for `imagesKeptFor`, 30
-  days). `retryJob` ("Tạo lại") rebuilds the failed job's request with `retryOptions`, fetches its images from the
+  and records the outcome with `Jobs.Complete` / `Jobs.Fail`. Uploaded images are recorded on the job when it is
+  created (`job_images.go`, kept for `imagesKeptFor`, 30 days); files sent with the job are not kept. `retryJob` ("Tạo lại") rebuilds the failed job's request with `retryOptions`, fetches its images from the
   `ImageStore` (410 once they are not kept) and goes through the same `startJob`
   (rate limit, store, prune, `202`) and `runJob`, deleting the failed job before it answers; its refusals are
   in [../AGENTS.md](../AGENTS.md#retrying-ai-requests). Validation, auth and rate-limit

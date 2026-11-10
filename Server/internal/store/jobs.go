@@ -148,8 +148,6 @@ type Jobs interface {
 	List(ctx context.Context, username string, limit int) ([]Job, error)
 	// Delete removes one job; ErrNotFound when the user has no such job.
 	Delete(ctx context.Context, username, id string) error
-	// SetImages records where a job's images are kept, whatever its status; a missing job is no error.
-	SetImages(ctx context.Context, username, id string, images []JobImage, storedAt time.Time) error
 	// ExpireRunning fails, with ExpiredJobStatus, the user's running jobs that cutoffs take for abandoned,
 	// which only happens when the process handling them died, and returns the ones it failed.
 	ExpireRunning(ctx context.Context, username string, cutoffs ExpiryCutoffs, message string) ([]Job, error)

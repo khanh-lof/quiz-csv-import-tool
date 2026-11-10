@@ -82,7 +82,7 @@ func TestRetryJobHandsCreativeJobsToTheAIServer(t *testing.T) {
 	token, _ := env.login(t, "alice", "pw")
 	env.gen.err = errFake
 	env.upload(t, upload{token: token, query: creativeQuery})
-	env.upload(t, upload{token: token, files: 1})
+	env.upload(t, upload{token: token, uploaded: 1})
 	jobs, _ := env.jobs.List(context.Background(), "alice", 10)
 	var creative, formatted store.Job
 	for _, job := range jobs {

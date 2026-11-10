@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/store"
 )
 
@@ -14,10 +13,13 @@ import (
 func interruptedJob(t *testing.T, env *testEnv, id string, creative bool, age time.Duration, roundStart time.Time) *store.Job {
 	t.Helper()
 	ctx := context.Background()
-	refs, err := env.images.Store(ctx, []csvgen.Image{{ContentType: "image/jpeg", Data: []byte("page-" + id)}})
+	publicID := "quiztool-jobs/" + id
+	env.images.put(publicID, "page-"+id)
+	refs, err := env.images.Refs([]string{publicID})
 	if err != nil {
 		t.Fatal(err)
 	}
+	refs[0].ContentType = "image/jpeg"
 	storedAt := testClockStart
 	job := &store.Job{
 		ID: id, Username: "alice", Status: store.JobRunning, Title: id, Creative: creative, ExportType: ptr(0),

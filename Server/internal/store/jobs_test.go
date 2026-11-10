@@ -230,28 +230,6 @@ func testJobImagesAndResumes(t *testing.T, jobs Jobs) {
 			ImageCount: 1, CreatedAt: base.Add(-age), Resumes: resumes}
 	}
 
-	// SetImages records the images on the owner's job only, whatever its status.
-	if err := jobs.Create(ctx, job("pic", "carol", true, 0, 0)); err != nil {
-		t.Fatal(err)
-	}
-	images := []JobImage{{URL: "https://img/1", PublicID: "quiztool-jobs/1", ContentType: "image/jpeg"}}
-	if err := jobs.SetImages(ctx, "dave", "pic", images, base); err != nil {
-		t.Fatal(err)
-	}
-	if j, _ := jobs.Get(ctx, "carol", "pic"); j.Images != nil || j.ImagesStoredAt != nil {
-		t.Fatalf("another user's SetImages was recorded: %+v", j)
-	}
-	_ = jobs.Fail(ctx, "carol", "pic", JobFailure{Status: 502, Code: "failed"}, JobUsage{})
-	if err := jobs.SetImages(ctx, "carol", "pic", images, base); err != nil {
-		t.Fatal(err)
-	}
-	if j, _ := jobs.Get(ctx, "carol", "pic"); len(j.Images) != 1 || j.Images[0] != images[0] || !j.ImagesStoredAt.Equal(base) {
-		t.Fatalf("images of a failed job: %+v", j)
-	}
-	if err := jobs.SetImages(ctx, "carol", "missing", images, base); err != nil {
-		t.Fatalf("SetImages of a missing job: %v", err)
-	}
-
 	// A job some server may still resume waits longer before it is taken for abandoned; one resumed too often
 	// does not.
 	for _, j := range []*Job{

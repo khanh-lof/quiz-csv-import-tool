@@ -334,7 +334,8 @@ type upload struct {
 	query    string
 	token    string
 	files    int
-	fileData *string // the content of every file part; testPNG when nil
+	uploaded int     // images uploaded to the image store by the browser, named by imageId fields
+	fileData *string // the content of every file part or uploaded image; testPNG when nil
 	rawBody  *string // overrides the multipart body when set
 	ctype    *string
 }
@@ -351,6 +352,10 @@ func (e *testEnv) upload(t *testing.T, u upload) *httptest.ResponseRecorder {
 	for range u.files {
 		fw, _ := mw.CreateFormFile("images", "lesson.png")
 		_, _ = fw.Write([]byte(fileData))
+	}
+	for _, signed := range e.images.SignUploads(u.uploaded, time.Now()).Uploads {
+		e.images.put(signed.PublicID, fileData)
+		_ = mw.WriteField(uploadedImageField, signed.PublicID)
 	}
 	_ = mw.Close()
 	var reader io.Reader = &body
@@ -913,7 +918,7 @@ func TestRetryJobSendsTheKeptImagesAgain(t *testing.T) {
 	token, _ := env.login(t, "alice", "pw")
 	bob, _ := env.login(t, "bob", "pw")
 	env.gen.err = errors.New("boom")
-	env.upload(t, upload{token: token, files: 2, query: "?title=Anh"})
+	env.upload(t, upload{token: token, uploaded: 2, query: "?title=Anh"})
 	failed := env.onlyJob(t, "alice")
 	if len(failed.Images) != 2 || !failed.ImagesStoredAt.Equal(testClockStart) || env.images.stored() != 2 {
 		t.Fatalf("failed job %+v, %d images stored", failed, env.images.stored())
@@ -959,7 +964,7 @@ func TestRetryJobOfImagesDeletedFromTheStore(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 	env.gen.err = errors.New("boom")
-	env.upload(t, upload{token: token, files: 1})
+	env.upload(t, upload{token: token, uploaded: 1})
 	failed := env.onlyJob(t, "alice")
 	env.images.forget(failed.Images[0].PublicID)
 	if rec := env.retry(t, token, failed.ID); rec.Code != http.StatusGone || rec.Body.String() != "Images expired." {
@@ -989,7 +994,7 @@ func TestRetryJobRefusals(t *testing.T) {
 	}
 
 	env.gen.err = errors.New("boom")
-	env.upload(t, upload{token: token, files: 1})
+	env.upload(t, upload{token: token, uploaded: 1})
 	jobs, _ := env.jobs.List(ctx, "alice", 100)
 	failed := jobs[slices.IndexFunc(jobs, func(j store.Job) bool { return j.ImageCount == 1 })]
 	env.gen.err = nil
