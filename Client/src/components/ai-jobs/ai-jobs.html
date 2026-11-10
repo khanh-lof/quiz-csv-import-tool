@@ -56,18 +56,18 @@
   </div>
 
   <nz-table #jobsTable [nzData]="filtered()" [nzLoading]="!loaded()" [nzNoResult]="(isFiltering() ? 'common.noResults' : 'ai.history.empty') | msg" [nzPageSize]="pageSize"
-            [nzShowPagination]="filtered().length > pageSize" class="jobs-table"
+            [nzScroll]="{ x: '1020px' }" [nzShowPagination]="filtered().length > pageSize" class="jobs-table"
             nzSize="small">
     <thead>
     <tr>
       <th>Tiêu đề</th>
-      <th>{{ 'common.language' | msg }}</th>
-      <th>{{ 'ai.label.mode' | msg }}</th>
-      <th>Bài học</th>
-      <th>{{ 'ai.label.platform' | msg }}</th>
-      <th>Lúc gửi</th>
-      <th>{{ 'common.status' | msg }}</th>
-      <th class="actions-col"></th>
+      <th nzWidth="130px">{{ 'common.language' | msg }}</th>
+      <th nzWidth="110px">{{ 'ai.label.mode' | msg }}</th>
+      <th nzWidth="190px">Bài học</th>
+      <th nzWidth="115px">{{ 'ai.label.platform' | msg }}</th>
+      <th nzWidth="115px">Lúc gửi</th>
+      <th nzWidth="150px">{{ 'common.status' | msg }}</th>
+      <th nzRight nzWidth="48px"></th>
     </tr>
     </thead>
     <tbody>
@@ -95,7 +95,7 @@
               }
             }
           </td>
-          <td class="job-actions">
+          <td class="job-actions" nzRight>
             <!-- A running job has nothing to do yet, so it gets no menu. -->
             @if (job.status !== 'running') {
               <button [nzDropdownMenu]="jobMenu" aria-label="Thao tác" nz-button nz-dropdown nzPlacement="bottomRight" nzSize="small"
