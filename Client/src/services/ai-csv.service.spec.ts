@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { HttpInterceptorFn, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { AiCsvService } from './ai-csv.service';
+import { AiCsvService, ImageUploadError } from './ai-csv.service';
 import { AIGenerationMode } from '../models/aigeneration-mode';
 import { CourseType } from '../models/course-type';
 import { ExportType } from '../models/export-type';
@@ -17,7 +17,11 @@ describe('AiCsvService', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    // The interceptor stands in for AuthInterceptor: the access token must not reach the image store.
+    const addToken: HttpInterceptorFn = (req, next) => next(req.clone({ setHeaders: { Authorization: 'Bearer t' } }));
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(withInterceptors([addToken])), provideHttpClientTesting()],
+    });
     service = TestBed.inject(AiCsvService);
     http = TestBed.inject(HttpTestingController);
   });
@@ -180,6 +184,66 @@ describe('AiCsvService', () => {
       const params = http.expectOne(r => r.url === URL).request.params;
       expect(params.has('gestureStages')).toBeFalse();
       expect(params.has('questionsPerStage')).toBeFalse();
+    });
+  });
+
+  describe('images', () => {
+    const files = [new File(['a'], 'a.jpg', { type: 'image/jpeg' }), new File(['b'], 'b.jpg', { type: 'image/jpeg' })];
+    const grant = {
+      url: 'https://api.cloudinary.test/v1_1/demo/image/upload',
+      uploads: [
+        { publicId: 'quiztool-jobs/1', fields: { api_key: 'key', public_id: 'quiztool-jobs/1', signature: 's1' } },
+        { publicId: 'quiztool-jobs/2', fields: { api_key: 'key', public_id: 'quiztool-jobs/2', signature: 's2' } },
+      ],
+    };
+
+    it('uploads them to the image store, signed, and sends their ids with the job', () => {
+      let result: string | undefined;
+      service.submitFormatted(files, 'Từ (2 ảnh)', QuizLanguage.Chinese).subscribe(job => result = job.id);
+
+      const sign = http.expectOne(r => r.url === '/api/csv/uploads');
+      expect(sign.request.method).toBe('POST');
+      expect(sign.request.params.get('count')).toBe('2');
+      sign.flush(grant);
+
+      const uploads = http.match(r => r.url === grant.url);
+      expect(uploads.length).toBe(2);
+      const first = uploads[0].request.body as FormData;
+      expect(first.get('signature')).toBe('s1');
+      expect(first.get('public_id')).toBe('quiztool-jobs/1');
+      expect((first.get('file') as File).name).toBe('a.jpg');
+      expect(uploads[0].request.headers.has('Authorization')).toBeFalse();
+      uploads.forEach(upload => upload.flush({}));
+
+      const job = http.expectOne(r => r.url === URL);
+      const body = job.request.body as FormData;
+      expect(body.getAll('imageId')).toEqual(['quiztool-jobs/1', 'quiztool-jobs/2']);
+      expect(body.has('images')).toBeFalse();
+      job.flush({ id: 'abc' });
+      expect(result).toBe('abc');
+    });
+
+    it('sends the images with the job when the server has no image store', () => {
+      service.submitFormatted(files, 'Từ (2 ảnh)', QuizLanguage.Chinese).subscribe();
+
+      http.expectOne(r => r.url === '/api/csv/uploads').flush('no', { status: 404, statusText: 'Not Found' });
+
+      const body = http.expectOne(r => r.url === URL).request.body as FormData;
+      expect(body.getAll('images').length).toBe(2);
+      expect(body.has('imageId')).toBeFalse();
+    });
+
+    it('sends no job when an image cannot be uploaded', () => {
+      let got: unknown;
+      service.submitFormatted(files, 'Từ (2 ảnh)', QuizLanguage.Chinese).subscribe({ error: err => got = err });
+
+      http.expectOne(r => r.url === '/api/csv/uploads').flush(grant);
+      http.match(r => r.url === grant.url)[0].flush({ error: { message: 'Invalid Signature' } },
+        { status: 401, statusText: 'Unauthorized' });
+
+      expect(got).toBeInstanceOf(ImageUploadError);
+      http.match(r => r.url === grant.url);
+      http.expectNone(r => r.url === URL);
     });
   });
 

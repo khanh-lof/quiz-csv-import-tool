@@ -1,11 +1,13 @@
 // Package imagestore keeps the images of AI jobs in Cloudinary, so a failed or interrupted job can be sent to the
-// model again without the user uploading them again, from any server and any instance of it.
+// model again without the user uploading them again, from any server and any instance of it. The browser uploads
+// them itself, with signatures from SignUploads; Store is for a server given the images.
 package imagestore
 
 import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -15,6 +17,9 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -29,17 +34,27 @@ const prefix = "quiztool-jobs/"
 // maxImageBytes bounds an image read back: the client sends at most 4 MB in all, the server takes 50 MB.
 const maxImageBytes = 50 << 20
 
+// allowedFormats are the formats a browser may upload, the ones the model reads.
+const allowedFormats = "gif,jpg,png,webp"
+
 // ErrGone means an image is no longer kept, deleted by the cleanup or by hand.
 var ErrGone = errors.New("image is no longer kept")
+
+// ErrUnknownImage means a public ID is not one SignUploads hands out.
+var ErrUnknownImage = errors.New("not an image of a job")
+
+var publicIDPattern = regexp.MustCompile(`^` + regexp.QuoteMeta(prefix) + `[0-9a-f]{32}$`)
 
 // Cloudinary stores images in one Cloudinary account, authenticating every call with the API key and secret
 // (HTTP Basic auth, which the Upload and Admin APIs both take). Images are public "upload" assets under
 // random public IDs: their URLs are only ever in the job store.
 type Cloudinary struct {
 	key, secret string
-	// apiBase is https://api.cloudinary.com/v1_1/<cloud name>; tests point it at a fake.
-	apiBase string
-	http    *http.Client
+	// apiBase is https://api.cloudinary.com/v1_1/<cloud name> and deliveryBase
+	// https://res.cloudinary.com/<cloud name>/image/upload/; tests point them at a fake.
+	apiBase      string
+	deliveryBase string
+	http         *http.Client
 }
 
 // NewCloudinary reads a CLOUDINARY_URL, cloudinary://<api key>:<api secret>@<cloud name>, as the account's
@@ -53,12 +68,74 @@ func NewCloudinary(raw string) (*Cloudinary, error) {
 	if u.User.Username() == "" || !ok || secret == "" {
 		return nil, errors.New("CLOUDINARY_URL must look like cloudinary://<api key>:<api secret>@<cloud name>")
 	}
+	cloud := url.PathEscape(u.Host)
 	return &Cloudinary{
-		key:     u.User.Username(),
-		secret:  secret,
-		apiBase: "https://api.cloudinary.com/v1_1/" + url.PathEscape(u.Host),
-		http:    &http.Client{Timeout: 2 * time.Minute},
+		key:          u.User.Username(),
+		secret:       secret,
+		apiBase:      "https://api.cloudinary.com/v1_1/" + cloud,
+		deliveryBase: "https://res.cloudinary.com/" + cloud + "/image/upload/",
+		http:         &http.Client{Timeout: 2 * time.Minute},
 	}, nil
+}
+
+// UploadGrant lets a browser upload images straight to Cloudinary: each of Uploads is posted to URL as a
+// multipart form of its Fields and the image as "file".
+type UploadGrant struct {
+	URL     string         `json:"url"`
+	Uploads []SignedUpload `json:"uploads"`
+}
+
+// SignedUpload is one image's form fields, signed, under a fresh public ID that Refs takes back.
+type SignedUpload struct {
+	PublicID string            `json:"publicId"`
+	Fields   map[string]string `json:"fields"`
+}
+
+// SignUploads signs count uploads at now. Cloudinary takes a signature for an hour after its timestamp.
+func (c *Cloudinary) SignUploads(count int, now time.Time) UploadGrant {
+	grant := UploadGrant{URL: c.apiBase + "/image/upload", Uploads: make([]SignedUpload, count)}
+	timestamp := strconv.FormatInt(now.Unix(), 10)
+	for i := range grant.Uploads {
+		publicID := newPublicID()
+		signed := map[string]string{"allowed_formats": allowedFormats, "public_id": publicID, "timestamp": timestamp}
+		fields := map[string]string{"api_key": c.key, "signature": c.sign(signed)}
+		for name, value := range signed {
+			fields[name] = value
+		}
+		grant.Uploads[i] = SignedUpload{PublicID: publicID, Fields: fields}
+	}
+	return grant
+}
+
+// sign is Cloudinary's upload signature: the parameters sorted by name as name=value joined by "&", the API
+// secret appended, hashed with SHA-1 (the account's default signature algorithm).
+func (c *Cloudinary) sign(params map[string]string) string {
+	pairs := make([]string, 0, len(params))
+	for name, value := range params {
+		pairs = append(pairs, name+"="+value)
+	}
+	slices.Sort(pairs)
+	sum := sha1.Sum([]byte(strings.Join(pairs, "&") + c.secret))
+	return hex.EncodeToString(sum[:])
+}
+
+// Refs says where the images a browser uploaded under these public IDs are kept, in order, their content type
+// left for the caller to fill in once it has read them; ErrUnknownImage for an ID SignUploads would not hand out.
+func (c *Cloudinary) Refs(publicIDs []string) ([]store.JobImage, error) {
+	refs := make([]store.JobImage, len(publicIDs))
+	for i, publicID := range publicIDs {
+		if !publicIDPattern.MatchString(publicID) {
+			return nil, fmt.Errorf("%q: %w", publicID, ErrUnknownImage)
+		}
+		refs[i] = store.JobImage{URL: c.deliveryBase + publicID, PublicID: publicID}
+	}
+	return refs, nil
+}
+
+func newPublicID() string {
+	id := make([]byte, 16)
+	_, _ = rand.Read(id)
+	return prefix + hex.EncodeToString(id)
 }
 
 // Store uploads the images, all at once, and returns where each is kept, in order. On an error nothing is
@@ -80,9 +157,7 @@ func (c *Cloudinary) Store(ctx context.Context, images []csvgen.Image) ([]store.
 }
 
 func (c *Cloudinary) upload(ctx context.Context, image csvgen.Image) (store.JobImage, error) {
-	id := make([]byte, 16)
-	_, _ = rand.Read(id)
-	publicID := prefix + hex.EncodeToString(id)
+	publicID := newPublicID()
 
 	var body bytes.Buffer
 	form := multipart.NewWriter(&body)

@@ -750,12 +750,19 @@ with the request the failed one was made from (`retryOptions`: title, mode, plat
 for a Game, its games and question count) and its images, and deletes the failed one, which the new one replaces.
 It uses a call of the rate limit like any submission. The refusals, in order: 404 `Job not found`, 409 `Job has not
 failed.`, 409 `Job cannot be retried.` (a job from before the server kept its lesson or its games), 410 `Images
-expired.`, then the rate limit's 403. The database never holds images: while a job runs, `runJob` stores its images
-in Cloudinary (`Server/internal/imagestore`, `CLOUDINARY_URL`, public assets under random IDs prefixed
-`quiztool-jobs/`) and records their URLs on the job (`Job.Images`, `ImagesStoredAt`), before the outcome, so a failed
-job reads as retryable as soon as it reads as failed. They can be sent again for **30 days** (`imagesKeptFor`), by
+expired.`, then the rate limit's 403. The database never holds images: they are kept in Cloudinary
+(`Server/internal/imagestore`, `CLOUDINARY_URL`, public assets under random IDs prefixed `quiztool-jobs/`) and their
+URLs recorded on the job (`Job.Images`, `ImagesStoredAt`). The browser uploads them there itself (signed uploads):
+`POST csv/uploads?count=N` (1 to 50) answers `{url, uploads: [{publicId, fields}]}`, each image is posted to `url`
+with its `fields` (API key, timestamp, `public_id`, `allowed_formats`, SHA-1 signature; never the secret, and
+without the access token, `AiCsvService` posting through `HttpBackend`), and the job request names them in
+`imageId` fields instead of sending files. The server reads them back from `res.cloudinary.com` for the model (400
+for a public ID it would not sign, one not uploaded, or one not an image) and records them on the job at once. A
+server without `CLOUDINARY_URL` answers 404 to the signing, and the browser then sends the files with the job,
+which `runJob` stores in Cloudinary meanwhile, before the outcome, so a failed job reads as retryable as soon as it
+reads as failed. They can be sent again for **30 days** (`imagesKeptFor`), by
 any server and any instance of it; a retry's job takes the same images over and keeps the same deadline. Cloudinary
-has no expiry of its own, so storing images also deletes, at most once a day per process, the ones stored more
+has no expiry of its own, so storing or receiving images also deletes, at most once a day per process, the ones stored more
 than 31 days ago (`DeleteStoredBefore`). Deleting a job does not delete its images: they go with the rest. `GET
 csv/jobs` tells the client, per job, whether a retry would be taken (`retryable`) and, for a job with images, until
 when (`retryUntil`): the menu item shows that day, survives a reload, and is disabled once it is past. A job without

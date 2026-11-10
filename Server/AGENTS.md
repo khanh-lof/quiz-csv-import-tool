@@ -24,6 +24,10 @@ Module `quiz-csv-import-tool/server`, laid out as:
   it, and every minute, from boot, takes over and runs again the creative jobs whose process died
   (`resumeInterrupted`, see [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes)).
 - `cmd/import-users` — one-off tool importing users exported from the old Cosmos DB container.
+- `cmd/bank-questions` — fills the question bank without the server's model, for the `add-bank-questions` skill
+  (`.claude/skills/`): `status` (questions per word), `prompt` (plans `--count` questions with `bank.TopUpSpecs` and
+  writes the model's exact request, `csvgen.NewBankPrompt`) and `insert` (reads the answer with
+  `csvgen.ParseBankAnswer`, checks it with `bank.Validate`, stores it with `Insert`; `--dry-run`).
 - `internal/config` — env-var configuration (`FromEnv`) and a small `.env` loader for local dev.
 - `internal/api` — routing (`Server.Handler`) and all handlers.
 - `internal/auth` — JWT issue/parse, PBKDF2 password hashing, and `Service` (login/refresh/logout).
@@ -101,8 +105,9 @@ without them.
   here. The AI server ignores it. `AI_SERVER_SECRET` (≥ 32 bytes, the same on both servers) is required with it,
   and by the AI server
 - `CLOUDINARY_URL` — `cloudinary://<api key>:<api secret>@<cloud name>`: where both servers keep the images of jobs
-  for 30 days (`imagestore.Cloudinary`, Basic-auth calls to the Upload and Admin APIs), so a failed job can be
-  retried and an interrupted one resumed; empty keeps none, and a malformed value stops the server at start
+  for 30 days (`imagestore.Cloudinary`, Basic-auth calls to the Upload and Admin APIs, and `SignUploads` for the
+  browser's own signed uploads, `POST /api/csv/uploads`), so a failed job can be retried and an interrupted one
+  resumed; empty keeps none, and a malformed value stops the server at start
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LLM_MODEL` — if any is missing the server still starts, but
   CSV generation answers 500. `LLM_MODEL` serves the formatted mode (sent with `reasoning_effort: low`)
 - `LLM_CREATIVE_MODEL` — optional: the model of the creative mode (the quizzes, the question bank's questions and
@@ -159,11 +164,12 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   [../AGENTS.md](../AGENTS.md#ghép-bộ-thủ-the-radicals-exercise)). All wrapped in
   `authenticate` (Bearer JWT → 401 with `WWW-Authenticate`) and `requireRole(auth.RoleUser, auth.RoleAdmin)`
   (→ 403); handlers read the claims with `auth.FromContext`. `createJob` loads the user (404 if deleted
-  since the token was issued), reads a multipart body of zero or more files, enforces the rate limit,
+  since the token was issued), reads a multipart body of zero or more files, or of `imageId` fields naming images
+  the browser uploaded (`uploadedImages` reads them back through `ImageStore.Refs` and `Fetch`), enforces the rate limit,
   stores a running `store.Job`, prunes the user's jobs to the newest 30, answers `202 {"id"}` (flushed
   early, `Connection: close`) and keeps running in the same handler: `runJob` calls the generator on a
   context detached from the request (`context.WithoutCancel`), so the client leaving does not cancel it,
-  and records the outcome with `Jobs.Complete` / `Jobs.Fail`; meanwhile `storeJobImages` stores the images in the
+  and records the outcome with `Jobs.Complete` / `Jobs.Fail`; meanwhile `storeJobImages` stores sent files in the
   `ImageStore` (Cloudinary) and records them with `Jobs.SetImages` (`job_images.go`, kept for `imagesKeptFor`, 30
   days). `retryJob` ("Tạo lại") rebuilds the failed job's request with `retryOptions`, fetches its images from the
   `ImageStore` (410 once they are not kept) and goes through the same `startJob`

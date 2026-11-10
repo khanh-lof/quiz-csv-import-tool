@@ -108,6 +108,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /api/users", s.requireAdminKey(http.HandlerFunc(s.createUser)))
 	csvRoute := s.userRoute
 	mux.Handle("POST /api/csv/jobs", csvRoute(s.createJob))
+	mux.Handle("POST /api/csv/uploads", csvRoute(s.signUploads))
 	mux.Handle("GET /api/csv/jobs", csvRoute(s.listJobs))
 	mux.Handle("DELETE /api/csv/jobs/{id}", csvRoute(s.deleteJob))
 	mux.Handle("POST /api/csv/jobs/{id}/retry", csvRoute(s.retryJob))

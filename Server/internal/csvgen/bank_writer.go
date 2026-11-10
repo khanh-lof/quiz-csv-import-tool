@@ -63,17 +63,36 @@ func (c *Client) WriteQuestions(ctx context.Context, opts Options, vocabulary Vo
 	if err != nil {
 		return nil, usage, err
 	}
+	drafts, dropped, err := ParseBankAnswer(text, ids)
+	for _, d := range dropped {
+		c.logger.Warn("the model wrote a question for no word of the list", "question", d.Index, "targets", d.Targets)
+	}
+	return drafts, usage, err
+}
+
+// DroppedDraft is a question of an answer that named no word of the list: its place in the answer, from 1, and the
+// targets it named.
+type DroppedDraft struct {
+	Index   int
+	Targets []string
+}
+
+// ParseBankAnswer reads an answer to the bank's request (the JSON object bank_system.txt describes) and returns its
+// questions with their targets turned from the word list's ids into word keys; ids maps each key to its id, as the
+// request was built. A question naming no word of the list is left out and returned in dropped. An answer that is
+// not that JSON, or has no question left, is a bad-output error.
+func ParseBankAnswer(text string, ids map[string]string) (drafts []QuestionDraft, dropped []DroppedDraft, err error) {
 	var answer struct {
 		Questions []rawDraft `json:"questions"`
 	}
 	if err := decodeJSONAnswer(text, &answer); err != nil {
-		return nil, usage, err
+		return nil, nil, err
 	}
 	keys := make(map[string]string, len(ids))
 	for key, id := range ids {
 		keys[strings.ToUpper(id)] = key
 	}
-	drafts := make([]QuestionDraft, 0, len(answer.Questions))
+	drafts = make([]QuestionDraft, 0, len(answer.Questions))
 	for i, raw := range answer.Questions {
 		draft := raw.QuestionDraft
 		draft.Difficulty = int(raw.Difficulty)
@@ -84,15 +103,15 @@ func (c *Client) WriteQuestions(ctx context.Context, opts Options, vocabulary Vo
 			}
 		}
 		if len(draft.Targets) == 0 {
-			c.logger.Warn("the model wrote a question for no word of the list", "question", i+1, "targets", raw.Targets)
+			dropped = append(dropped, DroppedDraft{Index: i + 1, Targets: raw.Targets})
 			continue
 		}
 		drafts = append(drafts, draft)
 	}
 	if len(drafts) == 0 {
-		return nil, usage, &badOutputError{errors.New("the model's answer has no question for a word of the list")}
+		return nil, dropped, &badOutputError{errors.New("the model's answer has no question for a word of the list")}
 	}
-	return drafts, usage, nil
+	return drafts, dropped, nil
 }
 
 // rawDraft is a question as the model's JSON has it: its targets are the word list's ids, and its difficulty may
@@ -119,13 +138,49 @@ func (n *lenientInt) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// BankPrompt is what the bank sends the model to write questions: the system prompt, the user messages in order
+// (the intro, the lesson messages, the LESSON MATERIAL, the WORD LIST and the REQUEST), and the id each word key is
+// given in the word list (W1, W2, ...). Visual says whether a spec asks for a visual question, which needs web
+// search. Outside the server it lets another writer (cmd/bank-questions) answer the same request.
+type BankPrompt struct {
+	Instructions string
+	Messages     []string
+	IDs          map[string]string
+	Visual       bool
+}
+
+// NewBankPrompt is the BankPrompt of the specs' questions, without a time limit. The words are those of the
+// vocabulary; a spec about any other word is an error.
+func NewBankPrompt(opts Options, vocabulary Vocabulary, specs []QuestionSpec) (BankPrompt, error) {
+	return bankPrompt(0, opts, vocabulary, specs)
+}
+
 // buildBankRequest is the call that asks for the specs' questions, and the id each word key is given in the word
 // list (W1, W2, ...). The words are those of the vocabulary; a spec about any other word is an error, since the
 // caller plans from the same vocabulary.
 func buildBankRequest(model string, timeLimit time.Duration, opts Options, vocabulary Vocabulary, specs []QuestionSpec) (responsesRequest, map[string]string, error) {
+	prompt, err := bankPrompt(timeLimit, opts, vocabulary, specs)
+	if err != nil {
+		return responsesRequest{}, nil, err
+	}
+	req := responsesRequest{
+		Model:        model,
+		Instructions: prompt.Instructions,
+		Input:        []responsesInput{{Role: "user", Content: inputParts(prompt.Messages, nil)}},
+		// A long list of questions in JSON is a long answer.
+		MaxOutputTokens: maxOutputTokensLarge,
+	}
+	if prompt.Visual {
+		// Web search lets the model find real photos for the visual questions, as for a Wayground quiz.
+		req.Tools = []responsesTool{{Type: "web_search"}}
+	}
+	return req, prompt.IDs, nil
+}
+
+func bankPrompt(timeLimit time.Duration, opts Options, vocabulary Vocabulary, specs []QuestionSpec) (BankPrompt, error) {
 	book := textbookFor(opts)
 	if book == nil || book.dir != vocabulary.Book {
-		return responsesRequest{}, nil, fmt.Errorf("csvgen: the request's course is not the book %s", vocabulary.Book)
+		return BankPrompt{}, fmt.Errorf("csvgen: the request's course is not the book %s", vocabulary.Book)
 	}
 	ids := make(map[string]string, len(vocabulary.Words))
 	var list strings.Builder
@@ -142,7 +197,7 @@ func buildBankRequest(model string, timeLimit time.Duration, opts Options, vocab
 	for i, spec := range specs {
 		id, ok := ids[spec.Word]
 		if !ok {
-			return responsesRequest{}, nil, fmt.Errorf("csvgen: a question about %q, which is not a word of the lessons", spec.Word)
+			return BankPrompt{}, fmt.Errorf("csvgen: a question about %q, which is not a word of the lessons", spec.Word)
 		}
 		format := spec.Format
 		if format == "" {
@@ -161,16 +216,5 @@ func buildBankRequest(model string, timeLimit time.Duration, opts Options, vocab
 	intro := "Write the questions of the REQUEST below as the JSON object described in your instructions. The LESSON MATERIAL message holds the lessons, taken from the textbook, and the WORD LIST names the words to test by their ids."
 	texts := append([]string{intro}, lessonMessages(opts)...)
 	texts = append(texts, lessonMaterial(book, vocabulary.Lessons), list.String(), request.String())
-	req := responsesRequest{
-		Model:        model,
-		Instructions: bankSystemPrompt(opts.Language, timeLimit),
-		Input:        []responsesInput{{Role: "user", Content: inputParts(texts, nil)}},
-		// A long list of questions in JSON is a long answer.
-		MaxOutputTokens: maxOutputTokensLarge,
-	}
-	if visual {
-		// Web search lets the model find real photos for the visual questions, as for a Wayground quiz.
-		req.Tools = []responsesTool{{Type: "web_search"}}
-	}
-	return req, ids, nil
+	return BankPrompt{Instructions: bankSystemPrompt(opts.Language, timeLimit), Messages: texts, IDs: ids, Visual: visual}, nil
 }

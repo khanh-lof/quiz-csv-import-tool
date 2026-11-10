@@ -37,8 +37,8 @@ const (
 	abandonedAfter       = 3 * time.Minute
 )
 
-// createJob handles POST /api/csv/jobs: a multipart upload of zero or more images, rate-limited per
-// user. It validates the request, stores a running job, answers 202 with the job's id right away and
+// createJob handles POST /api/csv/jobs: a multipart upload of zero or more images, or of the public IDs of
+// images the browser uploaded to the image store itself (signUploads), rate-limited per user. It validates the request, stores a running job, answers 202 with the job's id right away and
 // keeps working in this same handler until the model has answered, then stores the result. The
 // client follows the job through listJobs, so it need not stay connected. A creative job goes to AIServerProxy
 // instead, when there is one, unless the question bank holds its whole quiz.
@@ -55,10 +55,17 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	images, uploadErr := readImages(w, r)
+	body, uploadErr := readImages(w, r)
 	if uploadErr != nil {
 		writeText(w, uploadErr.status, uploadErr.msg)
 		return
+	}
+	images := body.images
+	var uploaded []store.JobImage
+	if len(body.publicIDs) > 0 {
+		if images, uploaded, ok = s.uploadedImages(w, r, body.publicIDs); !ok {
+			return
+		}
 	}
 
 	creative := isCreative(r.URL.Query())
@@ -82,6 +89,11 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	job := newJob(jobTitle(r.URL.Query().Get("title"), creative), creative, len(images), opts)
+	if uploaded != nil {
+		storedAt := s.now().UTC().Truncate(time.Millisecond)
+		job.Images, job.ImagesStoredAt = uploaded, &storedAt
+		s.deleteOldImagesWhenDue(context.WithoutCancel(r.Context()))
+	}
 	if s.startJob(w, r, user.Username, job, "") {
 		s.runJob(context.WithoutCancel(r.Context()), job, images, opts)
 	}
@@ -251,9 +263,9 @@ func (s *Server) answerFromBank(w http.ResponseWriter, r *http.Request) bool {
 	if err != nil {
 		return false
 	}
-	images, uploadErr := readImages(w, r)
+	body, uploadErr := readImages(w, r)
 	r.Body = io.NopCloser(bytes.NewReader(raw))
-	if uploadErr != nil || len(images) > 0 {
+	if uploadErr != nil || len(body.images) > 0 || len(body.publicIDs) > 0 {
 		return false
 	}
 	user, ok := s.jobOwner(w, r)
@@ -575,48 +587,71 @@ func (s *Server) refundAICall(ctx context.Context, username string, roundStart t
 	}
 }
 
-// readImages collects every file part of the multipart body. A body with no file at all is fine:
-// creative mode can run without images.
-func readImages(w http.ResponseWriter, r *http.Request) ([]csvgen.Image, *requestError) {
+// imagesBody is what a job request sends of its images: the images, or the public IDs they were uploaded under.
+type imagesBody struct {
+	images    []csvgen.Image
+	publicIDs []string
+}
+
+// uploadedImageField names the multipart fields holding a public ID of an uploaded image.
+const uploadedImageField = "imageId"
+
+// readImages collects every file part of the multipart body, and every uploadedImageField, but not both. A body
+// with no image at all is fine: creative mode can run without images.
+func readImages(w http.ResponseWriter, r *http.Request) (imagesBody, *requestError) {
 	contentType := r.Header.Get("Content-Type")
 	if contentType == "" {
-		return nil, &requestError{http.StatusBadRequest, "Missing Content-Type header"}
+		return imagesBody{}, &requestError{http.StatusBadRequest, "Missing Content-Type header"}
 	}
 	if !strings.Contains(strings.ToLower(contentType), "multipart/form-data") {
-		return nil, &requestError{http.StatusBadRequest, "Expected multipart/form-data"}
+		return imagesBody{}, &requestError{http.StatusBadRequest, "Expected multipart/form-data"}
 	}
 	_, params, err := mime.ParseMediaType(contentType)
 	if err != nil || params["boundary"] == "" {
-		return nil, &requestError{http.StatusBadRequest, "Missing multipart boundary"}
+		return imagesBody{}, &requestError{http.StatusBadRequest, "Missing multipart boundary"}
 	}
 
 	reader := multipart.NewReader(http.MaxBytesReader(w, r.Body, maxUploadBytes), params["boundary"])
-	var images []csvgen.Image
+	var body imagesBody
 	for {
 		part, err := reader.NextPart()
 		// Only a bare io.EOF marks the closing delimiter; a wrapped EOF means the body was truncated
 		// (even an empty multipart body must end with its closing delimiter).
 		if err == io.EOF {
-			return images, nil
+			if len(body.images) > 0 && len(body.publicIDs) > 0 {
+				return imagesBody{}, &requestError{http.StatusBadRequest, "Send images or uploaded images, not both."}
+			}
+			return body, nil
 		}
 		if err != nil {
-			return nil, uploadError(err)
+			return imagesBody{}, uploadError(err)
 		}
 
 		disposition, dispParams, _ := mime.ParseMediaType(part.Header.Get("Content-Disposition"))
-		if disposition != "form-data" || dispParams["filename"] == "" {
+		if disposition != "form-data" {
+			_ = part.Close()
+			continue
+		}
+		if dispParams["filename"] == "" {
+			if dispParams["name"] == uploadedImageField {
+				publicID, err := io.ReadAll(io.LimitReader(part, 256))
+				if err != nil {
+					return imagesBody{}, uploadError(err)
+				}
+				body.publicIDs = append(body.publicIDs, string(publicID))
+			}
 			_ = part.Close()
 			continue
 		}
 		data, err := io.ReadAll(part)
 		if err != nil {
-			return nil, uploadError(err)
+			return imagesBody{}, uploadError(err)
 		}
 		imageType, ok := detectImageType(data)
 		if !ok {
-			return nil, &requestError{http.StatusBadRequest, "Unsupported image type."}
+			return imagesBody{}, &requestError{http.StatusBadRequest, "Unsupported image type."}
 		}
-		images = append(images, csvgen.Image{ContentType: imageType, Data: data})
+		body.images = append(body.images, csvgen.Image{ContentType: imageType, Data: data})
 	}
 }
 

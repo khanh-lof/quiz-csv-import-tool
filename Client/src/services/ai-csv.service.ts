@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { HttpBackend, HttpClient, HttpErrorResponse, HttpParams, HttpStatusCode } from '@angular/common/http';
+import { catchError, forkJoin, map, Observable, of, switchMap, throwError } from 'rxjs';
 import { AiGenerationRequest } from '../models/ai-generation-request';
 import { AIGenerationMode } from '../models/aigeneration-mode';
 import { CourseType, courseHasLevels } from '../models/course-type';
@@ -14,14 +14,28 @@ export interface SubmittedJob {
   id: string;
 }
 
+// What the server answers to `POST /api/csv/uploads`: each image is posted to `url` with its `fields`, signed.
+export interface UploadGrant {
+  url: string;
+  uploads: { publicId: string; fields: Record<string, string> }[];
+}
+
+/** An image could not be uploaded to the image store. */
+export class ImageUploadError extends Error {
+}
+
 // Starting a generation only uploads the request. The server retries the LLM gateway's transient
 // failures itself while it works on the job, so there is no client-side retry: a failed job is shown
 // as failed and the user sends it again ("Tạo lại", `AiJobService.retry`).
 @Injectable({ providedIn: 'root' })
 export class AiCsvService {
   private readonly endpointUrl = '/api/csv/jobs';
+  private readonly uploadsUrl = '/api/csv/uploads';
+  // Bypasses the interceptors, so the access token never goes to the image store.
+  private readonly imageStoreClient: HttpClient;
 
-  constructor(private readonly httpClient: HttpClient) {
+  constructor(private readonly httpClient: HttpClient, httpBackend: HttpBackend) {
+    this.imageStoreClient = new HttpClient(httpBackend);
   }
 
   // Images are optional here: with none, the server asks the AI to work from the lesson's own word list.
@@ -55,19 +69,59 @@ export class AiCsvService {
       }
     }
 
-    return this.httpClient.post<SubmittedJob>(this.endpointUrl, this.buildBody(imageFiles), { params });
+    return this.submit(imageFiles, params);
   }
 
   submitFormatted(imageFiles: File[], title: string, language: QuizLanguage): Observable<SubmittedJob> {
-    return this.httpClient.post<SubmittedJob>(this.endpointUrl, this.buildBody(imageFiles),
-      { params: new HttpParams().set('title', title).set('language', language) });
+    return this.submit(imageFiles, new HttpParams().set('title', title).set('language', language));
   }
 
   extractCsvContent(rawText: string): string {
     return extractCsvContent(rawText);
   }
 
-  private buildBody(imageFiles: File[]): FormData {
+  private submit(imageFiles: File[], params: HttpParams): Observable<SubmittedJob> {
+    return this.buildBody(imageFiles).pipe(
+      switchMap(body => this.httpClient.post<SubmittedJob>(this.endpointUrl, body, { params })));
+  }
+
+  // The images go straight to the image store, signed by the server, and the job names them. A server without
+  // an image store answers 404 to the signing; the images are then sent with the job.
+  private buildBody(imageFiles: File[]): Observable<FormData> {
+    if (imageFiles.length === 0) {
+      return of(new FormData());
+    }
+    const params = new HttpParams().set('count', imageFiles.length);
+    return this.httpClient.post<UploadGrant>(this.uploadsUrl, null, { params }).pipe(
+      switchMap(grant => this.uploadAll(imageFiles, grant)),
+      map(publicIds => {
+        const formData = new FormData();
+        publicIds.forEach(id => formData.append('imageId', id));
+        return formData;
+      }),
+      catchError(err => {
+        if (err instanceof HttpErrorResponse && err.status === HttpStatusCode.NotFound) {
+          return of(this.filesBody(imageFiles));
+        }
+        return throwError(() => err);
+      }),
+    );
+  }
+
+  private uploadAll(imageFiles: File[], grant: UploadGrant): Observable<string[]> {
+    return forkJoin(imageFiles.map((file, i) => {
+      const upload = grant.uploads[i];
+      const formData = new FormData();
+      Object.entries(upload.fields).forEach(([name, value]) => formData.append(name, value));
+      formData.append('file', file, file.name);
+      return this.imageStoreClient.post(grant.url, formData).pipe(
+        map(() => upload.publicId),
+        catchError(err => throwError(() => new ImageUploadError(`Uploading ${file.name} failed: ${err?.message ?? err}`))),
+      );
+    }));
+  }
+
+  private filesBody(imageFiles: File[]): FormData {
     const formData = new FormData();
     imageFiles.forEach(file => {
       formData.append('images', file, file.name);

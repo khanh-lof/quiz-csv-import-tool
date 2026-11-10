@@ -166,3 +166,52 @@ func TestDeleteStoredBeforeDeletesOnlyOldImages(t *testing.T) {
 		t.Fatalf("delete calls of %d, %d, ... ids", len(f.deletes[0]), len(f.deletes[1]))
 	}
 }
+
+func TestSignMatchesCloudinarysDocumentedExample(t *testing.T) {
+	c, err := NewCloudinary("cloudinary://key:abcd@demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := c.sign(map[string]string{"timestamp": "1315060510", "public_id": "sample_image", "eager": "w_400,h_300,c_pad|w_260,h_200,c_crop"})
+	if want := "bfd09f95f331f558cbd1320e67aa8d488770583e"; got != want {
+		t.Fatalf("got %s, want %s", got, want)
+	}
+}
+
+func TestSignedUploadsComeBackAsRefsAndNothingElseDoes(t *testing.T) {
+	c, err := NewCloudinary("cloudinary://key:secret@demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Unix(1700000000, 0)
+	grant := c.SignUploads(2, now)
+	if grant.URL != "https://api.cloudinary.com/v1_1/demo/image/upload" || len(grant.Uploads) != 2 {
+		t.Fatalf("grant %+v", grant)
+	}
+	first := grant.Uploads[0]
+	if first.PublicID == grant.Uploads[1].PublicID {
+		t.Fatal("two uploads share a public ID")
+	}
+	fields := first.Fields
+	if fields["api_key"] != "key" || fields["timestamp"] != "1700000000" || fields["public_id"] != first.PublicID ||
+		fields["allowed_formats"] != allowedFormats {
+		t.Fatalf("fields %v", fields)
+	}
+	signed := map[string]string{"allowed_formats": allowedFormats, "public_id": first.PublicID, "timestamp": "1700000000"}
+	if fields["signature"] != c.sign(signed) {
+		t.Fatalf("signature %s does not sign the other fields", fields["signature"])
+	}
+	if _, leaked := fields["api_secret"]; leaked || strings.Contains(fmt.Sprint(grant), "secret") {
+		t.Fatalf("the grant gives the secret away: %+v", grant)
+	}
+
+	refs, err := c.Refs([]string{first.PublicID})
+	if err != nil || refs[0].PublicID != first.PublicID || refs[0].URL != "https://res.cloudinary.com/demo/image/upload/"+first.PublicID {
+		t.Fatalf("refs %+v, %v", refs, err)
+	}
+	for _, id := range []string{"quiztool-jobs/../x", "other/" + strings.TrimPrefix(first.PublicID, prefix), first.PublicID + "0", ""} {
+		if _, err := c.Refs([]string{id}); !errors.Is(err, ErrUnknownImage) {
+			t.Errorf("%q: %v", id, err)
+		}
+	}
+}
