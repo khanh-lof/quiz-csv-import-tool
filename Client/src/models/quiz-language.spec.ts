@@ -1,6 +1,6 @@
 import { CourseType } from './course-type';
 import { ExportType } from './export-type';
-import { languageSpec, offersExportType, QuizLanguage, quizLanguageOf, teachesCourse } from './quiz-language';
+import { languageSpec, offersCourse, offersExportType, QuizLanguage, quizLanguageOf, teachesCourse } from './quiz-language';
 
 describe('quiz languages', () => {
   it('keeps the server ordinals', () => {
@@ -18,6 +18,16 @@ describe('quiz languages', () => {
     expect(teachesCourse(QuizLanguage.Chinese, CourseType.VocabReview10)).toBeFalse();
     expect(teachesCourse(QuizLanguage.Chinese, CourseType.Other)).toBeTrue();
     expect(teachesCourse(QuizLanguage.English, null)).toBeFalse();
+  });
+
+  it('offers a quiz only for the courses of the language, never the one typed in by hand', () => {
+    expect(offersCourse(QuizLanguage.Chinese, CourseType.Hsk)).toBeTrue();
+    expect(offersCourse(QuizLanguage.Chinese, CourseType.Yct)).toBeTrue();
+    expect(offersCourse(QuizLanguage.English, CourseType.VocabReview10)).toBeTrue();
+    expect(offersCourse(QuizLanguage.Chinese, CourseType.Other)).toBeFalse();
+    expect(offersCourse(QuizLanguage.English, CourseType.Other)).toBeFalse();
+    expect(offersCourse(QuizLanguage.English, CourseType.Hsk)).toBeFalse();
+    expect(offersCourse(QuizLanguage.Chinese, null)).toBeFalse();
   });
 
   it('offers "Ghép bộ thủ" for Chinese only', () => {

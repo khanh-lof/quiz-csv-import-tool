@@ -35,19 +35,18 @@ import { Utils } from '../../utils';
 import { AiGenerationRequest } from '../../models/ai-generation-request';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
-import { NzInputDirective } from 'ng-zorro-antd/input';
 import { ExportType } from '../../models/export-type';
 import { CourseType, courseHasLevels } from '../../models/course-type';
-import { hskMaxLevel, HskStandard } from '../../models/hsk-standard';
-import { DEFAULT_LESSON_UNIT, Textbook, textbookFor } from '../../models/textbook';
+import { HskStandard } from '../../models/hsk-standard';
+import { bookLevels, DEFAULT_LESSON_UNIT, Textbook, textbookFor } from '../../models/textbook';
 import {
   LANGUAGES,
   LanguageSpec,
   languageSpec,
+  offersCourse,
   offersExportType,
   QuizLanguage,
-  quizLanguageOf,
-  teachesCourse
+  quizLanguageOf
 } from '../../models/quiz-language';
 import {
   ALL_GESTURE_STAGES,
@@ -81,13 +80,12 @@ const SETTINGS_STORAGE_KEY = 'ai-generation-settings';
 
 // The choices each language keeps for itself, so switching language and back loses nothing. The mode stays the
 // teacher's whatever the language.
-const LANGUAGE_CHOICES = ['courseType', 'courseName', 'hskStandard', 'level', 'lessonNumbers', 'exportType', 'gestureStages',
+const LANGUAGE_CHOICES = ['courseType', 'hskStandard', 'level', 'lessonNumbers', 'exportType', 'gestureStages',
   'questionsPerStage'] as const;
 
 interface AiGenerationForm {
   language: FormControl<QuizLanguage | null>;
   courseType: FormControl<CourseType | null>;
-  courseName: FormControl<string | null>;
   hskStandard: FormControl<HskStandard | null>;
   level: FormControl<number | null>;
   lessonNumbers: FormControl<number[] | null>;
@@ -135,7 +133,6 @@ type LanguageChoices =Pick<ReturnType<FormGroup<AiGenerationForm>['getRawValue']
     ReactiveFormsModule,
     NzOptionComponent,
     NzSelectComponent,
-    NzInputDirective,
     NzSpinComponent,
     NzTooltipDirective,
     MessagePipe
@@ -174,6 +171,8 @@ export class AiGeneration {
   // The options are rebuilt only when `lessonOptionsKey` changes, so the select is not handed a new list on every check.
   private lessonOptionsKey = '';
   private lessonOptionsList: number[] = [];
+  private levelOptionsKey = '';
+  private levelOptionsList: number[] = [];
 
   constructor(
     private readonly router: Router,
@@ -189,7 +188,6 @@ export class AiGeneration {
       language: formBuilder.control<QuizLanguage | null>(QuizLanguage.Chinese),
       AIMode: formBuilder.control<AIGenerationMode | null>(AIGenerationMode.Auto, Validators.required),
       courseType: formBuilder.control<CourseType | null>(null),
-      courseName: formBuilder.control<string | null>(null),
       // 3.0 by default: the textbooks the server holds are all HSK 3.0.
       hskStandard: formBuilder.control<HskStandard | null>(HskStandard.V3),
       level: formBuilder.control<number | null>(null),
@@ -205,6 +203,10 @@ export class AiGeneration {
     this.showLanguageChoices();
     this.formGroup.controls.language.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(language => this.switchLanguage(language));
+    this.formGroup.controls.courseType.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.fitLevelToCourse());
+    this.formGroup.controls.hskStandard.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.fitLevelToCourse());
   }
 
   protected get language(): LanguageSpec {
@@ -256,11 +258,16 @@ export class AiGeneration {
     control.markAsDirty();
   }
 
-  // HSK has its standard's levels; any other course up to 12, the school grades of an English course.
-  protected get maxLevel(): number {
-    return this.formGroup.controls.courseType.value === CourseType.Hsk
-      ? hskMaxLevel(this.formGroup.controls.hskStandard.value)
-      : 12;
+  // The levels of the chosen course that have a book. The options are rebuilt only when they change, so the select
+  // is not handed a new list on every check.
+  protected get levelOptions(): number[] {
+    const levels = bookLevels(this.formGroup.controls.courseType.value, this.formGroup.controls.hskStandard.value);
+    const key = levels.join(',');
+    if (key !== this.levelOptionsKey) {
+      this.levelOptionsKey = key;
+      this.levelOptionsList = levels;
+    }
+    return this.levelOptionsList;
   }
 
   // The book of the chosen course, if the server holds one: its lessons are used instead of photos.
@@ -268,24 +275,28 @@ export class AiGeneration {
     return this.textbookOf(this.formGroup);
   }
 
-  // A course with a book needs no photo, so the photos are shut.
+  // The creative mode only works from a book, so it needs no photo and the photos are shut.
   protected get photosDisabled(): boolean {
-    return this.isAutoMode && this.textbook !== undefined;
+    return this.isAutoMode;
   }
 
   // Why they are shut, in the zone's tooltip and its accessible name.
   protected get photosDisabledReason(): string | null {
-    return this.photosDisabled ? this.messages.get('ai.form.textbookHasBook', { title: this.textbook?.title ?? '' }) : null;
+    if (!this.photosDisabled) {
+      return null;
+    }
+    const book = this.textbook;
+    return book ? this.messages.get('ai.form.textbookHasBook', { title: book.title }) : this.messages.get('ai.form.photosFromBook');
   }
 
-  // The photos shown and sent: none while they are shut, though those added before the book was picked are kept
-  // for a course without one.
+  // The photos shown and sent: none while they are shut, though those added are kept for the formatted mode.
   protected get shownImages(): ImageItem[] {
     return this.photosDisabled ? [] : this.selectedImages();
   }
 
+  // No lesson until a level with a book is chosen.
   protected get maxLesson(): number {
-    return this.textbook?.lessons ?? 100;
+    return this.textbook?.lessons ?? 0;
   }
 
   // "Bài", or what the book calls its lessons ("Topic").
@@ -432,7 +443,7 @@ export class AiGeneration {
       : this.aiCsvService.submitCreative(imageFiles, {
         language: this.language.value,
         courseType: this.formGroup.controls.courseType.value,
-        courseName: this.formGroup.controls.courseName.value,
+        courseName: null,
         hskStandard: this.formGroup.controls.hskStandard.value,
         level: this.formGroup.controls.level.value,
         AIMode: this.formGroup.controls.AIMode.value,
@@ -462,15 +473,8 @@ export class AiGeneration {
     this.setRequired(aiGenerationForm.controls.exportType, isAutoMode);
     this.setRequired(aiGenerationForm.controls.courseType, isAutoMode);
     this.setRequired(aiGenerationForm.controls.lessonNumbers, isAutoMode);
-    // HSK and YCT always have a level; a course typed in by hand may not, so there the level is optional, and a
-    // single-book course has none.
-    this.setRequired(aiGenerationForm.controls.level,
-      isAutoMode && courseType !== null && courseType !== CourseType.Other && courseHasLevels(courseType));
-    this.setRequired(aiGenerationForm.controls.courseName, isAutoMode && courseType === CourseType.Other);
-    // The level box caps what is typed, but switching HSK 3.0 back to 2.0 can leave a level 7 to 9 behind.
-    const level = aiGenerationForm.controls.level.value;
-    this.setError(aiGenerationForm.controls.level, 'max', isAutoMode && courseType === CourseType.Hsk && level !== null
-      && level > hskMaxLevel(aiGenerationForm.controls.hskStandard.value));
+    // HSK and YCT always have a level; a single-book course has none.
+    this.setRequired(aiGenerationForm.controls.level, isAutoMode && courseType !== null && courseHasLevels(courseType));
     // A course with a textbook has as many lessons as the book; switching from HSK 3.0 level 3 (18 lessons) to
     // level 1 can leave a lesson 16 to 18 behind, which the server would refuse.
     const lessons = aiGenerationForm.controls.lessonNumbers.value ?? [];
@@ -517,15 +521,30 @@ export class AiGeneration {
     };
   }
 
-  // A course or platform of the other language is cleared, so the form never sends what the server refuses. A
-  // language with a default course gets it chosen for the teacher (English: the one typed in by hand).
+  // A course or platform of the other language, or a course typed in by hand saved before every quiz needed a book,
+  // is cleared, so the form never sends what the server refuses. A language with a default course gets it chosen for
+  // the teacher (English: its one book).
   private fitChoicesToLanguage(): void {
     const { language, courseType, exportType } = this.formGroup.controls;
-    if (!teachesCourse(language.value, courseType.value)) {
+    if (!offersCourse(language.value, courseType.value)) {
       courseType.setValue(this.language.defaultCourse);
     }
     if (!offersExportType(language.value, exportType.value)) {
       exportType.setValue(null);
+    }
+    this.fitLevelToCourse();
+  }
+
+  // A level without a book for the course is cleared, and a course with a single such level gets it chosen.
+  private fitLevelToCourse(): void {
+    const { courseType, hskStandard, level } = this.formGroup.controls;
+    const levels = bookLevels(courseType.value, hskStandard.value);
+    if (level.value !== null && levels.includes(level.value)) {
+      return;
+    }
+    const fitted = levels.length === 1 ? levels[0] : null;
+    if (fitted !== level.value) {
+      level.setValue(fitted);
     }
   }
 
@@ -620,12 +639,11 @@ export class AiGeneration {
     });
   }
 
-  // Names the lesson for the download, e.g. "HSK3-Bai5" (HSK 2.0), "HSK3.0-3-Bai5", "HSK3.0-3-Bai3-5+7" for
-  // several lessons, or "Boya-Bai2" for a course typed in by hand.
+  // Names the lesson for the download, e.g. "HSK3-Bai5" (HSK 2.0), "HSK3.0-3-Bai5" or "HSK3.0-3-Bai3-5+7" for
+  // several lessons.
   private lessonLabel(): string {
     const {
       courseType,
-      courseName,
       hskStandard,
       level,
       lessonNumbers
@@ -633,7 +651,7 @@ export class AiGeneration {
     const course = courseType === CourseType.Hsk ? (hskStandard === HskStandard.V3 ? 'HSK3.0-' : 'HSK')
       : courseType === CourseType.Yct ? 'YCT'
         : courseType === CourseType.VocabReview10 ? 'Lop10'
-          : (courseName ?? '');
+          : '';
     const shownLevel = courseHasLevels(courseType) ? level : null;
     return `${course}${shownLevel ?? ''}-${courseType === CourseType.VocabReview10 ? 'Topic' : 'Bai'}${formatLessonNumbers(lessonNumbers ?? [], '-', '+')}`;
   }

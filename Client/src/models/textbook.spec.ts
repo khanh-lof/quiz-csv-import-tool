@@ -1,6 +1,6 @@
 import { CourseType } from './course-type';
 import { HskStandard } from './hsk-standard';
-import { textbookFor, TEXTBOOKS } from './textbook';
+import { bookLevels, textbookFor, TEXTBOOKS } from './textbook';
 
 describe('textbookFor', () => {
   it('finds the HSK 3.0 books by level', () => {
@@ -15,6 +15,7 @@ describe('textbookFor', () => {
   it('finds the YCT book whatever the HSK standard says', () => {
     expect(textbookFor(CourseType.Yct, null, 6)?.lessons).toBe(15);
     expect(textbookFor(CourseType.Yct, HskStandard.V2, 6)?.title).toBe('《YCT标准教程6》');
+    expect(textbookFor(CourseType.Yct, null, 1)).toEqual(jasmine.objectContaining({ lessons: 12, title: '《YCT标准教程1》' }));
   });
 
   it('finds the HSK 2.0 level 1 book apart from the HSK 3.0 one', () => {
@@ -64,5 +65,20 @@ describe('textbookFor', () => {
   it('lists each book once', () => {
     const keys = TEXTBOOKS.map(b => `${b.courseType}/${b.hskStandard ?? ''}/${b.level ?? ''}`);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('bookLevels', () => {
+  it('lists the levels of the course that have a book, lowest first', () => {
+    expect(bookLevels(CourseType.Hsk, HskStandard.V3)).toEqual([1, 2, 3]);
+    expect(bookLevels(CourseType.Hsk, HskStandard.V2)).toEqual([1, 2, 3]);
+    expect(bookLevels(CourseType.Yct, null)).toEqual([1, 6]);
+  });
+
+  it('lists none for a course without levels, typed in by hand, or not chosen', () => {
+    expect(bookLevels(CourseType.VocabReview10, null)).toEqual([]);
+    expect(bookLevels(CourseType.Other, null)).toEqual([]);
+    expect(bookLevels(null, HskStandard.V3)).toEqual([]);
+    expect(bookLevels(CourseType.Hsk, null)).toEqual([]);
   });
 });

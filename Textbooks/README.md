@@ -17,6 +17,7 @@ by hand (by an AI curator reading the scan) to the format in [LESSON_DOC_FORMAT.
 | `hsk3-1` | 《新HSK教程1》 New HSK Course 1 | HSK 3.0, level 1 | 15 | 14 |
 | `hsk3-2` | 《新HSK教程2》 New HSK Course 2 | HSK 3.0, level 2 | 15 | 16 |
 | `hsk3-3` | 《新HSK教程3》 New HSK Course 3 | HSK 3.0, level 3 | 18 | 12 |
+| `yct-1` | 《YCT标准教程1》 YCT Standard Course 1 | YCT, level 1 | 12 | 2 |
 | `yct-6` | 《YCT标准教程6》 YCT Standard Course 6 | YCT, level 6 | 15 | 5 |
 | `vocab10` | Ôn tập từ vựng lớp 10 (Grade 10 Vocabulary Review, English) | `VocabReview10`, no level | 8 topics | 0 |
 

@@ -14,7 +14,7 @@ import (
 	"quiz-csv-import-tool/server/internal/store"
 )
 
-const radicalsQuery = "?title=Boya-Bai3-4&isCreative=true&exportType=4&courseType=2&courseName=Boya&lessonNumbers=4,3"
+const radicalsQuery = "?title=HSK3.0-1-Bai3-4&isCreative=true&exportType=4&courseType=0&hskStandard=3&level=1&lessonNumbers=4,3"
 
 func TestCreateJobForRadicals(t *testing.T) {
 	env := newEnv(t)
@@ -108,7 +108,7 @@ func TestJobPage(t *testing.T) {
 		t.Fatalf("another user's page: %d", rec.Code)
 	}
 	env.gen.result = ""
-	env.upload(t, upload{token: bobToken, query: "?isCreative=true&exportType=0&courseType=2&courseName=Boya&lessonNumbers=1"})
+	env.upload(t, upload{token: bobToken, query: "?isCreative=true&exportType=0&courseType=1&level=6&lessonNumbers=1"})
 	gimkit := env.onlyJob(t, "bob")
 	if rec := env.page(t, bobToken, gimkit.ID); rec.Code != http.StatusConflict || rec.Body.String() != "Job is not a finished radicals exercise." {
 		t.Fatalf("GimKit page: %d %q", rec.Code, rec.Body)

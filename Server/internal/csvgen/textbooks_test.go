@@ -411,7 +411,7 @@ func TestEmbeddedTextbooks(t *testing.T) {
 	if err := TextbooksError(); err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]int{"hsk3-1": 15, "hsk3-2": 15, "hsk3-3": 18, "hsk2-1": 15, "hsk2-2": 15, "hsk2-3": 20, "yct-6": 15, "vocab10": 8}
+	want := map[string]int{"hsk3-1": 15, "hsk3-2": 15, "hsk3-3": 18, "hsk2-1": 15, "hsk2-2": 15, "hsk2-3": 20, "yct-1": 12, "yct-6": 15, "vocab10": 8}
 	if len(books) != len(want) {
 		t.Fatalf("want %d books, got %d", len(want), len(books))
 	}

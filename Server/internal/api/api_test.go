@@ -413,20 +413,20 @@ func TestCreateJobCreativeModeWithoutImages(t *testing.T) {
 	token, _ := env.login(t, "alice", "pw")
 
 	// The single lessonNumber of a page from before several lessons could be chosen is read as a list of one.
-	rec := env.upload(t, upload{token: token, query: "?isCreative=True&exportType=1&courseType=2&courseName=Boya&lessonNumbers=3"})
+	rec := env.upload(t, upload{token: token, query: "?isCreative=True&exportType=1&courseType=1&level=6&lessonNumbers=3"})
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("create: %d %q", rec.Code, rec.Body)
 	}
 	if !env.gen.creative || len(env.gen.images) != 0 || env.gen.opts.ExportType != csvgen.Blooket ||
-		env.gen.opts.CourseName != "Boya" || !slices.Equal(env.gen.opts.LessonNumbers, []int{3}) {
+		env.gen.opts.CourseType != csvgen.Yct || !slices.Equal(env.gen.opts.LessonNumbers, []int{3}) {
 		t.Fatalf("generator got %+v", env.gen)
 	}
 	job := env.onlyJob(t, "alice")
 	if !job.Creative || job.ExportType == nil || *job.ExportType != int(csvgen.Blooket) || job.Title != "AI tự nghĩ câu hỏi" {
 		t.Fatalf("job %+v", job)
 	}
-	if job.CourseType == nil || *job.CourseType != int(csvgen.Other) || job.CourseName != "Boya" ||
-		job.HskStandard != nil || job.Level != nil || !slices.Equal(job.LessonNumbers, []int{3}) {
+	if job.CourseType == nil || *job.CourseType != int(csvgen.Yct) || job.CourseName != "" ||
+		job.HskStandard != nil || job.Level == nil || *job.Level != 6 || !slices.Equal(job.LessonNumbers, []int{3}) {
 		t.Fatalf("job lesson %+v", job)
 	}
 }
@@ -435,7 +435,7 @@ func TestCreateJobStoresHskLesson(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 
-	rec := env.upload(t, upload{token: token, query: "?isCreative=true&exportType=2&courseType=0&hskStandard=3&level=7&lessonNumbers=5,4"})
+	rec := env.upload(t, upload{token: token, query: "?isCreative=true&exportType=2&courseType=0&hskStandard=3&level=3&lessonNumbers=5,4"})
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("create: %d %q", rec.Code, rec.Body)
 	}
@@ -445,7 +445,7 @@ func TestCreateJobStoresHskLesson(t *testing.T) {
 	// The lessons are stored ascending, in the new field alone: the one the old jobs used is never written.
 	job := env.onlyJob(t, "alice")
 	if job.CourseType == nil || *job.CourseType != int(csvgen.Hsk) || job.HskStandard == nil || *job.HskStandard != 3 ||
-		job.Level == nil || *job.Level != 7 || !slices.Equal(job.LessonNumbers, []int{4, 5}) ||
+		job.Level == nil || *job.Level != 3 || !slices.Equal(job.LessonNumbers, []int{4, 5}) ||
 		job.CourseName != "" {
 		t.Fatalf("job %+v", job)
 	}
@@ -820,7 +820,7 @@ func TestRetryJobSendsTheSameRequestAgain(t *testing.T) {
 	token, _ := env.login(t, "alice", "pw")
 	env.gen.err = errors.New("boom")
 	env.upload(t, upload{token: token, query: "?title=HSK3-Bai2&isCreative=true&exportType=3&courseType=0&hskStandard=3" +
-		"&level=4&lessonNumbers=5,2&gestureStages=4,6&questionsPerStage=7"})
+		"&level=3&lessonNumbers=5,2&gestureStages=4,6&questionsPerStage=7"})
 	failed := env.onlyJob(t, "alice")
 	want := env.gen.opts
 	// Without images there is nothing to expire.
@@ -834,7 +834,7 @@ func TestRetryJobSendsTheSameRequestAgain(t *testing.T) {
 	if rec.Code != http.StatusAccepted || strings.TrimSpace(rec.Body.String()) != `{"id":"`+job.ID+`"}` || job.ID == failed.ID {
 		t.Fatalf("retry: %d %q", rec.Code, rec.Body)
 	}
-	if job.Status != store.JobDone || job.Title != "HSK3-Bai2" || !job.Creative || *job.HskStandard != 3 || *job.Level != 4 ||
+	if job.Status != store.JobDone || job.Title != "HSK3-Bai2" || !job.Creative || *job.HskStandard != 3 || *job.Level != 3 ||
 		!slices.Equal(job.LessonNumbers, []int{2, 5}) ||
 		!slices.Equal(job.GestureStages, []int{4, 6}) || *job.QuestionsPerStage != 7 {
 		t.Fatalf("new job %+v", job)
@@ -858,8 +858,8 @@ func TestJobsKeepTheirLanguage(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
 	env.gen.err = errors.New("boom")
-	env.upload(t, upload{token: token, query: "?title=GS6-Bai2&isCreative=true&language=1&exportType=0&courseType=2" +
-		"&courseName=Global%20Success&level=6&lessonNumbers=2"})
+	env.upload(t, upload{token: token, query: "?title=Lop10-Topic2&isCreative=true&language=1&exportType=0&courseType=3" +
+		"&lessonNumbers=2"})
 	failed := env.onlyJob(t, "alice")
 	if failed.Language != int(csvgen.English) || env.gen.opts.Language != csvgen.English {
 		t.Fatalf("job %+v, generator %+v", failed, env.gen.opts)
@@ -879,6 +879,8 @@ func TestJobsKeepTheirLanguage(t *testing.T) {
 		{"?isCreative=true&language=1&exportType=0&courseType=0&level=1&lessonNumbers=1", "Invalid or missing courseType parameter."},
 		{"?isCreative=true&language=1&exportType=4&courseType=2&courseName=Solutions&lessonNumbers=1", "Radicals is only for Chinese."},
 		{"?isCreative=true&language=9&exportType=0&courseType=0&level=1&lessonNumbers=1", "Invalid language parameter."},
+		{"?isCreative=true&exportType=0&courseType=2&courseName=Boya&lessonNumbers=1", csvgen.NoTextbookMessage},
+		{"?isCreative=true&exportType=0&courseType=0&level=4&lessonNumbers=1", csvgen.NoTextbookMessage},
 	} {
 		if rec := env.upload(t, upload{token: token, query: refused.query}); rec.Code != http.StatusBadRequest || rec.Body.String() != refused.msg {
 			t.Errorf("%s: %d %q", refused.query, rec.Code, rec.Body)

@@ -65,6 +65,12 @@ export const TEXTBOOKS: readonly Textbook[] = [
   },
   {
     courseType: CourseType.Yct,
+    level: 1,
+    lessons: 12,
+    title: '《YCT标准教程1》'
+  },
+  {
+    courseType: CourseType.Yct,
     level: 6,
     lessons: 15,
     title: '《YCT标准教程6》'
@@ -78,6 +84,15 @@ export const TEXTBOOKS: readonly Textbook[] = [
       'Entertainment']
   },
 ];
+
+// The levels of the course that have a book, lowest first: a quiz is only made from a book, so only these are
+// offered. HSK needs the standard to match as well.
+export function bookLevels(courseType: CourseType | null, hskStandard: HskStandard | null): number[] {
+  return TEXTBOOKS
+    .filter(book => book.courseType === courseType && (courseType !== CourseType.Hsk || book.hskStandard === hskStandard))
+    .flatMap(book => book.level === undefined ? [] : [book.level])
+    .sort((a, b) => a - b);
+}
 
 // The book for the chosen course, or undefined when there is none (a course typed in by hand never has one,
 // and HSK needs the standard to match as well as the level).

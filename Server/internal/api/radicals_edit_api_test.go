@@ -17,7 +17,7 @@ import (
 	"quiz-csv-import-tool/server/internal/store"
 )
 
-// lessonThreeWords is the model's word list for lesson 3 of radicalsQuery; lesson 4 gets none and is left out.
+// lessonThreeWords is the model's word list for lesson 3 of freeFormRadicals; lesson 4 gets none and is left out.
 const lessonThreeWords = `{"lessons":[{"number":3,"titleZh":"借书","titleVi":"Mượn sách","words":[` +
 	`{"hanzi":"图书馆","pinyin":"túshūguǎn","meaning":"thư viện"},{"hanzi":"借","pinyin":"jiè","meaning":"mượn"},` +
 	`{"hanzi":"复习","pinyin":"fùxí","meaning":"ôn tập"},{"hanzi":"作业","pinyin":"zuòyè","meaning":"bài tập"},` +
@@ -66,16 +66,28 @@ func radicalsModel(t *testing.T) (*httptest.Server, *atomic.Int32) {
 	return llm, &calls
 }
 
-// radicalsJobOf makes alice's Radicals job with the real generator over radicalsModel.
+// freeFormRadicals is a Radicals request of a course typed in by hand, which the API refuses now that every quiz
+// needs a textbook; the jobs made from it before stay, with words the model wrote, and can still be corrected.
+var freeFormRadicals = csvgen.Options{ExportType: csvgen.Radicals, CourseType: csvgen.Other, CourseName: "Boya", LessonNumbers: []int{3, 4}}
+
+// radicalsJobOf makes alice's free-form Radicals job with the real generator over radicalsModel, as the API did,
+// taking one of her AI calls.
 func radicalsJobOf(t *testing.T, env *testEnv, token string) (*store.Job, *atomic.Int32) {
 	t.Helper()
 	llm, calls := radicalsModel(t)
 	env.srv.Generator = csvgen.NewClient(llm.URL, "key", "m", "", 0, slog.New(slog.DiscardHandler))
-	if rec := env.upload(t, upload{token: token, query: radicalsQuery}); rec.Code != http.StatusAccepted {
-		t.Fatalf("create: %d %q", rec.Code, rec.Body)
+	ctx := context.Background()
+	roundStart, allowed, err := env.users.TryConsumeAICall(ctx, "alice", env.srv.AICallsPerRound, env.srv.RoundDuration)
+	if err != nil || !allowed {
+		t.Fatalf("AI call: %v %v", allowed, err)
 	}
-	listed := env.onlyJob(t, "alice")
-	job, err := env.jobs.Get(context.Background(), "alice", listed.ID)
+	made := newJob("Boya-Bai3-4", true, 0, freeFormRadicals)
+	made.ID, made.Username, made.Status, made.RoundStart, made.CreatedAt = newID(), "alice", store.JobRunning, roundStart, testClockStart
+	if err := env.jobs.Create(ctx, made); err != nil {
+		t.Fatal(err)
+	}
+	env.srv.runJob(ctx, made, nil, freeFormRadicals)
+	job, err := env.jobs.Get(ctx, "alice", made.ID)
 	if err != nil || job.Status != store.JobDone || job.Source == "" {
 		t.Fatalf("job %+v %v", job, err)
 	}
@@ -255,7 +267,7 @@ func TestReviseRadicalsRefusals(t *testing.T) {
 func TestRadicalsEditNeedsAnExerciseWithItsSource(t *testing.T) {
 	env := newEnv(t)
 	token, _ := env.login(t, "alice", "pw")
-	env.upload(t, upload{token: token, query: "?isCreative=true&exportType=0&courseType=2&courseName=Boya&lessonNumbers=1"})
+	env.upload(t, upload{token: token, query: "?isCreative=true&exportType=0&courseType=1&level=6&lessonNumbers=1"})
 	gimkit := env.onlyJob(t, "alice")
 	// A Radicals job made before the source was kept.
 	env.gen.result = exercise(t)

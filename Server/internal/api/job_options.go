@@ -35,6 +35,7 @@ func newJob(title string, creative bool, imageCount int, opts csvgen.Options) *s
 
 // retryOptions rebuilds the options a job was generated with from what the job keeps. False for a creative
 // job from before the lesson, or a Game's choice of games, was kept: sending it again would ask for another quiz.
+// False too for a creative job whose course has no textbook.
 func retryOptions(job *store.Job) (csvgen.Options, bool) {
 	if !job.Creative {
 		return csvgen.Options{Language: csvgen.Language(job.Language)}, true
@@ -58,6 +59,10 @@ func retryOptions(job *store.Job) (csvgen.Options, bool) {
 			return csvgen.Options{}, false
 		}
 		opts.GestureStages, opts.QuestionsPerStage = job.GestureStages, *job.QuestionsPerStage
+	}
+	// A job from before every creative request needed a textbook is not sent again without one.
+	if !csvgen.HasTextbook(opts) {
+		return csvgen.Options{}, false
 	}
 	return opts, true
 }

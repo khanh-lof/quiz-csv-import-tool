@@ -17,6 +17,7 @@ var textbookSources = filepath.Join("..", "..", "..", "Textbooks")
 // reviewLessons are lessons that introduce no words but review earlier ones: their New words table holds
 // every word of the reviewed lessons.
 var reviewLessons = map[string]map[int][2]int{
+	"yct-1": {12: {1, 11}},
 	"yct-6": {15: {1, 14}},
 }
 

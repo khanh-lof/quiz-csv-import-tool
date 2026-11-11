@@ -20,6 +20,7 @@ interface Internals {
   formGroup: FormGroup;
   textbook: { lessons: number } | undefined;
   maxLesson: number;
+  levelOptions: number[];
   lessonOptions: number[];
   selectedImages: WritableSignal<{ file: File; preview: string }[]>;
   generate(): Promise<void>;
@@ -118,34 +119,34 @@ describe('AiGeneration', () => {
     expect(lessonErrors()?.['max']).toBeTruthy();
   });
 
-  it('keeps the old limit of 100 and the photos open for a course without a book', () => {
-    fill({
-      courseType: CourseType.Yct,
-      level: 5,
-      lessonNumbers: [40]
-    });
+  it('offers only the levels with a book, and clears a level without one', () => {
+    fill({ courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 2, lessonNumbers: [1] });
+    expect(page.levelOptions).toEqual([1, 2, 3]);
+    expect(page.formGroup.get('level')?.value).toBe(2);
 
-    expect(page.maxLesson).toBe(100);
-    expect(page.formGroup.valid).toBeTrue();
-    expect(photosShut()).toBeFalse();
+    page.formGroup.patchValue({ level: 4 });
+    expect(page.formGroup.get('level')?.value).toBe(4);
+    page.formGroup.patchValue({ hskStandard: HskStandard.V2 });
+    expect(page.levelOptions).toEqual([1, 2, 3]);
+    expect(page.formGroup.get('level')?.value).toBeNull();
+    expect(page.formGroup.get('level')?.hasError('required')).toBeTrue();
   });
 
-  it('keeps the photos open until a course with a book is picked', () => {
-    expect(photosShut()).toBeFalse();
+  it('offers YCT levels 1 and 6 and picks none of them', () => {
+    page.formGroup.patchValue({ courseType: CourseType.Yct });
 
-    page.formGroup.patchValue({ courseType: CourseType.Yct, level: 5 });
-    fixture.detectChanges();
-    expect(photosShut()).toBeFalse();
+    expect(page.levelOptions).toEqual([1, 6]);
+    expect(page.formGroup.get('level')?.value).toBeNull();
+  });
 
-    page.formGroup.patchValue({ level: 6 });
+  it('shuts the photos in Auto mode, even before a book is picked, and opens them for the formatted mode', () => {
     fixture.detectChanges();
     expect(photosShut()).toBeTrue();
-  });
+    expect((fixture.nativeElement as HTMLElement).querySelector('.drop-zone')?.getAttribute('aria-label'))
+      .toBe('Ảnh: Câu hỏi lấy từ sách, không cần ảnh.');
 
-  it('keeps the photos open for a course typed in by hand', () => {
-    page.formGroup.patchValue({ courseType: CourseType.Other });
+    page.formGroup.patchValue({ AIMode: AIGenerationMode.Formatted });
     fixture.detectChanges();
-
     expect(photosShut()).toBeFalse();
   });
 
@@ -195,7 +196,7 @@ describe('AiGeneration', () => {
   it('needs at least one lesson in Auto mode', () => {
     fill({
       courseType: CourseType.Yct,
-      level: 5,
+      level: 6,
       lessonNumbers: []
     });
 
@@ -222,14 +223,10 @@ describe('AiGeneration', () => {
     expect(page.lessonOptions).toEqual(Array.from({ length: 15 }, (_, index) => index + 1));
   });
 
-  it('offers 100 lessons for a course without a book', () => {
-    fill({
-      courseType: CourseType.Yct,
-      level: 5,
-      lessonNumbers: [1]
-    });
+  it('offers no lesson before a level with a book is picked', () => {
+    page.formGroup.patchValue({ courseType: CourseType.Hsk, hskStandard: HskStandard.V3 });
 
-    expect(page.lessonOptions.length).toBe(100);
+    expect(page.lessonOptions).toEqual([]);
   });
 
   describe('restoring the saved settings', () => {
@@ -279,12 +276,6 @@ describe('AiGeneration', () => {
       expect(params.get('title')).toBe('HSK3.0-3-Bai3-5+7');
       expect(params.get('lessonNumbers')).toBe('3,4,5,7');
     });
-
-    it('names a course typed in by hand after its lessons', async () => {
-      const params = await submitWith([2, 6], { courseType: CourseType.Other, courseName: 'Boya', level: null });
-
-      expect(params.get('title')).toBe('Boya-Bai2+6');
-    });
   });
 
   it('toggles a game with its card, numbers the chosen ones as the quiz will, and needs one', () => {
@@ -314,9 +305,9 @@ describe('AiGeneration', () => {
 
   it('asks only for the course and the lessons for "Ghép bộ thủ"', async () => {
     page.formGroup.patchValue({
-      courseType: CourseType.Other,
-      courseName: 'Boya',
-      level: null,
+      courseType: CourseType.Hsk,
+      hskStandard: HskStandard.V3,
+      level: 1,
       lessonNumbers: [4, 2],
       exportType: ExportType.Radicals
     });
@@ -353,16 +344,16 @@ describe('AiGeneration', () => {
       expect(element().textContent).toContain('Hỏi chữ Hán');
     });
 
-    it('drops the Chinese course and platform for English and picks the course typed in by hand', () => {
+    it('drops the Chinese course and platform for English and picks its book', () => {
       page.formGroup.patchValue({ courseType: CourseType.Hsk, exportType: ExportType.Radicals });
 
       chooseLanguage('Tiếng Anh');
 
       expect(control('language').value).toBe(QuizLanguage.English);
-      expect(control('courseType').value).toBe(CourseType.Other);
+      expect(control('courseType').value).toBe(CourseType.VocabReview10);
       expect(control('exportType').value).toBeNull();
       expect(element().textContent).toContain('Hỏi từ tiếng Anh');
-      expect(element().querySelector('.course-name-input')).not.toBeNull();
+      expect(element().querySelector('#courseName')).toBeNull();
     });
 
     it('names the topics of the vocabulary review, which has no level', () => {
@@ -382,7 +373,7 @@ describe('AiGeneration', () => {
       chooseLanguage('Tiếng Anh');
       expect(control('level').value).toBeNull();
       expect(control('lessonNumbers').value).toEqual([]);
-      page.formGroup.patchValue({ courseName: 'Solutions', level: 3, lessonNumbers: [1], exportType: ExportType.GimKit });
+      page.formGroup.patchValue({ lessonNumbers: [1], exportType: ExportType.GimKit });
 
       chooseLanguage('Tiếng Trung');
       expect(control('courseType').value).toBe(CourseType.Hsk);
@@ -391,8 +382,8 @@ describe('AiGeneration', () => {
       expect(control('exportType').value).toBe(ExportType.Radicals);
 
       chooseLanguage('Tiếng Anh');
-      expect(control('courseName').value).toBe('Solutions');
-      expect(control('level').value).toBe(3);
+      expect(control('courseType').value).toBe(CourseType.VocabReview10);
+      expect(control('lessonNumbers').value).toEqual([1]);
       expect(control('exportType').value).toBe(ExportType.GimKit);
     });
 
@@ -414,22 +405,23 @@ describe('AiGeneration', () => {
 
     it('is sent with the job and remembered', async () => {
       chooseLanguage('Tiếng Anh');
-      page.formGroup.patchValue({ courseName: 'Global Success', level: 6, lessonNumbers: [2], exportType: ExportType.GimKit });
+      page.formGroup.patchValue({ lessonNumbers: [2], exportType: ExportType.GimKit });
 
       await page.generate();
       const params = http.expectOne(request => request.url === '/api/csv/jobs').request.params;
       expect(params.get('language')).toBe(String(QuizLanguage.English));
-      expect(params.get('courseType')).toBe(String(CourseType.Other));
-      expect(params.get('title')).toBe('Global Success6-Bai2');
+      expect(params.get('courseType')).toBe(String(CourseType.VocabReview10));
+      expect(params.has('level')).toBeFalse();
+      expect(params.get('title')).toBe('Lop10-Topic2');
       expect(params.has('intelligence')).toBeFalse();
       const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!);
       expect(saved.language).toBe(QuizLanguage.English);
       expect('intelligence' in saved).toBeFalse();
-      expect(saved.byLanguage[QuizLanguage.English].courseName).toBe('Global Success');
+      expect(saved.byLanguage[QuizLanguage.English].courseType).toBe(CourseType.VocabReview10);
       expect(saved.byLanguage[QuizLanguage.Chinese].courseType).toBeNull();
     });
 
-    it('restores the choices of both languages', () => {
+    it('restores the choices of both languages, a course typed in by hand replaced by the language\'s book', () => {
       localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({
         language: QuizLanguage.English,
         // Saved before "Độ thông minh" was removed: it is not read.
@@ -445,7 +437,8 @@ describe('AiGeneration', () => {
 
       expect(control('language').value).toBe(QuizLanguage.English);
       expect(page.formGroup.get('intelligence')).toBeNull();
-      expect(control('courseName').value).toBe('Solutions');
+      expect(control('courseType').value).toBe(CourseType.VocabReview10);
+      expect(control('lessonNumbers').value).toEqual([2]);
       chooseLanguage('Tiếng Trung');
       expect(control('courseType').value).toBe(CourseType.Yct);
       expect(control('level').value).toBe(6);
@@ -461,7 +454,7 @@ describe('AiGeneration', () => {
       const restored = (TestBed.createComponent(AiGeneration).componentInstance as unknown as Internals).formGroup;
 
       expect(restored.get('language')?.value).toBe(QuizLanguage.English);
-      expect(restored.get('courseType')?.value).toBe(CourseType.Other);
+      expect(restored.get('courseType')?.value).toBe(CourseType.VocabReview10);
       expect(restored.get('exportType')?.value).toBeNull();
     });
   });

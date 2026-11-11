@@ -36,16 +36,15 @@ export const ai = {
     failedBody: '"%title%": %reason%'
   },
   form: {
-    hsk2MaxLevel: 'HSK 2.0 chỉ có cấp 1–6',
     lessonMax: '%title% chỉ có %unit% 1–%max%',
     pickCourse: 'Chọn giáo trình',
-    optional: 'Không bắt buộc',
     pickLesson: 'Chọn %unit%',
     pickPlatform: 'Chọn nền tảng',
     pickGame: 'Chọn ít nhất 1 trò chơi',
     dropHint: 'Kéo thả, dán (Ctrl+V) hoặc',
     chooseFile: 'chọn file',
     textbookHasBook: 'Có sẵn %title%, không cần ảnh.',
+    photosFromBook: 'Câu hỏi lấy từ sách, không cần ảnh.',
     needImage: 'Cần ít nhất 1 ảnh',
     notImage: 'Không phải ảnh',
     duplicateImage: 'Ảnh trùng lặp',

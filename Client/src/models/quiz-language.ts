@@ -20,8 +20,9 @@ export interface LanguageSpec {
   tag: string;
   // The nz-tag preset colour of the language's tag in the tables.
   tagColor: string;
-  // The courses of the language, listed before "Khác" (a course typed in by hand), which every language has.
-  // Mirrors courseLanguages on the server: a course listed under the wrong language is refused there.
+  // The courses of the language, each with a book; "Khác" (a course typed in by hand) is only in the history, for the
+  // jobs made before every quiz needed a book. Mirrors courseLanguages on the server: a course listed under the wrong
+  // language is refused there.
   courses: readonly CourseOption[];
   // The course the form picks when it must replace one of the other language, null to leave the choice to the teacher.
   defaultCourse: CourseType | null;
@@ -52,7 +53,7 @@ export const LANGUAGES: readonly LanguageSpec[] = [
     courses: [
       { value: CourseType.VocabReview10, label: 'Ôn tập từ vựng lớp 10' }
     ],
-    defaultCourse: CourseType.Other,
+    defaultCourse: CourseType.VocabReview10,
     formattedLabel: 'Hỏi từ tiếng Anh',
     formattedGuide: 'Tiếng Việt + từ tiếng Anh'
   }
@@ -80,6 +81,12 @@ export function quizLanguageOf(value: unknown): QuizLanguage {
   return LANGUAGES.some(spec => spec.value === value) ? value as QuizLanguage : QuizLanguage.Chinese;
 }
 
+// The courses a quiz can be asked for in the language: its own, never "Khác".
+export function offersCourse(language: QuizLanguage | null, courseType: CourseType | null): boolean {
+  return languageSpec(language).courses.some(course => course.value === courseType);
+}
+
+// The courses the language's jobs can have, "Khác" included for the jobs made before every quiz needed a book.
 export function teachesCourse(language: QuizLanguage | null, courseType: CourseType | null): boolean {
   return courseType === CourseType.Other || languageSpec(language).courses.some(course => course.value === courseType);
 }

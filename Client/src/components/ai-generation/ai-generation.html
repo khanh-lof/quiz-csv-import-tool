@@ -25,8 +25,8 @@
           <b>Giao bài</b>.
         </li>
       </ol>
-      <p><b>Ảnh</b>: không cần khi có sẵn sách; khoá khác nên thêm ảnh bài.
-        <b>{{ language.formattedGuide }}</b> cần ít nhất 1 ảnh.</p>
+      <p><b>Ảnh</b>: chỉ dùng ở <b>{{ language.formattedLabel }}</b> (ít nhất 1 ảnh). <b>AI tự nghĩ câu hỏi</b> lấy bài từ
+        sách.</p>
       <p><b>Giao bài</b>: gửi link cho học sinh, xem bảng xếp hạng ở <b>Bài đã giao</b>.</p>
       @if (offers(ExportType.Radicals)) {
         <p><b>Ghép bộ thủ</b>: <b>Sửa</b> để chỉnh pinyin, nghĩa do AI viết.</p>
@@ -59,7 +59,6 @@
                     @for (course of language.courses; track course.value) {
                       <nz-option [nzValue]="course.value" [nzLabel]="course.label"></nz-option>
                     }
-                    <nz-option [nzValue]="CourseType.Other" nzLabel="Khác"></nz-option>
                   </nz-select>
                   @if (formGroup.controls.courseType.value === CourseType.Hsk) {
                     <!-- HSK 2.0 has 6 levels and the original Giáo trình chuẩn HSK; HSK 3.0 has 9 and its own books. -->
@@ -73,28 +72,17 @@
                 <ng-container
                   *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('common.required' | msg), $implicit: formGroup.controls.courseType}"/>
               </div>
-              @if (formGroup.controls.courseType.value === CourseType.Other) {
-                <div class="field course-name-field">
-                  <label class="field-label" for="courseName">Tên giáo trình</label>
-                  <input [formControl]="formGroup.controls.courseName" class="course-name-input" id="courseName"
-                         maxlength="100" nz-input/>
-                  <ng-container
-                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('common.required' | msg), $implicit: formGroup.controls.courseName}"/>
-                </div>
-              }
               @if (courseHasLevels(formGroup.controls.courseType.value)) {
                 <div class="field">
                   <label class="field-label" for="level">{{ 'ai.label.level' | msg }}</label>
-                  <nz-input-number [class.optional-level]="formGroup.controls.courseType.value === CourseType.Other"
-                                   [formControl]="formGroup.controls.level" [nzMax]="maxLevel" [nzMin]="1"
-                                   [nzPlaceHolder]="formGroup.controls.courseType.value === CourseType.Other ? ('ai.form.optional' | msg) : ''"
-                                   [nzPrecision]="0"
-                                   [nzStep]="1"
-                                   nzId="level"></nz-input-number>
+                  <!-- Only the levels with a book: a quiz is made from the book's lessons. -->
+                  <nz-select [formControl]="formGroup.controls.level" class="level-select" nzId="level">
+                    @for (level of levelOptions; track level) {
+                      <nz-option [nzLabel]="level" [nzValue]="level"></nz-option>
+                    }
+                  </nz-select>
                   <ng-container
                     *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('common.required' | msg), $implicit: formGroup.controls.level}"/>
-                  <ng-container
-                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: ('ai.form.hsk2MaxLevel' | msg), $implicit: formGroup.controls.level}"/>
                 </div>
               }
               <div class="field lesson-field">

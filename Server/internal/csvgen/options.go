@@ -165,6 +165,14 @@ func (o Options) CourseDisplayName() string {
 // course name input's maxlength in Client/src/components/ai-generation/ai-generation.html.
 const MaxCourseNameLength = 100
 
+// NoTextbookMessage refuses a creative request for a course and level none of the embedded textbooks covers.
+const NoTextbookMessage = "No textbook for this course and level."
+
+// HasTextbook says whether an embedded textbook covers the course and level of opts.
+func HasTextbook(opts Options) bool {
+	return textbookFor(opts) != nil
+}
+
 // ParseCreativeOptions reads the creative-mode query parameters. The error text is returned to
 // the client as-is.
 func ParseCreativeOptions(q url.Values) (Options, error) {
@@ -230,9 +238,12 @@ func ParseCreativeOptions(q url.Values) (Options, error) {
 		return Options{}, err
 	}
 	opts.LessonNumbers = lessons
-	// A book we hold the lessons of has a known number of them; for any other course the numbers are the
-	// teacher's word, since the model only reads them as positions in a book it recalls.
-	if book := textbookFor(opts); book != nil && lessons[len(lessons)-1] > book.lessons {
+	// A quiz is only made from the material of a book we hold: without it the model would make the lesson up.
+	book := textbookFor(opts)
+	if book == nil {
+		return Options{}, errors.New(NoTextbookMessage)
+	}
+	if lessons[len(lessons)-1] > book.lessons {
 		return Options{}, fmt.Errorf("Lesson must be 1 to %d for %s.", book.lessons, book.title)
 	}
 

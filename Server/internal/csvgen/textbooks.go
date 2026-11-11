@@ -54,7 +54,8 @@ var textbookRegistry = []bookSpec{
 	{dir: "hsk2-1", title: "《HSK标准教程1》", english: "HSK Standard Course 1", course: "HSK 2.0", courseType: Hsk, standard: Hsk2, level: 1, lessons: 15, series: "hsk2"},
 	{dir: "hsk2-2", title: "《HSK标准教程2》", english: "HSK Standard Course 2", course: "HSK 2.0", courseType: Hsk, standard: Hsk2, level: 2, lessons: 15, series: "hsk2"},
 	{dir: "hsk2-3", title: "《HSK标准教程3》", english: "HSK Standard Course 3", course: "HSK 2.0", courseType: Hsk, standard: Hsk2, level: 3, lessons: 20, series: "hsk2"},
-	// YCT 1 to 5 have no material here; the learner is assumed to know them.
+	{dir: "yct-1", title: "《YCT标准教程1》", english: "YCT Standard Course 1", course: "YCT", courseType: Yct, level: 1, lessons: 12},
+	// YCT 2 to 5 have no material here; the learner is assumed to know them.
 	{dir: "yct-6", title: "《YCT标准教程6》", english: "YCT Standard Course 6", course: "YCT", courseType: Yct, level: 6, lessons: 15,
 		alsoKnown: "The learner also knows the words of YCT levels 1 to 5."},
 	// A single English book with no levels: its level is zero and a request for it carries none.

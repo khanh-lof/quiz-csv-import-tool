@@ -116,7 +116,7 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      navigates to `/quiz`, where `VocabularyTable.ngOnInit` takes them and adds them like any other
      import.
    - **`Auto`** (requires `courseType`/`lessonNumbers`/`exportType` in the page's form, plus `level`
-     for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — or `courseName` for `Other`, and for Game
+     for HSK/YCT — with `hskStandard` 2.0/3.0 for HSK — and for Game
      `gestureStages`, a toggle card per game (`GestureStageCard`, compact, numbered "Màn N" among the chosen ones) with at least one chosen, and `questionsPerStage`, 4–10; images are
      optional here. The two quiz controls are validated only for that platform, their limits and the sanitizers
      that read them back from the saved settings are `models/gesture-quiz-options.ts`, and `AiCsvService` sends
@@ -134,34 +134,39 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
 `ai-generation.ts`: native radios bound to `exportType`, then the Game options: the question count on the games'
 label line and the six cards in one row), and a sticky action bar with the send button. The
 formatted mode shows only the photos and the button. With the Game options open the page fits a 14" laptop's
-browser (1280×650) without scrolling, the menu open and the "Khác" course included; keep it so when adding to the form.
+browser (1280×650) without scrolling, the menu open; keep it so when adding to the form.
 
 **Language.** The page's first choice, a large segmented switch on the left of the guide button (`.page-toolbar`),
 each option with its tag ("中", "EN"), is the `language` control: `models/quiz-language.ts` (`QuizLanguage`,
 `LANGUAGES` with each language's tag, courses and the formatted mode's name, `teachesCourse`, `offersExportType`)
-decides the course options (each language's, then "Khác") and hides "Ghép bộ thủ" for English. Each language keeps its
+decides the course options (each language's, `offersCourse`; never "Khác", which only the history's filter keeps for
+old jobs) and hides "Ghép bộ thủ" for English. Each language keeps its
 own `LANGUAGE_CHOICES` (course, name, standard, level, lessons, platform and the Game options; the mode is
 shared): switching saves the shown language's choices in `choicesByLanguage` and puts the other's
 back, as pristine fields. The saved settings are `{language, AIMode, byLanguage}` (an older save's `intelligence`
 is not read); a save from before reads as its language's choices. `fitChoicesToLanguage` then clears a course or
-platform of the other language and picks "Khác" for a language with no course of its own (English for now).
+platform of the other language, or a saved "Khác", and picks the language's `defaultCourse` (English: its one book).
 Both `AiCsvService` submits send it; the history table names the formatted mode by the job's language and filters by
 it. See [../AGENTS.md](../AGENTS.md#chinese-and-english).
 
 **Textbooks.** `models/textbook.ts` (`TEXTBOOKS`, `textbookFor(courseType, hskStandard, level)`, with its spec) is a
 hand-kept mirror of the server's registry of curated books (`Server/internal/csvgen/textbooks.go`): HSK 3.0 levels 1–3
-and YCT 6 for now, and the English "Ôn tập từ vựng lớp 10" (`CourseType.VocabReview10`, 8 topics). That book has no
+YCT 1 and 6 for now, and the English "Ôn tập từ vựng lớp 10" (`CourseType.VocabReview10`, 8 topics). That book has no
 level (`level` is optional, `courseHasLevels` hides the Cấp field and drops `level` from the request), calls its
 lessons "Topic" (`lessonUnit`, the select's label and placeholder) and lists them as "3. Culture" (`lessonNames`,
 `lessonOptionLabel`). Each language has a `defaultCourse` the form picks when it replaces the other language's course
-(English: `Other`). For these the server sends the lesson's real material to the AI, so no photo is needed. In Auto
-mode `AiGeneration` looks the book up from course type, standard and level (the `textbook` getter, like `maxLevel`)
-and, when there is one, shuts the photos (`photosDisabled`): the drop zone (the right column of the "Bài học" section,
+(English: `VocabReview10`). For these the server sends the lesson's real material to the AI, so no photo is needed.
+**Auto mode only asks for a lesson of a book**: the Cấp field is a select of `levelOptions` (`bookLevels(courseType,
+hskStandard)`: HSK 2.0 and 3.0 levels 1–3, YCT 1 and 6), `fitLevelToCourse` clears a level without a book when the course or
+standard changes and picks the only one when a course has a single such level; the server refuses anything else (400 `No textbook for this course and
+level.`). `AiGeneration` looks the book up from course type, standard and level (the `textbook` getter) and shuts the
+photos in Auto mode (`photosDisabled`), even before a level is picked: the drop zone (the right column of the "Bài học" section,
 as high as the title and fields beside it, with no label or hint) is greyed out, says why in a tooltip ("Có sẵn …,
-không cần ảnh.", also its accessible name, `photosDisabledReason`) and takes no drop, paste or pick, and
-`shownImages`, what is shown and sent, is empty, though photos added before stay for a course without a book; the Bài select
-offers lessons 1 to the book's `lessons` (100 without a book), and a lesson left over the cap (HSK 3.0 level 3 lesson 18, then
-level 1) gets a `max` error from the form validator like the level's, so the form cannot be submitted; `lessonOptions`
+không cần ảnh.", or "Câu hỏi lấy từ sách, không cần ảnh." before a book is picked; also its accessible name,
+`photosDisabledReason`) and takes no drop, paste or pick, and `shownImages`, what is shown and sent, is empty, though
+photos added stay for the formatted mode; the Bài select offers lessons 1 to the book's `lessons` (none before a level
+is picked), and a lesson left over the cap (HSK 3.0 level 3 lesson 18, then level 1) gets a `max` error from the form
+validator, so the form cannot be submitted; `lessonOptions`
 keeps an option for such a lesson, since ng-zorro's select hides a value without one and it could not be removed. Adding a book
 means editing both lists together; the server also checks the lesson numbers (400 `Lesson must be 1 to <M> …`).
 

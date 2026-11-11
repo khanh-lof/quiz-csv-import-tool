@@ -171,24 +171,28 @@ lessons matches each of them).
   them and later exports via `FileExportService.exportFile` (client-side builders synthesize the
   distractors).
 - **`Auto`** (sent as `isCreative=true`, alongside `exportType`, `courseType`, `lessonNumbers`, and
-  `level`/`courseName` depending on the course, and for Game `gestureStages`/`questionsPerStage`, see
+  `level` depending on the course, and for Game `gestureStages`/`questionsPerStage`, see
   [the gesture quiz](#the-gesture-quiz-game)) → server's creative prompt
   (`csvgen.buildCreativeRequest`, `prompts/creative_system.txt`), a long Chinese-teacher prompt that is told the exact
   column layout of the *target platform* via `exportTypeMessages` and asked to
   return **rows without a header** → client never touches the table: on "Tải file" it prepends the header through
   `CsvBuilderBase.buildFromCsvContent` and downloads (for the Game platform the job can instead be
   played in the app, its third delivery). **Images are optional in this
-  mode.** The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`, another
-  by-ordinal enum duplicated on both sides), a `level` that is required for HSK and YCT but optional
-  for `Other`, a `courseName` required only for `Other`, and the lessons. For HSK the user
+  mode.** The lesson is identified by `CourseType` (`Hsk`/`Yct`/`Other`/`VocabReview10`, another
+  by-ordinal enum duplicated on both sides), a `level` required for HSK and YCT, and the lessons. **Only a course and
+  level with a textbook is accepted** (see [Textbook lessons](#textbook-lessons)): anything else, `Other` (a course
+  typed in by hand) included, is 400 `No textbook for this course and level.` (`csvgen.NoTextbookMessage`), so the
+  model never makes a lesson up; the form offers only those courses and levels, and a failed job of such a course,
+  made before this rule, is not retryable (`retryOptions`). For HSK the user
   also picks the standard, `HskStandard` 2.0 (levels 1–6, the server's default) or 3.0 (levels 1–9; the form's
   default), sent as `hskStandard=2|3` by value, not ordinal; the server rejects a level outside the standard's range.
   Everything the prompt needs travels in `csvgen.Options` (`Server/internal/csvgen/options.go`). Where the lesson's
   words come from depends on the course:
   - **A course with a textbook** (see [Textbook lessons](#textbook-lessons)): the server sends the lesson's own
-    material, and the model builds the quiz from it alone. Photos, if any, only say which part to focus on.
-  - **Any other course:** the photos when there are some. With none, the model rebuilds the lesson from its own
-    knowledge of the textbook (the prompt's LESSON SOURCE, Steps 1–3).
+    material, and the model builds the quiz from it alone. Photos, if any, only say which part to focus on (the form
+    sends none in this mode).
+  - **Any other course** is refused. The prompt's LESSON SOURCE path for a lesson without material (photos, or the
+    model's own knowledge of the textbook) only serves the old jobs and the tests now.
   - **The web search tool** (Wayground only) is for finding illustrations and is never used to look up the lesson.
 
   **One quiz of several lessons.** The Bài field is a multiple select: the teacher picks 1 to 5 lessons
@@ -242,11 +246,11 @@ page. Everything else is shared; only what a language needs differs.
   `Chinese` and `English` (0–1), travel **by ordinal** as `language` on `POST csv/jobs`, in both modes. Absent means
   Chinese, what every request was before English; anything else is 400 `Invalid language parameter.`.
 - **Courses belong to a language.** `courseLanguages` on the server and `LANGUAGES[].courses` on the client, kept in
-  step by hand: HSK and YCT are Chinese, `Other` (a course typed in by hand) belongs to every language. A course of
-  the other language is 400 `Invalid or missing courseType parameter.`. English has one course of its own,
-  `VocabReview10` (ordinal 3, "Ôn tập từ vựng lớp 10", see [Textbook lessons](#textbook-lessons)), besides `Other`, which
-  the form still picks for the teacher when the language changes; further books are added like the Chinese ones, with a
-  `CourseType` member each.
+  step by hand: HSK and YCT are Chinese, `Other` (a course typed in by hand, refused now for want of a textbook, kept for
+  the old jobs and the history's filter) belongs to every language. A course of the other language is 400 `Invalid or
+  missing courseType parameter.`. English has one course, `VocabReview10` (ordinal 3, "Ôn tập từ vựng lớp 10", see
+  [Textbook lessons](#textbook-lessons)), which the form picks for the teacher when the language changes; further books
+  are added like the Chinese ones, with a `CourseType` member each.
 - **Platforms.** Every platform works in both languages except Radicals ("Ghép bộ thủ", built from the components of
   characters): for English it is 400 `Radicals is only for Chinese.` and the form does not offer it.
 - **Prompts.** `prompts/creative_system.txt` and `prompts/gesture_quiz_template.txt` are shared `text/template`
@@ -273,6 +277,7 @@ For seven Chinese books and one English book QuizTool holds the lessons themselv
 | 《新HSK教程1》 | HSK 3.0 level 1 | 15 |
 | 《新HSK教程2》 | HSK 3.0 level 2 | 15 |
 | 《新HSK教程3》 | HSK 3.0 level 3 | 18 |
+| 《YCT标准教程1》 | YCT level 1 | 12 |
 | 《YCT标准教程6》 | YCT level 6 | 15 |
 | Ôn tập từ vựng lớp 10 | `VocabReview10` (English, no level) | 8 topics |
 

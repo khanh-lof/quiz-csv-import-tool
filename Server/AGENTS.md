@@ -188,14 +188,16 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   optional `language` (`csvgen.ParseLanguage`, see
   [Chinese and English](../AGENTS.md#chinese-and-english)), which picks the prompts and is kept on the job.
   `isCreative=true` switches to the creative prompt and requires `exportType`,
-  `courseType` (one of the language's courses), `lessonNumbers`, plus `level` (HSK/YCT) or `courseName` (`Other`), and for GestureQuiz the
+  `courseType` (one of the language's courses), `lessonNumbers`, plus `level` (HSK/YCT), and for GestureQuiz the
   optional `gestureStages` and `questionsPerStage` (see [Choosing the games](../AGENTS.md#the-gesture-quiz-game)) — parsed by
   `csvgen.ParseCreativeOptions` (400 with the message on failure). `lessonNumbers` is a comma-separated list
   of distinct lessons, each 1 or more, in any order (kept ascending in `Options.LessonNumbers`). A missing or
   bad list is 400 `Invalid or missing lessonNumbers
   parameter.`, more than `MaxLessons` (5) is 400 `At most 5 lessons per quiz.`, and for a textbook with embedded
   lessons (below) each must be at most its lesson count: 400 `Lesson must be 1 to <M> for <title>.`, e.g.
-  `Lesson must be 1 to 15 for 《新HSK教程2》.` Images are optional only in
+  `Lesson must be 1 to 15 for 《新HSK教程2》.` A course and level without an embedded textbook (`Other`, HSK 2.0 level 4,
+  YCT 5, …) is 400 `No textbook for this course and level.` (`csvgen.NoTextbookMessage`, checked after the lessons'
+  list and before their count), and `retryOptions` refuses such a job made before the rule. Images are optional only in
   creative mode. Each file part's type is sniffed from its bytes (`detectImageType`), never taken from the part's
   `Content-Type`: PNG, JPEG, WebP and GIF pass, anything else is 400 `Unsupported image type.`, checked while the
   body is read, before any query parameter. The LLM call runs under `LLM_TIMEOUT_SECONDS`; hitting it fails the job with
@@ -400,8 +402,8 @@ cookie.
   the curated document of the lesson is sent as a **LESSON MATERIAL** message. The books are the hand-kept
   `textbookRegistry` (`dir`, title, `CourseType`, `HskStandard`, level and the pinned **lesson count**):
   `hsk2-1`, `hsk2-2`, `hsk2-3` (HSK 2.0 levels 1 to 3, 15, 15 and 20 lessons, their own `hsk2` series: a learner of level 2 knows the level 1 book), `hsk3-1`, `hsk3-2`, `hsk3-3` (HSK 3.0 levels 1 to 3, 15, 15 and 18 lessons, one series: a learner of level
-  N knows the lower books) and `yct-6` (YCT level 6, 15 lessons, alone; YCT 1 to 5 have no material and the
-  learner is assumed to know them) and `vocab10` (the English vocabulary review "Ôn tập từ vựng lớp 10",
+  N knows the lower books) `yct-1` (YCT level 1, 12 lessons, alone: no `series`) and `yct-6` (YCT level 6, 15 lessons, alone; YCT 2 to 5 have no
+  material and the learner is assumed to know them) and `vocab10` (the English vocabulary review "Ôn tập từ vựng lớp 10",
   `CourseType` `VocabReview10`, 8 topics as lessons, no level: its `level` is 0, `textbookFor` ignores the request's
   level for it, and the request's `level` is optional for it as for `Other`; its Known vocabulary list is joined with
   ", " instead of "、", and its `quizGuidance` ("Keep the quiz easy: …") is sent with the course and lesson in every

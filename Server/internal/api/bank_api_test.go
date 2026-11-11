@@ -107,7 +107,6 @@ func TestQuestionBankLeavesOtherQuizzesToTheModel(t *testing.T) {
 	for name, u := range map[string]upload{
 		"images":         {token: token, query: bankLesson, files: 1},
 		"another lesson": {token: token, query: strings.Replace(bankLesson, "lessonNumbers=3", "lessonNumbers=4", 1)},
-		"no textbook":    {token: token, query: "?isCreative=true&exportType=0&courseType=2&courseName=Boya&lessonNumbers=3"},
 	} {
 		calls := env.gen.calls
 		if rec := env.upload(t, u); rec.Code != http.StatusAccepted || env.gen.calls != calls+1 {

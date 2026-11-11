@@ -112,19 +112,8 @@
   max-width: 100%;
 }
 
-.course-name-field {
-  flex: 1 1 180px;
-  min-width: 160px;
-  max-width: 320px;
-}
-
-.fields nz-input-number {
+.level-select {
   width: 80px;
-}
-
-/* Wide enough for the "Không bắt buộc" placeholder. */
-.fields nz-input-number.optional-level {
-  width: 130px;
 }
 
 /* Takes the rest of the row, so the chosen lessons stay on one line as long as there is room. */

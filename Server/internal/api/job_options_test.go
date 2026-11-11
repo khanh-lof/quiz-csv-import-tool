@@ -9,7 +9,7 @@ import (
 )
 
 func TestJobOptionsRoundTrip(t *testing.T) {
-	level := 3
+	level, yctLevel := 3, 6
 	cases := map[string]struct {
 		creative bool
 		opts     csvgen.Options
@@ -19,12 +19,11 @@ func TestJobOptionsRoundTrip(t *testing.T) {
 			ExportType: csvgen.Wayground, CourseType: csvgen.Hsk, HskStandard: csvgen.Hsk3, Level: &level,
 			LessonNumbers: []int{2, 3},
 		}},
-		"other blooket": {true, csvgen.Options{
-			Language: csvgen.English, ExportType: csvgen.Blooket, CourseType: csvgen.Other, CourseName: "Unit book",
-			LessonNumbers: []int{1},
+		"vocab10 blooket": {true, csvgen.Options{
+			Language: csvgen.English, ExportType: csvgen.Blooket, CourseType: csvgen.VocabReview10, LessonNumbers: []int{1},
 		}},
 		"yct game": {true, csvgen.Options{
-			ExportType: csvgen.GestureQuiz, CourseType: csvgen.Yct, Level: &level, LessonNumbers: []int{4},
+			ExportType: csvgen.GestureQuiz, CourseType: csvgen.Yct, Level: &yctLevel, LessonNumbers: []int{4},
 			GestureStages: []int{4, 6}, QuestionsPerStage: 7,
 		}},
 	}
@@ -43,10 +42,15 @@ func TestJobOptionsRoundTrip(t *testing.T) {
 
 func TestRetryOptionsRefusesJobsMissingTheirRequest(t *testing.T) {
 	game := int(csvgen.GestureQuiz)
+	blooket := int(csvgen.Blooket)
 	course := int(csvgen.Hsk)
+	other := int(csvgen.Other)
+	level := 4
 	cases := map[string]*store.Job{
 		"no lesson":            {Creative: true, ExportType: &game, CourseType: &course},
 		"no games of the game": {Creative: true, ExportType: &game, CourseType: &course, LessonNumbers: []int{1}},
+		"no textbook":          {Creative: true, ExportType: &blooket, CourseType: &other, CourseName: "Boya", LessonNumbers: []int{1}},
+		"level without a book": {Creative: true, ExportType: &blooket, CourseType: &course, Level: &level, LessonNumbers: []int{1}},
 	}
 	for name, job := range cases {
 		if _, ok := retryOptions(job); ok {
