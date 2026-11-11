@@ -35,6 +35,8 @@ const (
 	// of the AI server has no deadline, yet is listed by the main server.
 	jobHeartbeatInterval = 30 * time.Second
 	abandonedAfter       = 3 * time.Minute
+	// bankJobDelay is how long a quiz built from the question bank stays running before it is done.
+	bankJobDelay = 5 * time.Second
 )
 
 // createJob handles POST /api/csv/jobs: a multipart upload of zero or more images, or of the public IDs of
@@ -292,8 +294,9 @@ func (s *Server) bankPlan(ctx context.Context, username string, opts csvgen.Opti
 	return build
 }
 
-// startBankJob writes the quiz of a complete bank plan and stores it as a job that is already done, counting no AI
-// call, and answers 202 with its id like startJob, so the client follows it the same way. It returns false, having
+// startBankJob writes the quiz of a complete bank plan, counting no AI call, stores it as a running job and answers
+// 202 with its id like startJob, then marks it done after bankJobDelay: the client announces a job only when it
+// sees it go from running to done, which a job stored as done at once never does. It returns false, having
 // answered nothing, when the quiz cannot be written; the request then goes its usual way.
 func (s *Server) startBankJob(w http.ResponseWriter, r *http.Request, username string, job *store.Job, build *bank.Build, replaces string) bool {
 	result, err := s.Bank.Finish(r.Context(), build, len(build.Plan.Picks))
@@ -301,15 +304,25 @@ func (s *Server) startBankJob(w http.ResponseWriter, r *http.Request, username s
 		s.Logger.Warn("writing a quiz from the question bank failed", "user", username, "error", err)
 		return false
 	}
-	now := time.Now().UTC().Truncate(time.Millisecond)
-	job.ID, job.Username, job.Status, job.CreatedAt, job.FinishedAt = newID(), username, store.JobDone, now, &now
-	job.CSV, job.BankQuestions, job.FromBank = result.CSV, result.BankQuestions, result.FromBank
+	job.ID, job.Username, job.Status = newID(), username, store.JobRunning
+	job.CreatedAt = time.Now().UTC().Truncate(time.Millisecond)
 	if err := s.Jobs.Create(r.Context(), job); err != nil {
 		s.internalError(w, r, "creating job failed", err)
 		return true
 	}
 	s.Logger.Info("quiz built from the question bank", "user", username, "job", job.ID, "questions", len(result.BankQuestions))
 	s.acceptJob(w, r, username, job, replaces)
+
+	delay := s.bankJobDelay
+	if delay <= 0 {
+		delay = bankJobDelay
+	}
+	time.Sleep(delay)
+	s.recordJob(context.WithoutCancel(r.Context()), func(ctx context.Context) error {
+		return s.Jobs.Complete(ctx, username, job.ID, store.JobResult{
+			CSV: result.CSV, BankQuestions: result.BankQuestions, FromBank: result.FromBank,
+		})
+	}, job)
 	return true
 }
 

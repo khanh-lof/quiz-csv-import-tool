@@ -98,6 +98,7 @@ func newEnv(t *testing.T) *testEnv {
 		LoginWindow:      15 * time.Minute,
 		Logger:           slog.New(slog.DiscardHandler),
 	}
+	srv.bankJobDelay = time.Millisecond
 	images := &fakeImageStore{}
 	srv.ImageStore = images
 	env := &testEnv{srv: srv, h: srv.Handler(), users: users, jobs: jobs, assignments: assignments, clock: clock, gen: gen, images: images}
