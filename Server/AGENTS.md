@@ -25,9 +25,10 @@ Module `quiz-csv-import-tool/server`, laid out as:
   (`resumeInterrupted`, see [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes)).
 - `cmd/import-users` — one-off tool importing users exported from the old Cosmos DB container.
 - `cmd/bank-questions` — fills the question bank without the server's model, for the `add-bank-questions` skill
-  (`.claude/skills/`): `status` (questions per word), `prompt` (plans `--count` questions with `bank.TopUpSpecs` and
-  writes the model's exact request, `csvgen.NewBankPrompt`) and `insert` (reads the answer with
-  `csvgen.ParseBankAnswer`, checks it with `bank.Validate`, stores it with `Insert`; `--dry-run`).
+  (`.claude/skills/`): `status` (questions per word), `prompt` (plans `--count` questions with `bank.TopUpSpecs`,
+  `--visual` of them with an image, and writes the model's exact request, `csvgen.NewBankPrompt`) and `insert`
+  (reads the answer with `csvgen.ParseBankAnswer`, checks it with `bank.Validate` and fetches every image link,
+  stores it with `Insert`; `--dry-run`).
 - `internal/config` — env-var configuration (`FromEnv`) and a small `.env` loader for local dev.
 - `internal/api` — routing (`Server.Handler`) and all handlers.
 - `internal/auth` — JWT issue/parse, PBKDF2 password hashing, and `Service` (login/refresh/logout).

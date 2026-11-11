@@ -1,6 +1,7 @@
 package bank
 
 import (
+	"fmt"
 	"testing"
 
 	"quiz-csv-import-tool/server/internal/store"
@@ -14,7 +15,7 @@ func TestTopUpSpecsSpreadsOverTheLeastCoveredWords(t *testing.T) {
 	pool := []store.Question{mc("a", v, 0, Easy, SkillMeaning), mc("b", v, 0, Medium, SkillFillBlank),
 		mc("c", v, 1, Easy, SkillForm), retired}
 
-	specs := TopUpSpecs(v, pool, 10)
+	specs := TopUpSpecs(v, pool, 10, 0)
 	if len(specs) != 10 {
 		t.Fatalf("%d specs, want 10", len(specs))
 	}
@@ -45,10 +46,38 @@ func TestTopUpSpecsSpreadsOverTheLeastCoveredWords(t *testing.T) {
 	if held[v.Words[0].Key()] != (Counts{1, 1, 0}) || held[v.Words[2].Key()].Total() != 0 {
 		t.Errorf("coverage %v", held)
 	}
-	if got := len(TopUpSpecs(v, nil, 500)); got != MaxTopUp {
+	if got := len(TopUpSpecs(v, nil, 500, 0)); got != MaxTopUp {
 		t.Errorf("%d specs for 500, want %d", got, MaxTopUp)
 	}
-	if TopUpSpecs(v, nil, 0) != nil {
+	if TopUpSpecs(v, nil, 0, 0) != nil {
 		t.Error("specs for 0")
+	}
+}
+
+func TestTopUpSpecsVisual(t *testing.T) {
+	v := testVocabulary(10, 1)
+	// 10 questions: easy 0-3 (3 a true/false statement), medium 4-7, hard 8-9.
+	specs := TopUpSpecs(v, nil, 10, 4)
+	var visual []int
+	for i, s := range specs {
+		if s.Visual {
+			visual = append(visual, i)
+			if s.Format != FormatMC || len(s.Skills) != 1 || s.Skills[0] != SkillVisual || s.Options != 4 {
+				t.Errorf("visual spec %d: %+v", i, s)
+			}
+		}
+	}
+	if fmt.Sprint(visual) != "[0 1 4 5]" {
+		t.Errorf("visual specs %v, want [0 1 4 5]", visual)
+	}
+	// More than the easy and medium multiple-choice ones: all of those, and nothing else.
+	n := 0
+	for _, s := range TopUpSpecs(v, nil, 10, 50) {
+		if s.Visual {
+			n++
+		}
+	}
+	if n != 7 {
+		t.Errorf("%d visual specs, want the 7 easy and medium mc ones", n)
 	}
 }

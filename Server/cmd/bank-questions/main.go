@@ -8,11 +8,12 @@
 //	go run ./cmd/bank-questions insert --course hsk3 --level 1 --lessons 3,4 --file answer.json [--dry-run]
 //
 // status shows how many active questions the bank holds on each word of the lessons. prompt plans --count new
-// questions for the least covered words (bank.TopUpSpecs) and writes the exact request the model would get (the
+// questions for the least covered words (bank.TopUpSpecs, --visual of them with an image, for Wayground) and writes the exact request the model would get (the
 // bank system prompt, the lesson material, the numbered WORD LIST and the REQUEST) to --out. insert reads an answer
 // in the JSON the system prompt asks for, maps its W ids back to the words, checks every question with
 // bank.Validate and stores the valid ones (store.QuestionBank.Insert skips any the book already holds); --dry-run
-// checks and reports without writing.
+// checks and reports without writing. Both also load the image link of every visual question and reject the ones
+// that do not answer with an image.
 //
 // Run it from Server/: it reads .env like the server. MONGODB_URI, MONGODB_DATABASE and
 // MONGODB_QUESTIONS_COLLECTION name the bank, or --mongo-uri, --database and --collection.
@@ -25,6 +26,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"slices"
@@ -44,7 +46,7 @@ import (
 
 const usage = `usage:
   bank-questions status --course C [--level N] --lessons L
-  bank-questions prompt --course C [--level N] --lessons L --count N --out FILE
+  bank-questions prompt --course C [--level N] --lessons L --count N [--visual N] --out FILE
   bank-questions insert --course C [--level N] --lessons L --file FILE [--dry-run] [--writer NAME]
 
   --course   hsk3 (HSK 3.0), hsk2 (HSK 2.0), yct or vocab10 (Ôn tập từ vựng lớp 10, no level)
@@ -62,7 +64,7 @@ func main() {
 type args struct {
 	course, lessons, level   string
 	mongoURI, database, coll string
-	count                    int
+	count, visual            int
 	out, file, writer        string
 	dryRun                   bool
 }
@@ -86,6 +88,7 @@ func run(argv []string) error {
 	fs.StringVar(&a.database, "database", cfg.MongoDatabase, "database")
 	fs.StringVar(&a.coll, "collection", cfg.MongoQuestionsCollection, "question bank collection")
 	fs.IntVar(&a.count, "count", 0, "prompt: how many questions to plan")
+	fs.IntVar(&a.visual, "visual", 0, "prompt: how many of them are visual questions with an image (Wayground only)")
 	fs.StringVar(&a.out, "out", "", "prompt: the file the request is written to")
 	fs.StringVar(&a.file, "file", "", "insert: the answer JSON")
 	fs.StringVar(&a.writer, "writer", "claude-code", "insert: who wrote the questions, stored as their model")
@@ -200,7 +203,7 @@ func writePrompt(a args, opts csvgen.Options, vocabulary csvgen.Vocabulary, pool
 	if a.count > bank.MaxTopUp {
 		fmt.Printf("\n--count %d is more than one request takes; planning %d. Run again for the rest.\n", a.count, bank.MaxTopUp)
 	}
-	specs := bank.TopUpSpecs(vocabulary, pool, a.count)
+	specs := bank.TopUpSpecs(vocabulary, pool, a.count, a.visual)
 	prompt, err := csvgen.NewBankPrompt(opts, vocabulary, specs)
 	if err != nil {
 		return err
@@ -218,11 +221,18 @@ func writePrompt(a args, opts csvgen.Options, vocabulary csvgen.Vocabulary, pool
 		return err
 	}
 	var levels [3]int
+	visual := 0
 	for _, s := range specs {
 		levels[s.Difficulty-1]++
+		if s.Visual {
+			visual++
+		}
 	}
-	fmt.Printf("\nPlanned %d questions (%d easy, %d medium, %d hard). Request written to %s\n",
-		len(specs), levels[0], levels[1], levels[2], a.out)
+	fmt.Printf("\nPlanned %d questions (%d easy, %d medium, %d hard; %d visual). Request written to %s\n",
+		len(specs), levels[0], levels[1], levels[2], visual, a.out)
+	if visual < a.visual {
+		fmt.Printf("Only %d of the --visual %d: visual questions are easy or medium multiple-choice ones.\n", visual, a.visual)
+	}
 	return nil
 }
 
@@ -248,6 +258,9 @@ func insert(ctx context.Context, a args, opts csvgen.Options, vocabulary csvgen.
 	rejected := len(dropped)
 	for _, d := range drafts {
 		q, err := bank.Validate(d, origin, newID())
+		if err == nil && q.ImageURL != "" {
+			err = checkImage(ctx, q.ImageURL)
+		}
 		if err != nil {
 			rejected++
 			fmt.Printf("  rejected %q: %v\n", short(d.Stem), err)
@@ -290,6 +303,31 @@ func insert(ctx context.Context, a args, opts csvgen.Options, vocabulary csvgen.
 	}
 	fmt.Printf("Stored %d (%d easy, %d medium, %d hard; formats %v); %d were already in the bank or repeated.\n",
 		len(stored), levels[0], levels[1], levels[2], formats, len(valid)-len(stored))
+	return nil
+}
+
+var imageClient = &http.Client{Timeout: 20 * time.Second}
+
+// checkImage says why link does not load as an image, nil when it does. Quiz platforms load it in the learner's
+// browser, so it is fetched as a browser would, without cookies.
+func checkImage(ctx context.Context, link string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, link, nil)
+	if err != nil {
+		return fmt.Errorf("the image link %q: %w", link, err)
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; QuizTool-bank-questions)")
+	req.Header.Set("Accept", "image/*")
+	resp, err := imageClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("the image %q does not load: %w", link, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("the image link %q answers %s", link, resp.Status)
+	}
+	if contentType := resp.Header.Get("Content-Type"); !strings.HasPrefix(contentType, "image/") {
+		return fmt.Errorf("the link %q is %q, not an image", link, contentType)
+	}
 	return nil
 }
 

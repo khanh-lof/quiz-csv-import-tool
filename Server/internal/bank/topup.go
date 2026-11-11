@@ -19,9 +19,10 @@ const trueFalseEvery = 4
 // planned so far, holds the fewest questions on at that level, then the fewest in all, the first in the book on a
 // tie. They are shaped like a quiz's gaps on the platforms other than the Game, except that one easy question in
 // trueFalseEvery is a true/false statement for the Game, whose last stage the hard ones (mc or word_order) serve.
-// pool is the bank's questions for the vocabulary's book and language (store.QuestionBank.Pool); the ones testing
-// other words do not count.
-func TopUpSpecs(vocabulary csvgen.Vocabulary, pool []store.Question, n int) []csvgen.QuestionSpec {
+// visual of the easy and medium multiple-choice ones, alternating between the two levels, become visual questions,
+// which only Wayground shows. pool is the bank's questions for the vocabulary's book and language
+// (store.QuestionBank.Pool); the ones testing other words do not count.
+func TopUpSpecs(vocabulary csvgen.Vocabulary, pool []store.Question, n, visual int) []csvgen.QuestionSpec {
 	n = min(n, MaxTopUp)
 	if n <= 0 || len(vocabulary.Words) == 0 {
 		return nil
@@ -56,7 +57,29 @@ func TopUpSpecs(vocabulary csvgen.Vocabulary, pool []store.Question, n int) []cs
 			specs = append(specs, spec)
 		}
 	}
+	makeVisual(specs, visual)
 	return specs
+}
+
+// makeVisual turns up to n of the easy and medium multiple-choice specs into visual ones, taking an easy and a
+// medium one in turn while both levels have some left.
+func makeVisual(specs []csvgen.QuestionSpec, n int) {
+	var byLevel [2][]int
+	for i, s := range specs {
+		if s.Format == FormatMC && s.Difficulty <= Medium {
+			byLevel[s.Difficulty-1] = append(byLevel[s.Difficulty-1], i)
+		}
+	}
+	for turn := 0; n > 0 && len(byLevel[0])+len(byLevel[1]) > 0; turn++ {
+		level := turn % 2
+		if len(byLevel[level]) == 0 {
+			level = 1 - level
+		}
+		i := byLevel[level][0]
+		byLevel[level] = byLevel[level][1:]
+		specs[i].Skills, specs[i].Visual = []string{SkillVisual}, true
+		n--
+	}
 }
 
 // Counts are how many questions test a word at each level, easy first.
