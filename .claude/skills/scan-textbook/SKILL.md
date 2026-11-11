@@ -9,12 +9,14 @@ Turns a book PDF into `Server/internal/csvgen/textbooks/<book>/lesson-NN.md`, pl
 `Textbooks/<book>/`, and registers the book. Read `Textbooks/README.md` ("Adding a book") and
 `Textbooks/LESSON_DOC_FORMAT.md` first; they are binding. `<book>` is `<course><standard>-<level>`, e.g. `hsk2-1`.
 
-## 1. Extract text, markitdown first
+## 1. Extract text with the PDF skill
 
-- Run `python -m markitdown "<book>.pdf" -o <scratchpad>/book.md` (the `markitdown` command is not on PATH).
-  Do the same for any `PPT_Old` deck the user names, but decks are not a source for lesson docs (the format
+- Invoke the `anthropic-skills:pdf` skill with the Skill tool and read the PDF as it instructs (text and table
+  extraction into `<scratchpad>/book.md`). Do not use markitdown.
+  Any `PPT_Old` deck the user names is read the same way, but decks are not a source for lesson docs (the format
   forbids them); say so if a deck belongs to a different book.
-- If the output is only a watermark or blank (image-only PDF), fall back to OCR:
+- If the extracted text is only a watermark or blank (image-only PDF), use the PDF skill's page-to-image and OCR
+  route, or this project's script:
   `mkdir -p Textbooks/<book>/{book,ocr,pages}`, copy the PDF to `book/`, then run in the background
   `python -I .claude/skills/scan-textbook/ocr_pages.py "book/<file>.pdf" pages ocr` from `Textbooks/<book>/`
   (`pip install rapidocr-onnxruntime` if missing). Ensure `.gitignore` has `Textbooks/*/book/`, `ocr/`, `pages/`.
