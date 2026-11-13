@@ -7,6 +7,7 @@ import {
   inject,
   signal
 } from '@angular/core';
+import { NgOptimizedImage } from '@angular/common';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, filter, map, of } from 'rxjs';
@@ -113,6 +114,7 @@ const NARROW_QUERY = '(max-width: 767px)';
 @Component({
   selector: 'kt-quiz-workspace',
   imports: [
+    NgOptimizedImage,
     RouterOutlet,
     RouterLink,
     NzBreadCrumbComponent,

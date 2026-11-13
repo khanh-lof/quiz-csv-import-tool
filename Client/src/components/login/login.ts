@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit } from '@angular/core';
+import { NgOptimizedImage } from '@angular/common';
 
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -18,6 +19,7 @@ import { Messages, MessagePipe } from '../../i18n/messages';
   selector: 'kt-quiz-login',
   standalone: true,
   imports: [
+    NgOptimizedImage,
     FormsModule,
     ReactiveFormsModule,
     NzFormModule,

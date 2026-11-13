@@ -178,7 +178,7 @@
                 <input [formControl]="formGroup.controls.exportType" [value]="platform.value" class="platform-radio"
                        name="exportType" type="radio"/>
                 @if (platform.logo) {
-                  <img [src]="platform.logo" alt="" class="platform-logo"/>
+                  <img [ngSrc]="platform.logo" alt="" class="platform-logo" height="34" width="34"/>
                 } @else {
                   <span class="platform-icon"><nz-icon [nzType]="platform.icon" nzTheme="outline"/></span>
                 }

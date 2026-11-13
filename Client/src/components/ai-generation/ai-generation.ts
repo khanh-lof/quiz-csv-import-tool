@@ -6,7 +6,7 @@ import {
   inject,
   signal
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { Router } from '@angular/router';
@@ -107,9 +107,9 @@ interface PlatformOption {
 }
 
 const PLATFORMS: readonly PlatformOption[] = [
-  { value: ExportType.GimKit, label: 'Gimkit', icon: 'thunderbolt', logo: 'platforms/gimkit.png', outputKey: 'ai.platform.csvFile' },
-  { value: ExportType.Blooket, label: 'Blooket', icon: 'appstore', logo: 'platforms/blooket.png', outputKey: 'ai.platform.csvFile' },
-  { value: ExportType.Wayground, label: 'Wayground', icon: 'global', logo: 'platforms/wayground.png', outputKey: 'ai.platform.excelFile' },
+  { value: ExportType.GimKit, label: 'Gimkit', icon: 'thunderbolt', logo: 'platforms/gimkit.webp', outputKey: 'ai.platform.csvFile' },
+  { value: ExportType.Blooket, label: 'Blooket', icon: 'appstore', logo: 'platforms/blooket.webp', outputKey: 'ai.platform.csvFile' },
+  { value: ExportType.Wayground, label: 'Wayground', icon: 'global', logo: 'platforms/wayground.webp', outputKey: 'ai.platform.excelFile' },
   { value: ExportType.GestureQuiz, labelKey: 'ai.platform.game', icon: 'camera', outputKey: 'ai.platform.camera' },
   { value: ExportType.Radicals, labelKey: 'ai.platform.radicals', icon: 'build', outputKey: 'ai.platform.exercisePage' },
 ];
@@ -120,6 +120,7 @@ type LanguageChoices =Pick<ReturnType<FormGroup<AiGenerationForm>['getRawValue']
   selector: 'kt-quiz-ai-generation',
   imports: [
     CommonModule,
+    NgOptimizedImage,
     UsageGuide,
     NzLayoutComponent,
     NzContentComponent,

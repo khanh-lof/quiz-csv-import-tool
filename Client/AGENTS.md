@@ -626,7 +626,7 @@ overlays (modals, confirms, dropdowns, notifications) that render outside any co
   (`--qt-focus`). `--qt-paper` and `--qt-surface` are the flat pink tints for fills. The pink-to-blue
   `--qt-gradient` fills the primary button and the checked option of a switch, with white text; no hover lifts. The UI font is
   Be Vietnam Pro; headings (`h1`–`h3`, card, modal and notification titles) use `--qt-font-display`, Bricolage
-  Grotesque (both loaded in `index.html`). The logo (`public/logo.ico`) heads the side menu, the login card and
+  Grotesque (both loaded in `index.html`). The logo (`public/logo.webp`, tab icon `public/favicon.ico`) heads the side menu, the login card and
   the loader.
 - `src/theme.less` sets ng-zorro's Less variables (primary pink, text and border colors, radius, font, …).
 - `src/styles.css` holds the design tokens (`--qt-*` custom properties on `:root`), the page

@@ -9,7 +9,7 @@
       <div class="sidebar-head">
         @if (!collapsed()) {
           <a class="brand" routerLink="/quiz">
-            <img alt="QuizTool" class="brand-logo" src="logo.ico"/>
+            <img alt="QuizTool" class="brand-logo" height="84" ngSrc="logo.webp" priority width="84"/>
           </a>
         }
         <button (click)="toggleCollapsed()" [attr.aria-expanded]="!collapsed()" [attr.aria-label]="(collapsed() ? 'app.workspace.expandMenu' : 'app.workspace.collapseMenu') | msg"

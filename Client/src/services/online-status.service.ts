@@ -40,7 +40,7 @@ export class OnlineStatusService {
     }
 
     try {
-      const response = await fetch(`/logo.ico?_t=${Date.now()}`, {
+      const response = await fetch(`/favicon.ico?_t=${Date.now()}`, {
         method: 'HEAD',
         cache: 'no-store'
       });
