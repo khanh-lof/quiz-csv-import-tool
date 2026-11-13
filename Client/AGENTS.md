@@ -10,7 +10,7 @@ them as a CSV formatted for GimKit or Blooket import, or as an `.xlsx` for Waygr
 write a "Game" quiz, which is not exported anywhere: the app plays it itself, on a full-screen
 page that reads the player's gestures from the webcam (see [Gesture quiz](#gesture-quiz-play)), and a teacher
 can give that quiz to students as a link and watch their leaderboard (see [Giao bài](#giao-bài-assignments)). Auth (JWT access token + HttpOnly
-refresh cookie) and the AI image-to-CSV endpoint are served by the sibling `../Server` Go API
+refresh cookie) and the AI generation jobs are served by the sibling `../Server` Go API
 (see `../Server/AGENTS.md`).
 
 ## Commands
@@ -150,8 +150,8 @@ Both `AiCsvService` submits send it; the history table names the formatted mode 
 it. See [../AGENTS.md](../AGENTS.md#chinese-and-english).
 
 **Textbooks.** `models/textbook.ts` (`TEXTBOOKS`, `textbookFor(courseType, hskStandard, level)`, with its spec) is a
-hand-kept mirror of the server's registry of curated books (`Server/internal/csvgen/textbooks.go`): HSK 3.0 levels 1–3
-YCT 1 and 6 for now, and the English "Ôn tập từ vựng lớp 10" (`CourseType.VocabReview10`, 8 topics). That book has no
+hand-kept mirror of the server's registry of curated books (`Server/internal/csvgen/textbooks.go`): HSK 2.0 and 3.0 levels 1–3,
+YCT 1 and 6, and the English "Ôn tập từ vựng lớp 10" (`CourseType.VocabReview10`, 8 topics). That book has no
 level (`level` is optional, `courseHasLevels` hides the Cấp field and drops `level` from the request), calls its
 lessons "Topic" (`lessonUnit`, the select's label and placeholder) and lists them as "3. Culture" (`lessonNames`,
 `lessonOptionLabel`). Each language has a `defaultCourse` the form picks when it replaces the other language's course

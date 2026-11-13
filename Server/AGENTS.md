@@ -4,9 +4,9 @@ This file provides guidance to AI when working with code in this repository.
 
 ## What this is
 
-A Go (`net/http`) HTTP API backed by MongoDB. It issues JWTs for login, and uses an LLM vision call
-to convert uploaded images of Chinese vocabulary into a quiz CSV, gated by JWT auth and a per-user
-rate limit stored in MongoDB. It runs as a single standalone binary: the `Dockerfile` image, or the `server`
+A Go (`net/http`) HTTP API backed by MongoDB. It issues JWTs for login and runs the AI generation jobs
+(quizzes, the question bank's questions, the Radicals exercises) through an LLM, gated by JWT auth and a
+per-user rate limit stored in MongoDB. It also serves assignments ("Giao bài") to students. It runs as a single standalone binary: the `Dockerfile` image, or the `server`
 service of the root `vercel.json`, where Vercel's Go preset builds `cmd/server` and runs it on
 Fluid compute with `PORT` set — the code has no Vercel-specific parts. A second binary, `cmd/ai-server`, runs
 only the creative jobs the model writes on Render (root `render.yaml`), where a request may run longer than
@@ -148,8 +148,7 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   shared by every instance. Its `EnsureIndexes` (a TTL index on `expiresAt` that deletes ended windows) is,
   like the others, not called on start. The limit also lets anyone lock a user out for one window by typing
   wrong passwords under their name; there is no per-IP limit.
-- **Users** (`auth_handlers.go`): `users`, admin-only via `X-Admin-Key` (replaces the Azure Functions
-  admin key), enforced by the `requireAdminKey` middleware. 409 if the user exists.
+- **Users** (`auth_handlers.go`): `users`, admin-only via `X-Admin-Key`, enforced by the `requireAdminKey` middleware. 409 if the user exists.
 - **Extension** (`extension_handler.go`): `GET extension`, behind the same `authenticate` + `requireRole` as the
   CSV jobs, answers the extension's zip (Wayground and Gimkit) from `internal/extension` (embedded when `go generate
   ./internal/extension` ran before the build, as the Vercel `buildCommand` does; otherwise packed from
@@ -337,40 +336,20 @@ it finds no claims. Protect a new route by wrapping it the same way rather than 
 the handler.
 
 The plain-text error bodies and status codes are part of the contract with the client and were kept
-identical to the former .NET implementation; `internal/api/api_test.go` pins them down. The assignment routes
+stable; `internal/api/api_test.go` pins them down. The assignment routes
 follow the same rule: the client matches some of their bodies as strings (`TEACHER_ERRORS` in
 `Client/src/models/assignment.ts`, and `Name taken` / `Assignment is full` in `GesturePlay`), and
 `assignments_api_test.go` pins them. The rules behind them are in
 [../AGENTS.md](../AGENTS.md#giao-bài-assignments).
 
-Tests of "Giao bài": `store/assignments_test.go` runs one contract (`testAssignments`) against both stores
-(`TestMemoryAssignments`; `TestMongoAssignments` only when `MONGODB_TEST_URI` is set, in a throwaway database,
-with `TestMongoAssignmentsWithoutIndexes` and `TestMongoAssignmentDocuments` for uniqueness without indexes and
-the stored field names) beside unit tests of `OpenAt`, `EffectiveClose`, `AcceptsResultsAt`, `UpdatePlayer`
-(concurrent writers, an error that writes nothing, the fields it writes) and `MergeRun`;
-`jobs_test.go` covers `Jobs.Get`. `api/assignments_api_test.go` drives the HTTP handlers over the memory stores
-with a `testClock` (`env.clock.Advance`) as `Server.Now`: the whole flow (create, share, join, play, leaderboard,
-close, the grace period, reopen, remove a student, delete), every error status and
-body, ownership, `TestTeacherRoutesNeedALogin`, `TestStudentRoutesNeverAnswer401` (with bad `Authorization`
-headers too, the avatar, student-leaderboard and run routes included), the limits, `TestPassMark`, the avatar rules of
-joining and of `PATCH share/{code}/player`, the students' board end to end (hidden too) and store failures answering 500.
-`api/runs_api_test.go` plays runs of all six games: no answer or explanation before the verdict, the shuffles,
-right, wrong, null and late answers (at the limit plus the grace, the `extra` and `unlimited` modes), resends,
-`next` asked twice, a run replaced by another, the stage lock, the replay limit with runs left unfinished, the
-grace after a close, racing duplicates and store failures.
-`gesturequiz/quiz_test.go` ports the client's parser spec.
-`api/leaderboard_test.go` tests `buildLeaderboard` and `newStudentBoard` as plain Go, `api/avatars_test.go`
-pins the avatar ids, and `config/config_test.go` the new collection settings.
+Tests of "Giao bài": `store/assignments_test.go` runs one contract against both stores (the Mongo one only with `MONGODB_TEST_URI`); `api/assignments_api_test.go` and `api/runs_api_test.go` drive the handlers over the memory stores with a `testClock` as `Server.Now` and pin every status and body, ownership, `TestStudentRoutesNeverAnswer401`, the limits and the six games' runs; `gesturequiz/quiz_test.go` ports the client's parser spec; `api/leaderboard_test.go` and `api/avatars_test.go` cover the leaderboard and the avatar ids.
 
-There is no CORS handling: the API is only ever called from the SPA's own origin (Vercel Services in
-production, the `ng serve` proxy locally), which is also why the refresh cookie can be
-`SameSite=Strict`. Putting the SPA on another origin would need CORS back and a `SameSite=None`
-cookie.
+There is no CORS handling: the API is only called from the SPA's own origin (see [../AGENTS.md](../AGENTS.md#the-clientserver-contract)).
 
 `csvgen`:
 
-- `ExportType` (`GimKit`/`Blooket`/`Wayground`/`GestureQuiz`, ordinals 0–3) and `CourseType`
-  (`Hsk`/`Yct`/`Other`) are passed by **ordinal** (the parser also takes the names, case-insensitively)
+- `ExportType` (`GimKit`/`Blooket`/`Wayground`/`GestureQuiz`/`Radicals`, ordinals 0–4) and `CourseType`
+  (`Hsk`/`Yct`/`Other`/`VocabReview10`) are passed by **ordinal** (the parser also takes the names, case-insensitively)
   and must stay in the same order as `Client/src/models/export-type.ts` and `course-type.ts`.
   `exportTypeMessages` must describe the same columns as the client's CsvBuilders, except for
   `GestureQuiz`, which is not an import target: its columns are the ones the client's own game parser

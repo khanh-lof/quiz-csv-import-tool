@@ -1,18 +1,19 @@
 # QuizTool
 
-QuizTool turns photos of a Chinese (HSK/YCT) lesson into a quiz file you can import into
+QuizTool turns a Chinese (HSK/YCT) or English lesson into a quiz file you can import into
 [GimKit](https://www.gimkit.com), [Blooket](https://www.blooket.com) or
-[Wayground](https://wayground.com). Upload the pages, let an LLM extract the vocabulary (or write the
-questions itself), review the result, and download a `.csv` / `.xlsx` in the target platform's import
-format.
+[Wayground](https://wayground.com), or into a quiz QuizTool plays itself as a webcam gesture game. Pick a
+textbook lesson (or upload photos), let an LLM write the questions, and download a `.csv` / `.xlsx` in the target
+platform's import format.
 
 ## Repository layout
 
 | Directory | What it is |
 |---|---|
-| [`Client/`](Client/) | Angular 20 single-page app (ng-zorro-antd) |
-| [`Server/`](Server/) | Go API: auth, per-user AI rate limit, LLM-backed CSV generation, MongoDB persistence ([README](Server/README.md)) |
-| [`Extension/`](Extension/) | Optional Chrome/Edge extension that imports and publishes the Wayground quiz in your logged-in Wayground tab and returns its share link ([install guide, in Vietnamese](Extension/README.md)) |
+| [`Client/`](Client/) | Angular 22 single-page app (ng-zorro-antd) |
+| [`Server/`](Server/) | Go API: auth, per-user AI rate limit, LLM-backed generation, question bank, assignments, MongoDB persistence ([README](Server/README.md)) |
+| [`Extension/`](Extension/) | Optional Chrome/Edge extension that imports and publishes the quiz in your logged-in Wayground or Gimkit tab and returns its share link ([install guide, in Vietnamese](Extension/README.md)) |
+| [`Textbooks/`](Textbooks/) | Source material of the textbooks whose lessons the server sends to the model ([README](Textbooks/README.md)) |
 
 The client and server are built independently; there is no shared code. The API contract between them
 is described in [AGENTS.md](AGENTS.md).
@@ -22,12 +23,17 @@ is described in [AGENTS.md](AGENTS.md).
 - **Two AI modes**
   - *Formatted* — the LLM reads the vocabulary off the images into a two-column table that you edit
     before exporting; distractors are generated client-side.
-  - *Auto* — the LLM writes a full quiz for the chosen lesson (HSK, YCT or another course) directly in
-    the target platform's column layout. Images are optional.
+  - *Auto* — the LLM writes a full quiz for the chosen textbook lessons directly in the target platform's
+    column layout, from the lesson's own material. A question bank reuses stored questions where it can.
   - Generation runs as a **background job** on the server, so you can leave or close the page while the AI
-    works. A history table on the AI page follows each job (it updates by itself), lets you search the
+    works. A history table ("AI › Lịch sử") follows each job (it updates by itself), lets you search the
     generated questions and filter by status, mode and platform, and delivers the result: download the file,
-    publish it through the extension, or open it in the table to edit.
+    publish it through the extension, play it, or open it in the table to edit.
+- **Chinese and English** quizzes, chosen with a switch on the AI page.
+- **Game** — a gesture quiz played in the browser with a webcam (also mouse, touch or keyboard).
+- **Giao bài** — a teacher hands a Game to students as a link; they play without an account and the teacher
+  watches the leaderboard.
+- **Ghép bộ thủ** — an exercise page where the learner completes characters by choosing the missing component.
 - **Manual editing** — build or edit the question table by hand, or import an existing CSV.
 - **Export** to GimKit (`.csv`), Blooket (`.csv`) or Wayground (`.xlsx`).
 - **Accounts** with JWT access tokens and an `HttpOnly` refresh cookie; AI calls are rate-limited per
@@ -99,6 +105,4 @@ reverse proxy that serves the client on the same origin over HTTPS.
 
 ## Contributing
 
-[AGENTS.md](AGENTS.md) explains how the pieces fit together (the client/server contract, the two AI
-modes, rate limiting, retries and Vercel limits). Each project also has its own `AGENTS.md` with the
-details for that side.
+Read [AGENTS.md](AGENTS.md) first, then the `AGENTS.md` of the project you are changing.

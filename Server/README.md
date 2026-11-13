@@ -1,8 +1,9 @@
 # QuizTool API
 
-A Go HTTP API that turns photos of Chinese vocabulary into a quiz. Users log in with a JWT-based
-auth flow, upload one or more images, and an LLM vision call converts the vocabulary into a CSV of
-questions and answers. Users, sessions and the per-user AI rate limit are stored in MongoDB.
+A Go HTTP API behind QuizTool. Users log in with a JWT-based auth flow and start AI generation jobs (quizzes from
+textbook lessons or photos, in Chinese or English). It also serves assignments for students, the question bank and
+the extension download. Users, jobs, assignments and the per-user AI rate limit are stored in MongoDB. Details for
+contributors are in [AGENTS.md](AGENTS.md).
 
 ## Requirements
 
@@ -38,9 +39,15 @@ curl -X POST http://localhost:7071/api/users \
 | `POST /api/auth/logout` | refresh cookie | Revoke this device's session |
 | `POST /api/auth/logout-all` | refresh cookie | Revoke all sessions of the user |
 | `POST /api/users` | `X-Admin-Key` | Create a user |
-| `POST /api/csv/jobs` | `Bearer` token, role `User`/`Admin` | Multipart images → starts an AI generation job, `202 {id}` |
-| `GET /api/csv/jobs` | `Bearer` token, role `User`/`Admin` | The caller's jobs, newest first, with their CSV results |
+| `POST /api/csv/jobs` | `Bearer` token, role `User`/`Admin` | Starts an AI generation job, `202 {id}` |
+| `GET /api/csv/jobs` | `Bearer` token, role `User`/`Admin` | The caller's jobs, newest first, with their results |
 | `DELETE /api/csv/jobs/{id}` | `Bearer` token, role `User`/`Admin` | Delete one of the caller's jobs |
+| `POST /api/csv/jobs/{id}/retry` | `Bearer` token, role `User`/`Admin` | Run a failed job again |
+| `POST /api/csv/uploads` | `Bearer` token, role `User`/`Admin` | Signed image uploads to Cloudinary |
+| `/api/csv/jobs/{id}/page`, `/radicals` | `Bearer` token, role `User`/`Admin` | Ghép bộ thủ page and corrections |
+| `/api/assignments…` | `Bearer` token, role `User`/`Admin` | Giao bài: the teacher's assignments |
+| `/api/share/{code}…` | — (code and player token) | Giao bài: the students' routes |
+| `GET /api/extension` | `Bearer` token, role `User`/`Admin` | The browser extension's zip |
 | `GET /healthz` | — | Liveness check |
 
 ## Configuration

@@ -110,6 +110,7 @@ no configurable backend URL:
 | `AiCsvService.submitFormatted` / `.submitCreative` | `POST csv/jobs` (`internal/api/csv_handler.go`) |
 | `AiJobService.refresh` / `.remove` | `GET csv/jobs`, `DELETE csv/jobs/{id}` (`csv_handler.go`) |
 | `AiJobService.retry` | `POST csv/jobs/{id}/retry` (`csv_handler.go`) |
+| `AiCsvService` (image upload) | `POST csv/uploads?count=N` (`csv_handler.go`, see [Retrying AI requests](#retrying-ai-requests)) |
 | `AssignmentService.create` | `POST assignments` (`internal/api/assignment_handlers.go`) |
 | `AssignmentService.list` / `.get` | `GET assignments`, `GET assignments/{id}` (`assignment_handlers.go`) |
 | `AssignmentService.update` | `PATCH assignments/{id}` (`assignment_handlers.go`) |
