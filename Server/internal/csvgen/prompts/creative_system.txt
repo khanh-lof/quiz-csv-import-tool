@@ -50,7 +50,7 @@ Before returning the result, internally verify every row:
 {{template "forms-check" .}}
 9. Any image link is a direct, https, publicly accessible image file URL. A row carries an image only when the question cannot be answered without it, and a row with an empty image field never refers to a picture.
 10. The question set uses a reasonably varied mix of question types.
-11. When the CSV template has an image field, hide each image in turn and check that its question can no longer be answered; if it still can, remove the image or rewrite the text so the picture carries the missing information. Then count the visual questions. If fewer than half of the questions are visual, go back over the image plan, including words that can be pictured through a typical scene or the sentence context, and reshape some text-only questions into visual ones until the target is met. Never meet the target by attaching images to questions the text already answers.
+11. When the CSV template has an image field, hide each image in turn and check that its question can no longer be answered; if it still can, remove the image or rewrite the text so the picture carries the missing information. Then count the visual questions. If fewer than a fifth of the questions are visual, go back over the image plan, including words that can be pictured through a typical scene or the sentence context, and reshape some text-only questions into visual ones until the target is met. Never meet the target by attaching images to questions the text already answers.
 12. There is no accidental markdown or explanatory text.
 
 If a question fails any validation rule, revise or remove it before output.

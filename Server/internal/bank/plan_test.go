@@ -206,7 +206,7 @@ func TestPlanGameStageFit(t *testing.T) {
 	}
 }
 
-func TestPlanWaygroundWantsHalfVisual(t *testing.T) {
+func TestPlanWaygroundWantsAFifthVisual(t *testing.T) {
 	v := testVocabulary(8, 1)
 	plan := PlanQuiz(request(csvgen.Wayground, v), fullPool(v), 2)
 	visual := 0
@@ -218,10 +218,10 @@ func TestPlanWaygroundWantsHalfVisual(t *testing.T) {
 			}
 		}
 	}
-	// 4/4/2 questions, half of each level visual, rounded up: 2+2+1. The other five places are text questions,
-	// and covering the eight words takes three more.
-	if visual != 5 || len(plan.Picks) != 8 || plan.Size != 13 {
-		t.Fatalf("%d visual gaps, %d picks", visual, len(plan.Picks))
+	// 4/4/2 questions, at least a fifth of each level visual, rounded up: 1+1+1. Covering the eight words takes
+	// eight picks, so the quiz is those plus the three visual gaps.
+	if visual != 3 || len(plan.Picks) != 8 || plan.Size != 11 {
+		t.Fatalf("%d visual gaps, %d picks, size %d", visual, len(plan.Picks), plan.Size)
 	}
 
 	// With visual questions in the bank, it is complete.
@@ -240,7 +240,7 @@ func TestPlanWaygroundWantsHalfVisual(t *testing.T) {
 			visual++
 		}
 	}
-	if !plan.Complete() || visual < 5 {
+	if !plan.Complete() || visual < 3 {
 		t.Errorf("complete %v with %d visual questions", plan.Complete(), visual)
 	}
 }

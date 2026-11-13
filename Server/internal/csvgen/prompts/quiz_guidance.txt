@@ -108,7 +108,7 @@ Aim for a varied set of questions. A set in which every question shares the same
 * Vary the surface form where it feels natural: question length, translation direction, which part of a sentence is blanked, and whether the prompt is a statement, a question, a dialogue line, or a described situation.
 {{template "distractors" .}}
 * Prefer interleaving question types rather than grouping all questions of one type together.
-* When the CSV template has an image field, visual questions are the norm, not the exception: at least half of the rows are questions that can only be answered by looking at the image, spread evenly through the set, and varied in kind. See the IMAGE USAGE section.
+* When the CSV template has an image field, include visual questions: at least a fifth of the rows are questions that can only be answered by looking at the image, spread evenly through the set, and varied in kind. See the IMAGE USAGE section.
 
 ### Question type catalogue
 
@@ -177,7 +177,7 @@ This applies only when the CSV template has an image field, such as the Waygroun
 
 ### Coverage target
 
-* At least half of the questions must be visual questions, that is questions whose answer depends on the image. Aim for two thirds or more when the lesson vocabulary is concrete, which is the case for most beginner and YCT lessons.
+* At least a fifth of the questions must be visual questions, that is questions whose answer depends on the image. More is fine when the lesson vocabulary is concrete, which is the case for most beginner and YCT lessons.
 * Never let two text-only questions sit next to each other when a picturable word is still available.
 * Spread the images across the whole set, from the first row to the last, instead of attaching pictures only to the first few rows.
 
@@ -278,7 +278,7 @@ A visual question depends on its image, so its link must be reliable. Use only U
 ### Common mistakes to avoid
 
 {{template "image-mistake" .}}
-* Producing a question set in which fewer than half of the rows are visual questions while picturable words remain. That is a failure to follow this section.
+* Producing a question set in which fewer than a fifth of the rows are visual questions while picturable words remain. That is a failure to follow this section.
 * Leaving the image field empty on a question that tells the learner to look at a picture.
 * Writing the questions first and trying to attach images afterwards. Plan the images first, then design the questions around them.
 * Treating adjectives, feelings, time words, and measure words as unpicturable. Use a typical scene or the sentence context instead.

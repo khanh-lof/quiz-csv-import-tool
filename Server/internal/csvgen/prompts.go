@@ -207,7 +207,7 @@ func exportTypeMessages(opts Options) []string {
 			columns,
 			`Question type will be "Multiple Choice" or "Fill-in-the-Blank". The option 2-5 must be empty for "Fill-in-the-Blank", the option 1 is the correct answer`,
 			normalizePrompt(waygroundTemplate),
-			"Image Link: fill it only for questions that cannot be answered without the image, and make at least half of the rows such visual questions, following the IMAGE USAGE section. Plan the images before writing the questions.",
+			"Image Link: fill it only for questions that cannot be answered without the image, and make at least a fifth of the rows such visual questions, following the IMAGE USAGE section. Plan the images before writing the questions.",
 		}
 	case GestureQuiz:
 		// The stage rules carry the whole format, including how many rows to write, so unlike

@@ -45,7 +45,7 @@ const (
 	sizePerWord  = 1.25
 	easyShare    = 0.4
 	mediumShare  = 0.4
-	visualShare  = 0.5
+	visualShare  = 0.2
 	maxPlanSpecs = 80
 )
 

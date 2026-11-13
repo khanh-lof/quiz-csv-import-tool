@@ -492,7 +492,7 @@ GimKit, Blooket, Wayground or the Game whose course has an embedded textbook and
   answer; a book holds each once), `status`, `servedCount`/`lastServedAt` (least used first).
 - **Planning** (`bank.PlanQuiz`, pure): the Game has `stages × questionsPerStage` places, each stage taking the
   format, options, difficulty and skills of its game (`stageSpecs`); the other platforms `QuizSize` places (a
-  quarter more than the words, 10 to 40, one per word beyond 40), 40/40/20% easy/medium/hard, Wayground half of each
+  quarter more than the words, 10 to 40, one per word beyond 40), 40/40/20% easy/medium/hard, Wayground a fifth of each
   level visual. It first covers every word (the rarest first; a level may give places to another for that), then
   fills the places, preferring the least tested words, other skills and less-served questions, with a little
   randomness per quiz. What it cannot fill is a list of gaps (`csvgen.QuestionSpec`: one word, a format, a level,
