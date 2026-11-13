@@ -52,7 +52,7 @@
         </div>
 
         <!-- Title and description -->
-        <h2 class="offline-title">Mất kết nối Internet</h2>
+        <h2 class="offline-title">{{ 'app.offline.title' | msg }}</h2>
 
         <!-- Actions -->
         <div class="offline-actions">
@@ -64,7 +64,7 @@
             nzType="primary"
           >
             <nz-icon nzTheme="outline" nzType="reload"/>
-            Thử kết nối lại
+            {{ 'app.offline.retry' | msg }}
           </button>
 
           <button
@@ -74,7 +74,7 @@
             nzType="default"
           >
             <nz-icon nzTheme="outline" nzType="home"/>
-            Về trang chủ
+            {{ 'app.offline.goHome' | msg }}
           </button>
         </div>
       </div>

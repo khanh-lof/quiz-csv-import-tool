@@ -1,4 +1,7 @@
 import { TestBed } from '@angular/core/testing';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../i18n/app-locale';
+import { Messages } from '../i18n/messages';
 import * as XLSX from 'xlsx';
 import { FileExportService } from './file-export.service';
 import { WaygroundCsvBuilder } from './wayground-csv-builder';
@@ -83,8 +86,11 @@ describe('FileExportService Game export', () => {
   let service: FileExportService;
   let blobs: Blob[];
   let downloadNames: string[];
+  let messages: Messages;
 
   beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideNzI18n(appLocale)] });
+    messages = TestBed.inject(Messages);
     service = TestBed.inject(FileExportService);
     blobs = [];
     downloadNames = [];
@@ -128,19 +134,19 @@ describe('FileExportService Game export', () => {
   });
 
   it('names the platform', () => {
-    expect(FileExportService.platformName(ExportType.GestureQuiz)).toBe('Game');
-    expect(FileExportService.platformName(ExportType.Wayground)).toBe('Wayground');
+    expect(FileExportService.platformName(ExportType.GestureQuiz, messages)).toBe('Game');
+    expect(FileExportService.platformName(ExportType.Wayground, messages)).toBe('Wayground');
   });
 
   it('names the file with dashes in place of spaces, in the label and the platform', () => {
-    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.GestureQuiz)).toBe('HSK3-Bai5-Game.csv');
-    expect(FileExportService.buildFileName(' Boya  Bai 2 ', ExportType.GestureQuiz)).toBe('Boya-Bai-2-Game.csv');
+    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.GestureQuiz, messages)).toBe('HSK3-Bai5-Game.csv');
+    expect(FileExportService.buildFileName(' Boya  Bai 2 ', ExportType.GestureQuiz, messages)).toBe('Boya-Bai-2-Game.csv');
   });
 
   it('keeps the file names of the other platforms', () => {
-    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.GimKit)).toBe('HSK3-Bai5-Gimkit.csv');
-    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.Blooket)).toBe('HSK3-Bai5-Blooket.csv');
-    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.Wayground)).toBe('HSK3-Bai5-Wayground.csv');
-    expect(FileExportService.buildFileName('a/b:c', ExportType.GimKit)).toBe('abc-Gimkit.csv');
+    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.GimKit, messages)).toBe('HSK3-Bai5-Gimkit.csv');
+    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.Blooket, messages)).toBe('HSK3-Bai5-Blooket.csv');
+    expect(FileExportService.buildFileName('HSK3-Bai5', ExportType.Wayground, messages)).toBe('HSK3-Bai5-Wayground.csv');
+    expect(FileExportService.buildFileName('a/b:c', ExportType.GimKit, messages)).toBe('abc-Gimkit.csv');
   });
 });

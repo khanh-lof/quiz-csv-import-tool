@@ -1,3 +1,5 @@
+import type { MessageKey } from '../i18n/messages';
+
 // The avatars a student can pick in "Giao bài": 24 animals, an emoji on a soft coloured disc. The list is a
 // fixed set, not an upload, and the server (Server/internal/api/avatars.go, `avatarIDs`) lists the same ids in
 // the same order and refuses any other, kept in step by hand. The id is what travels and is stored; the emoji,
@@ -5,8 +7,7 @@
 export interface AvatarDef {
   id: string;
   emoji: string;
-  // The Vietnamese name, for the picker's label and tooltip.
-  name: string;
+  nameKey: MessageKey;
   // The disc's background: a pastel the emoji reads well on, cycling through eight tones down the list.
   color: string;
 }
@@ -15,37 +16,37 @@ const TONES: readonly string[] = [
   '#ffd9e8', '#d9e8ff', '#fff1c2', '#d8f5dc', '#e6dcff', '#ffe0cc', '#d3f3f0', '#f3dff5',
 ];
 
-const ANIMALS: readonly (readonly [string, string, string])[] = [
-  ['rat', '🐭', 'Chuột'],
-  ['ox', '🐮', 'Bò'],
-  ['tiger', '🐯', 'Hổ'],
-  ['rabbit', '🐰', 'Thỏ'],
-  ['cat', '🐱', 'Mèo'],
-  ['dragon', '🐲', 'Rồng'],
-  ['snake', '🐍', 'Rắn'],
-  ['horse', '🐴', 'Ngựa'],
-  ['goat', '🐐', 'Dê'],
-  ['monkey', '🐵', 'Khỉ'],
-  ['rooster', '🐔', 'Gà'],
-  ['dog', '🐶', 'Chó'],
-  ['pig', '🐷', 'Heo'],
-  ['panda', '🐼', 'Gấu trúc'],
-  ['fox', '🦊', 'Cáo'],
-  ['frog', '🐸', 'Ếch'],
-  ['koala', '🐨', 'Gấu túi'],
-  ['lion', '🦁', 'Sư tử'],
-  ['bear', '🐻', 'Gấu'],
-  ['penguin', '🐧', 'Chim cánh cụt'],
-  ['owl', '🦉', 'Cú'],
-  ['unicorn', '🦄', 'Kỳ lân'],
-  ['octopus', '🐙', 'Bạch tuộc'],
-  ['turtle', '🐢', 'Rùa'],
+const ANIMALS: readonly (readonly [string, string])[] = [
+  ['rat', '🐭'],
+  ['ox', '🐮'],
+  ['tiger', '🐯'],
+  ['rabbit', '🐰'],
+  ['cat', '🐱'],
+  ['dragon', '🐲'],
+  ['snake', '🐍'],
+  ['horse', '🐴'],
+  ['goat', '🐐'],
+  ['monkey', '🐵'],
+  ['rooster', '🐔'],
+  ['dog', '🐶'],
+  ['pig', '🐷'],
+  ['panda', '🐼'],
+  ['fox', '🦊'],
+  ['frog', '🐸'],
+  ['koala', '🐨'],
+  ['lion', '🦁'],
+  ['bear', '🐻'],
+  ['penguin', '🐧'],
+  ['owl', '🦉'],
+  ['unicorn', '🦄'],
+  ['octopus', '🐙'],
+  ['turtle', '🐢'],
 ];
 
-export const AVATARS: readonly AvatarDef[] = ANIMALS.map(([id, emoji, name], i) => ({
+export const AVATARS: readonly AvatarDef[] = ANIMALS.map(([id, emoji], i) => ({
   id,
   emoji,
-  name,
+  nameKey: `play.avatar.name.${id}` as MessageKey,
   color: TONES[i % TONES.length],
 }));
 

@@ -4,6 +4,9 @@ import { AVATARS } from '../../../models/avatar';
 import { AvatarPicker } from './avatar-picker';
 import { provideNzI18n } from 'ng-zorro-antd/i18n';
 import { appLocale } from '../../../i18n/app-locale';
+import { viMessages } from '../../../i18n/vi-messages';
+
+const avatarName = (avatar: { id: string }) => viMessages.play.avatar.name[avatar.id as keyof typeof viMessages.play.avatar.name];
 
 describe('AvatarPicker', () => {
   let fixture: ComponentFixture<AvatarPicker>;
@@ -37,7 +40,7 @@ describe('AvatarPicker', () => {
     it('is a radio group named "Hình đại diện" with one radio for each of the 24 avatars, in order', () => {
       expect(group().getAttribute('aria-label')).toBe('Hình đại diện');
       expect(radios().length).toBe(24);
-      expect(radios().map(radio => radio.getAttribute('aria-label'))).toEqual(AVATARS.map(avatar => avatar.name));
+      expect(radios().map(radio => radio.getAttribute('aria-label'))).toEqual(AVATARS.map(avatarName));
     });
 
     it('draws the emoji of each radio', () => {

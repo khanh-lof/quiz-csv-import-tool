@@ -4,14 +4,33 @@ export const app = {
     wrongCredentials: 'Sai tên đăng nhập hoặc mật khẩu.',
     tooManyAttempts: 'Sai quá nhiều lần. Thử lại sau %minutes% phút.',
     usernameRequired: 'Chưa nhập tên đăng nhập',
-    passwordRequired: 'Chưa nhập mật khẩu'
+    passwordRequired: 'Chưa nhập mật khẩu',
+    title: 'Đăng nhập',
+    username: 'Tên đăng nhập',
+    password: 'Mật khẩu',
+    rememberUsername: 'Ghi nhớ tên đăng nhập',
+    submit: 'Đăng nhập',
+    skip: 'Dùng không cần đăng nhập'
   },
   offline: {
-    notConnected: 'Chưa có kết nối'
+    notConnected: 'Chưa có kết nối',
+    title: 'Mất kết nối Internet',
+    retry: 'Thử kết nối lại',
+    goHome: 'Về trang chủ'
   },
   workspace: {
     expandMenu: 'Mở rộng menu',
-    collapseMenu: 'Thu gọn menu'
+    collapseMenu: 'Thu gọn menu',
+    navManualQuiz: 'Quiz thủ công',
+    navAi: 'AI',
+    navCreateQuiz: 'Tạo quiz',
+    navHistory: 'Lịch sử',
+    navRadicals: 'Ghép bộ thủ',
+    navGame: 'Game',
+    navPlayGame: 'Chơi game',
+    navAssignments: 'Bài đã giao',
+    logout: 'Đăng xuất',
+    login: 'Đăng nhập'
   },
   usageGuide: {
     title: 'Hướng dẫn sử dụng'
@@ -35,7 +54,13 @@ export const app = {
     duplicateQuestion: 'Trùng câu hỏi',
     duplicateAnswer: 'Trùng đáp án',
     questionTypePlaceholder: 'Chọn loại câu hỏi',
-    deleteRow: 'Xóa dòng'
+    deleteRow: 'Xóa dòng',
+    question: 'Câu hỏi',
+    answer: 'Đáp án',
+    multipleChoice: 'Trắc nghiệm',
+    fillInTheBlank: 'Điền từ',
+    addRow: 'Thêm dòng',
+    publishTo: 'Publish lên %platform%'
   },
   publish: {
     extensionDelivery: 'Tiện ích tự publish',

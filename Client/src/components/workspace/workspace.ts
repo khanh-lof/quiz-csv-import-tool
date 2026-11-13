@@ -15,7 +15,7 @@ import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzMenuDirective, NzMenuItemComponent, NzSubMenuComponent } from 'ng-zorro-antd/menu';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AuthService } from '../../services/auth.service';
-import { MessagePipe } from '../../i18n/messages';
+import { MessageKey, MessagePipe } from '../../i18n/messages';
 
 // The pages of the frame, as the routes that host them: the two ways of building a quiz, the history of the
 // AI ones, and the assignments of the gesture quizzes.
@@ -25,17 +25,17 @@ type WorkspaceMode = '/quiz' | '/ai' | '/ai-history' | '/assignments';
 // own, so it is never highlighted and never in the breadcrumb.
 export interface NavPage {
   route: WorkspaceMode | '/play';
-  label: string;
+  label: MessageKey;
   icon: string;
   // The breadcrumb's last crumb on a page below this one (an assignment's leaderboard, a "Ghép bộ thủ" exercise).
-  childLabel?: string;
+  childLabel?: MessageKey;
 }
 
 // A top-level entry of the menu: a page of its own, or a group of pages shown as an inline submenu.
-export type NavEntry = NavPage | { label: string; icon: string; pages: NavPage[] };
+export type NavEntry = NavPage | { label: MessageKey; icon: string; pages: NavPage[] };
 
 export interface Crumb {
-  label: string;
+  label: MessageKey;
   // Set when the crumb leads somewhere other than the page on screen.
   link?: string;
 }
@@ -43,40 +43,40 @@ export interface Crumb {
 export const NAV: NavEntry[] = [
   {
     route: '/quiz',
-    label: 'Quiz thủ công',
+    label: 'app.workspace.navManualQuiz',
     icon: 'table'
   },
   {
-    label: 'AI',
+    label: 'app.workspace.navAi',
     icon: 'robot',
     pages: [
       {
         route: '/ai',
-        label: 'Tạo quiz',
+        label: 'app.workspace.navCreateQuiz',
         icon: 'thunderbolt'
       },
       {
         route: '/ai-history',
-        label: 'Lịch sử',
+        label: 'app.workspace.navHistory',
         icon: 'history',
-        childLabel: 'Ghép bộ thủ'
+        childLabel: 'app.workspace.navRadicals'
       }
     ]
   },
   {
-    label: 'Game',
+    label: 'app.workspace.navGame',
     icon: 'camera',
     pages: [
       {
         route: '/play',
-        label: 'Chơi game',
+        label: 'app.workspace.navPlayGame',
         icon: 'play-circle'
       },
       {
         route: '/assignments',
-        label: 'Bài đã giao',
+        label: 'app.workspace.navAssignments',
         icon: 'trophy',
-        childLabel: 'Bảng xếp hạng'
+        childLabel: 'common.leaderboardTitle'
       }
     ]
   }
@@ -97,7 +97,7 @@ export function breadcrumbFor(url: string): Crumb[] {
     return [...trail, {
       label: page.label,
       link: page.route
-    }, { label: page.childLabel ?? '' }];
+    }, { label: page.childLabel ?? page.label }];
   }
   return [];
 }

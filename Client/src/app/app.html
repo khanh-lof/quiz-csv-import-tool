@@ -1,4 +1,4 @@
 <router-outlet/>
 <ng-template #historyLinkContent let-notification let-data="data">
-  {{ data.lead }} <a (click)="notification.close()" routerLink="/ai-history">AI › Lịch sử</a>.
+  {{ data.lead }} <a (click)="notification.close()" routerLink="/ai-history">{{ 'app.workspace.navAi' | msg }} › {{ 'app.workspace.navHistory' | msg }}</a>.
 </ng-template>

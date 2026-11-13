@@ -104,16 +104,17 @@ export function filterJobs(jobs: AiJob[], filter: AiJobFilter): AiJob[] {
 }
 
 // The lesson of a creative job in words, e.g. "HSK 3.0 · cấp 4 · bài 3–5, 7"; "–" when the job has none.
-export function lessonLabel(job: AiJob): string {
+export function lessonLabel(job: AiJob, messages: Messages): string {
   if (job.courseType === null) {
     return '–';
   }
   const course = job.courseType === CourseType.Hsk ? `HSK ${job.hskStandard === HskStandard.V3 ? '3.0' : '2.0'}`
     : job.courseType === CourseType.Yct ? 'YCT'
-      : job.courseType === CourseType.VocabReview10 ? 'Ôn tập từ vựng lớp 10'
-        : (job.courseName || 'Khác');
+      : job.courseType === CourseType.VocabReview10 ? messages.get('ai.course.vocabReview10')
+        : (job.courseName || messages.get('ai.course.other'));
   const lessons = job.lessonNumbers ?? [];
-  return [course, job.level === null ? null : `cấp ${job.level}`, lessons.length === 0 ? null
-    : `${job.courseType === CourseType.VocabReview10 ? 'topic' : 'bài'} ${formatLessonNumbers(lessons)}`]
+  const numbers = formatLessonNumbers(lessons);
+  return [course, job.level === null ? null : messages.get('ai.lessonLabel.level', { level: job.level }), lessons.length === 0 ? null
+    : messages.get(job.courseType === CourseType.VocabReview10 ? 'ai.lessonLabel.topic' : 'ai.lessonLabel.lesson', { numbers })]
     .filter(part => part !== null).join(' · ');
 }

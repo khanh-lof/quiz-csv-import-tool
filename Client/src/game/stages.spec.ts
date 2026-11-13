@@ -47,8 +47,8 @@ describe('stagePosition', () => {
 describe('stages', () => {
   it('lists the six games by their stage number', () => {
     expect(STAGES.map(def => def.stage)).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(stageDef(4).name).toBe('Chém hoa quả');
-    expect(stageDef(6).name).toBe('Xếp câu');
+    expect(stageDef(4).nameKey).toBe('play.stage.name.fruitSlice');
+    expect(stageDef(6).nameKey).toBe('play.stage.name.wordOrder');
     expect(() => stageDef(7)).toThrowError('Unknown stage 7');
   });
 

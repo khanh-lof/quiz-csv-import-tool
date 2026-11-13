@@ -3,7 +3,7 @@
   <h2 class="verdict">
     {{ (result().passed ? 'play.result.passed' : 'play.result.failed') | msg: { position: result().position } }}
   </h2>
-  <p class="stage-name">{{ def().icon }} {{ def().name }}</p>
+  <p class="stage-name">{{ def().icon }} {{ def().nameKey | msg }}</p>
 
   <p class="score">
     <span [innerHTML]="'play.result.score' | msg: { correct: result().correct, total: result().total, points: result().points }"></span>
@@ -49,7 +49,7 @@
   <div class="actions">
     @if (result().hasNext) {
       <button (click)="nextStage.emit()" nz-button nzSize="large" nzType="primary" type="button">
-        Màn tiếp theo
+        {{ 'play.result.nextStage' | msg }}
         <nz-icon nzTheme="outline" nzType="arrow-right"/>
       </button>
     }
@@ -58,7 +58,7 @@
               nzSize="large"
               type="button">
         <nz-icon nzTheme="outline" nzType="reload"/>
-        Chơi lại màn
+        {{ 'play.result.retryStage' | msg }}
       </button>
     }
     <button (click)="toMap.emit()" [nzType]="!result().hasNext && (result().passed || attemptsLeft() === 0) ? 'primary' : 'default'"

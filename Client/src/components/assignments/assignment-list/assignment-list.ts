@@ -63,7 +63,7 @@ const CLOCK_TICK_MS = 30_000;
 export class AssignmentList implements OnInit {
   protected readonly pageSize = PAGE_SIZE;
   protected readonly languageColor = languageTagColor;
-  protected readonly languageTag = languageTagText;
+  protected readonly languageTag = (language: QuizLanguage | null): string => languageTagText(language, this.messages);
   protected readonly assignments = signal<Assignment[]>([]);
   protected readonly loading = signal(false);
   // False until a list has arrived, so the empty state is not claimed before (or instead of) an answer.
@@ -235,5 +235,5 @@ export class AssignmentList implements OnInit {
     this.notificationService.error(this.messages.get(title), assignmentErrorMessage(err, this.messages));
   }
 
-  protected readonly languageTagText = languageTagText;
+  protected readonly languageTagText = (language: QuizLanguage | null): string => languageTagText(language, this.messages);
 }

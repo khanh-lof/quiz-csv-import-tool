@@ -3,6 +3,9 @@ import { AVATARS } from '../../../models/avatar';
 import { JoinRequest, ShareJoin } from './share-join';
 import { provideNzI18n } from 'ng-zorro-antd/i18n';
 import { appLocale } from '../../../i18n/app-locale';
+import { viMessages } from '../../../i18n/vi-messages';
+
+const avatarName = (avatar: { id: string }) => viMessages.play.avatar.name[avatar.id as keyof typeof viMessages.play.avatar.name];
 
 describe('ShareJoin', () => {
   let fixture: ComponentFixture<ShareJoin>;
@@ -24,7 +27,7 @@ describe('ShareJoin', () => {
   const picked = () => radios().filter(radio => radio.getAttribute('aria-checked') === 'true');
   // The picture on top of the card: the emoji of the avatar it shows.
   const hero = () => root().querySelector<HTMLElement>('.hero kt-quiz-player-avatar')!;
-  const idOf = (radio: HTMLButtonElement) => AVATARS.find(avatar => avatar.name === radio.getAttribute('aria-label'))!.id;
+  const idOf = (radio: HTMLButtonElement) => AVATARS.find(avatar => avatarName(avatar) === radio.getAttribute('aria-label'))!.id;
 
   async function type(text: string): Promise<void> {
     input().value = text;
@@ -140,7 +143,7 @@ describe('ShareJoin', () => {
       another.detectChanges();
 
       const first = another.nativeElement.querySelector('button[role="radio"][aria-checked="true"]') as HTMLElement;
-      expect(first.getAttribute('aria-label')).toBe(AVATARS[0].name);
+      expect(first.getAttribute('aria-label')).toBe(avatarName(AVATARS[0]));
     });
 
     it('moves the big picture to the avatar that is clicked', () => {

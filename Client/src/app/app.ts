@@ -2,10 +2,11 @@ import { afterNextRender, ChangeDetectionStrategy, Component, inject, TemplateRe
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { AiJobService, HistoryLinkContext } from '../services/ai-job.service';
 import { OnlineStatusService } from '../services/online-status.service';
+import { MessagePipe } from '../i18n/messages';
 
 @Component({
   selector: 'kt-quiz-root',
-  imports: [RouterOutlet, RouterLink],
+  imports: [RouterOutlet, RouterLink, MessagePipe],
   templateUrl: './app.html',
   changeDetection: ChangeDetectionStrategy.Eager
 })

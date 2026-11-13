@@ -51,7 +51,7 @@ export class ImageCompressionService {
     } finally {
       bitmaps.forEach(bitmap => bitmap?.close());
     }
-    throw new UploadTooLargeError('Tổng dung lượng ảnh quá lớn.');
+    throw new UploadTooLargeError('The images together exceed the upload budget.');
   }
 
   private async decode(file: File): Promise<ImageBitmap | null> {

@@ -1,8 +1,8 @@
 <nz-radio-group (ngModelChange)="setPreset($event)" [ngModel]="preset()" class="presets" nzButtonStyle="solid">
-  <label nz-radio-button nzValue="none">Không hẹn giờ</label>
-  <label nz-radio-button nzValue="45m">Sau 45 phút</label>
-  <label nz-radio-button nzValue="today">Hết hôm nay</label>
-  <label nz-radio-button nzValue="custom">Chọn giờ…</label>
+  <label nz-radio-button nzValue="none">{{ 'assignments.deadline.none' | msg }}</label>
+  <label nz-radio-button nzValue="45m">{{ 'assignments.deadline.in45Minutes' | msg }}</label>
+  <label nz-radio-button nzValue="today">{{ 'assignments.deadline.endOfToday' | msg }}</label>
+  <label nz-radio-button nzValue="custom">{{ 'assignments.deadline.custom' | msg }}</label>
 </nz-radio-group>
 
 @if (preset() === 'custom') {

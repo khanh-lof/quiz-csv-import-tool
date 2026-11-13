@@ -186,7 +186,7 @@ export class AssignmentLeaderboard {
         key,
         position: stagePosition(keys.map(Number), Number(key)),
         icon: def?.icon ?? '',
-        name: def?.name ?? '',
+        name: def ? this.messages.get(def.nameKey) : '',
         percent: passPercentOf(this.detail()?.passPercents, Number(key)),
       };
     });
@@ -200,7 +200,7 @@ export class AssignmentLeaderboard {
     const first = columns[0].percent;
     return columns.every(column => column.percent === first)
       ? `${first}%`
-      : columns.map(column => `Màn ${column.position} ${column.percent}%`).join(' · ');
+      : columns.map(column => this.messages.get('assignments.stage.percent', { position: column.position, percent: `${column.percent}%` })).join(' · ');
   });
   // How many answers the quiz has: what a student's score is out of, for the podium's lines.
   protected readonly possible = computed(() =>
@@ -212,8 +212,8 @@ export class AssignmentLeaderboard {
     const moves = this.moves();
     return this.players().filter(player => player.rank !== null).map(player => ({
       player,
-      pips: columns.map(column => stagePip(player, column)),
-      move: moveMark(moves.get(player.id), now),
+      pips: columns.map(column => stagePip(player, column, this.messages)),
+      move: moveMark(moves.get(player.id), now, this.messages),
       percent: scorePercent(player),
     }));
   });
@@ -343,7 +343,7 @@ export class AssignmentLeaderboard {
     if (detail === null) {
       return;
     }
-    this.fileExport.downloadBlob(fileNameFor(detail), new Blob([leaderboardCsv(detail)], { type: 'text/csv;charset=utf-8' }));
+    this.fileExport.downloadBlob(fileNameFor(detail), new Blob([leaderboardCsv(detail, this.messages)], { type: 'text/csv;charset=utf-8' }));
   }
 
   protected toggleFullscreen(): void {

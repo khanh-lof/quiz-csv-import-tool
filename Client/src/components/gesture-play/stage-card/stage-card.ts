@@ -1,5 +1,6 @@
 import { booleanAttribute, ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { StageDef } from '../../../game/stages';
+import { MessagePipe } from '../../../i18n/messages';
 
 // A stage's card in its game's world: the scene with the game's icon across the top, its number and name
 // below on white. It is the host button itself, so whoever places it decides what choosing it does: the
@@ -9,6 +10,7 @@ import { StageDef } from '../../../game/stages';
 // host, and only the placing component's encapsulated selectors reach the host element.
 @Component({
   selector: 'button[ktQuizGestureStageCard]',
+  imports: [MessagePipe],
   templateUrl: './stage-card.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './stage-card.css',

@@ -1,3 +1,7 @@
+import { TestBed } from '@angular/core/testing';
+import { provideNzI18n } from 'ng-zorro-antd/i18n';
+import { appLocale } from '../../../i18n/app-locale';
+import { Messages } from '../../../i18n/messages';
 import { QuizLanguage } from '../../../models/quiz-language';
 import { Assignment, LeaderboardEntry } from '../../../models/assignment';
 import {
@@ -12,6 +16,7 @@ import {
   scorePercent,
   shouldPoll,
   stageCell,
+  PipStage,
   stagePip,
 } from './assignment-leaderboard-logic';
 
@@ -209,6 +214,13 @@ describe('stageCell', () => {
 });
 
 describe('stagePip', () => {
+  const messages = () => TestBed.inject(Messages);
+  const pipOf = (entry: LeaderboardEntry, stage: PipStage) => stagePip(entry, stage, messages());
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideNzI18n(appLocale)] });
+  });
+
   const lan = player({
     '1': {
       correct: 5,
@@ -237,7 +249,7 @@ describe('stagePip', () => {
   };
 
   it('shows a passed stage with its check mark and says how many runs it took', () => {
-    expect(stagePip(lan, stage1)).toEqual({
+    expect(pipOf(lan, stage1)).toEqual({
       key: '1',
       icon: '👍',
       text: '5/5 ✓',
@@ -247,7 +259,7 @@ describe('stagePip', () => {
   });
 
   it('shows a played stage that is not passed without the check mark', () => {
-    expect(stagePip(lan, stage2)).toEqual({
+    expect(pipOf(lan, stage2)).toEqual({
       key: '2',
       icon: '🙆',
       text: '4/5',
@@ -257,7 +269,7 @@ describe('stagePip', () => {
   });
 
   it('shows a dash for a stage not played, and says so in the title', () => {
-    expect(stagePip(lan, {
+    expect(pipOf(lan, {
       key: '3',
       position: 3,
       icon: '🐸',
@@ -286,7 +298,7 @@ describe('stagePip', () => {
         attempts: 2
       }
     });
-    expect(stagePip(score, stage4).title).toBe('Màn 1 · Chém hoa quả: 3/5 · 2 lần');
+    expect(pipOf(score, stage4).title).toBe('Màn 1 · Chém hoa quả: 3/5 · 2 lần');
   });
 });
 
@@ -468,8 +480,14 @@ describe('rankMoves', () => {
 describe('moveMark', () => {
   const NOW_MS = NOW.getTime();
 
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideNzI18n(appLocale)] });
+  });
+
+  const markOf = (move: RankMove | undefined, now: number) => moveMark(move, now, TestBed.inject(Messages));
+
   it('shows a move up as an up arrow and the number of places, with the words for a screen reader', () => {
-    expect(moveMark({
+    expect(markOf({
       delta: 2,
       at: NOW_MS
     }, NOW_MS)).toEqual({
@@ -480,7 +498,7 @@ describe('moveMark', () => {
   });
 
   it('shows a move down as a down arrow and the number of places', () => {
-    expect(moveMark({
+    expect(markOf({
       delta: -1,
       at: NOW_MS
     }, NOW_MS)).toEqual({
@@ -491,15 +509,15 @@ describe('moveMark', () => {
   });
 
   it('shows nothing without a move', () => {
-    expect(moveMark(undefined, NOW_MS)).toBeNull();
+    expect(markOf(undefined, NOW_MS)).toBeNull();
   });
 
   it('shows a move for 30 seconds', () => {
-    expect(moveMark({
+    expect(markOf({
       delta: 1,
       at: NOW_MS - MOVE_KEEP_MS + 1
     }, NOW_MS)).not.toBeNull();
-    expect(moveMark({
+    expect(markOf({
       delta: 1,
       at: NOW_MS - MOVE_KEEP_MS
     }, NOW_MS)).toBeNull();

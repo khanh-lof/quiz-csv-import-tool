@@ -7,7 +7,7 @@ import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { OnlineStatusService } from '../../services/online-status.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Messages } from '../../i18n/messages';
+import { Messages, MessagePipe } from '../../i18n/messages';
 
 @Component({
   selector: 'kt-quiz-offline',
@@ -15,7 +15,8 @@ import { Messages } from '../../i18n/messages';
   imports: [
     NzButtonModule,
     NzCardModule,
-    NzIconDirective
+    NzIconDirective,
+    MessagePipe
   ],
   templateUrl: './offline.html',
   changeDetection: ChangeDetectionStrategy.Eager,

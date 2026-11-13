@@ -142,7 +142,7 @@ export class VocabularyTable implements OnInit {
 
   // The platform's name for the publish button, which is only shown when the extension publishes.
   protected get publishPlatformName(): string {
-    return FileExportService.platformName(this.formGroup.get('exportType')?.value);
+    return FileExportService.platformName(this.formGroup.get('exportType')?.value, this.messages);
   }
 
   // Whether exporting hands the quiz to the extension to publish instead of downloading the file.
@@ -231,7 +231,7 @@ export class VocabularyTable implements OnInit {
     const title = `QuizTool-${today}`;
     const publish = this.publishesWithExtension;
     const exported = this.fileExportService.exportFile(
-      FileExportService.buildFileName(title, exportType), this.currentRows(), exportType, !publish);
+      FileExportService.buildFileName(title, exportType, this.messages), this.currentRows(), exportType, !publish);
     if (!exported) return;
     const platform = this.publishPlatform;
     const bytes = exported.xlsx ?? exported.csv;

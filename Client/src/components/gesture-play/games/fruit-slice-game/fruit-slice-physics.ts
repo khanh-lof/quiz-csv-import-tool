@@ -1,3 +1,4 @@
+import type { MessageKey } from '../../../../i18n/messages';
 import { clamp, segHit } from '../../../../game/gestures';
 
 // The pure half of the fruit-slicing game, ported from the "Chém hoa quả" prototype: how fruits are
@@ -35,24 +36,24 @@ export function shuffle<T>(items: readonly T[], rng: Rng = Math.random): T[] {
 // box) is the watermelon, slot 1 (red) the apple and slot 2 (yellow) the lemon. `glow` is the halo
 // behind a flying fruit as an "r,g,b" triple and `juice` the colours of the droplets a cut sprays.
 export interface FruitSlot {
-  name: string;
+  nameKey: MessageKey;
   glow: string;
   juice: string[];
 }
 
 export const SLOTS: readonly FruitSlot[] = [
   {
-    name: 'xanh lá',
+    nameKey: 'play.fruit.colour.green',
     glow: '53,199,89',
     juice: ['#6fdc4f', '#b6f27a', '#ff7b8a']
   },
   {
-    name: 'đỏ',
+    nameKey: 'play.fruit.colour.red',
     glow: '255,77,79',
     juice: ['#ff6b6b', '#ff9a9a', '#ffd27a']
   },
   {
-    name: 'vàng',
+    nameKey: 'play.fruit.colour.yellow',
     glow: '255,212,38',
     juice: ['#ffd426', '#ffe66d', '#ffb300']
   },

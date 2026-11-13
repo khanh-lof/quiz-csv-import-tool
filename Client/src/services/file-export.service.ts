@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { Messages } from '../i18n/messages';
 import { GimkitCsvBuilder } from './gimkit-csv-builder';
 import { BlooketCsvBuilder } from './blooket-csv-builder';
 import { QuestionDefinition } from '../models/question-definition';
@@ -28,7 +29,7 @@ export class FileExportService {
               private readonly gestureQuizCsvBuilder: GestureQuizCsvBuilder) {
   }
 
-  public static platformName(exportType: ExportType): string {
+  public static platformName(exportType: ExportType, messages: Messages): string {
     switch (exportType) {
       case ExportType.GimKit:
         return 'Gimkit';
@@ -37,9 +38,9 @@ export class FileExportService {
       case ExportType.Wayground:
         return 'Wayground';
       case ExportType.GestureQuiz:
-        return 'Game';
+        return messages.get('ai.platform.game');
       case ExportType.Radicals:
-        return 'Ghép bộ thủ';
+        return messages.get('ai.platform.radicals');
       default:
         return 'Quiz';
     }
@@ -47,8 +48,8 @@ export class FileExportService {
 
   // A download name that says what the file is, e.g. "HSK3-Bai5-Gimkit.csv". Characters a file system
   // rejects are dropped and spaces become dashes, in the platform's name too ("HSK3-Bai5-Game.csv").
-  public static buildFileName(label: string, exportType: ExportType): string {
-    const platform = FileExportService.platformName(exportType).replace(/\s+/g, '-');
+  public static buildFileName(label: string, exportType: ExportType, messages: Messages): string {
+    const platform = FileExportService.platformName(exportType, messages).replace(/\s+/g, '-');
     return `${fileSafeLabel(label)}-${platform}.csv`;
   }
 

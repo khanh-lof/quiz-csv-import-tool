@@ -12,12 +12,12 @@
       <div class="actions">
         <button (click)="tryAssignment(made)" nz-button nzType="default" type="button">
           <nz-icon nzTheme="outline" nzType="eye"/>
-          Xem thử
+          {{ 'assignments.action.preview' | msg }}
         </button>
-        <button (click)="close()" nz-button nzType="default" type="button">Xong</button>
+        <button (click)="close()" nz-button nzType="default" type="button">{{ 'assignments.assignDialog.finish' | msg }}</button>
         <button (click)="showLeaderboard(made)" nz-button nzType="primary" type="button">
           <nz-icon nzTheme="outline" nzType="trophy"/>
-          Xem bảng xếp hạng
+          {{ 'assignments.assignDialog.viewLeaderboard' | msg }}
         </button>
       </div>
     } @else {
@@ -36,7 +36,7 @@
 
       <div class="field">
         <label class="field-label" for="assign-label">
-          Lớp / nhóm <span class="muted">{{ 'assignments.assignDialog.optional' | msg }}</span>
+          {{ 'assignments.assignDialog.classLabel' | msg }} <span class="muted">{{ 'assignments.assignDialog.optional' | msg }}</span>
         </label>
         <input (keydown.enter)="submit()" (ngModelChange)="label.set($event ?? '')" [attr.maxlength]="maxLabelLength" [ngModel]="label()"
                id="assign-label" nz-input/>
@@ -48,7 +48,7 @@
       </div>
 
       <div class="field">
-        <span class="field-label" id="assign-time-mode">Thời gian mỗi câu</span>
+        <span class="field-label" id="assign-time-mode">{{ 'assignments.assignDialog.timePerQuestion' | msg }}</span>
         <nz-radio-group (ngModelChange)="timeMode.set($event)" [ngModel]="timeMode()" aria-labelledby="assign-time-mode"
                         class="radios">
           @for (mode of timeModes; track mode.value) {
@@ -58,7 +58,7 @@
       </div>
 
       <div class="field">
-        <span class="field-label" id="assign-stage-lock">Mở khóa các màn</span>
+        <span class="field-label" id="assign-stage-lock">{{ 'assignments.assignDialog.stageLockLabel' | msg }}</span>
         <nz-radio-group (ngModelChange)="stageLock.set($event)" [ngModel]="stageLock()" aria-labelledby="assign-stage-lock"
                         class="radios">
           @for (lock of stageLocks; track lock.value) {
@@ -69,7 +69,7 @@
 
       @if (stageLock() === 'open') {
         <div class="field">
-          <span class="field-label" id="assign-attempts">Giới hạn số lần chơi mỗi màn</span>
+          <span class="field-label" id="assign-attempts">{{ 'assignments.assignDialog.attemptsLabel' | msg }}</span>
           <div aria-labelledby="assign-attempts" class="attempts-row" role="group">
             <nz-switch (ngModelChange)="limitAttempts.set($event)" [ngModel]="limitAttempts()"
                        [nzCheckedChildren]="'assignments.assignDialog.attemptsLimited' | msg"
@@ -86,12 +86,12 @@
 
       @if (passRows().length > 0) {
         <div class="field">
-          <span class="field-label" id="assign-pass">Tỉ lệ đúng để qua màn</span>
+          <span class="field-label" id="assign-pass">{{ 'assignments.assignDialog.passLabel' | msg }}</span>
           <div aria-labelledby="assign-pass" class="pass-rows" role="group">
             @for (row of passRows(); track row.stage) {
               <div class="pass-row">
                 <label [for]="'assign-pass-' + row.stage" class="pass-name">
-                  {{ row.icon }} Màn {{ row.position }} <span class="muted">({{ row.name }})</span>
+                  {{ row.icon }} {{ 'assignments.stage.label' | msg: {position: row.position} }} <span class="muted">({{ row.name }})</span>
                 </label>
                 <nz-input-number (ngModelChange)="setPercent(row.stage, $event)" [ngModel]="row.value"
                                  [nzFormatter]="formatPercent" [nzId]="'assign-pass-' + row.stage"
@@ -106,7 +106,7 @@
       }
 
       <div class="field">
-        <span class="field-label" id="assign-show-board">Học sinh xem bảng xếp hạng</span>
+        <span class="field-label" id="assign-show-board">{{ 'assignments.assignDialog.showBoard' | msg }}</span>
         <div aria-labelledby="assign-show-board" class="attempts-row" role="group">
           <nz-switch (ngModelChange)="showBoard.set($event)" [ngModel]="showBoard()"
                      [nzCheckedChildren]="'common.switchOn' | msg"
@@ -116,7 +116,7 @@
 
       @if (quizHasPinyin()) {
         <div class="field">
-          <span class="field-label" id="assign-show-pinyin">Hiện pinyin</span>
+          <span class="field-label" id="assign-show-pinyin">{{ 'assignments.action.showPinyin' | msg }}</span>
           <div aria-labelledby="assign-show-pinyin" class="attempts-row" role="group">
             <nz-switch (ngModelChange)="showPinyin.set($event)" [ngModel]="showPinyin()"
                        [nzCheckedChildren]="'common.switchOn' | msg"
@@ -132,12 +132,12 @@
       <div class="actions">
         <button (click)="tryJob()" [disabled]="questions() === 0" nz-button nzType="default" type="button">
           <nz-icon nzTheme="outline" nzType="eye"/>
-          Xem thử
+          {{ 'assignments.action.preview' | msg }}
         </button>
         <button (click)="submit()" [disabled]="!canSubmit()" [nzLoading]="sending()" nz-button nzType="primary"
                 type="button">
           <nz-icon nzTheme="outline" nzType="send"/>
-          Giao bài
+          {{ 'assignments.assignDialog.submit' | msg }}
         </button>
       </div>
     }

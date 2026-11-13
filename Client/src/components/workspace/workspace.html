@@ -22,12 +22,12 @@
           nzMode="inline">
         @for (entry of nav; track entry.label) {
           @if (isGroup(entry)) {
-            <li [nzIcon]="entry.icon" [nzOpen]="!collapsed()" [nzTitle]="entry.label" nz-submenu>
+            <li [nzIcon]="entry.icon" [nzOpen]="!collapsed()" [nzTitle]="entry.label | msg" nz-submenu>
               <ul>
                 @for (page of entry.pages; track page.route) {
                   <li nz-menu-item nzMatchRouter>
                     <nz-icon [nzType]="page.icon" nzTheme="outline"/>
-                    <span><a [routerLink]="page.route">{{ page.label }}</a></span>
+                    <span><a [routerLink]="page.route">{{ page.label | msg }}</a></span>
                   </li>
                 }
               </ul>
@@ -35,7 +35,7 @@
           } @else {
             <li nz-menu-item nzMatchRouter>
               <nz-icon [nzType]="entry.icon" nzTheme="outline"/>
-              <span><a [routerLink]="entry.route">{{ entry.label }}</a></span>
+              <span><a [routerLink]="entry.route">{{ entry.label | msg }}</a></span>
             </li>
           }
         }
@@ -47,12 +47,12 @@
         @if (isLoggedIn()) {
           <li (click)="logout()" nz-menu-item>
             <nz-icon nzTheme="outline" nzType="logout"/>
-            <span>Đăng xuất</span>
+            <span>{{ 'app.workspace.logout' | msg }}</span>
           </li>
         } @else {
           <li (click)="login()" nz-menu-item>
             <nz-icon nzTheme="outline" nzType="login"/>
-            <span>Đăng nhập</span>
+            <span>{{ 'app.workspace.login' | msg }}</span>
           </li>
         }
       </ul>
@@ -79,15 +79,15 @@
               @for (crumb of breadcrumb().slice(0, -1); track $index) {
                 <nz-breadcrumb-item>
                   @if (crumb.link) {
-                    <a [routerLink]="crumb.link">{{ crumb.label }}</a>
+                    <a [routerLink]="crumb.link">{{ crumb.label | msg }}</a>
                   } @else {
-                    {{ crumb.label }}
+                    {{ crumb.label | msg }}
                   }
                 </nz-breadcrumb-item>
               }
             </nz-breadcrumb>
           }
-          <h1 class="page-title">{{ breadcrumb().at(-1)?.label }}</h1>
+          <h1 class="page-title">{{ breadcrumb().at(-1)!.label | msg }}</h1>
         </header>
       }
     </div>

@@ -19,7 +19,7 @@
           </kt-quiz-usage-guide>
           <button (click)="confirmDeleteAllRows()" nz-button nzType="text" type="button">
             <nz-icon nzTheme="outline" nzType="delete"/>
-            Xóa tất cả
+            {{ 'ai.action.clearAll' | msg }}
           </button>
         </div>
 
@@ -34,7 +34,7 @@
           @if (publishPlatform) {
             <!-- Without the extension only the download is possible; the disabled option says why. -->
             <nz-radio-group [formControl]="publishDelivery" nzButtonStyle="solid" nzSize="large">
-              <label [nzValue]="PublishDelivery.Download" nz-radio-button>Tải file</label>
+              <label [nzValue]="PublishDelivery.Download" nz-radio-button>{{ 'ai.action.downloadFile' | msg }}</label>
               <label [nzDisabled]="!extensionInstalled" [nzValue]="PublishDelivery.Extension"
                      nz-tooltip
                      [nzTooltipTitle]="extensionInstalled ? '' : ('common.extensionMissing' | msg)"
@@ -46,10 +46,10 @@
           <button nz-button nzType="primary" type="submit">
             @if (publishesWithExtension) {
               <nz-icon nzType="cloud-upload"/>
-              Publish lên {{ publishPlatformName }}
+              {{ 'app.table.publishTo' | msg: { platform: publishPlatformName } }}
             } @else {
               <nz-icon nzType="download"/>
-              Tải file
+              {{ 'ai.action.downloadFile' | msg }}
             }
           </button>
           <!--      <button nz-button nzType="default" type="button" (click)="fileInput.click()">-->
@@ -67,8 +67,8 @@
         <thead>
         <tr>
           <th class="row-number" nzWidth="52px"></th>
-          <th>Câu hỏi</th>
-          <th nzWidth="36%">Đáp án</th>
+          <th>{{ 'app.table.question' | msg }}</th>
+          <th nzWidth="36%">{{ 'app.table.answer' | msg }}</th>
           @if (formGroup.get('exportType')?.value === ExportType.Wayground) {
             <th nzWidth="166px" style="text-align: center"></th>
           }
@@ -100,8 +100,8 @@
               @if (formGroup.get('exportType')?.value === ExportType.Wayground) {
                 <td class="cell-flex">
                   <nz-select [formControl]="item.controls.questionType" [nzPlaceHolder]="'app.table.questionTypePlaceholder' | msg">
-                    <nz-option [nzValue]="QuestionType.MultipleChoice" nzLabel="Trắc nghiệm"></nz-option>
-                    <nz-option [nzValue]="QuestionType.FillInTheBlank" nzLabel="Điền từ"></nz-option>
+                    <nz-option [nzValue]="QuestionType.MultipleChoice" [nzLabel]="'app.table.multipleChoice' | msg"></nz-option>
+                    <nz-option [nzValue]="QuestionType.FillInTheBlank" [nzLabel]="'app.table.fillInTheBlank' | msg"></nz-option>
                   </nz-select>
                 </td>
               }
@@ -120,7 +120,7 @@
       <!-- Under the table, where the next row will appear. -->
       <button (click)="addRow()" class="add-row" nz-button nzBlock nzType="dashed" type="button">
         <nz-icon nzTheme="outline" nzType="plus"/>
-        Thêm dòng
+        {{ 'app.table.addRow' | msg }}
       </button>
 
       <ng-template #errorMessage let-errorKey="errorKey" let-formControl let-message="message">

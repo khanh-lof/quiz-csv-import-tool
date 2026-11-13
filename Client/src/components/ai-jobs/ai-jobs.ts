@@ -93,7 +93,10 @@ export class AiJobs implements OnInit {
   protected readonly ExportType = ExportType;
   protected readonly CourseType = CourseType;
   protected readonly HskStandard = HskStandard;
-  protected readonly lessonLabel = lessonLabel;
+  protected lessonLabel(job: AiJob): string {
+    return lessonLabel(job, this.messages);
+  }
+
   protected failedJobMessage(job: AiJob): string {
     return failedJobMessage(job, this.messages);
   }
@@ -104,7 +107,9 @@ export class AiJobs implements OnInit {
   protected readonly maxLevel = Math.max(hskMaxLevel(HskStandard.V3), 12);
   // Publishing needs the extension; without it only the download works.
   protected readonly extensionInstalled: boolean;
-  protected readonly platformName = FileExportService.platformName;
+  protected platformName(exportType: ExportType): string {
+    return FileExportService.platformName(exportType, this.messages);
+  }
 
   protected readonly search = signal('');
   protected readonly status = signal<AiJobStatus | null>(null);
@@ -183,11 +188,14 @@ export class AiJobs implements OnInit {
   }
 
   protected readonly languageColor = languageTagColor;
-  protected readonly languageTag = languageTagText;
+  protected languageTag(language: QuizLanguage | null): string {
+    return languageTagText(language, this.messages);
+  }
+
 
   // The formatted mode's name, which depends on the language it asked in.
   protected modeLabel(job: AiJob): string {
-    return job.creative ? 'AI tự nghĩ' : languageSpec(job.language).formattedLabel;
+    return this.messages.get(job.creative ? 'ai.jobs.modeAutoShort' : languageSpec(job.language).formattedLabelKey);
   }
 
   // A course of another language is dropped with the choice of language.
@@ -260,7 +268,7 @@ export class AiJobs implements OnInit {
   protected exportJob(job: AiJob, publish: boolean): void {
     const exportType = job.exportType!;
     const exported = this.fileExportService.exportFileFromCsvContent(
-      FileExportService.buildFileName(job.title, exportType), this.resultText(job), exportType, !publish);
+      FileExportService.buildFileName(job.title, exportType, this.messages), this.resultText(job), exportType, !publish);
     if (!exported) {
       this.notificationService.warning(this.messages.get('common.noData'), '');
       return;
@@ -313,11 +321,11 @@ export class AiJobs implements OnInit {
   protected statusLabel(job: AiJob): string {
     switch (job.status) {
       case 'running':
-        return 'Đang chạy';
+        return this.messages.get('ai.jobs.running');
       case 'done':
-        return 'Xong';
+        return this.messages.get('ai.jobs.done');
       default:
-        return 'Lỗi';
+        return this.messages.get('ai.jobs.failed');
     }
   }
 
@@ -363,5 +371,4 @@ export class AiJobs implements OnInit {
     });
   }
 
-  protected readonly languageTagText = languageTagText;
 }

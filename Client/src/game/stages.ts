@@ -16,7 +16,7 @@ export type GameKind =
 export interface StageDef {
   stage: number;
   game: GameKind;
-  name: string;
+  nameKey: MessageKey;
   icon: string;
   hint: MessageKey;
   vision: VisionKind;
@@ -36,7 +36,7 @@ export const STAGES: StageDef[] = [
   {
     stage: 1,
     game: 'true-false',
-    name: 'Đúng hay sai',
+    nameKey: 'play.stage.name.trueFalse',
     icon: '👍',
     hint: 'play.stage.hint.trueFalse',
     vision: 'hand',
@@ -46,7 +46,7 @@ export const STAGES: StageDef[] = [
   {
     stage: 2,
     game: 'head-tilt',
-    name: 'Nghiêng đầu',
+    nameKey: 'play.stage.name.headTilt',
     icon: '🙆',
     hint: 'play.stage.hint.headTilt',
     vision: 'face',
@@ -56,7 +56,7 @@ export const STAGES: StageDef[] = [
   {
     stage: 3,
     game: 'frog-bite',
-    name: 'Ếch đớp chữ',
+    nameKey: 'play.stage.name.frogBite',
     icon: '🐸',
     hint: 'play.stage.hint.frogBite',
     vision: 'face',
@@ -66,7 +66,7 @@ export const STAGES: StageDef[] = [
   {
     stage: 4,
     game: 'fruit-slice',
-    name: 'Chém hoa quả',
+    nameKey: 'play.stage.name.fruitSlice',
     icon: '🍉',
     hint: 'play.stage.hint.fruitSlice',
     vision: 'hand',
@@ -76,7 +76,7 @@ export const STAGES: StageDef[] = [
   {
     stage: 5,
     game: 'finger-count',
-    name: 'Giơ ngón tay',
+    nameKey: 'play.stage.name.fingerCount',
     icon: '✋',
     hint: 'play.stage.hint.fingerCount',
     vision: 'hand',
@@ -86,7 +86,7 @@ export const STAGES: StageDef[] = [
   {
     stage: 6,
     game: 'word-order',
-    name: 'Xếp câu',
+    nameKey: 'play.stage.name.wordOrder',
     icon: '🧩',
     hint: 'play.stage.hint.wordOrder',
     vision: 'hand',

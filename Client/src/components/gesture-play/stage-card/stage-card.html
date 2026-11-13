@@ -9,7 +9,7 @@
     @if (label(); as label) {
       <span class="stage-no">{{ label }}</span>
     }
-    <span class="stage-name">{{ def().name }}</span>
+    <span class="stage-name">{{ def().nameKey | msg }}</span>
   </span>
   <ng-content/>
 </span>

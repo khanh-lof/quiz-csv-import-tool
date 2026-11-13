@@ -3,7 +3,7 @@
     <div class="message" role="alert">
       <div aria-hidden="true" class="big-emoji">😕</div>
       <h2 class="message-title">{{ 'assignments.leaderboard.notFound' | msg }}</h2>
-      <a nz-button nzType="primary" routerLink="/assignments">Về Bài đã giao</a>
+      <a nz-button nzType="primary" routerLink="/assignments">{{ 'assignments.leaderboard.backToList' | msg }}</a>
     </div>
   </nz-card>
 } @else if (detail(); as d) {
@@ -16,33 +16,33 @@
       <nz-tag [nzColor]="open() ? 'green' : undefined">{{ statusText() }}</nz-tag>
     </div>
     <p class="meta">
-      <span>Thời gian mỗi câu: {{ timeModeKeys[d.timeMode] | msg }}</span>
-      <span>Các màn: {{ stageLockKeys[d.stageLock] | msg }}</span>
+      <span>{{ 'assignments.leaderboard.metaTimeMode' | msg: {mode: timeModeKeys[d.timeMode] | msg} }}</span>
+      <span>{{ 'assignments.leaderboard.metaStageLock' | msg: {lock: stageLockKeys[d.stageLock] | msg} }}</span>
       @if (passText()) {
-        <span>Tỉ lệ đúng để qua màn: {{ passText() }}</span>
+        <span>{{ 'assignments.leaderboard.metaPass' | msg: {pass: passText()} }}</span>
       }
       @if (d.maxAttempts !== null) {
-        <span>Giới hạn: {{ d.maxAttempts }} lần/màn</span>
+        <span>{{ 'assignments.leaderboard.metaLimit' | msg: {count: d.maxAttempts} }}</span>
       }
       @if (!d.showBoard) {
         <span>{{ 'assignments.leaderboard.hiddenFromStudents' | msg }}</span>
       }
-      <span>Giao lúc {{ formatStamp(d.createdAt) }}</span>
-      <span>{{ d.players.length }} học sinh</span>
+      <span>{{ 'assignments.leaderboard.metaAssignedAt' | msg: {time: formatStamp(d.createdAt)} }}</span>
+      <span>{{ 'assignments.leaderboard.metaPlayers' | msg: {count: d.players.length} }}</span>
     </p>
 
     <div class="actions">
       <button (click)="copyLink()" nz-button nzType="primary" type="button">
         <nz-icon nzTheme="outline" nzType="copy"/>
-        Sao chép link
+        {{ 'assignments.action.copyLink' | msg }}
       </button>
       <button (click)="qrOpen.set(true)" nz-button nzType="default" type="button">
         <nz-icon nzTheme="outline" nzType="qrcode"/>
-        Mã QR
+        {{ 'assignments.action.qrCode' | msg }}
       </button>
       <a [routerLink]="['/play/preview', d.id]" nz-button nzType="default">
         <nz-icon nzTheme="outline" nzType="play-circle"/>
-        Xem thử
+        {{ 'assignments.action.preview' | msg }}
       </a>
       @if (open()) {
         <button (nzOnConfirm)="closeAssignment()" [disabled]="busy()" nz-button nz-popconfirm
@@ -65,16 +65,16 @@
       <button (click)="downloadLeaderboard()" [disabled]="d.players.length === 0" nz-button nzType="default"
               type="button">
         <nz-icon nzTheme="outline" nzType="download"/>
-        Tải bảng xếp hạng
+        {{ 'assignments.leaderboard.download' | msg }}
       </button>
       <button (click)="toggleFullscreen()" nz-button nzType="default" type="button">
         <nz-icon nzTheme="outline" nzType="fullscreen"/>
-        Toàn màn hình
+        {{ 'assignments.leaderboard.fullscreen' | msg }}
       </button>
       @if (quizHasPinyin()) {
         <label class="pinyin-switch">
           <nz-switch (click)="toggleShowPinyin()" [nzLoading]="pinyinSaving()" [ngModel]="d.showPinyin" nzControl/>
-          Hiện pinyin
+          {{ 'assignments.action.showPinyin' | msg }}
         </label>
       }
     </div>
@@ -119,7 +119,7 @@
                 <span class="score-text">{{ row.player.correct }}/{{ row.player.possible }}</span>
                 <span aria-hidden="true" class="bar"><span [style.width.%]="row.percent" class="fill"></span></span>
               </span>
-              <span class="attempts">{{ row.player.attempts }} lần</span>
+              <span class="attempts">{{ 'assignments.leaderboard.attemptsCount' | msg: {count: row.player.attempts} }}</span>
               <span
                 class="played-at">{{ row.player.lastPlayedAt ? (row.player.lastPlayedAt | date:'HH:mm') : '–' }}</span>
               @if (!fullscreen()) {
@@ -131,13 +131,13 @@
       }
       @if (waiting().length > 0) {
         <!-- Not last place: they have simply not finished a stage yet. -->
-        <h3 class="divider" id="waiting-title">Chưa có kết quả ({{ waiting().length }})</h3>
+        <h3 class="divider" id="waiting-title">{{ 'assignments.leaderboard.waitingTitle' | msg: {count: waiting().length} }}</h3>
         <ul aria-labelledby="waiting-title" class="entries waiting" role="list">
           @for (player of waiting(); track player.id) {
             <li [attr.data-player-id]="player.id" class="entry">
               <kt-quiz-player-avatar [avatar]="player.avatar" [name]="player.name" [size]="fullscreen() ? 'lg' : 'md'"/>
               <span class="who"><kt-quiz-marquee-text [text]="player.name" class="name"/></span>
-              <span class="joined">Vào lúc {{ player.joinedAt | date:'HH:mm' }}</span>
+              <span class="joined">{{ 'assignments.leaderboard.joinedAt' | msg: {time: (player.joinedAt | date:'HH:mm') ?? ''} }}</span>
               @if (!fullscreen()) {
                 <ng-container *ngTemplateOutlet="removeButton; context: {$implicit: player}"/>
               }
@@ -175,12 +175,12 @@
       @if (fullscreen()) {
         <button (click)="toggleFullscreen()" nz-button nzSize="small" nzType="default" type="button">
           <nz-icon nzTheme="outline" nzType="fullscreen-exit"/>
-          Thoát toàn màn hình
+          {{ 'assignments.leaderboard.exitFullscreen' | msg }}
         </button>
       } @else {
         <button (click)="refresh()" [disabled]="refreshing()" nz-button nzSize="small" nzType="default" type="button">
           <nz-icon [nzSpin]="refreshing()" nzTheme="outline" nzType="reload"/>
-          Làm mới
+          {{ 'assignments.action.refresh' | msg }}
         </button>
       }
     </div>
@@ -216,8 +216,8 @@
       <h2 class="message-title">{{ 'assignments.leaderboard.loadFailed' | msg }}</h2>
       <p class="message-text">{{ message }}</p>
       <div class="message-actions">
-        <button (click)="refresh()" [nzLoading]="refreshing()" nz-button nzType="primary" type="button">Thử lại</button>
-        <a nz-button nzType="default" routerLink="/assignments">Về Bài đã giao</a>
+        <button (click)="refresh()" [nzLoading]="refreshing()" nz-button nzType="primary" type="button">{{ 'assignments.action.retry' | msg }}</button>
+        <a nz-button nzType="default" routerLink="/assignments">{{ 'assignments.leaderboard.backToList' | msg }}</a>
       </div>
     </div>
   </nz-card>

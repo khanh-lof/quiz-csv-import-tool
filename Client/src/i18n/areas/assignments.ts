@@ -3,7 +3,19 @@ export const assignments = {
     delete: 'Xóa',
     reopen: 'Mở lại',
     closeAssignment: 'Đóng bài',
-    scheduleClose: 'Hẹn giờ đóng'
+    scheduleClose: 'Hẹn giờ đóng',
+    preview: 'Xem thử',
+    copyLink: 'Sao chép link',
+    qrCode: 'Mã QR',
+    refresh: 'Làm mới',
+    retry: 'Thử lại',
+    showPinyin: 'Hiện pinyin'
+  },
+  stage: {
+    label: 'Màn %position%',
+    labelWithName: 'Màn %position% (%name%)',
+    labelDotName: 'Màn %position% · %name%',
+    percent: 'Màn %position% %percent%'
   },
   status: {
     open: 'Đang mở',
@@ -44,7 +56,8 @@ export const assignments = {
     copyFailed: 'Chưa sao chép được',
     fallbackQr: 'Lấy link ở Mã QR.',
     fallbackManual: 'Nhấn Ctrl+C để sao chép.',
-    linkLabel: 'Link bài'
+    linkLabel: 'Link bài',
+    codeLabel: 'Mã bài:'
   },
   confirmDelete: {
     keep: 'Giữ lại'
@@ -53,7 +66,11 @@ export const assignments = {
     closesAt: 'Đóng lúc %time%.',
     inThePast: 'Giờ này đã qua.',
     pickerLabel: 'Giờ đóng bài',
-    pickerPlaceholder: 'Chọn ngày và giờ'
+    pickerPlaceholder: 'Chọn ngày và giờ',
+    none: 'Không hẹn giờ',
+    in45Minutes: 'Sau 45 phút',
+    endOfToday: 'Hết hôm nay',
+    custom: 'Chọn giờ…'
   },
   assignDialog: {
     title: 'Giao bài cho học sinh',
@@ -65,7 +82,16 @@ export const assignments = {
     attemptsLimited: 'Giới hạn',
     attemptsUnlimited: 'Không',
     attemptsUnit: 'lần mỗi màn',
-    passNeed: 'cần đúng %mark%/%count% câu'
+    passNeed: 'cần đúng %mark%/%count% câu',
+    finish: 'Xong',
+    viewLeaderboard: 'Xem bảng xếp hạng',
+    classLabel: 'Lớp / nhóm',
+    timePerQuestion: 'Thời gian mỗi câu',
+    stageLockLabel: 'Mở khóa các màn',
+    attemptsLabel: 'Giới hạn số lần chơi mỗi màn',
+    passLabel: 'Tỉ lệ đúng để qua màn',
+    showBoard: 'Học sinh xem bảng xếp hạng',
+    submit: 'Giao bài'
   },
   leaderboard: {
     notFound: 'Không tìm thấy bài này',
@@ -76,9 +102,40 @@ export const assignments = {
     reopenTitle: 'Mở lại bài',
     removePlayer: 'Xóa %name%',
     removePlayerConfirm: 'Xóa %name% khỏi bảng xếp hạng?',
-    removePlayerTooltip: 'Xóa khỏi bảng xếp hạng'
+    removePlayerTooltip: 'Xóa khỏi bảng xếp hạng',
+    backToList: 'Về Bài đã giao',
+    metaTimeMode: 'Thời gian mỗi câu: %mode%',
+    metaStageLock: 'Các màn: %lock%',
+    metaPass: 'Tỉ lệ đúng để qua màn: %pass%',
+    metaLimit: 'Giới hạn: %count% lần/màn',
+    metaAssignedAt: 'Giao lúc %time%',
+    metaPlayers: '%count% học sinh',
+    download: 'Tải bảng xếp hạng',
+    fullscreen: 'Toàn màn hình',
+    exitFullscreen: 'Thoát toàn màn hình',
+    attemptsCount: '%count% lần',
+    waitingTitle: 'Chưa có kết quả (%count%)',
+    joinedAt: 'Vào lúc %time%',
+    pipNotPlayed: '%head%: chưa chơi',
+    pipPlayed: '%head%: %result% · %attempts% lần',
+    moveUp: 'Lên %places% hạng',
+    moveDown: 'Xuống %places% hạng'
+  },
+  csv: {
+    rank: 'Hạng',
+    name: 'Tên',
+    stagesPassed: 'Màn đã qua',
+    correct: 'Câu đúng',
+    attempts: 'Lần chơi',
+    updated: 'Cập nhật'
   },
   list: {
+    ariaLabel: 'Bài đã giao',
+    clearFilters: 'Bỏ lọc',
+    columnTitle: 'Bài',
+    columnStudents: 'Học sinh',
+    columnAssignedAt: 'Lúc giao',
+    toAiHistory: 'Đến AI › Lịch sử',
     actions: 'Thao tác',
     loadFailed: 'Chưa tải được danh sách.',
     emptyHelp: 'Giao bài ở AI › Lịch sử.',

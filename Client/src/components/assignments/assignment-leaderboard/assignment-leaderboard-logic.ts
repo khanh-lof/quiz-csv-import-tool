@@ -1,3 +1,4 @@
+import { Messages } from '../../../i18n/messages';
 import { Assignment, AssignmentDetail, isOpenAt, LeaderboardEntry } from '../../../models/assignment';
 
 // How long after the close a student's result is still accepted (the server's grace period), so how long
@@ -83,16 +84,16 @@ export interface StagePip {
   title: string;
 }
 
-export function stagePip(player: LeaderboardEntry, stage: PipStage): StagePip {
+export function stagePip(player: LeaderboardEntry, stage: PipStage, messages: Messages): StagePip {
   const cell = stageCell(player, stage.key);
-  const head = `Màn ${stage.position} · ${stage.name}`;
+  const head = messages.get('assignments.stage.labelDotName', { position: stage.position, name: stage.name });
   if (cell === null) {
     return {
       key: stage.key,
       icon: stage.icon,
       text: '–',
       state: 'none',
-      title: `${head}: chưa chơi`
+      title: messages.get('assignments.leaderboard.pipNotPlayed', { head })
     };
   }
   const attempts = player.stages[stage.key].attempts;
@@ -101,7 +102,7 @@ export function stagePip(player: LeaderboardEntry, stage: PipStage): StagePip {
     icon: stage.icon,
     text: cell.text,
     state: cell.passed ? 'passed' : 'played',
-    title: `${head}: ${cell.text} · ${attempts} lần`,
+    title: messages.get('assignments.leaderboard.pipPlayed', { head, result: cell.text, attempts }),
   };
 }
 
@@ -164,7 +165,7 @@ export interface MoveMark {
   up: boolean;
 }
 
-export function moveMark(move: RankMove | undefined, now: number, showMs = MOVE_KEEP_MS): MoveMark | null {
+export function moveMark(move: RankMove | undefined, now: number, messages: Messages, showMs = MOVE_KEEP_MS): MoveMark | null {
   if (move === undefined || move.delta === 0 || now - move.at >= showMs) {
     return null;
   }
@@ -172,12 +173,12 @@ export function moveMark(move: RankMove | undefined, now: number, showMs = MOVE_
   return move.delta > 0
     ? {
       text: `▲${places}`,
-      label: `Lên ${places} hạng`,
+      label: messages.get('assignments.leaderboard.moveUp', { places }),
       up: true
     }
     : {
       text: `▼${places}`,
-      label: `Xuống ${places} hạng`,
+      label: messages.get('assignments.leaderboard.moveDown', { places }),
       up: false
     };
 }

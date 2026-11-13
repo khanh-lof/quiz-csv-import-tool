@@ -273,6 +273,17 @@ describe('TIME_MODE_LABELS', () => {
 });
 
 describe('leaderboardCsv', () => {
+  let messages: Messages;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideNzI18n(appLocale)] });
+    messages = TestBed.inject(Messages);
+  });
+
+  function csvOf(assignmentDetail: AssignmentDetail): string {
+    return leaderboardCsv(assignmentDetail, messages);
+  }
+
   // The line begins with `prefix`: the failure shows the beginning of the line, not just "false".
   function expectStart(line: string, prefix: string): void {
     expect(line.slice(0, prefix.length)).toBe(prefix);
@@ -283,7 +294,7 @@ describe('leaderboardCsv', () => {
   }
 
   it('has no avatar column, whatever avatars the students picked', () => {
-    const csv = leaderboardCsv(detail([player({ avatar: 'dragon' }), player({
+    const csv = csvOf(detail([player({ avatar: 'dragon' }), player({
       id: 'p2',
       name: 'Minh',
       avatar: ''
@@ -296,14 +307,14 @@ describe('leaderboardCsv', () => {
   });
 
   it('starts with a BOM and ends every line with CRLF', () => {
-    const csv = leaderboardCsv(detail([player()]));
+    const csv = csvOf(detail([player()]));
     expect(csv.charCodeAt(0)).toBe(0xfeff);
     expect(csv.endsWith('\r\n')).toBeTrue();
     expect(csv).not.toMatch(/[^\r]\n/);
   });
 
   it('has a column per stage of the assignment, in order, headed with its position and its game', () => {
-    const csv = leaderboardCsv(detail([], {
+    const csv = csvOf(detail([], {
       stageCounts: {
         '4': 5,
         '1': 5,
@@ -315,7 +326,7 @@ describe('leaderboardCsv', () => {
   });
 
   it('numbers the stage columns by position, not by stage number', () => {
-    const csv = leaderboardCsv(detail([player({
+    const csv = csvOf(detail([player({
         stages: {
           '6': {
             correct: 4,
@@ -338,7 +349,7 @@ describe('leaderboardCsv', () => {
   });
 
   it('writes one row per student, in the order given', () => {
-    const csv = leaderboardCsv(detail([
+    const csv = csvOf(detail([
       player({
         id: 'a',
         name: 'Lan',
@@ -362,7 +373,7 @@ describe('leaderboardCsv', () => {
   });
 
   it('leaves the rank, the stages and the time empty for a student who has not played', () => {
-    const csv = leaderboardCsv(detail([
+    const csv = csvOf(detail([
       player({
         name: 'Bảo',
         rank: null,
@@ -378,7 +389,7 @@ describe('leaderboardCsv', () => {
   });
 
   it('counts the stages the assignment has, not six', () => {
-    const csv = leaderboardCsv(detail([player({
+    const csv = csvOf(detail([player({
       stagesPassed: 3,
       correct: 40,
       possible: 45
@@ -393,12 +404,12 @@ describe('leaderboardCsv', () => {
   });
 
   it('quotes fields that contain a comma, a quote or a line break', () => {
-    const csv = leaderboardCsv(detail([player({ name: 'Lan, "Bé"\nNhỏ' })]));
+    const csv = csvOf(detail([player({ name: 'Lan, "Bé"\nNhỏ' })]));
     expect(csv).toContain('1,"Lan, ""Bé""\nNhỏ",1/2');
   });
 
   it('keeps a name that starts like a formula from running in a spreadsheet', () => {
-    const csv = leaderboardCsv(detail([player({ name: '=HYPERLINK("http://x")' }), player({ name: '-Lan' }), player({ name: 'Lan-2' })]));
+    const csv = csvOf(detail([player({ name: '=HYPERLINK("http://x")' }), player({ name: '-Lan' }), player({ name: 'Lan-2' })]));
     const rows = lines(csv);
     expectStart(rows[1], `1,"'=HYPERLINK(""http://x"")",`);
     expectStart(rows[2], `1,'-Lan,`);

@@ -1,3 +1,4 @@
+import { viMessages } from '../i18n/vi-messages';
 import { avatarDef, AVATARS, randomAvatar } from './avatar';
 
 describe('AVATARS', () => {
@@ -10,7 +11,7 @@ describe('AVATARS', () => {
   });
 
   it('gives each one its emoji and Vietnamese name', () => {
-    expect(AVATARS.map(avatar => `${avatar.emoji} ${avatar.name}`)).toEqual([
+    expect(AVATARS.map(avatar => `${avatar.emoji} ${viMessages.play.avatar.name[avatar.id as keyof typeof viMessages.play.avatar.name]}`)).toEqual([
       '🐭 Chuột', '🐮 Bò', '🐯 Hổ', '🐰 Thỏ', '🐱 Mèo', '🐲 Rồng', '🐍 Rắn', '🐴 Ngựa', '🐐 Dê', '🐵 Khỉ', '🐔 Gà', '🐶 Chó',
       '🐷 Heo', '🐼 Gấu trúc', '🦊 Cáo', '🐸 Ếch', '🐨 Gấu túi', '🦁 Sư tử', '🐻 Gấu', '🐧 Chim cánh cụt', '🦉 Cú',
       '🦄 Kỳ lân', '🐙 Bạch tuộc', '🐢 Rùa',

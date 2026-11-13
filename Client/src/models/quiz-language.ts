@@ -1,4 +1,5 @@
 import { CourseType } from './course-type';
+import { MessageKey, Messages } from '../i18n/messages';
 import { ExportType } from './export-type';
 
 // The language a quiz teaches. Sent over the wire by ordinal: keep the order identical to Language in
@@ -10,12 +11,12 @@ export enum QuizLanguage {
 
 export interface CourseOption {
   value: CourseType;
-  label: string;
+  labelKey: MessageKey;
 }
 
 export interface LanguageSpec {
   value: QuizLanguage;
-  label: string;
+  labelKey: MessageKey;
   // Shown before the label on the page's switch, so the chosen language reads at a glance.
   tag: string;
   // The nz-tag preset colour of the language's tag in the tables.
@@ -27,35 +28,35 @@ export interface LanguageSpec {
   // The course the form picks when it must replace one of the other language, null to leave the choice to the teacher.
   defaultCourse: CourseType | null;
   // The formatted mode, which asks for each word of the photos from its Vietnamese meaning.
-  formattedLabel: string;
-  formattedGuide: string;
+  formattedLabelKey: MessageKey;
+  formattedGuideKey: MessageKey;
 }
 
 export const LANGUAGES: readonly LanguageSpec[] = [
   {
     value: QuizLanguage.Chinese,
-    label: 'Tiếng Trung',
+    labelKey: 'ai.language.chinese',
     tag: '中',
     tagColor: 'red',
     courses: [
-      { value: CourseType.Hsk, label: 'HSK' },
-      { value: CourseType.Yct, label: 'YCT' }
+      { value: CourseType.Hsk, labelKey: 'ai.course.hsk' },
+      { value: CourseType.Yct, labelKey: 'ai.course.yct' }
     ],
     defaultCourse: null,
-    formattedLabel: 'Hỏi chữ Hán',
-    formattedGuide: 'Tiếng Việt + pinyin + chữ Hán'
+    formattedLabelKey: 'ai.language.chineseFormatted',
+    formattedGuideKey: 'ai.language.chineseFormattedGuide'
   },
   {
     value: QuizLanguage.English,
-    label: 'Tiếng Anh',
+    labelKey: 'ai.language.english',
     tag: 'EN',
     tagColor: 'blue',
     courses: [
-      { value: CourseType.VocabReview10, label: 'Ôn tập từ vựng lớp 10' }
+      { value: CourseType.VocabReview10, labelKey: 'ai.course.vocabReview10' }
     ],
     defaultCourse: CourseType.VocabReview10,
-    formattedLabel: 'Hỏi từ tiếng Anh',
-    formattedGuide: 'Tiếng Việt + từ tiếng Anh'
+    formattedLabelKey: 'ai.language.englishFormatted',
+    formattedGuideKey: 'ai.language.englishFormattedGuide'
   }
 ];
 
@@ -71,9 +72,9 @@ export function languageTagColor(language: QuizLanguage | null): string {
   return languageSpec(language).tagColor;
 }
 
-export function languageTagText(language: QuizLanguage | null): string {
+export function languageTagText(language: QuizLanguage | null, messages: Messages): string {
   const spec = languageSpec(language);
-  return `${spec.tag} ${spec.label}`;
+  return `${spec.tag} ${messages.get(spec.labelKey)}`;
 }
 
 // The saved or received language, Chinese for anything that is not one.

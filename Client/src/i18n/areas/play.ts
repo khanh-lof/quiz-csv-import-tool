@@ -11,6 +11,14 @@ export const play = {
     label: 'Màn %position%',
     questionCount: '%count% câu',
     passRule: 'Đúng ít nhất <b>%passMark%/%total%</b> câu để qua màn.',
+    name: {
+      trueFalse: 'Đúng hay sai',
+      headTilt: 'Nghiêng đầu',
+      frogBite: 'Ếch đớp chữ',
+      fruitSlice: 'Chém hoa quả',
+      fingerCount: 'Giơ ngón tay',
+      wordOrder: 'Xếp câu'
+    },
     hint: {
       trueFalse: 'Ngón cái lên = Đúng, xuống = Sai. Giữ để chọn.',
       headTilt: 'Nghiêng đầu về đáp án đúng và giữ yên.',
@@ -79,7 +87,12 @@ export const play = {
   },
   fruit: {
     dragMouse: 'Kéo chuột qua quả để chém',
-    pointFinger: 'Đưa ngón trỏ vào khung hình'
+    pointFinger: 'Đưa ngón trỏ vào khung hình',
+    colour: {
+      green: 'xanh lá',
+      red: 'đỏ',
+      yellow: 'vàng'
+    }
   },
   wordOrder: {
     undo: 'Hoàn tác'
@@ -113,7 +126,8 @@ export const play = {
   },
   intro: {
     timed: '%count% câu, %seconds% giây mỗi câu.',
-    untimed: '%count% câu, không giới hạn thời gian.'
+    untimed: '%count% câu, không giới hạn thời gian.',
+    start: 'Bắt đầu'
   },
   page: {
     preview: 'Xem thử: không lưu kết quả.',
@@ -123,9 +137,13 @@ export const play = {
     backToHistory: 'Về Lịch sử',
     backToLeaderboard: 'Về Bảng xếp hạng',
     backToManualQuiz: 'Về Quiz thủ công',
-    backToAssignments: 'Về Bài đã giao'
+    backToAssignments: 'Về Bài đã giao',
+    openAnother: 'Mở quiz khác',
+    next: 'Tiếp →'
   },
   load: {
+    openFile: 'Mở file quiz',
+    demo: 'Chơi thử quiz mẫu',
     noQuestions: 'Không có câu hỏi hợp lệ.',
     skippedRows: 'Bỏ qua %count% dòng không dùng được',
     fileUnreadable: 'Không đọc được file này.',
@@ -156,7 +174,33 @@ export const play = {
     label: 'Hình đại diện',
     change: 'Đổi hình đại diện',
     changeFailed: 'Chưa đổi được hình đại diện',
-    random: 'Ngẫu nhiên'
+    random: 'Ngẫu nhiên',
+    name: {
+      rat: 'Chuột',
+      ox: 'Bò',
+      tiger: 'Hổ',
+      rabbit: 'Thỏ',
+      cat: 'Mèo',
+      dragon: 'Rồng',
+      snake: 'Rắn',
+      horse: 'Ngựa',
+      goat: 'Dê',
+      monkey: 'Khỉ',
+      rooster: 'Gà',
+      dog: 'Chó',
+      pig: 'Heo',
+      panda: 'Gấu trúc',
+      fox: 'Cáo',
+      frog: 'Ếch',
+      koala: 'Gấu túi',
+      lion: 'Sư tử',
+      bear: 'Gấu',
+      penguin: 'Chim cánh cụt',
+      owl: 'Cú',
+      unicorn: 'Kỳ lân',
+      octopus: 'Bạch tuộc',
+      turtle: 'Rùa'
+    }
   },
   run: {
     ended: 'Lượt chơi đã kết thúc',
@@ -195,7 +239,9 @@ export const play = {
     saved: 'Đã lưu kết quả cho thầy cô ✓',
     noAttempts: 'Hết lượt chơi màn này.',
     review: 'Những câu cần xem lại',
-    timedOut: 'Hết giờ'
+    timedOut: 'Hết giờ',
+    nextStage: 'Màn tiếp theo',
+    retryStage: 'Chơi lại màn'
   },
   board: {
     topThree: 'Ba hạng đầu',
@@ -204,5 +250,26 @@ export const play = {
     you: 'Bạn',
     rank: 'Hạng %rank%',
     score: '%passed%/%stages% màn · %correct%/%possible% câu'
+  },
+  radicals: {
+    title: 'Ghép bộ thủ',
+    edit: 'Sửa',
+    download: 'Tải file',
+    word: 'Từ',
+    char: 'Chữ',
+    component: 'Bộ',
+    meaning: 'Nghĩa',
+    inWord: 'Trong từ',
+    inChar: 'Trong chữ',
+    name: 'Tên',
+    pinyin: 'Pinyin',
+    aiTag: 'AI',
+    pinyinOf: 'Pinyin của %text%',
+    meaningOf: 'Nghĩa của %text%',
+    meaningOfChar: 'Nghĩa của chữ %text%',
+    nameOfComponent: 'Tên bộ %text%',
+    pinyinOfComponent: 'Pinyin bộ %text%',
+    meaningOfComponent: 'Nghĩa bộ %text%',
+    frameTitle: 'Bài tập ghép bộ thủ'
   }
 };

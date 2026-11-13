@@ -216,24 +216,27 @@ describe('filterJobs by lesson', () => {
 });
 
 describe('lessonLabel', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [provideNzI18n(appLocale)] }));
+
+  const messages = (): Messages => TestBed.inject(Messages);
   it('names the course, level and lesson', () => {
     expect(lessonLabel(job({
       courseType: CourseType.Hsk,
       hskStandard: HskStandard.V3,
       level: 4,
       lessonNumbers: [5]
-    }))).toBe('HSK 3.0 · cấp 4 · bài 5');
+    }), messages())).toBe('HSK 3.0 · cấp 4 · bài 5');
     expect(lessonLabel(job({
       courseType: CourseType.Hsk,
       hskStandard: null,
       level: 1,
       lessonNumbers: [2]
-    }))).toBe('HSK 2.0 · cấp 1 · bài 2');
+    }), messages())).toBe('HSK 2.0 · cấp 1 · bài 2');
     expect(lessonLabel(job({
       courseType: CourseType.Yct,
       level: 2,
       lessonNumbers: [7]
-    }))).toBe('YCT · cấp 2 · bài 7');
+    }), messages())).toBe('YCT · cấp 2 · bài 7');
   });
 
   it('writes several lessons with a run shortened', () => {
@@ -242,12 +245,12 @@ describe('lessonLabel', () => {
       hskStandard: HskStandard.V3,
       level: 4,
       lessonNumbers: [3, 4, 5, 7]
-    }))).toBe('HSK 3.0 · cấp 4 · bài 3–5, 7');
+    }), messages())).toBe('HSK 3.0 · cấp 4 · bài 3–5, 7');
     expect(lessonLabel(job({
       courseType: CourseType.Yct,
       level: 2,
       lessonNumbers: [2, 3]
-    }))).toBe('YCT · cấp 2 · bài 2, 3');
+    }), messages())).toBe('YCT · cấp 2 · bài 2, 3');
   });
 
   it('leaves the lesson out when the job has none', () => {
@@ -256,13 +259,13 @@ describe('lessonLabel', () => {
       hskStandard: HskStandard.V3,
       level: 4,
       lessonNumbers: null
-    }))).toBe('HSK 3.0 · cấp 4');
+    }), messages())).toBe('HSK 3.0 · cấp 4');
     expect(lessonLabel(job({
       courseType: CourseType.Hsk,
       hskStandard: HskStandard.V3,
       level: 4,
       lessonNumbers: []
-    }))).toBe('HSK 3.0 · cấp 4');
+    }), messages())).toBe('HSK 3.0 · cấp 4');
   });
 
   it('uses the typed course name and skips a missing level', () => {
@@ -270,14 +273,14 @@ describe('lessonLabel', () => {
       courseType: CourseType.Other,
       courseName: 'Boya',
       lessonNumbers: [3]
-    }))).toBe('Boya · bài 3');
+    }), messages())).toBe('Boya · bài 3');
   });
 
   it('has a dash for a job without a lesson', () => {
     expect(lessonLabel(job({
       creative: false,
       exportType: null
-    }))).toBe('–');
+    }), messages())).toBe('–');
   });
 });
 

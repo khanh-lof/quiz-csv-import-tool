@@ -327,10 +327,12 @@ function stageKeys(stageCounts: Record<string, number>): string[] {
 
 // The header of a stage's column in the leaderboard: the stage's position among the assignment's stages and
 // the game played there, "Màn 2 (Xếp câu)". The stage number (the key) is only the game's identity.
-function stageHeader(keys: string[], key: string): string {
+function stageHeader(keys: string[], key: string, messages: Messages): string {
   const position = stagePosition(keys.map(Number), Number(key));
   const def = STAGES.find(stage => stage.stage === Number(key));
-  return def ? `Màn ${position} (${def.name})` : `Màn ${position}`;
+  return def
+    ? messages.get('assignments.stage.labelWithName', { position, name: messages.get(def.nameKey) })
+    : messages.get('assignments.stage.label', { position });
 }
 
 // A student's name is typed by the student and opened by the teacher in a spreadsheet, where a cell
@@ -379,9 +381,17 @@ export function assignmentErrorMessage(err: unknown, messages: Messages): string
 // The leaderboard as a CSV file, rows in the order given (the server's leaderboard order). It starts with a BOM
 // so Excel reads the UTF-8 (the Vietnamese headers and names) correctly, and uses CRLF line ends. It has no
 // avatar column: a picture means nothing in a spreadsheet.
-export function leaderboardCsv(detail: AssignmentDetail): string {
+export function leaderboardCsv(detail: AssignmentDetail, messages: Messages): string {
   const stages = stageKeys(detail.stageCounts);
-  const header = ['Hạng', 'Tên', 'Màn đã qua', 'Câu đúng', ...stages.map(stage => stageHeader(stages, stage)), 'Lần chơi', 'Cập nhật'];
+  const header = [
+    messages.get('assignments.csv.rank'),
+    messages.get('assignments.csv.name'),
+    messages.get('assignments.csv.stagesPassed'),
+    messages.get('assignments.csv.correct'),
+    ...stages.map(stage => stageHeader(stages, stage, messages)),
+    messages.get('assignments.csv.attempts'),
+    messages.get('assignments.csv.updated'),
+  ];
   const rows = detail.players.map((player): (string | number)[] => [
     player.rank ?? '',
     spreadsheetSafe(player.name),

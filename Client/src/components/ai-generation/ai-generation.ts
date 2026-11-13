@@ -13,7 +13,7 @@ import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AiCsvService } from '../../services/ai-csv.service';
 import { notifyAiRefusal } from '../../services/ai-refusal';
-import { MessagePipe, Messages } from '../../i18n/messages';
+import { MessageKey, MessagePipe, Messages } from '../../i18n/messages';
 import { httpFailure } from '../../models/http-failure';
 import { AiJobService, NEW_JOB_IDLE_POLLS } from '../../services/ai-job.service';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
@@ -38,7 +38,7 @@ import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
 import { ExportType } from '../../models/export-type';
 import { CourseType, courseHasLevels } from '../../models/course-type';
 import { HskStandard } from '../../models/hsk-standard';
-import { bookLevels, DEFAULT_LESSON_UNIT, Textbook, textbookFor } from '../../models/textbook';
+import { bookLevels, Textbook, textbookFor, textbookTitle } from '../../models/textbook';
 import {
   LANGUAGES,
   LanguageSpec,
@@ -98,19 +98,20 @@ interface AiGenerationForm {
 
 interface PlatformOption {
   value: ExportType;
-  label: string;
+  label?: string;
+  labelKey?: MessageKey;
   icon: string;
   logo?: string;
   // What the teacher gets from the job.
-  output: string;
+  outputKey: MessageKey;
 }
 
 const PLATFORMS: readonly PlatformOption[] = [
-  { value: ExportType.GimKit, label: 'Gimkit', icon: 'thunderbolt', logo: 'platforms/gimkit.png', output: 'File CSV' },
-  { value: ExportType.Blooket, label: 'Blooket', icon: 'appstore', logo: 'platforms/blooket.png', output: 'File CSV' },
-  { value: ExportType.Wayground, label: 'Wayground', icon: 'global', logo: 'platforms/wayground.png', output: 'File Excel' },
-  { value: ExportType.GestureQuiz, label: 'Game', icon: 'camera', output: 'Chơi bằng camera' },
-  { value: ExportType.Radicals, label: 'Ghép bộ thủ', icon: 'build', output: 'Trang bài tập' },
+  { value: ExportType.GimKit, label: 'Gimkit', icon: 'thunderbolt', logo: 'platforms/gimkit.png', outputKey: 'ai.platform.csvFile' },
+  { value: ExportType.Blooket, label: 'Blooket', icon: 'appstore', logo: 'platforms/blooket.png', outputKey: 'ai.platform.csvFile' },
+  { value: ExportType.Wayground, label: 'Wayground', icon: 'global', logo: 'platforms/wayground.png', outputKey: 'ai.platform.excelFile' },
+  { value: ExportType.GestureQuiz, labelKey: 'ai.platform.game', icon: 'camera', outputKey: 'ai.platform.camera' },
+  { value: ExportType.Radicals, labelKey: 'ai.platform.radicals', icon: 'build', outputKey: 'ai.platform.exercisePage' },
 ];
 
 type LanguageChoices =Pick<ReturnType<FormGroup<AiGenerationForm>['getRawValue']>, typeof LANGUAGE_CHOICES[number]>;
@@ -232,11 +233,11 @@ export class AiGeneration {
 
   protected get submitButtonLabel(): string {
     if (this.isGenerating()) {
-      return 'Đang gửi…';
+      return this.messages.get('ai.generation.sendingLabel');
     }
     return this.shownImages.length > 0
-      ? `Tạo câu hỏi (${this.shownImages.length} ảnh)`
-      : 'Tạo câu hỏi';
+      ? this.messages.get('ai.generation.submitWithImages', { count: this.shownImages.length })
+      : this.messages.get('ai.generation.submit');
   }
 
   protected isGestureStageChosen(stage: number): boolean {
@@ -246,7 +247,7 @@ export class AiGeneration {
   // "Màn N" as the quiz will number the game, by its place among the chosen ones; none for a game left out.
   protected gestureStageLabel(stage: number): string | null {
     const chosen = this.formGroup.controls.gestureStages.value ?? [];
-    return chosen.includes(stage) ? `Màn ${stagePosition(chosen, stage)}` : null;
+    return chosen.includes(stage) ? this.messages.get('ai.generation.stage', { number: stagePosition(chosen, stage) }) : null;
   }
 
   protected toggleGestureStage(stage: number): void {
@@ -286,7 +287,11 @@ export class AiGeneration {
       return null;
     }
     const book = this.textbook;
-    return book ? this.messages.get('ai.form.textbookHasBook', { title: book.title }) : this.messages.get('ai.form.photosFromBook');
+    return book ? this.messages.get('ai.form.textbookHasBook', { title: textbookTitle(book, this.messages) }) : this.messages.get('ai.form.photosFromBook');
+  }
+
+  protected bookTitle(book: Textbook): string {
+    return textbookTitle(book, this.messages);
   }
 
   // The photos shown and sent: none while they are shut, though those added are kept for the formatted mode.
@@ -301,7 +306,7 @@ export class AiGeneration {
 
   // "Bài", or what the book calls its lessons ("Topic").
   protected get lessonUnit(): string {
-    return this.textbook?.lessonUnit ?? DEFAULT_LESSON_UNIT;
+    return this.textbook?.lessonUnit ?? this.messages.get('ai.label.lesson');
   }
 
   protected lessonOptionLabel(lesson: number): string {
@@ -439,7 +444,7 @@ export class AiGeneration {
     }
     const isFormatted = this.formGroup.controls.AIMode.value === AIGenerationMode.Formatted;
     const submit$ = isFormatted
-      ? this.aiCsvService.submitFormatted(imageFiles, `Từ (${imageFiles.length} ảnh)`, this.language.value)
+      ? this.aiCsvService.submitFormatted(imageFiles, this.messages.get('ai.generation.imagesTitle', { count: imageFiles.length }), this.language.value)
       : this.aiCsvService.submitCreative(imageFiles, {
         language: this.language.value,
         courseType: this.formGroup.controls.courseType.value,

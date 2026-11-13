@@ -1,23 +1,23 @@
-<section aria-label="Lịch sử tạo bằng AI" class="qt-panel jobs">
+<section [attr.aria-label]="'ai.jobs.ariaLabel' | msg" class="qt-panel jobs">
 
   <div class="jobs-filters">
     <input (ngModelChange)="search.set($event ?? '')" [ngModel]="search()" [attr.aria-label]="'common.search' | msg" class="search-input"
            nz-input [placeholder]="'common.search' | msg" type="search"/>
     <nz-select (ngModelChange)="status.set($event ?? null)" [ngModel]="status()" class="filter-select" nzAllowClear
                [nzPlaceHolder]="'common.status' | msg">
-      <nz-option nzLabel="Đang chạy" nzValue="running"></nz-option>
-      <nz-option nzLabel="Xong" nzValue="done"></nz-option>
-      <nz-option nzLabel="Lỗi" nzValue="failed"></nz-option>
+      <nz-option [nzLabel]="'ai.jobs.running' | msg" nzValue="running"></nz-option>
+      <nz-option [nzLabel]="'ai.jobs.done' | msg" nzValue="done"></nz-option>
+      <nz-option [nzLabel]="'ai.jobs.failed' | msg" nzValue="failed"></nz-option>
     </nz-select>
     <nz-select (ngModelChange)="creative.set($event ?? null)" [ngModel]="creative()" class="filter-select" nzAllowClear
                [nzPlaceHolder]="'ai.label.mode' | msg">
-      <nz-option [nzValue]="true" nzLabel="AI tự nghĩ câu hỏi"></nz-option>
-      <nz-option [nzValue]="false" nzLabel="Hỏi từ"></nz-option>
+      <nz-option [nzValue]="true" [nzLabel]="'ai.generation.modeAuto' | msg"></nz-option>
+      <nz-option [nzValue]="false" [nzLabel]="'ai.jobs.modeFormatted' | msg"></nz-option>
     </nz-select>
     <nz-select (ngModelChange)="setLanguage($event ?? null)" [ngModel]="language()" class="filter-select" nzAllowClear
                [nzPlaceHolder]="'common.language' | msg">
       @for (option of languages; track option.value) {
-        <nz-option [nzValue]="option.value" [nzLabel]="languageTagText(option.value)"></nz-option>
+        <nz-option [nzValue]="option.value" [nzLabel]="languageTag(option.value)"></nz-option>
       }
     </nz-select>
     <nz-select (ngModelChange)="exportType.set($event ?? null)" [ngModel]="exportType()" class="filter-select" nzAllowClear
@@ -25,32 +25,32 @@
       <nz-option [nzValue]="ExportType.GimKit" nzLabel="Gimkit"></nz-option>
       <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
       <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
-      <nz-option [nzValue]="ExportType.GestureQuiz" nzLabel="Game"></nz-option>
-      <nz-option [nzValue]="ExportType.Radicals" nzLabel="Ghép bộ thủ"></nz-option>
+      <nz-option [nzValue]="ExportType.GestureQuiz" [nzLabel]="'ai.platform.game' | msg"></nz-option>
+      <nz-option [nzValue]="ExportType.Radicals" [nzLabel]="'ai.platform.radicals' | msg"></nz-option>
     </nz-select>
     <nz-select (ngModelChange)="setCourseType($event ?? null)" [ngModel]="courseType()" class="filter-select" nzAllowClear [nzDropdownMatchSelectWidth]="false"
                [nzPlaceHolder]="'ai.label.course' | msg">
       @for (course of courseOptions(); track course.value) {
-        <nz-option [nzValue]="course.value" [nzLabel]="course.label"></nz-option>
+        <nz-option [nzValue]="course.value" [nzLabel]="course.labelKey | msg"></nz-option>
       }
-      <nz-option [nzValue]="CourseType.Other" nzLabel="Khác"></nz-option>
+      <nz-option [nzValue]="CourseType.Other" [nzLabel]="'ai.course.other' | msg"></nz-option>
     </nz-select>
     @if (courseType() === CourseType.Hsk) {
       <nz-select (ngModelChange)="hskStandard.set($event ?? null)" [ngModel]="hskStandard()" class="filter-select" nzAllowClear
-                 nzPlaceHolder="Chuẩn HSK">
+                 [nzPlaceHolder]="'ai.generation.hskStandard' | msg">
         <nz-option [nzValue]="HskStandard.V2" nzLabel="HSK 2.0"></nz-option>
         <nz-option [nzValue]="HskStandard.V3" nzLabel="HSK 3.0"></nz-option>
       </nz-select>
     }
     <nz-input-number (ngModelChange)="level.set($event ?? null)" [ngModel]="level()" [nzMax]="maxLevel" [nzMin]="1" [nzPrecision]="0"
-                     [nzStep]="1" aria-label="Lọc theo cấp" class="filter-number" [nzPlaceHolder]="'ai.label.level' | msg"/>
+                     [nzStep]="1" [attr.aria-label]="'ai.jobs.filterLevel' | msg" class="filter-number" [nzPlaceHolder]="'ai.label.level' | msg"/>
     <nz-input-number (ngModelChange)="lessonNumber.set($event ?? null)" [ngModel]="lessonNumber()" [nzMax]="100" [nzMin]="1" [nzPrecision]="0"
-                     [nzStep]="1" aria-label="Lọc theo bài" class="filter-number"
+                     [nzStep]="1" [attr.aria-label]="'ai.jobs.filterLesson' | msg" class="filter-number"
                      [nzPlaceHolder]="'ai.label.lesson' | msg"/>
     @if (isFiltering()) {
       <button (click)="clearFilters()" nz-button nzType="default" type="button">
         <nz-icon nzTheme="outline" nzType="close"/>
-        Bỏ lọc
+        {{ 'ai.action.clearFilters' | msg }}
       </button>
     }
   </div>
@@ -60,12 +60,12 @@
             nzSize="small">
     <thead>
     <tr>
-      <th>Tiêu đề</th>
+      <th>{{ 'ai.jobs.columnTitle' | msg }}</th>
       <th nzWidth="130px">{{ 'common.language' | msg }}</th>
       <th nzWidth="110px">{{ 'ai.label.mode' | msg }}</th>
-      <th nzWidth="190px">Bài học</th>
+      <th nzWidth="190px">{{ 'ai.jobs.columnLesson' | msg }}</th>
       <th nzWidth="115px">{{ 'ai.label.platform' | msg }}</th>
-      <th nzWidth="115px">Lúc gửi</th>
+      <th nzWidth="115px">{{ 'ai.jobs.columnSent' | msg }}</th>
       <th nzWidth="150px">{{ 'common.status' | msg }}</th>
       <th nzRight nzWidth="48px"></th>
     </tr>
@@ -88,7 +88,7 @@
                 </nz-tag>
               }
               @case ('done') {
-                <nz-tag nzColor="success">{{ statusLabel(job) }} · {{ rowCount(job) }} dòng</nz-tag>
+                <nz-tag nzColor="success">{{ statusLabel(job) }} · {{ 'ai.jobs.rowCount' | msg: { count: rowCount(job) } }}</nz-tag>
               }
               @default {
                 <nz-tag nzColor="error">{{ statusLabel(job) }}</nz-tag>
@@ -98,8 +98,8 @@
           <td class="job-actions" nzRight>
             <!-- A running job has nothing to do yet, so it gets no menu. -->
             @if (job.status !== 'running') {
-              <button [nzDropdownMenu]="jobMenu" aria-label="Thao tác" nz-button nz-dropdown nzPlacement="bottomRight" nzSize="small"
-                      nzTrigger="click" nzType="text" title="Thao tác" type="button">
+              <button [nzDropdownMenu]="jobMenu" [attr.aria-label]="'ai.action.menu' | msg" nz-button nz-dropdown nzPlacement="bottomRight" nzSize="small"
+                      nzTrigger="click" nzType="text" [title]="'ai.action.menu' | msg" type="button">
                 <nz-icon nzTheme="twotone" nzTwotoneColor="#ff8ecb" nzType="control"/>
               </button>
               <nz-dropdown-menu #jobMenu="nzDropdownMenu">
@@ -108,36 +108,36 @@
                   @if (!(job.status === 'done' && job.exportType === ExportType.Radicals)) {
                     <li (click)="view(job)" nz-menu-item>
                       <nz-icon nzTheme="outline" nzType="eye"/>
-                      Xem kết quả
+                      {{ 'ai.action.viewResult' | msg }}
                     </li>
                   }
                   @if (job.status === 'done') {
                     @if (job.creative && job.exportType === ExportType.Radicals) {
                       <li (click)="openRadicals(job)" nz-menu-item>
                         <nz-icon nzTheme="outline" nzType="play-circle"/>
-                        Chơi ngay
+                        {{ 'ai.action.playNow' | msg }}
                       </li>
                       <li (click)="downloadRadicals(job)" nz-menu-item>
                         <nz-icon nzTheme="outline" nzType="download"/>
-                        Tải file
+                        {{ 'ai.action.downloadFile' | msg }}
                       </li>
                     } @else if (job.creative) {
                       @if (job.exportType === ExportType.GestureQuiz) {
                         <!-- Played on QuizTool itself, so playing comes first and the file only keeps the quiz. -->
                         <li (click)="play(job)" nz-menu-item>
                           <nz-icon nzTheme="outline" nzType="play-circle"/>
-                          Chơi ngay
+                          {{ 'ai.action.playNow' | msg }}
                         </li>
                         <!-- Gives the quiz to students: a link they open to play under their own name, and a leaderboard
                              for the teacher. -->
                         <li (click)="assign(job)" nz-menu-item>
                           <nz-icon nzTheme="outline" nzType="send"/>
-                          Giao bài
+                          {{ 'ai.action.assign' | msg }}
                         </li>
                       }
                       <li (click)="exportJob(job, false)" nz-menu-item>
                         <nz-icon nzTheme="outline" nzType="download"/>
-                        Tải file
+                        {{ 'ai.action.downloadFile' | msg }}
                       </li>
                       @if (job.exportType === ExportType.Wayground || job.exportType === ExportType.GimKit) {
                         <!-- The extension imports and publishes the quiz in the user's Wayground or Gimkit tab; without it the
@@ -147,13 +147,13 @@
                             [nzTooltipTitle]="extensionInstalled ? '' : ('common.extensionMissing' | msg)"
                             nz-menu-item>
                           <nz-icon nzTheme="outline" nzType="cloud-upload"/>
-                          Tiện ích tự publish
+                          {{ 'ai.action.autoPublish' | msg }}
                         </li>
                       }
                     } @else {
                       <li (click)="openInTable(job)" nz-menu-item>
                         <nz-icon nzTheme="outline" nzType="table"/>
-                        Mở trong bảng
+                        {{ 'ai.action.openInTable' | msg }}
                       </li>
                     }
                   } @else if (job.status === 'failed') {
@@ -161,16 +161,16 @@
                          deadline. -->
                     <li (click)="retry(job)" [nzDisabled]="!canRetry(job)" [title]="retryBlockedReason(job)" nz-menu-item>
                       <nz-icon nzTheme="outline" nzType="reload"/>
-                      Tạo lại
+                      {{ 'ai.action.retry' | msg }}
                       @if (job.retryUntil && canRetry(job)) {
-                        (đến {{ job.retryUntil | date:'dd/MM' }})
+                        {{ 'ai.action.retryUntil' | msg: { date: (job.retryUntil | date:'dd/MM') ?? '' } }}
                       }
                     </li>
                   }
                   <li nz-menu-divider></li>
                   <li (click)="confirmRemove(job)" nz-menu-item nzDanger>
                     <nz-icon nzTheme="outline" nzType="delete"/>
-                    Xóa
+                    {{ 'ai.action.remove' | msg }}
                   </li>
                 </ul>
               </nz-dropdown-menu>

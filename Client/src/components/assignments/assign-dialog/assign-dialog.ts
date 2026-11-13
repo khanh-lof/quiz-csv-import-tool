@@ -160,7 +160,7 @@ export class AssignDialog {
         stage: def.stage,
         position: stagePosition(quiz.stages.keys(), def.stage),
         icon: def.icon,
-        name: def.name,
+        name: this.messages.get(def.nameKey),
         count,
         value,
         percent,

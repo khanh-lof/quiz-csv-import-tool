@@ -1,3 +1,4 @@
+import { MessageKey, Messages } from '../i18n/messages';
 import { CourseType } from './course-type';
 import { HskStandard } from './hsk-standard';
 
@@ -12,13 +13,16 @@ export interface Textbook {
   level?: number;
   // The book's lesson count: the server refuses a lesson number above it.
   lessons: number;
-  title: string;
+  title?: string;
+  titleKey?: MessageKey;
   // What the book calls its lessons, "Bài" when absent, and their names, shown after the number in the lesson select.
   lessonUnit?: string;
   lessonNames?: readonly string[];
 }
 
-export const DEFAULT_LESSON_UNIT = 'Bài';
+export function textbookTitle(book: Textbook, messages: Messages): string {
+  return book.titleKey ? messages.get(book.titleKey) : book.title ?? '';
+}
 
 export const TEXTBOOKS: readonly Textbook[] = [
   {
@@ -78,7 +82,7 @@ export const TEXTBOOKS: readonly Textbook[] = [
   {
     courseType: CourseType.VocabReview10,
     lessons: 8,
-    title: 'Ôn tập từ vựng lớp 10',
+    titleKey: 'ai.course.vocabReview10',
     lessonUnit: 'Topic',
     lessonNames: ['The Environment', 'The Family', 'Culture', 'Employment', 'Education', 'Technology', 'Social Issues',
       'Entertainment']

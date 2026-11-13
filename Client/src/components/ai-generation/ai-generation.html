@@ -8,33 +8,31 @@
       <nz-radio-group [formControl]="formGroup.controls.language" [attr.aria-label]="'common.language' | msg" class="language-switch"
                       nzButtonStyle="solid" nzSize="large">
         @for (option of languages; track option.value) {
-          <label [nzValue]="option.value" nz-radio-button><span class="language-tag">{{ option.tag }}</span>{{ option.label }}</label>
+          <label [nzValue]="option.value" nz-radio-button><span class="language-tag">{{ option.tag }}</span>{{ option.labelKey | msg }}</label>
         }
       </nz-radio-group>
       <nz-radio-group [formControl]="formGroup.controls.AIMode" [attr.aria-label]="'ai.label.mode' | msg" nzButtonStyle="solid"
                       nzSize="large">
-        <label [nzValue]="AIGenerationMode.Auto" nz-radio-button>AI tự nghĩ câu hỏi</label>
-        <label [nzValue]="AIGenerationMode.Formatted" nz-radio-button>{{ language.formattedLabel }}</label>
+        <label [nzValue]="AIGenerationMode.Auto" nz-radio-button>{{ 'ai.generation.modeAuto' | msg }}</label>
+        <label [nzValue]="AIGenerationMode.Formatted" nz-radio-button>{{ language.formattedLabelKey | msg }}</label>
       </nz-radio-group>
     </div>
     <kt-quiz-usage-guide>
       <ol>
-        <li>Chọn khoá học, bài (tối đa 5 bài một quiz) và nền tảng rồi gửi.</li>
-        <li>Kết quả ở <b>AI › Lịch sử</b>.</li>
-        <li>Ở đó: <b>Tải file</b> để nhập vào Gimkit, Blooket, Wayground; Game thì <b>Chơi ngay</b> hoặc
-          <b>Giao bài</b>.
-        </li>
+        <li>{{ 'ai.generation.guideSteps' | msg }}</li>
+        <li [innerHTML]="'ai.generation.guideResult' | msg"></li>
+        <li [innerHTML]="'ai.generation.guideThere' | msg"></li>
       </ol>
-      <p><b>Ảnh</b>: chỉ dùng ở <b>{{ language.formattedLabel }}</b> (ít nhất 1 ảnh). <b>AI tự nghĩ câu hỏi</b> lấy bài từ
-        sách.</p>
-      <p><b>Giao bài</b>: gửi link cho học sinh, xem bảng xếp hạng ở <b>Bài đã giao</b>.</p>
+      <p [innerHTML]="'ai.generation.guidePhotos' | msg: { mode: (language.formattedLabelKey | msg) }"></p>
+      <p [innerHTML]="'ai.generation.guideAssign' | msg"></p>
       @if (offers(ExportType.Radicals)) {
-        <p><b>Ghép bộ thủ</b>: <b>Sửa</b> để chỉnh pinyin, nghĩa do AI viết.</p>
+        <p [innerHTML]="'ai.generation.guideRadicals' | msg"></p>
       }
-      <p><b>Lỗi</b>: <b>Tạo lại</b> ở AI › Lịch sử.</p>
-      <p><b>Tiện ích Wayground, Gimkit</b> (tự nhập và publish): <a (click)="downloadExtension($event)" href="/api/extension">tải
-        về</a>, <a href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
-                   target="_blank">cách cài</a>.</p>
+      <p [innerHTML]="'ai.generation.guideFailed' | msg"></p>
+      <p><b>{{ 'ai.generation.guideExtensionTitle' | msg }}</b> {{ 'ai.generation.guideExtensionLead' | msg }} <a (click)="downloadExtension($event)"
+                                                                                       href="/api/extension">{{ 'app.table.guideDownload' | msg }}</a>, <a
+        href="https://github.com/khanh-lof/quiz-csv-import-tool/blob/main/Extension/README.md" rel="noopener"
+        target="_blank">{{ 'app.table.guideInstall' | msg }}</a>.</p>
     </kt-quiz-usage-guide>
   </div>
   <nz-content>
@@ -47,7 +45,7 @@
            options open. -->
       <section aria-labelledby="lessonHeading" class="qt-panel form-section">
         <div [class.with-fields]="isAutoMode" class="lesson-body">
-          <h2 class="section-title" id="lessonHeading">Bài học</h2>
+          <h2 class="section-title" id="lessonHeading">{{ 'ai.generation.lessonHeading' | msg }}</h2>
           @if (isAutoMode) {
             <!-- Each .field stacks its label, its control and its error message. -->
             <div class="fields">
@@ -57,12 +55,12 @@
                   <nz-select [formControl]="formGroup.controls.courseType" class="course-type-select"
                              [nzDropdownMatchSelectWidth]="false" nzId="courseType" [nzPlaceHolder]="'ai.form.pickCourse' | msg">
                     @for (course of language.courses; track course.value) {
-                      <nz-option [nzValue]="course.value" [nzLabel]="course.label"></nz-option>
+                      <nz-option [nzValue]="course.value" [nzLabel]="course.labelKey | msg"></nz-option>
                     }
                   </nz-select>
                   @if (formGroup.controls.courseType.value === CourseType.Hsk) {
                     <!-- HSK 2.0 has 6 levels and the original Giáo trình chuẩn HSK; HSK 3.0 has 9 and its own books. -->
-                    <nz-radio-group [formControl]="formGroup.controls.hskStandard" aria-label="Chuẩn HSK"
+                    <nz-radio-group [formControl]="formGroup.controls.hskStandard" [attr.aria-label]="'ai.generation.hskStandard' | msg"
                                     nzButtonStyle="solid">
                       <label [nzValue]="HskStandard.V2" nz-radio-button>2.0</label>
                       <label [nzValue]="HskStandard.V3" nz-radio-button>3.0</label>
@@ -98,7 +96,7 @@
                   *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('common.required' | msg), $implicit: formGroup.controls.lessonNumbers}"/>
                 @if (textbook; as book) {
                   <ng-container
-                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: ('ai.form.lessonMax' | msg: { title: book.title, unit: lessonUnit.toLowerCase(), max: book.lessons }), $implicit: formGroup.controls.lessonNumbers}"/>
+                    *ngTemplateOutlet="errorMessage; context : { errorKey: 'max', message: ('ai.form.lessonMax' | msg: { title: bookTitle(book), unit: lessonUnit.toLowerCase(), max: book.lessons }), $implicit: formGroup.controls.lessonNumbers}"/>
                 }
               </div>
             </div>
@@ -110,7 +108,7 @@
                 <button (click)="clearAllImages()" class="clear-images" nz-button nzSize="small" nzType="text"
                         type="button">
                   <nz-icon nzTheme="outline" nzType="delete"/>
-                  Xóa tất cả
+                  {{ 'ai.action.clearAll' | msg }}
                 </button>
               </div>
             }
@@ -120,7 +118,7 @@
                  (dragover)="onDropZoneDragOver($event)"
                  (drop)="onDrop($event)"
                  [attr.aria-disabled]="photosDisabled || null"
-                 [attr.aria-label]="photosDisabledReason ? 'Ảnh: ' + photosDisabledReason : 'Ảnh'"
+                 [attr.aria-label]="photosDisabledReason ? ('ai.generation.photosShut' | msg: { reason: photosDisabledReason }) : ('ai.generation.photos' | msg)"
                  [class.disabled]="photosDisabled"
                  [class.drag-over]="isDragOver"
                  [nzTooltipTitle]="photosDisabledReason"
@@ -132,14 +130,14 @@
                   @for (image of shownImages; let i = $index; track i) {
                     <div class="image-item">
                       @if (!isGenerating()) {
-                        <button (click)="removeImage(i)" aria-label="Xóa ảnh" class="remove-btn" nz-button nzDanger
+                        <button (click)="removeImage(i)" [attr.aria-label]="'ai.generation.removeImage' | msg" class="remove-btn" nz-button nzDanger
                                 nzShape="circle" nzSize="small" nzType="primary"
                                 type="button">
                           <nz-icon nzTheme="outline" nzType="close"/>
                         </button>
                       }
                       <div class="image-preview">
-                        <img [src]="image.preview" alt="Ảnh xem trước" class="preview-img"/>
+                        <img [src]="image.preview" [alt]="'ai.generation.previewAlt' | msg" class="preview-img"/>
                       </div>
                       <div class="image-info">
                         <p class="image-name">{{ image.file.name }}</p>
@@ -148,7 +146,7 @@
                     </div>
                   }
                   @if (!isGenerating()) {
-                    <button (click)="imageInput.click()" aria-label="Thêm ảnh" class="add-image-tile" type="button">
+                    <button (click)="imageInput.click()" [attr.aria-label]="'ai.generation.addImage' | msg" class="add-image-tile" type="button">
                       <nz-icon nzTheme="outline" nzType="plus"/>
                     </button>
                   }
@@ -172,7 +170,7 @@
 
       @if (isAutoMode) {
         <section aria-labelledby="platformHeading" class="qt-panel form-section">
-          <h2 class="section-title" id="platformHeading">Tạo cho</h2>
+          <h2 class="section-title" id="platformHeading">{{ 'ai.generation.platformHeading' | msg }}</h2>
           <!-- Native radios under the tiles: arrow keys, focus and the form control work as in any radio group. -->
           <div aria-labelledby="platformHeading" class="platforms" role="radiogroup">
             @for (platform of platforms; track platform.value) {
@@ -184,8 +182,8 @@
                 } @else {
                   <span class="platform-icon"><nz-icon [nzType]="platform.icon" nzTheme="outline"/></span>
                 }
-                <span class="platform-name">{{ platform.label }}</span>
-                <span class="platform-output">{{ platform.output }}</span>
+                <span class="platform-name">{{ platform.labelKey ? (platform.labelKey | msg) : platform.label }}</span>
+                <span class="platform-output">{{ platform.outputKey | msg }}</span>
               </label>
             }
           </div>
@@ -197,11 +195,11 @@
                  question count shares the games' label line, and the six cards one row on a laptop's screen. -->
             <div class="gesture-options">
               <div class="gesture-head">
-                <span class="field-label" id="gestureStagesLabel">Trò chơi</span>
+                <span class="field-label" id="gestureStagesLabel">{{ 'ai.generation.games' | msg }}</span>
                 <ng-container
                   *ngTemplateOutlet="errorMessage; context : { errorKey: 'required', message: ('ai.form.pickGame' | msg), $implicit: formGroup.controls.gestureStages}"/>
                 <div class="questions-per-stage">
-                  <label class="field-label" for="questionsPerStage">Số câu mỗi màn</label>
+                  <label class="field-label" for="questionsPerStage">{{ 'ai.generation.questionsPerStage' | msg }}</label>
                   <nz-input-number [formControl]="formGroup.controls.questionsPerStage" [nzMax]="questionsPerStageMax"
                                    [nzMin]="questionsPerStageMin" [nzPrecision]="0" [nzStep]="1"
                                    nzId="questionsPerStage" nzSize="small"></nz-input-number>
@@ -214,7 +212,7 @@
                   <button (click)="toggleGestureStage(def.stage)" [attr.aria-pressed]="isGestureStageChosen(def.stage)"
                           [def]="def" [label]="gestureStageLabel(def.stage)" ktQuizGestureStageCard compact>
                     @if (isGestureStageChosen(def.stage)) {
-                      <nz-tag cardTag nzColor="success">Đã chọn ✓</nz-tag>
+                      <nz-tag cardTag nzColor="success">{{ 'ai.generation.stageChosen' | msg }}</nz-tag>
                     }
                   </button>
                 }
@@ -246,7 +244,7 @@
   </nz-content>
 </nz-layout>
 @if (isGenerating()) {
-  <div aria-label="Đang gửi" aria-live="polite" class="generating-overlay" role="status">
+  <div [attr.aria-label]="'ai.generation.sending' | msg" aria-live="polite" class="generating-overlay" role="status">
     <nz-spin nzSimple nzSize="large"/>
   </div>
 }
