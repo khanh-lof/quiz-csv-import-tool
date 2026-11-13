@@ -72,7 +72,7 @@ type Server struct {
 	// heartbeatEvery is how often a running job's heartbeat is recorded; zero means jobHeartbeatInterval.
 	// Tests shrink it.
 	heartbeatEvery time.Duration
-	// bankJobDelay is how long a quiz from the question bank stays running; zero means bankJobDelay. Tests shrink it.
+	// bankJobDelay is the least time a quiz from the question bank stays running; zero means bankJobDelay. Tests shrink it.
 	bankJobDelay time.Duration
 
 	// imageCleanupAt is when this process last deleted the images kept too long, and wokeAt when it last woke

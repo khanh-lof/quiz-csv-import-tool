@@ -35,7 +35,7 @@ const (
 	// of the AI server has no deadline, yet is listed by the main server.
 	jobHeartbeatInterval = 30 * time.Second
 	abandonedAfter       = 3 * time.Minute
-	// bankJobDelay is how long a quiz built from the question bank stays running before it is done.
+	// bankJobDelay is the least time a quiz built from the question bank stays running, processing included, before it is done.
 	bankJobDelay = 5 * time.Second
 )
 
@@ -295,10 +295,11 @@ func (s *Server) bankPlan(ctx context.Context, username string, opts csvgen.Opti
 }
 
 // startBankJob writes the quiz of a complete bank plan, counting no AI call, stores it as a running job and answers
-// 202 with its id like startJob, then marks it done after bankJobDelay: the client announces a job only when it
+// 202 with its id like startJob, then marks it done once bankJobDelay has passed since the start, processing included: the client announces a job only when it
 // sees it go from running to done, which a job stored as done at once never does. It returns false, having
 // answered nothing, when the quiz cannot be written; the request then goes its usual way.
 func (s *Server) startBankJob(w http.ResponseWriter, r *http.Request, username string, job *store.Job, build *bank.Build, replaces string) bool {
+	started := time.Now()
 	result, err := s.Bank.Finish(r.Context(), build, len(build.Plan.Picks))
 	if err != nil {
 		s.Logger.Warn("writing a quiz from the question bank failed", "user", username, "error", err)
@@ -317,7 +318,9 @@ func (s *Server) startBankJob(w http.ResponseWriter, r *http.Request, username s
 	if delay <= 0 {
 		delay = bankJobDelay
 	}
-	time.Sleep(delay)
+	if remaining := delay - time.Since(started); remaining > 0 {
+		time.Sleep(remaining)
+	}
 	s.recordJob(context.WithoutCancel(r.Context()), func(ctx context.Context) error {
 		return s.Jobs.Complete(ctx, username, job.ID, store.JobResult{
 			CSV: result.CSV, BankQuestions: result.BankQuestions, FromBank: result.FromBank,
