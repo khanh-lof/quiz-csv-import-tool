@@ -89,6 +89,13 @@ type responsesTool struct {
 	Type string `json:"type"`
 }
 
+// VisualShare is the least share of a Wayground quiz that must be visual questions. The bank's plan reserves it
+// and every prompt that states it takes it from here.
+const (
+	VisualShare   = 0.2
+	VisualPercent = int(VisualShare * 100)
+)
+
 const (
 	maxOutputTokens = 32000
 	// maxOutputTokensLarge is for requests whose answer or reasoning is longer than the usual budget
@@ -207,7 +214,7 @@ func exportTypeMessages(opts Options) []string {
 			columns,
 			`Question type will be "Multiple Choice" or "Fill-in-the-Blank". The option 2-5 must be empty for "Fill-in-the-Blank", the option 1 is the correct answer`,
 			normalizePrompt(waygroundTemplate),
-			"Image Link: fill it only for questions that cannot be answered without the image, and make at least a fifth of the rows such visual questions, following the IMAGE USAGE section. Plan the images before writing the questions.",
+			fmt.Sprintf("Image Link: fill it only for questions that cannot be answered without the image, and make at least %d%% of the rows such visual questions, following the IMAGE USAGE section. Plan the images before writing the questions.", VisualPercent),
 		}
 	case GestureQuiz:
 		// The stage rules carry the whole format, including how many rows to write, so unlike

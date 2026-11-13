@@ -45,7 +45,6 @@ const (
 	sizePerWord  = 1.25
 	easyShare    = 0.4
 	mediumShare  = 0.4
-	visualShare  = 0.2
 	maxPlanSpecs = 80
 )
 
@@ -252,7 +251,7 @@ func layout(req Request) []*bucket {
 	for level := Easy; level <= Hard; level++ {
 		quota := quotas[level-1]
 		if req.Platform == csvgen.Wayground {
-			visual := int(math.Ceil(float64(quota) * visualShare))
+			visual := int(math.Ceil(float64(quota) * csvgen.VisualShare))
 			buckets = append(buckets, &bucket{difficulty: level, visual: true, capacity: visual})
 			quota -= visual
 		}

@@ -146,5 +146,6 @@ func creativeSystemData(spec languageSpec, timeLimit time.Duration) map[string]a
 		"ALangCapital":     strings.ToUpper(spec.article[:1]) + spec.article[1:] + " " + spec.name,
 		"Forms":            spec.forms,
 		"TimeLimitSeconds": int(timeLimit / time.Second),
+		"VisualPercent":    VisualPercent,
 	}
 }
