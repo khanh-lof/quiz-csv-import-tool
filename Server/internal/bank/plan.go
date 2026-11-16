@@ -96,14 +96,26 @@ type Plan struct {
 	Size int
 	// stages are the Game stages asked for.
 	stages []int
+	// visualPercent is the least share of the picks that must be visual questions, zero when the platform shows
+	// no image.
+	visualPercent int
 }
 
 // Complete says whether the bank holds the whole quiz.
 func (p Plan) Complete() bool { return len(p.Gaps) == 0 }
 
 // Playable says whether the picks make a quiz worth giving although gaps are left: every Game stage has a question,
-// and on the other platforms at least half the questions are there.
+// and on the other platforms at least half the questions are there, on Wayground with its share of visual ones.
 func (p Plan) Playable() bool {
+	visual := 0
+	for _, pick := range p.Picks {
+		if pick.Question.Skill == SkillVisual {
+			visual++
+		}
+	}
+	if 100*visual < p.visualPercent*len(p.Picks) {
+		return false
+	}
 	if len(p.stages) > 0 {
 		for _, stage := range p.stages {
 			if !slices.ContainsFunc(p.Picks, func(pick Pick) bool { return pick.Stage == stage }) {
@@ -228,6 +240,9 @@ func PlanQuiz(req Request, pool []store.Question, seed uint64) Plan {
 	gaps = append(gaps, p.fill()...)
 
 	plan := Plan{Gaps: gaps, Uncovered: uncovered, stages: req.Stages}
+	if req.Platform == csvgen.Wayground {
+		plan.visualPercent = csvgen.VisualPercent
+	}
 	for _, b := range p.buckets {
 		for _, i := range b.picked {
 			plan.Picks = append(plan.Picks, Pick{Question: pool[i], Stage: b.stage})

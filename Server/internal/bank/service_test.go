@@ -243,3 +243,52 @@ func TestGeneratorLeavesOtherJobsToTheModel(t *testing.T) {
 		})
 	}
 }
+
+func TestGeneratorKeepsTheVisualShareOfAWaygroundQuiz(t *testing.T) {
+	opts := hskOptions(csvgen.Wayground, 8)
+	level := 2
+	opts.HskStandard, opts.Level = csvgen.Hsk2, &level
+	vocabulary, _ := csvgen.LessonVocabulary(opts)
+	textOnlyBank := func() store.QuestionBank {
+		bank := store.NewMemoryQuestionBank()
+		var questions []store.Question
+		for i := range vocabulary.Words {
+			for difficulty, skill := range map[int]string{Easy: SkillMeaning, Medium: SkillFillBlank, Hard: SkillTranslation} {
+				q := mc(fmt.Sprintf("t%d-%d", i, difficulty), vocabulary, i, difficulty, skill)
+				q.Language = int(csvgen.Chinese)
+				questions = append(questions, q)
+			}
+		}
+		if _, err := bank.Insert(context.Background(), questions); err != nil {
+			t.Fatal(err)
+		}
+		return bank
+	}
+	imageRows := func(csv string) int {
+		images := 0
+		for _, row := range readRows(t, csv) {
+			if row[len(row)-2] != "" {
+				images++
+			}
+		}
+		return images
+	}
+
+	// The bank has no visual question: the model writes them.
+	result, err := (&Generator{Next: &fakeNext{}, Service: newTestService(textOnlyBank(), &fakeWriter{})}).
+		Generate(context.Background(), nil, true, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if size, images := len(result.BankQuestions), imageRows(result.CSV); 100*images < csvgen.VisualPercent*size {
+		t.Errorf("%d image questions of %d", images, size)
+	}
+
+	// The model's visual questions all come without a usable image: no quiz rather than one without images.
+	writer := &fakeWriter{spoil: func(d *csvgen.QuestionDraft) { d.ImageURL = "" }}
+	result, err = (&Generator{Next: &fakeNext{}, Service: newTestService(textOnlyBank(), writer)}).
+		Generate(context.Background(), nil, true, opts)
+	if csvgen.FailureCode(err) != csvgen.FailureBadOutput {
+		t.Errorf("got %v and a quiz with %d image questions", err, imageRows(result.CSV))
+	}
+}
