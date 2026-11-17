@@ -261,18 +261,33 @@ func layout(req Request) []*bucket {
 		}
 		return buckets
 	}
-	quotas := levelQuotas(QuizSize(len(req.Vocabulary.Words)))
+	size := QuizSize(len(req.Vocabulary.Words))
+	quotas := levelQuotas(size)
+	var visual [3]int
+	if req.Platform == csvgen.Wayground {
+		visual = visualQuotas(size, quotas)
+	}
 	var buckets []*bucket
 	for level := Easy; level <= Hard; level++ {
 		quota := quotas[level-1]
-		if req.Platform == csvgen.Wayground {
-			visual := int(math.Ceil(float64(quota) * csvgen.VisualShare))
-			buckets = append(buckets, &bucket{difficulty: level, visual: true, capacity: visual})
-			quota -= visual
+		if visual[level-1] > 0 {
+			buckets = append(buckets, &bucket{difficulty: level, visual: true, capacity: visual[level-1]})
+			quota -= visual[level-1]
 		}
 		buckets = append(buckets, &bucket{difficulty: level, capacity: quota, elastic: true})
 	}
 	return buckets
+}
+
+// visualQuotas places the visual share of a Wayground quiz of size questions, rounded up, at the easy and medium
+// levels, the easy one taking the odd one out: the bank writes no hard visual question (see makeVisual), so a hard
+// visual place would always be a gap.
+func visualQuotas(size int, quotas [3]int) [3]int {
+	total := (size*csvgen.VisualPercent + 99) / 100
+	easy := min((total+1)/2, quotas[Easy-1])
+	medium := min(total-easy, quotas[Medium-1])
+	easy = min(total-medium, quotas[Easy-1])
+	return [3]int{easy, medium, 0}
 }
 
 // capacity is how many questions the parts hold together, and whether any can grow.

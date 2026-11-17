@@ -206,7 +206,7 @@ func TestPlanGameStageFit(t *testing.T) {
 	}
 }
 
-func TestPlanWaygroundWantsAFifthVisual(t *testing.T) {
+func TestPlanWaygroundReservesTheVisualShare(t *testing.T) {
 	v := testVocabulary(8, 1)
 	plan := PlanQuiz(request(csvgen.Wayground, v), fullPool(v), 2)
 	visual := 0
@@ -218,10 +218,16 @@ func TestPlanWaygroundWantsAFifthVisual(t *testing.T) {
 			}
 		}
 	}
-	// 4/4/2 questions, at least a fifth of each level visual, rounded up: 1+1+1. Covering the eight words takes
-	// eight picks, so the quiz is those plus the three visual gaps.
-	if visual != 3 || len(plan.Picks) != 8 || plan.Size != 11 {
-		t.Fatalf("%d visual gaps, %d picks, size %d", visual, len(plan.Picks), plan.Size)
+	// 10 questions, csvgen.VisualShare of them visual, rounded up, all easy or medium; the bank has no visual
+	// question, so each is a gap.
+	want := (10*csvgen.VisualPercent + 99) / 100
+	if visual != want || plan.Size != 10 || len(plan.Picks)+visual != plan.Size {
+		t.Fatalf("%d visual gaps (want %d), %d picks, size %d", visual, want, len(plan.Picks), plan.Size)
+	}
+	for _, g := range plan.Gaps {
+		if g.Visual && g.Difficulty == Hard {
+			t.Errorf("hard visual gap %+v", g)
+		}
 	}
 
 	// With visual questions in the bank, it is complete.
@@ -240,7 +246,7 @@ func TestPlanWaygroundWantsAFifthVisual(t *testing.T) {
 			visual++
 		}
 	}
-	if !plan.Complete() || visual < 3 {
+	if !plan.Complete() || visual < want {
 		t.Errorf("complete %v with %d visual questions", plan.Complete(), visual)
 	}
 }
