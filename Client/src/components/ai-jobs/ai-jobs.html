@@ -209,7 +209,11 @@
                   <tr>
                     <td>{{ i + 1 }}</td>
                     @for (header of result.headers; track $index; let c = $index) {
-                      <td class="result-cell">{{ row[c] }}</td>
+                      @if (job.exportType === ExportType.Wayground && header === 'Image Link' && row[c]) {
+                        <td class="result-cell"><img class="preview-img" [ngSrc]="row[c]" [alt]="row[c]" fill /></td>
+                      } @else {
+                        <td class="result-cell">{{ row[c] }}</td>
+                      }
                     }
                   </tr>
                 }

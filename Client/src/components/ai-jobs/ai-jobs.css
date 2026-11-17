@@ -19,6 +19,12 @@
   min-width: 200px;
 }
 
+.preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .filter-select {
   width: max-content;
   min-width: 170px;

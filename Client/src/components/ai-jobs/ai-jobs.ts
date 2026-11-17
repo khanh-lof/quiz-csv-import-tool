@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { HttpStatusCode } from '@angular/common/http';
@@ -83,6 +83,7 @@ interface ResultTable {
     AssignDialog,
     NzTooltipDirective,
     MessagePipe,
+    NgOptimizedImage,
   ],
   templateUrl: './ai-jobs.html',
   changeDetection: ChangeDetectionStrategy.Eager,
