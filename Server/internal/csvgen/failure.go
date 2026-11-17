@@ -28,15 +28,28 @@ type incompleteError struct{ reason string }
 
 func (e *incompleteError) Error() string { return "LLM response is incomplete: " + e.reason }
 
-// badOutputError is an answer that could not be read as what was asked for.
-type badOutputError struct{ err error }
+// badOutputError is an answer that could not be read as what was asked for, with the answer when it is known.
+type badOutputError struct {
+	err    error
+	answer string
+}
 
 func (e *badOutputError) Error() string { return e.err.Error() }
 func (e *badOutputError) Unwrap() error { return e.err }
 
 // BadOutput marks err as an answer that could not be made into what was asked for, the FailureBadOutput of a
-// generation, for the packages that build quizzes from the model's answers (package bank).
-func BadOutput(err error) error { return &badOutputError{err} }
+// generation, for the packages that build quizzes from the model's answers (package bank). answer is that answer,
+// kept for the log (see ModelAnswer).
+func BadOutput(err error, answer string) error { return &badOutputError{err: err, answer: answer} }
+
+// ModelAnswer is the model's answer a bad-output error carries, empty when there is none.
+func ModelAnswer(err error) string {
+	var badOutput *badOutputError
+	if errors.As(err, &badOutput) {
+		return badOutput.answer
+	}
+	return ""
+}
 
 // FailureCode returns the Failure* code for an error from Generate. A deadline is the caller's to recognise.
 func FailureCode(err error) string {

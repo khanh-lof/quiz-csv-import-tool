@@ -332,6 +332,22 @@ func (s *Server) startBankJob(w http.ResponseWriter, r *http.Request, username s
 // runJob generates the CSV and records the outcome on the job. ctx is detached from
 // the request: the client has usually gone away by now (that is the point), and its disconnecting must not cancel
 // the model call.
+// maxLoggedAnswer is the most of a model's answer a log entry keeps, in bytes, well under the 256 KiB a Cloud
+// Logging entry may hold.
+const maxLoggedAnswer = 128 << 10
+
+// clipAnswer is answer cut to maxLoggedAnswer bytes, at a character boundary.
+func clipAnswer(answer string) string {
+	if len(answer) <= maxLoggedAnswer {
+		return answer
+	}
+	cut := maxLoggedAnswer
+	for cut > 0 && !utf8.RuneStart(answer[cut]) {
+		cut--
+	}
+	return answer[:cut] + "…"
+}
+
 func (s *Server) runJob(ctx context.Context, job *store.Job, images []csvgen.Image, opts csvgen.Options) {
 	// The questions the model writes for the question bank name the job.
 	ctx = bank.WithJob(ctx, job.ID)
@@ -360,7 +376,11 @@ func (s *Server) runJob(ctx context.Context, job *store.Job, images []csvgen.Ima
 		return
 	}
 	failure := generationFailure(generation, err)
-	s.Logger.Warn("CSV generation failed", append(logAttrs, "code", failure.Code, "error", err)...)
+	logAttrs = append(logAttrs, "code", failure.Code, "error", err)
+	if answer := csvgen.ModelAnswer(err); answer != "" {
+		logAttrs = append(logAttrs, "answer", clipAnswer(answer))
+	}
+	s.Logger.Warn("CSV generation failed", logAttrs...)
 	s.recordJob(ctx, func(ctx context.Context) error {
 		return s.Jobs.Fail(ctx, job.Username, job.ID, failure, usage)
 	}, job)

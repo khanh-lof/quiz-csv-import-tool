@@ -114,7 +114,7 @@ func streamCompletion(body io.Reader, seen func(bool)) (string, tokenUsage, erro
 			} `json:"error"`
 		}
 		if err := json.Unmarshal(data, &chunk); err != nil {
-			return &badOutputError{fmt.Errorf("decoding LLM stream: %w", err)}
+			return &badOutputError{fmt.Errorf("decoding LLM stream: %w", err), string(data)}
 		}
 		if chunk.Error != nil {
 			return &interruptedError{"stream error: " + chunk.Error.Message}
@@ -157,7 +157,7 @@ func streamResponse(body io.Reader, seen func(bool)) (string, tokenUsage, error)
 			Message  string          `json:"message"`
 		}
 		if err := json.Unmarshal(data, &event); err != nil {
-			return &badOutputError{fmt.Errorf("decoding LLM stream: %w", err)}
+			return &badOutputError{fmt.Errorf("decoding LLM stream: %w", err), string(data)}
 		}
 		switch event.Type {
 		case "keep_alive":

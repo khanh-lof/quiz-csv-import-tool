@@ -13,6 +13,18 @@ import (
 	"time"
 )
 
+func TestModelAnswer(t *testing.T) {
+	if got := ModelAnswer(fmt.Errorf("job: %w", BadOutput(errors.New("not JSON"), "rows"))); got != "rows" {
+		t.Errorf("ModelAnswer = %q", got)
+	}
+	if got := ModelAnswer(&incompleteError{"length"}); got != "" {
+		t.Errorf("ModelAnswer of a truncated answer = %q", got)
+	}
+	if err := decodeJSONAnswer("no json here", &struct{}{}); ModelAnswer(err) != "no json here" {
+		t.Errorf("ModelAnswer of %v = %q", err, ModelAnswer(err))
+	}
+}
+
 func TestFailureCode(t *testing.T) {
 	cases := []struct {
 		err  error
@@ -21,7 +33,7 @@ func TestFailureCode(t *testing.T) {
 		{&incompleteError{"length"}, FailureTruncated},
 		{&incompleteError{"max_output_tokens"}, FailureTruncated},
 		{&incompleteError{"content_filter"}, FailureFiltered},
-		{&badOutputError{errors.New("not JSON")}, FailureBadOutput},
+		{&badOutputError{errors.New("not JSON"), "{"}, FailureBadOutput},
 		{&StatusError{Status: http.StatusPaymentRequired}, FailureProviderConfig},
 		{&StatusError{Status: http.StatusUnauthorized}, FailureProviderConfig},
 		{&StatusError{Status: http.StatusServiceUnavailable}, FailureOverloaded},

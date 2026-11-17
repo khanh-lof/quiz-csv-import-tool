@@ -251,7 +251,7 @@ func (c *Client) checkedCSV(ctx context.Context, content string, creative bool, 
 		return fixed, nil
 	}
 	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) < minRepairBudget {
-		return "", &badOutputError{problem}
+		return "", &badOutputError{problem, content}
 	}
 	c.logger.Warn("asking the LLM to re-quote its CSV", "model", usage.Model, "problem", problem.Error())
 	repaired, err := c.repairCSV(ctx, content, shape, problem, creative, usage)
@@ -259,7 +259,7 @@ func (c *Client) checkedCSV(ctx context.Context, content string, creative bool, 
 		return "", err
 	}
 	if fixed, problem = normalizeCSV(ExtractCSVContent(repaired), shape); problem != nil {
-		return "", &badOutputError{fmt.Errorf("after the repair call: %w", problem)}
+		return "", &badOutputError{fmt.Errorf("after the repair call: %w", problem), repaired}
 	}
 	return fixed, nil
 }

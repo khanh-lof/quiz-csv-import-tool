@@ -251,6 +251,62 @@ func TestPlanWaygroundReservesTheVisualShare(t *testing.T) {
 	}
 }
 
+func TestPlanWaygroundCountsEveryVisualQuestion(t *testing.T) {
+	v := testVocabulary(8, 1)
+	visual := func(id string, word, level int) store.Question {
+		q := mc(id, v, word, level, SkillVisual)
+		q.ImageURL = "https://images.pexels.com/photos/1/pexels-photo-1.jpeg"
+		return q
+	}
+	countVisual := func(picks []Pick) int {
+		n := 0
+		for _, p := range picks {
+			if p.Question.Skill == SkillVisual {
+				n++
+			}
+		}
+		return n
+	}
+
+	// An easy, a medium and a hard visual question for four places: the hard one takes a medium place, and the one
+	// left to write tests a word a visual question shows but not yet at its level.
+	pool := append(fullPool(v), visual("ve", 0, Easy), visual("vm", 1, Medium), visual("vh", 2, Hard))
+	plan := PlanQuiz(request(csvgen.Wayground, v), pool, 4)
+	if countVisual(plan.Picks) != 3 || len(plan.Gaps) != 1 || plan.Size != 20 {
+		t.Fatalf("%d visual picks, gaps %+v, size %d", countVisual(plan.Picks), plan.Gaps, plan.Size)
+	}
+	if g := plan.Gaps[0]; !g.Visual || g.Difficulty != Easy || (g.Word != v.Words[1].Key() && g.Word != v.Words[2].Key()) {
+		t.Errorf("gap %+v", g)
+	}
+	if got := levels(plan.Picks); got != [3]int{7, 8, 4} {
+		t.Errorf("levels %v, want 7/8/4 and the easy gap", got)
+	}
+
+	// Four easy visual questions and no medium one: the medium places go to the easy level, and the bank holds it all.
+	pool = fullPool(v)
+	for i := range 4 {
+		pool = append(pool, visual(fmt.Sprintf("ve%d", i), i, Easy))
+	}
+	plan = PlanQuiz(request(csvgen.Wayground, v), pool, 4)
+	if !plan.Complete() || countVisual(plan.Picks) != 4 || levels(plan.Picks) != [3]int{8, 8, 4} {
+		t.Errorf("complete %v, %d visual picks, levels %v", plan.Complete(), countVisual(plan.Picks), levels(plan.Picks))
+	}
+}
+
+func TestRoomForPrefersATextPlace(t *testing.T) {
+	p := &planner{buckets: []*bucket{
+		{difficulty: Easy, visual: true, capacity: 2},
+		{difficulty: Easy, capacity: 1, elastic: true},
+	}}
+	if b := p.roomFor(false); b == nil || b.visual {
+		t.Errorf("roomFor = %+v, want the text part", b)
+	}
+	p.buckets[1].gaps = 1
+	if b := p.roomFor(false); b == nil || !b.visual {
+		t.Errorf("roomFor = %+v, want the visual part once the text part is full", b)
+	}
+}
+
 func TestPlanPrefersTheLeastServed(t *testing.T) {
 	v := testVocabulary(8, 1)
 	pool := fullPool(v)

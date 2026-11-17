@@ -203,8 +203,9 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   `errorStatus` 504 ("AI generation timed out."), other LLM failures with 502. The job also gets an
   `errorCode`, the reason the client words its message by: `timeout`, `nothing_to_play` (handler), `interrupted`
   (`store.ExpiredJobCode`), or `csvgen.FailureCode`'s `truncated`, `filtered`, `provider_config`, `overloaded`,
-  `bad_output`, `failed`. These codes are a contract with `Client/src/models/ai-job.ts`: never rename one. Either
-  failure refunds the rate-limit slot (`RefundAICall`) so the user can resubmit without losing quota. See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
+  `bad_output`, `failed`. These codes are a contract with `Client/src/models/ai-job.ts`: never rename one. A
+  `bad_output` failure logs the model's answer with it (`csvgen.ModelAnswer`, at most 128 KiB; for a bank quiz the
+  questions it wrote). Either failure refunds the rate-limit slot (`RefundAICall`) so the user can resubmit without losing quota. See [../AGENTS.md](../AGENTS.md#the-two-ai-generation-modes) for the client half.
 - **Assignments** (`assignment_handlers.go`, the teacher's side of "Giao bài"): `POST assignments`,
   `GET assignments`, `GET`/`PATCH`/`DELETE assignments/{id}` and `DELETE assignments/{id}/players/{playerId}`,
   wrapped like the csv routes (`csvRoute`, i.e. `authenticate` + `requireRole`). Every lookup is scoped to the
@@ -494,8 +495,10 @@ GimKit, Blooket, Wayground or the Game whose course has an embedded textbook and
   format, options, difficulty and skills of its game (`stageSpecs`); the other platforms `QuizSize` places (a
   quarter more than the words, 20 to 40, one per word beyond 40; a lesson of under 5 words gets 4 per word, never
   under 10), 40/40/20% easy/medium/hard, Wayground the
-  `csvgen.VisualShare` of its places visual (rounded up), at easy and medium only (the bank writes no hard visual
-  question). It first covers every word (the rarest first; a level may give places to another for that), then
+  `csvgen.VisualShare` of its places visual (rounded up), at easy and medium (the bank writes no hard visual
+  question); a level with fewer visual questions than visual places gives them to a level with more, hard included
+  (`placeVisual`), so every visual question of the bank counts. A visual gap tests a word a visual question already
+  shows, when the bank has one, and a word with no question at all gets a text place first. It first covers every word (the rarest first; a level may give places to another for that), then
   fills the places, preferring the least tested words, other skills and less-served questions, with a little
   randomness per quiz. What it cannot fill is a list of gaps (`csvgen.QuestionSpec`: one word, a format, a level,
   skills).
@@ -504,7 +507,8 @@ GimKit, Blooket, Wayground or the Game whose course has an embedded textbook and
   the gaps, plus one more question for each word the bank had none on (at most 80 in all); `web_search` only when a
   gap is visual. It answers JSON, one question per line (the progress counts them). `bank.Validate` drops a
   question that breaks a rule (logged), the rest are stored (`Insert` skips known fingerprints), the quiz is planned
-  again and written. Short of half its questions, or of a question in a Game stage, the job fails as `bad_output`.
+  again and written. Short of half its questions, of a question in a Game stage, or on Wayground of its visual
+  share, the job fails as `bad_output`.
 - **The shared guidance** of `creative_system.txt` (LESSON SOURCE to VOCABULARY COVERAGE) is the `quiz-guidance`
   block of `prompts/quiz_guidance.txt`, which both system prompts include; the creative prompt renders as before.
 - **Writing the quiz** (`bank.Render`): exactly `creativeColumns`, checked by `csvgen.CheckRows`, so the client,

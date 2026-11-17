@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	mathrand "math/rand/v2"
@@ -60,7 +61,7 @@ func (s *Service) Prepare(ctx context.Context, opts csvgen.Options) (build *Buil
 func (s *Service) Finish(ctx context.Context, b *Build, fromBank int) (csvgen.Result, error) {
 	csv, err := Render(b.Request, b.Plan.Picks, b.seed)
 	if err != nil {
-		return csvgen.Result{}, csvgen.BadOutput(err)
+		return csvgen.Result{}, csvgen.BadOutput(err, "")
 	}
 	ids := b.Plan.IDs()
 	// Only the rotation suffers when this fails.
@@ -115,8 +116,17 @@ func (s *Service) Fill(ctx context.Context, b *Build, jobID string) (csvgen.Resu
 	}
 	b.pool, b.Plan = pool, PlanQuiz(b.Request, pool, b.seed)
 	if !b.Plan.Complete() && !b.Plan.Playable() {
-		return csvgen.Result{Usage: usage}, csvgen.BadOutput(fmt.Errorf("the bank and the model's answer make %d of the quiz's %d questions",
-			len(b.Plan.Picks), b.Plan.Size))
+		visual := 0
+		for _, pick := range b.Plan.Picks {
+			if pick.Question.Skill == SkillVisual {
+				visual++
+			}
+		}
+		answer, _ := json.Marshal(struct {
+			Questions []csvgen.QuestionDraft `json:"questions"`
+		}{drafts})
+		return csvgen.Result{Usage: usage}, csvgen.BadOutput(fmt.Errorf("the bank and the model's answer make %d of the quiz's %d questions, %d of them visual",
+			len(b.Plan.Picks), b.Plan.Size, visual), string(answer))
 	}
 	fromBank := 0
 	for _, id := range b.Plan.IDs() {

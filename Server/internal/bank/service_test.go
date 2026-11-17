@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"quiz-csv-import-tool/server/internal/csvgen"
@@ -204,7 +205,7 @@ func TestGeneratorFailures(t *testing.T) {
 
 	// The model's failure is the job's, with nothing stored.
 	bank := store.NewMemoryQuestionBank()
-	writer := &fakeWriter{err: csvgen.BadOutput(errors.New("not JSON"))}
+	writer := &fakeWriter{err: csvgen.BadOutput(errors.New("not JSON"), "")}
 	_, err := (&Generator{Next: &fakeNext{}, Service: newTestService(bank, writer)}).Generate(context.Background(), nil, true, opts)
 	if csvgen.FailureCode(err) != csvgen.FailureBadOutput || bank.Len() != 0 {
 		t.Errorf("got %v, %d stored", err, bank.Len())
@@ -290,5 +291,8 @@ func TestGeneratorKeepsTheVisualShareOfAWaygroundQuiz(t *testing.T) {
 		Generate(context.Background(), nil, true, opts)
 	if csvgen.FailureCode(err) != csvgen.FailureBadOutput {
 		t.Errorf("got %v and a quiz with %d image questions", err, imageRows(result.CSV))
+	}
+	if answer := csvgen.ModelAnswer(err); !strings.HasPrefix(answer, `{"questions":[{`) {
+		t.Errorf("the failure carries the answer %q", answer)
 	}
 }

@@ -465,8 +465,8 @@ func buildRadicalsDetailsRequest(model string, needs radicals.Needs) responsesRe
 var fencedJSON = regexp.MustCompile("(?i)```(?:json)?\\s*([\\s\\S]*?)```")
 
 // decodeJSONAnswer reads the JSON object a model answered with, past a markdown fence or prose around it.
-func decodeJSONAnswer(text string, v any) error {
-	text = strings.TrimSpace(text)
+func decodeJSONAnswer(answer string, v any) error {
+	text := strings.TrimSpace(answer)
 	if m := fencedJSON.FindStringSubmatch(text); m != nil {
 		text = strings.TrimSpace(m[1])
 	}
@@ -474,7 +474,7 @@ func decodeJSONAnswer(text string, v any) error {
 		text = text[start : end+1]
 	}
 	if err := json.Unmarshal([]byte(text), v); err != nil {
-		return &badOutputError{errors.Join(errors.New("the model's answer is not the JSON asked for"), err)}
+		return &badOutputError{errors.Join(errors.New("the model's answer is not the JSON asked for"), err), answer}
 	}
 	return nil
 }

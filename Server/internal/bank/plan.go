@@ -174,6 +174,10 @@ type planner struct {
 	// sources is how many candidates test each word: a word few questions test is covered first, while they
 	// still have a place.
 	sources map[string]int
+	// picturable are the words a visual candidate tests, and visualCount how many visual questions test each word
+	// at each level, candidates and visual gaps together.
+	picturable  map[string]bool
+	visualCount map[string][3]int
 }
 
 // PlanQuiz picks the questions of a quiz from the pool, the bank's questions for the book (see store.QuestionBank's
@@ -186,7 +190,7 @@ func PlanQuiz(req Request, pool []store.Question, seed uint64) Plan {
 	p := &planner{
 		req: req, pool: pool, rng: rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15)),
 		inV: map[string]bool{}, covered: map[string]int{}, planned: map[string]int{}, used: map[int]bool{},
-		skillCount: map[string]int{}, sources: map[string]int{},
+		skillCount: map[string]int{}, sources: map[string]int{}, picturable: map[string]bool{}, visualCount: map[string][3]int{},
 	}
 	for _, w := range req.Vocabulary.Words {
 		p.inV[w.Key()] = true
@@ -213,10 +217,17 @@ func PlanQuiz(req Request, pool []store.Question, seed uint64) Plan {
 		p.candidates = append(p.candidates, i)
 		for _, t := range q.Targets {
 			p.sources[t]++
+			if q.Skill == SkillVisual && p.inV[t] {
+				p.picturable[t] = true
+				count := p.visualCount[t]
+				count[q.Difficulty-1]++
+				p.visualCount[t] = count
+			}
 		}
 	}
 	// Equal scores then come out in a different order for each seed.
 	p.rng.Shuffle(len(p.candidates), func(i, j int) { p.candidates[i], p.candidates[j] = p.candidates[j], p.candidates[i] })
+	p.placeVisual()
 
 	p.rebalance(p.cover())
 	// Every word should be tested; a Game, as long as the teacher chose, can only test as many as it has places.
@@ -274,7 +285,7 @@ func layout(req Request) []*bucket {
 	var buckets []*bucket
 	for level := Easy; level <= Hard; level++ {
 		quota := quotas[level-1]
-		if visual[level-1] > 0 {
+		if req.Platform == csvgen.Wayground {
 			buckets = append(buckets, &bucket{difficulty: level, visual: true, capacity: visual[level-1]})
 			quota -= visual[level-1]
 		}
@@ -285,13 +296,48 @@ func layout(req Request) []*bucket {
 
 // visualQuotas places the visual share of a Wayground quiz of size questions, rounded up, at the easy and medium
 // levels, the easy one taking the odd one out: the bank writes no hard visual question (see makeVisual), so a hard
-// visual place would always be a gap.
+// visual place is only given to a hard visual question the bank already holds (see placeVisual).
 func visualQuotas(size int, quotas [3]int) [3]int {
 	total := (size*csvgen.VisualPercent + 99) / 100
 	easy := min((total+1)/2, quotas[Easy-1])
 	medium := min(total-easy, quotas[Medium-1])
 	easy = min(total-medium, quotas[Easy-1])
 	return [3]int{easy, medium, 0}
+}
+
+// placeVisual moves the visual places of a level with fewer visual candidates than places to a level with more,
+// easy first and hard last, so that every visual question of the bank counts toward the visual share. Each level
+// keeps its size: its text part gives or takes the place.
+func (p *planner) placeVisual() {
+	var visual, text [3]*bucket
+	for _, b := range p.buckets {
+		if b.stage > 0 {
+			return
+		}
+		if b.visual {
+			visual[b.difficulty-1] = b
+		} else {
+			text[b.difficulty-1] = b
+		}
+	}
+	if visual[0] == nil {
+		return
+	}
+	spare := func(level int) int {
+		return min(visual[level].candidates, visual[level].capacity+text[level].capacity) - visual[level].capacity
+	}
+	for _, from := range []int{Medium - 1, Easy - 1} {
+		for visual[from].capacity > visual[from].candidates {
+			to := slices.IndexFunc([]int{Easy - 1, Medium - 1, Hard - 1}, func(level int) bool { return level != from && spare(level) > 0 })
+			if to < 0 {
+				break
+			}
+			visual[from].capacity--
+			text[from].capacity++
+			visual[to].capacity++
+			text[to].capacity--
+		}
+	}
 }
 
 // capacity is how many questions the parts hold together, and whether any can grow.
@@ -393,7 +439,7 @@ func (p *planner) fill() []csvgen.QuestionSpec {
 			p.pick(best, b)
 		}
 		for b.room() > 0 && len(p.req.Vocabulary.Words) > 0 {
-			gaps = append(gaps, p.reserve(b, p.leastPlanned()))
+			gaps = append(gaps, p.reserve(b, p.gapWord(b)))
 		}
 	}
 	return gaps
@@ -422,12 +468,13 @@ func (p *planner) placeFor(q *store.Question, overflow bool) *bucket {
 	return nil
 }
 
-// roomFor is the part with the most room, for a gap; when none has room and overflow is allowed, the elastic one
+// roomFor is the part with the most room, for a gap on a word the bank has no question on, a text part before a
+// visual one: nothing shows the word can be pictured. When none has room and overflow is allowed, the elastic one
 // that is the least full grows by one place. Nil when there is no place (a Game is as long as the teacher chose).
 func (p *planner) roomFor(overflow bool) *bucket {
 	var best *bucket
 	for _, b := range p.buckets {
-		if b.room() > 0 && (best == nil || b.room() > best.room() || (b.room() == best.room() && b.visual && !best.visual)) {
+		if b.room() > 0 && (best == nil || (best.visual && !b.visual) || (b.visual == best.visual && b.room() > best.room())) {
 			best = b
 		}
 	}
@@ -458,6 +505,9 @@ func (p *planner) reserve(b *bucket, word string) csvgen.QuestionSpec {
 		return csvgen.QuestionSpec{Word: word, Format: spec.format, Skills: spec.skills, Difficulty: b.difficulty, Options: spec.options}
 	}
 	if b.visual {
+		count := p.visualCount[word]
+		count[b.difficulty-1]++
+		p.visualCount[word] = count
 		return csvgen.QuestionSpec{Word: word, Format: FormatMC, Skills: []string{SkillVisual}, Difficulty: b.difficulty, Options: 4, Visual: true}
 	}
 	spec := csvgen.QuestionSpec{Word: word, Format: FormatMC, Skills: skillsFor[b.difficulty], Difficulty: b.difficulty, Options: 4}
@@ -466,6 +516,27 @@ func (p *planner) reserve(b *bucket, word string) csvgen.QuestionSpec {
 		spec.Format = ""
 	}
 	return spec
+}
+
+// gapWord is the word a gap in the part tests: the one the quiz tests the least, but for a visual place, when the
+// bank shows some words in visual questions, the one of them with the fewest visual questions at that level, then
+// the one the quiz tests the least: the model often fails to picture a word nothing shows can be pictured.
+func (p *planner) gapWord(b *bucket) string {
+	if !b.visual || len(p.picturable) == 0 {
+		return p.leastPlanned()
+	}
+	level, best := b.difficulty-1, ""
+	for _, w := range p.req.Vocabulary.Words {
+		key := w.Key()
+		if !p.picturable[key] {
+			continue
+		}
+		if best == "" || p.visualCount[key][level] < p.visualCount[best][level] ||
+			(p.visualCount[key][level] == p.visualCount[best][level] && p.planned[key] < p.planned[best]) {
+			best = key
+		}
+	}
+	return best
 }
 
 // leastPlanned is the word the quiz tests the least, picked and still to write together, the first in the book.

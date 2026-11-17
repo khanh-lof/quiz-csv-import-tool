@@ -109,7 +109,7 @@ func ParseBankAnswer(text string, ids map[string]string) (drafts []QuestionDraft
 		drafts = append(drafts, draft)
 	}
 	if len(drafts) == 0 {
-		return nil, dropped, &badOutputError{errors.New("the model's answer has no question for a word of the list")}
+		return nil, dropped, &badOutputError{errors.New("the model's answer has no question for a word of the list"), text}
 	}
 	return drafts, dropped, nil
 }

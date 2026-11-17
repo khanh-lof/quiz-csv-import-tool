@@ -306,11 +306,11 @@ func parseCompletion(respBody []byte) (string, tokenUsage, error) {
 		} `json:"choices"`
 	}
 	if err := json.Unmarshal(respBody, &completion); err != nil {
-		return "", tokenUsage{}, &badOutputError{fmt.Errorf("decoding LLM response: %w", err)}
+		return "", tokenUsage{}, &badOutputError{fmt.Errorf("decoding LLM response: %w", err), string(respBody)}
 	}
 	tokens := completion.Usage
 	if len(completion.Choices) == 0 {
-		return "", tokens, &badOutputError{errors.New("LLM response has no choices")}
+		return "", tokens, &badOutputError{errors.New("LLM response has no choices"), string(respBody)}
 	}
 	choice := completion.Choices[0]
 	content := ""
@@ -358,7 +358,7 @@ func parseResponse(respBody []byte) (string, tokenUsage, error) {
 		} `json:"output"`
 	}
 	if err := json.Unmarshal(respBody, &response); err != nil {
-		return "", tokenUsage{}, &badOutputError{fmt.Errorf("decoding LLM response: %w", err)}
+		return "", tokenUsage{}, &badOutputError{fmt.Errorf("decoding LLM response: %w", err), string(respBody)}
 	}
 	tokens := response.Usage
 	if response.Status == "failed" {
