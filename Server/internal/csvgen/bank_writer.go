@@ -172,7 +172,7 @@ func buildBankRequest(model string, timeLimit time.Duration, opts Options, vocab
 	}
 	if prompt.Visual {
 		// Web search lets the model find real photos for the visual questions, as for a Wayground quiz.
-		req.Tools = []responsesTool{{Type: "web_search"}}
+		req.Tools = webSearchTools(model)
 	}
 	return req, prompt.IDs, nil
 }

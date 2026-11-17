@@ -89,6 +89,17 @@ type responsesTool struct {
 	Type string `json:"type"`
 }
 
+// webSearchTools is the web search a /responses call asks for. DeepSeek's deepseek-flash ignores the OpenAI-style
+// web_search tool and has its own server tools; every other model, deepseek-v4-pro included, takes web_search.
+// The two kinds cannot be sent together.
+func webSearchTools(model string) []responsesTool {
+	name := strings.ToLower(model)
+	if strings.Contains(name, "deepseek") && strings.Contains(name, "flash") {
+		return []responsesTool{{Type: "deepseek_web_search"}, {Type: "deepseek_read_url"}}
+	}
+	return []responsesTool{{Type: "web_search"}}
+}
+
 // VisualShare is the least share of a Wayground quiz that must be visual questions. The bank's plan reserves it
 // and every prompt that states it takes it from here.
 const (
@@ -163,7 +174,7 @@ func buildCreativeRequest(model string, timeLimit time.Duration, images []Image,
 	}
 	// Only Wayground has an image column; web search lets the model find real Pexels photos for it.
 	if opts.ExportType == Wayground {
-		req.Tools = []responsesTool{{Type: "web_search"}}
+		req.Tools = webSearchTools(model)
 		req.MaxOutputTokens = maxOutputTokensLarge
 	}
 	if opts.ExportType == GestureQuiz && len(opts.GestureQuizStages())*opts.GestureQuizQuestions() > gestureRowsInBaseBudget {

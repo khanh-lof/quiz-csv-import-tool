@@ -517,6 +517,24 @@ func TestGenerateCallsChatCompletions(t *testing.T) {
 	}
 }
 
+func TestWebSearchTools(t *testing.T) {
+	for model, want := range map[string][]string{
+		"deepseek-flash":      {"deepseek_web_search", "deepseek_read_url"},
+		"DeepSeek-V4-Flash":   {"deepseek_web_search", "deepseek_read_url"},
+		"deepseek-v4-pro":     {"web_search"},
+		"gpt-5.6-sol":         {"web_search"},
+		"some-flash-not-deep": {"web_search"},
+	} {
+		var got []string
+		for _, tool := range webSearchTools(model) {
+			got = append(got, tool.Type)
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("%s: tools %v, want %v", model, got, want)
+		}
+	}
+}
+
 func TestGenerateCreativeCallsResponses(t *testing.T) {
 	var got map[string]any
 	reply := `{"status":"completed","output":[{"type":"reasoning"},{"type":"web_search_call","status":"completed"},` +
