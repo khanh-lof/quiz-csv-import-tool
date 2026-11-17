@@ -10,7 +10,7 @@ import (
 )
 
 func TestQuizSizeAndLevels(t *testing.T) {
-	for words, want := range map[int]int{1: 10, 8: 10, 20: 25, 32: 40, 35: 40, 60: 60} {
+	for words, want := range map[int]int{1: 10, 2: 10, 3: 12, 4: 16, 5: 20, 8: 20, 16: 20, 17: 22, 20: 25, 32: 40, 35: 40, 60: 60} {
 		if got := QuizSize(words); got != want {
 			t.Errorf("QuizSize(%d) = %d, want %d", words, got, want)
 		}
@@ -56,31 +56,31 @@ func TestPlanFromAFullBank(t *testing.T) {
 	v := testVocabulary(8, 2)
 	for seed := range uint64(5) {
 		plan := PlanQuiz(request(csvgen.GimKit, v), fullPool(v), seed)
-		if !plan.Complete() || len(plan.Picks) != 10 || plan.Size != 10 || len(plan.Uncovered) != 0 {
+		if !plan.Complete() || len(plan.Picks) != 20 || plan.Size != 20 || len(plan.Uncovered) != 0 {
 			t.Fatalf("seed %d: %d picks, %d gaps, uncovered %v", seed, len(plan.Picks), len(plan.Gaps), plan.Uncovered)
 		}
-		if got := levels(plan.Picks); got != [3]int{4, 4, 2} {
-			t.Errorf("seed %d: levels %v, want 4/4/2", seed, got)
+		if got := levels(plan.Picks); got != [3]int{8, 8, 4} {
+			t.Errorf("seed %d: levels %v, want 8/8/4", seed, got)
 		}
 		if words := covered(plan.Picks); len(words) != 8 {
 			t.Errorf("seed %d: %d words covered, want 8", seed, len(words))
 		}
-		if ids := plan.IDs(); len(slices.Compact(slices.Sorted(slices.Values(ids)))) != 10 {
+		if ids := plan.IDs(); len(slices.Compact(slices.Sorted(slices.Values(ids)))) != 20 {
 			t.Errorf("seed %d: a question picked twice: %v", seed, ids)
 		}
 	}
 }
 
 func TestPlanCoversEveryWordBeyondTheLevelQuotas(t *testing.T) {
-	// Only easy questions, but on every word: covering comes first, so the easy part grows past its 4 places, and
-	// the other levels give the places back, down to one each, so the quiz keeps its size.
-	v := testVocabulary(8, 1)
+	// Only easy questions, but on every word: covering comes first, so the easy part grows past its 8 places, and
+	// the medium part, with the most room, gives the places back, so the quiz keeps its size.
+	v := testVocabulary(12, 1)
 	var pool []store.Question
 	for i := range v.Words {
 		pool = append(pool, mc(fmt.Sprintf("e%d", i), v, i, Easy, SkillMeaning))
 	}
 	plan := PlanQuiz(request(csvgen.Blooket, v), pool, 1)
-	if len(covered(plan.Picks)) != 8 || len(plan.Uncovered) != 0 {
+	if len(covered(plan.Picks)) != 12 || len(plan.Uncovered) != 0 {
 		t.Fatalf("covered %d words, uncovered %v", len(covered(plan.Picks)), plan.Uncovered)
 	}
 	// The medium and hard places left have nothing to take them: they are gaps at their level.
@@ -91,7 +91,7 @@ func TestPlanCoversEveryWordBeyondTheLevelQuotas(t *testing.T) {
 			t.Errorf("gap %+v", g)
 		}
 	}
-	if gapLevels != [3]int{0, 1, 1} || plan.Size != 10 {
+	if gapLevels != [3]int{0, 4, 4} || plan.Size != 20 {
 		t.Errorf("gap levels %v, size %d", gapLevels, plan.Size)
 	}
 }
@@ -110,11 +110,11 @@ func TestPlanListsTheGaps(t *testing.T) {
 			t.Errorf("no gap for %s: %+v", word, plan.Gaps)
 		}
 	}
-	if plan.Complete() || plan.Size != 10 || len(plan.Picks)+len(plan.Gaps) != 10 {
+	if plan.Complete() || plan.Size != 20 || len(plan.Picks)+len(plan.Gaps) != 20 {
 		t.Errorf("%d picks, %d gaps, size %d", len(plan.Picks), len(plan.Gaps), plan.Size)
 	}
 	if !plan.Playable() {
-		t.Error("seven of ten questions is not playable")
+		t.Errorf("%d of %d questions is not playable", len(plan.Picks), plan.Size)
 	}
 }
 
@@ -218,10 +218,10 @@ func TestPlanWaygroundReservesTheVisualShare(t *testing.T) {
 			}
 		}
 	}
-	// 10 questions, csvgen.VisualShare of them visual, rounded up, all easy or medium; the bank has no visual
+	// 20 questions, csvgen.VisualShare of them visual, rounded up, all easy or medium; the bank has no visual
 	// question, so each is a gap.
-	want := (10*csvgen.VisualPercent + 99) / 100
-	if visual != want || plan.Size != 10 || len(plan.Picks)+visual != plan.Size {
+	want := (20*csvgen.VisualPercent + 99) / 100
+	if visual != want || plan.Size != 20 || len(plan.Picks)+visual != plan.Size {
 		t.Fatalf("%d visual gaps (want %d), %d picks, size %d", visual, want, len(plan.Picks), plan.Size)
 	}
 	for _, g := range plan.Gaps {
@@ -261,16 +261,17 @@ func TestPlanPrefersTheLeastServed(t *testing.T) {
 			pool = append(pool, q)
 		}
 	}
-	served := 0
+	served, picks := 0, 0
 	for seed := range uint64(10) {
 		for _, p := range PlanQuiz(request(csvgen.GimKit, v), pool, seed).Picks {
+			picks++
 			if p.Question.ServedCount > 0 {
 				served++
 			}
 		}
 	}
 	if served > 5 {
-		t.Errorf("%d of 100 picks were questions served 100 times, with fresh ones to spare", served)
+		t.Errorf("%d of %d picks were questions served 100 times, with fresh ones to spare", served, picks)
 	}
 }
 

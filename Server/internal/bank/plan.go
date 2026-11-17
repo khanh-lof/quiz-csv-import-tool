@@ -38,20 +38,24 @@ func NewRequest(opts csvgen.Options) (Request, bool) {
 
 // The size of a quiz on the platforms other than the Game, whose size the teacher chooses: a quarter more
 // questions than words, at least minQuizSize and at most maxQuizSize, unless the lessons have more words than
-// that, then one question per word.
+// that, then one question per word. A lesson of very few words reaches minQuizSize with no more than maxPadPerWord
+// questions on each, and never has fewer than smallestQuizSize.
 const (
-	minQuizSize  = 10
-	maxQuizSize  = 40
-	sizePerWord  = 1.25
-	easyShare    = 0.4
-	mediumShare  = 0.4
-	maxPlanSpecs = 80
+	minQuizSize      = 20
+	maxPadPerWord    = 4
+	smallestQuizSize = 10
+	maxQuizSize      = 40
+	sizePerWord      = 1.25
+	easyShare        = 0.4
+	mediumShare      = 0.4
+	maxPlanSpecs     = 80
 )
 
 // QuizSize is how many questions a quiz of that many words has, the Game aside.
 func QuizSize(words int) int {
 	n := int(math.Ceil(float64(words) * sizePerWord))
-	return max(minQuizSize, min(n, max(maxQuizSize, words)))
+	least := max(smallestQuizSize, min(minQuizSize, maxPadPerWord*words))
+	return max(least, min(n, max(maxQuizSize, words)))
 }
 
 // levelQuotas splits a quiz of n questions into easy, medium and hard ones: 40%, 40% and the rest, with at least
