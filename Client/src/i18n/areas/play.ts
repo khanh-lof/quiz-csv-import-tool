@@ -87,6 +87,7 @@ export const play = {
   },
   fruit: {
     dragMouse: 'Kéo chuột qua quả để chém',
+    swipeFinger: 'Vuốt ngón tay qua quả để chém',
     pointFinger: 'Đưa ngón trỏ vào khung hình',
     colour: {
       green: 'xanh lá',
@@ -129,6 +130,7 @@ export const play = {
     untimed: '%count% câu, không giới hạn thời gian.',
     start: 'Bắt đầu'
   },
+  rotate: 'Xoay ngang điện thoại',
   page: {
     preview: 'Xem thử: không lưu kết quả.',
     guideCreate: 'Tạo Game ở <b>AI › Tạo quiz</b> rồi bấm <b>Chơi ngay</b> ở <b>AI › Lịch sử</b>, hoặc <b>Mở file quiz</b> đã tải.',

@@ -40,11 +40,8 @@
       <input #imageInput (change)="importFromImage($event)" accept="image/*" multiple style="display: none"
              type="file"/>
 
-      <!-- What the quiz is made from: the lesson, then the photos, which a course with a book shuts. Side by side on a
-           wide screen, the photos as high as the whole section, so the page fits a laptop's screen with the Game
-           options open. -->
       <section aria-labelledby="lessonHeading" class="qt-panel form-section">
-        <div [class.with-fields]="isAutoMode" class="lesson-body">
+        <div class="lesson-body">
           <h2 class="section-title" id="lessonHeading">{{ 'ai.generation.lessonHeading' | msg }}</h2>
           @if (isAutoMode) {
             <!-- Each .field stacks its label, its control and its error message. -->
@@ -102,69 +99,63 @@
             </div>
           }
 
-          <div class="photos">
-            @if (shownImages.length > 0 && !isGenerating()) {
-              <div class="photos-head">
-                <button (click)="clearAllImages()" class="clear-images" nz-button nzSize="small" nzType="text"
-                        type="button">
-                  <nz-icon nzTheme="outline" nzType="delete"/>
-                  {{ 'ai.action.clearAll' | msg }}
-                </button>
-              </div>
-            }
-            <!-- Only the image area takes drops. -->
-            <div (dragenter)="onDropZoneEnter($event)"
-                 (dragleave)="onDropZoneDragLeave($event)"
-                 (dragover)="onDropZoneDragOver($event)"
-                 (drop)="onDrop($event)"
-                 [attr.aria-disabled]="photosDisabled || null"
-                 [attr.aria-label]="photosDisabledReason ? ('ai.generation.photosShut' | msg: { reason: photosDisabledReason }) : ('ai.generation.photos' | msg)"
-                 [class.disabled]="photosDisabled"
-                 [class.drag-over]="isDragOver"
-                 [nzTooltipTitle]="photosDisabledReason"
-                 class="drop-zone"
-                 nz-tooltip
-                 tabindex="0">
-              @if (shownImages.length > 0) {
-                <div class="images-list">
-                  @for (image of shownImages; let i = $index; track i) {
-                    <div class="image-item">
-                      @if (!isGenerating()) {
-                        <button (click)="removeImage(i)" [attr.aria-label]="'ai.generation.removeImage' | msg" class="remove-btn" nz-button nzDanger
-                                nzShape="circle" nzSize="small" nzType="primary"
-                                type="button">
-                          <nz-icon nzTheme="outline" nzType="close"/>
-                        </button>
-                      }
-                      <div class="image-preview">
-                        <img [src]="image.preview" [alt]="'ai.generation.previewAlt' | msg" class="preview-img"/>
-                      </div>
-                      <div class="image-info">
-                        <p class="image-name">{{ image.file.name }}</p>
-                        <p class="image-size">{{ (image.file.size || 0) / 1024 | number:'1.0-0' }} KB</p>
-                      </div>
-                    </div>
-                  }
-                  @if (!isGenerating()) {
-                    <button (click)="imageInput.click()" [attr.aria-label]="'ai.generation.addImage' | msg" class="add-image-tile" type="button">
-                      <nz-icon nzTheme="outline" nzType="plus"/>
-                    </button>
-                  }
-                </div>
-              } @else {
-                <div class="drop-zone-content">
-                  <nz-icon class="drop-zone-icon" nzTheme="outline" nzType="picture"/>
-                  <p class="drop-zone-text">{{ 'ai.form.dropHint' | msg }}
-                    @if (photosDisabled) {
-                      <span class="file-link">{{ 'ai.form.chooseFile' | msg }}</span>
-                    } @else {
-                      <a (click)="imageInput.click()" class="file-link" href="javascript:void(0)">{{ 'ai.form.chooseFile' | msg }}</a>
-                    }
-                  </p>
+          @if (!photosHidden) {
+            <div class="photos">
+              @if (shownImages.length > 0 && !isGenerating()) {
+                <div class="photos-head">
+                  <button (click)="clearAllImages()" class="clear-images" nz-button nzSize="small" nzType="text"
+                          type="button">
+                    <nz-icon nzTheme="outline" nzType="delete"/>
+                    {{ 'ai.action.clearAll' | msg }}
+                  </button>
                 </div>
               }
+              <!-- Only the image area takes drops. -->
+              <div (dragenter)="onDropZoneEnter($event)"
+                   (dragleave)="onDropZoneDragLeave($event)"
+                   (dragover)="onDropZoneDragOver($event)"
+                   (drop)="onDrop($event)"
+                   [attr.aria-label]="'ai.generation.photos' | msg"
+                   [class.drag-over]="isDragOver"
+                   class="drop-zone"
+                   tabindex="0">
+                @if (shownImages.length > 0) {
+                  <div class="images-list">
+                    @for (image of shownImages; let i = $index; track i) {
+                      <div class="image-item">
+                        @if (!isGenerating()) {
+                          <button (click)="removeImage(i)" [attr.aria-label]="'ai.generation.removeImage' | msg" class="remove-btn" nz-button nzDanger
+                                  nzShape="circle" nzSize="small" nzType="primary"
+                                  type="button">
+                            <nz-icon nzTheme="outline" nzType="close"/>
+                          </button>
+                        }
+                        <div class="image-preview">
+                          <img [src]="image.preview" [alt]="'ai.generation.previewAlt' | msg" class="preview-img"/>
+                        </div>
+                        <div class="image-info">
+                          <p class="image-name">{{ image.file.name }}</p>
+                          <p class="image-size">{{ (image.file.size || 0) / 1024 | number:'1.0-0' }} KB</p>
+                        </div>
+                      </div>
+                    }
+                    @if (!isGenerating()) {
+                      <button (click)="imageInput.click()" [attr.aria-label]="'ai.generation.addImage' | msg" class="add-image-tile" type="button">
+                        <nz-icon nzTheme="outline" nzType="plus"/>
+                      </button>
+                    }
+                  </div>
+                } @else {
+                  <div class="drop-zone-content">
+                    <nz-icon class="drop-zone-icon" nzTheme="outline" nzType="picture"/>
+                    <p class="drop-zone-text">{{ 'ai.form.dropHint' | msg }}
+                      <a (click)="imageInput.click()" class="file-link" href="javascript:void(0)">{{ 'ai.form.chooseFile' | msg }}</a>
+                    </p>
+                  </div>
+                }
+              </div>
             </div>
-          </div>
+          }
         </div>
       </section>
 

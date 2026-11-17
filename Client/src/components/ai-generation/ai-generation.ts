@@ -17,7 +17,6 @@ import { MessageKey, MessagePipe, Messages } from '../../i18n/messages';
 import { httpFailure } from '../../models/http-failure';
 import { AiJobService, NEW_JOB_IDLE_POLLS } from '../../services/ai-job.service';
 import { NzInputNumberComponent } from 'ng-zorro-antd/input-number';
-import { NzTooltipDirective } from 'ng-zorro-antd/tooltip';
 import {
   AbstractControl,
   FormBuilder,
@@ -136,7 +135,6 @@ type LanguageChoices =Pick<ReturnType<FormGroup<AiGenerationForm>['getRawValue']
     NzOptionComponent,
     NzSelectComponent,
     NzSpinComponent,
-    NzTooltipDirective,
     MessagePipe
   ],
   templateUrl: './ai-generation.html',
@@ -277,27 +275,17 @@ export class AiGeneration {
     return this.textbookOf(this.formGroup);
   }
 
-  // The creative mode only works from a book, so it needs no photo and the photos are shut.
-  protected get photosDisabled(): boolean {
+  protected get photosHidden(): boolean {
     return this.isAutoMode;
-  }
-
-  // Why they are shut, in the zone's tooltip and its accessible name.
-  protected get photosDisabledReason(): string | null {
-    if (!this.photosDisabled) {
-      return null;
-    }
-    const book = this.textbook;
-    return book ? this.messages.get('ai.form.textbookHasBook', { title: textbookTitle(book, this.messages) }) : this.messages.get('ai.form.photosFromBook');
   }
 
   protected bookTitle(book: Textbook): string {
     return textbookTitle(book, this.messages);
   }
 
-  // The photos shown and sent: none while they are shut, though those added are kept for the formatted mode.
+  // The photos shown and sent: none while they are hidden, though those added are kept for the formatted mode.
   protected get shownImages(): ImageItem[] {
-    return this.photosDisabled ? [] : this.selectedImages();
+    return this.photosHidden ? [] : this.selectedImages();
   }
 
   // No lesson until a level with a book is chosen.
@@ -331,20 +319,13 @@ export class AiGeneration {
   onDropZoneEnter(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    if (this.photosDisabled) {
-      return;
-    }
     this.dragEnterCounter++;
     this.isDragOver = true;
   }
 
-  // Prevented even while the photos are shut, so a file dropped there is not opened by the browser.
   onDropZoneDragOver(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    if (this.photosDisabled && event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'none';
-    }
   }
 
   onDropZoneDragLeave(event: DragEvent): void {
@@ -362,7 +343,7 @@ export class AiGeneration {
     event.stopPropagation();
     this.isDragOver = false;
     this.dragEnterCounter = 0;
-    if (this.isGenerating() || this.photosDisabled) {
+    if (this.isGenerating()) {
       return;
     }
 
@@ -379,7 +360,7 @@ export class AiGeneration {
   @HostListener('document:paste', ['$event'])
   onPaste(event: ClipboardEvent): void {
     const items = event.clipboardData?.items;
-    if (!items || this.isGenerating() || this.photosDisabled) {
+    if (!items || this.isGenerating() || this.photosHidden) {
       return;
     }
 

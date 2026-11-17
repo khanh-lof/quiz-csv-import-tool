@@ -144,6 +144,17 @@
           </div>
         </div>
 
+        @if (portraitPhone()) {
+          <div class="rotate" role="status">
+            <span aria-hidden="true" class="rotate-phone"></span>
+            @if (canLockLandscape) {
+              <button (click)="rotateToLandscape()" nz-button type="button">{{ 'play.rotate' | msg }}</button>
+            } @else {
+              <p>{{ 'play.rotate' | msg }}</p>
+            }
+          </div>
+        }
+
         <div class="actions">
           <button (click)="begin()" [nzLoading]="starting()" nz-button nzSize="large" nzType="primary" type="button">
             <nz-icon nzTheme="outline" nzType="caret-right"/>

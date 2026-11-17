@@ -61,13 +61,13 @@ describe('AiGeneration', () => {
   }
 
   const lessonErrors = () => page.formGroup.get('lessonNumbers')?.errors;
-  const photosShut = () => (fixture.nativeElement as HTMLElement).querySelector('.drop-zone')?.getAttribute('aria-disabled') === 'true';
+  const dropZoneShown = () => (fixture.nativeElement as HTMLElement).querySelector('.drop-zone') !== null;
 
   it('starts on HSK 3.0, the standard of the textbooks', () => {
     expect(page.formGroup.get('hskStandard')?.value).toBe(HskStandard.V3);
   });
 
-  it('caps the lesson at the textbook\'s lesson count and shuts the photos', () => {
+  it('caps the lesson at the textbook\'s lesson count and hides the photos', () => {
     fill({
       courseType: CourseType.Hsk,
       hskStandard: HskStandard.V3,
@@ -77,9 +77,7 @@ describe('AiGeneration', () => {
 
     expect(page.maxLesson).toBe(18);
     expect(page.formGroup.valid).toBeTrue();
-    expect(photosShut()).toBeTrue();
-    expect((fixture.nativeElement as HTMLElement).querySelector('.drop-zone')?.getAttribute('aria-label'))
-      .toBe('Ảnh: Có sẵn 《新HSK教程3》, không cần ảnh.');
+    expect(dropZoneShown()).toBeFalse();
   });
 
   it('refuses a lesson past the textbook\'s, such as lesson 18 after switching to level 1', () => {
@@ -139,15 +137,13 @@ describe('AiGeneration', () => {
     expect(page.formGroup.get('level')?.value).toBeNull();
   });
 
-  it('shuts the photos in Auto mode, even before a book is picked, and opens them for the formatted mode', () => {
+  it('hides the photos in Auto mode, even before a book is picked, and shows them for the formatted mode', () => {
     fixture.detectChanges();
-    expect(photosShut()).toBeTrue();
-    expect((fixture.nativeElement as HTMLElement).querySelector('.drop-zone')?.getAttribute('aria-label'))
-      .toBe('Ảnh: Câu hỏi lấy từ sách, không cần ảnh.');
+    expect(dropZoneShown()).toBeFalse();
 
     page.formGroup.patchValue({ AIMode: AIGenerationMode.Formatted });
     fixture.detectChanges();
-    expect(photosShut()).toBeFalse();
+    expect(dropZoneShown()).toBeTrue();
   });
 
   it('neither shows nor sends the photos added before a course with a book was picked', async () => {

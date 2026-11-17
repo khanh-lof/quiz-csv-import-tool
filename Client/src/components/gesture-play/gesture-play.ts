@@ -106,6 +106,11 @@ interface SharedInfo {
   closesAt: string | null;
 }
 
+const PORTRAIT_PHONE_QUERY = '(orientation: portrait) and (pointer: coarse) and (max-width: 600px)';
+
+// TypeScript's DOM types dropped `lock`, which Chromium on Android still has (Safari never had it).
+type LockableOrientation = ScreenOrientation & { lock?: (orientation: 'landscape') => Promise<void> };
+
 const SHARED_CLOSED = 'play.shared.closed';
 const SHARED_MISSING = 'play.shared.missing';
 const SHARED_FAILED = 'play.shared.failed';
@@ -415,6 +420,10 @@ export class GesturePlay implements OnInit, OnDestroy {
   protected readonly cameraActive = computed(() => this.cameraOn() && this.modelState() === 'ready');
   protected readonly tracking = signal<Tracking>('lost');
   protected readonly fullscreen = signal(false);
+  protected readonly portraitPhone = signal(false);
+  protected readonly canLockLandscape = typeof screen !== 'undefined'
+    && typeof (screen.orientation as LockableOrientation | undefined)?.lock === 'function'
+    && document.fullscreenEnabled;
   protected readonly cameraChip = computed<Chip | null>(() => {
     switch (this.cameraState()) {
       case 'starting':
@@ -596,6 +605,7 @@ export class GesturePlay implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.watchPortraitPhone();
     // The route's parameter can change under this same component (one job to another), so it is watched
     // rather than read once.
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
@@ -925,6 +935,27 @@ export class GesturePlay implements OnInit, OnDestroy {
   @HostListener('document:fullscreenchange')
   protected onFullscreenChange(): void {
     this.fullscreen.set(document.fullscreenElement !== null);
+  }
+
+  // The browser only turns the screen from a page in full screen, and lets go of it when full screen ends.
+  protected rotateToLandscape(): void {
+    const turn = () => (screen.orientation as LockableOrientation).lock?.('landscape').catch(() => undefined);
+    if (document.fullscreenElement) {
+      turn();
+      return;
+    }
+    this.host.nativeElement.requestFullscreen().then(turn, () => undefined);
+  }
+
+  private watchPortraitPhone(): void {
+    if (typeof matchMedia !== 'function') {
+      return;
+    }
+    const query = matchMedia(PORTRAIT_PHONE_QUERY);
+    const update = () => this.portraitPhone.set(query.matches);
+    update();
+    query.addEventListener('change', update);
+    this.destroyRef.onDestroy(() => query.removeEventListener('change', update));
   }
 
   protected toggleFullscreen(): void {

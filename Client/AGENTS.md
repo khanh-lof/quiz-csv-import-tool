@@ -130,11 +130,12 @@ Three ways to populate rows, all converging on `QuestionDefinition[]`:
      `AssignDialog`, see [Giao bài](#giao-bài-assignments)). The vocabulary table is never touched in this path.
 
 **Layout.** The toolbar holds the language and the mode switches. The form is two `.qt-panel` sections, "Bài học"
-(course fields, with the photos beside them on a wide section) and "Tạo cho" (one tile per platform, `PLATFORMS` in
+(course fields; the creative mode has no photos, every course it offers has a book) and "Tạo cho" (one tile per platform, `PLATFORMS` in
 `ai-generation.ts`: native radios bound to `exportType`, then the Game options: the question count on the games'
 label line and the six cards in one row), and a sticky action bar with the send button. The
-formatted mode shows only the photos and the button. With the Game options open the page fits a 14" laptop's
-browser (1280×650) without scrolling, the menu open; keep it so when adding to the form.
+formatted mode shows only the photos, their zone sized to the free height at 1280×650, and the button. With the
+Game options open, or 6 photos in the formatted mode, the page fits a 14" laptop's browser (1280×650) without
+scrolling, the menu open; keep it so when adding to the form.
 
 **Language.** The page's first choice, a large segmented switch on the left of the guide button (`.page-toolbar`),
 each option with its tag ("中", "EN"), is the `language` control: `models/quiz-language.ts` (`QuizLanguage`,
@@ -253,8 +254,8 @@ not a GestureQuiz shows its own message; the other two fetch their quiz from the
 first screen on `/play/s/:code`, `ShareJoin`), `load` (`/play`: "Mở file quiz" reads a `.csv` with `FileReader`, "Chơi thử quiz
 mẫu" uses `game/demo-quiz.ts`; both go through `quizFromCsvText` (`models/gesture-quiz.ts`: the BOM stripped, `extractCsvContent`, `parseCsvRows` and `parseGestureQuiz`, the one pipeline every caller uses), with
 a warning when rows were `skipped`), `map` (`GestureStageMap`, `stage-map/`: a card for each stage the quiz has, numbered by its
-position (`stagePosition`), with its questions, best result and passed/locked status, the time-mode and sound settings and a progress reset), `intro`
-(the stage's hint, camera switch and preview, status chips), `playing` and `result` (`GestureStageResult`,
+position (`stagePosition`), with its questions, best result and passed/locked status, the time-mode, sound and pinyin settings and a progress reset), `intro`
+(the stage's hint, camera switch and preview, status chips, and on an upright phone the rotate prompt, see *Mobile fit*), `playing` and `result` (`GestureStageResult`,
 `stage-result/`: the verdict against the pass mark, the missed questions with their explanations, next
 stage / retry / map). `gesture-engine.ts` holds the pure part, with its spec: `prepareQuestion` turns a
 `GestureQuestion` into what is played (stage 1 is always `['Đúng', 'Sai']`, stages 2–5 shuffle the correct
@@ -264,6 +265,22 @@ answer in with the wrong ones, stage 6 shuffles the chunks to an order that is n
 records it with `GestureProgressService.record` when the run finishes (after the last question's feedback);
 a teacher's preview does not record. A student's run is the exception: the server deals its questions, judges
 the answers and records it, and the page only shows what it is dealt (see [Giao bài](#giao-bài-assignments)).
+
+**Mobile fit.** Students play on phones, so every screen of the page (`load`, `join`, `map`, `intro`, `playing`,
+`result`) and every game must fit a phone without horizontal scrolling and, while `playing`, without vertical
+scrolling: the header, HUD, stage and feedback all stay on one screen. Check 375×812 portrait and 812×375
+landscape. The page is `100dvh` high; `gesture-play.css` shrinks the bars under 600px wide and under 500px tall in
+landscape, and the games size to their stage (`min-width: 0`, container queries) rather than to the window. The
+word-order game's unit follows the stage's width on an upright stage (`@container (max-aspect-ratio: 3 / 4)`), so
+its tiles stay finger-sized and eight chunks still fit. Keep it so when adding a screen or a game, and mind touch:
+no hover-only hints (`@media (hover: none)`), a hint names the finger rather than the mouse on a touch screen
+(`(pointer: coarse)`, as the fruit game's "Vuốt ngón tay qua quả để chém"), and every game stays playable by touch.
+
+**Rotate prompt.** On a phone held upright (`PORTRAIT_PHONE_QUERY`: portrait, coarse pointer, at most 600px wide,
+watched live in `portraitPhone`) the `intro` shows "Xoay ngang điện thoại" above its buttons, with a phone outline
+that turns on its side. Where the browser can lock the orientation (`canLockLandscape`: Chromium on Android, not
+Safari) it is a button: `rotateToLandscape` full-screens the page and locks it to landscape, which the browser
+releases when full screen ends. Elsewhere it is plain text. Portrait stays playable; the prompt only suggests.
 
 **The engine** (`src/game/`, shared by the page and the games):
 - `stage-game.ts` is the contract between the page and a game. `StageGameBase` is an abstract directive:

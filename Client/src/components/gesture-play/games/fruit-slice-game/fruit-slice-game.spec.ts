@@ -441,6 +441,20 @@ describe('FruitSliceGame', () => {
       expect(hint()).toBe('');
     });
 
+    it('names the finger instead of the mouse on a touch screen', async () => {
+      spyOn(window, 'matchMedia').and.callFake((query: string) => ({
+        matches: query.includes('coarse'),
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined
+      }) as unknown as MediaQueryList);
+      fixture = TestBed.createComponent(FruitSliceGame);
+      fixture.componentRef.setInput('question', QUESTION);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(hint()).toBe('Vuốt ngón tay qua quả để chém');
+    });
+
     it('asks for a finger while the camera sees no hand, then says nothing', () => {
       set('cameraActive', true);
       expect(hint()).toBe('Đưa ngón trỏ vào khung hình');

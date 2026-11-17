@@ -127,6 +127,7 @@ export class FruitSliceGame extends OptionGameBase {
 
   private readonly played = signal(false);
   private readonly handSeen = signal(false);
+  private readonly touchFirst = window.matchMedia?.('(pointer: coarse)').matches ?? false;
   // The how-to line at the bottom of the stage. It goes away once it has been understood (the
   // player has cut a fruit), except that a camera without a hand in view keeps asking for one.
   protected readonly hint = computed<MessageKey | ''>(() => {
@@ -134,7 +135,10 @@ export class FruitSliceGame extends OptionGameBase {
       return '';
     }
     if (!this.cameraActive()) {
-      return this.played() ? '' : 'play.fruit.dragMouse';
+      if (this.played()) {
+        return '';
+      }
+      return this.touchFirst ? 'play.fruit.swipeFinger' : 'play.fruit.dragMouse';
     }
     if (!this.handSeen()) {
       return 'play.fruit.pointFinger';

@@ -25,6 +25,17 @@
   color: #fff;
 }
 
+/* On a phone held upright the 16:9 unit leaves finger-small tiles under an empty board, so the unit follows
+   the width there, capped by the height so eight chunks still fit. --tile-h and --gap are declared again
+   because a custom property takes the --u of the element that declares it. */
+@container (max-aspect-ratio: 3 / 4) {
+  .board {
+    --u: min(1.5cqw, 0.9cqh);
+    --tile-h: calc(var(--u) * 10);
+    --gap: calc(var(--u) * 1.6);
+  }
+}
+
 /* A panel is see-through, so it reads the same on the chalkboard and on the camera picture. Its resting
    shadow is a variable so that the gold ring of a hovered target is added to it, not put in its place. */
 .card {

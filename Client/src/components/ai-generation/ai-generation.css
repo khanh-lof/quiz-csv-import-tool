@@ -123,8 +123,6 @@
   max-width: 420px;
 }
 
-/* The title, the fields and the photos under each other, or, where the section is wide enough, the title and the
-   fields at their own width on the left and the photos taking the rest of the row, as high as both. */
 .form-section {
   container-type: inline-size;
 }
@@ -133,31 +131,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px 24px;
-}
-
-/* The fields keep one line there: a wrapping row is only as wide as its widest field, which would leave the rest to
-   the photos and wrap the fields under each other. */
-@container (min-width: 760px) {
-  .lesson-body.with-fields {
-    display: grid;
-    grid-template-columns: minmax(min-content, 3fr) minmax(220px, 2fr);
-    grid-template-rows: auto 1fr;
-    align-items: start;
-  }
-
-  .lesson-body.with-fields .photos {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    align-self: stretch;
-  }
-
-  .fields {
-    flex-wrap: nowrap;
-  }
-
-  .lesson-field {
-    min-width: 160px;
-  }
 }
 
 .photos {
@@ -173,7 +146,6 @@
   justify-content: flex-end;
 }
 
-/* Fills the photos' column, so it is as high as the title and the fields beside it. */
 .drop-zone {
   flex: 1;
   padding: 12px;
@@ -183,27 +155,12 @@
   transition: border-color var(--qt-transition), box-shadow var(--qt-transition);
   cursor: pointer;
   outline: none;
-  min-height: 56px;
+  /* As tall as a 1280×650 browser leaves free under the title, with the "Xóa tất cả" row and the action bar. */
+  min-height: clamp(160px, 45vh, 320px);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-}
-
-/* The course's book makes photos unneeded: the zone stays in place, shut. */
-.drop-zone.disabled {
-  border-color: var(--qt-border);
-  background: var(--qt-paper);
-  cursor: not-allowed;
-}
-
-.drop-zone.disabled .drop-zone-content {
-  opacity: 0.45;
-}
-
-.drop-zone.disabled .file-link {
-  border-bottom-color: transparent;
-  cursor: inherit;
 }
 
 .drop-zone:focus-visible,
@@ -231,7 +188,7 @@
 }
 
 /* Grown with a transform, not font-size, so hovering does not change the page height. */
-.drop-zone:not(.disabled):hover .drop-zone-icon,
+.drop-zone:hover .drop-zone-icon,
 .drop-zone:focus-visible .drop-zone-icon,
 .drop-zone.drag-over .drop-zone-icon {
   transform: scale(1.15);
