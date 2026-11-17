@@ -197,6 +197,7 @@
           </ul>
         </ng-template>
       }
+      <kt-quiz-rotate-prompt [fullscreenTarget]="frameBox" to="portrait"/>
       <div #frameBox class="frame-box">
         <!-- allow-scripts without allow-same-origin: the exercise runs, but as another origin than QuizTool. -->
         <iframe [srcdoc]="frameContent()" class="frame" sandbox="allow-scripts allow-popups" [title]="'play.radicals.frameTitle' | msg"></iframe>

@@ -229,50 +229,8 @@
   border-radius: var(--qt-radius);
 }
 
-/* Only on a phone held upright: the stage is wider and the camera picture larger once it is turned. */
-.rotate {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  margin: 12px 0 0;
-  padding: 8px 12px;
-  background: var(--qt-surface);
-  border-radius: var(--qt-radius);
-}
-
-.rotate p {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-}
-
-/* A phone outline that turns on its side, the move the line asks for. */
-.rotate-phone {
-  flex: none;
-  box-sizing: border-box;
-  width: 16px;
-  height: 26px;
-  margin: 0 5px;
-  border: 2px solid currentColor;
-  border-radius: 4px;
-  animation: rotate-phone 2.4s ease-in-out 3 both;
-}
-
-@keyframes rotate-phone {
-  0%, 25% {
-    transform: rotate(0);
-  }
-  55%, 100% {
-    transform: rotate(-90deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rotate-phone {
-    animation: none;
-    transform: rotate(-90deg);
-  }
+.intro-rotate {
+  margin-top: 12px;
 }
 
 .camera-box {

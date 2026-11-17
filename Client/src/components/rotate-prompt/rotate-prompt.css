@@ -1,0 +1,72 @@
+:host {
+  display: block;
+}
+
+/* Nothing to ask: no box, so no gap or margin is kept for it in the placing page. */
+:host:empty {
+  display: none;
+}
+
+.rotate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  background: var(--qt-surface);
+  border-radius: var(--qt-radius);
+}
+
+.rotate p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+/* A phone outline that makes the turn the line asks for. */
+.phone {
+  flex: none;
+  box-sizing: border-box;
+  width: 16px;
+  height: 26px;
+  margin: 0 5px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  animation: 2.4s ease-in-out 3 both;
+}
+
+[data-to='landscape'] .phone {
+  animation-name: turn-on-side;
+}
+
+[data-to='portrait'] .phone {
+  animation-name: turn-upright;
+}
+
+@keyframes turn-on-side {
+  0%, 25% {
+    transform: rotate(0);
+  }
+  55%, 100% {
+    transform: rotate(-90deg);
+  }
+}
+
+@keyframes turn-upright {
+  0%, 25% {
+    transform: rotate(-90deg);
+  }
+  55%, 100% {
+    transform: rotate(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phone {
+    animation: none;
+  }
+
+  [data-to='landscape'] .phone {
+    transform: rotate(-90deg);
+  }
+}

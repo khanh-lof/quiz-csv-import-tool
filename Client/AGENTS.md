@@ -216,6 +216,12 @@ The exercise page the AI page can build instead of a quiz; the contract and the 
   allow-popups` without `allow-same-origin`, so the page's scripts run as another origin and cannot reach the session.
   Above it, "Cần xem lại" lists what the AI wrote or doubted (`reviewLines` over the job's `review`), and the topbar
   has "Sửa", "Tải file" and "Toàn màn hình" (full-screens the frame).
+- **Phones.** The exercise lays itself out for a phone held upright (its tray stays on top and several questions
+  show under it), while on a phone on its side the tray leaves room for one or two. So above the frame
+  `RotatePrompt` asks a phone on its side to stand upright (`to="portrait"`, the frame's box as the full-screen
+  target, see [Rotate prompt](#gesture-quiz-play)). The frame is never taller than the screen (`.frame-box`
+  `max-height: calc(100dvh - 24px)`, and at least `min(600px, 100dvh - 24px)`), so once the page is scrolled to it
+  the whole exercise is in view and only the exercise scrolls.
 - **Sửa.** "Sửa" loads the table of what can be corrected (`RadicalsPageService.edit`, `GET csv/jobs/{id}/radicals`;
   `models/radicals-edit.ts` mirrors `csvgen.RadicalsEdit`) and shows it in place of "Cần xem lại", above the frame:
   three `nz-table`s, Từ (pinyin and meaning inputs, tags AI / AI không chắc / Đã bỏ, and under a pinyin the
@@ -255,7 +261,7 @@ first screen on `/play/s/:code`, `ShareJoin`), `load` (`/play`: "Mở file quiz"
 mẫu" uses `game/demo-quiz.ts`; both go through `quizFromCsvText` (`models/gesture-quiz.ts`: the BOM stripped, `extractCsvContent`, `parseCsvRows` and `parseGestureQuiz`, the one pipeline every caller uses), with
 a warning when rows were `skipped`), `map` (`GestureStageMap`, `stage-map/`: a card for each stage the quiz has, numbered by its
 position (`stagePosition`), with its questions, best result and passed/locked status, the time-mode, sound and pinyin settings and a progress reset), `intro`
-(the stage's hint, camera switch and preview, status chips, and on an upright phone the rotate prompt, see *Mobile fit*), `playing` and `result` (`GestureStageResult`,
+(the stage's hint, camera switch and preview, status chips, and on an upright phone the rotate prompt, see *Rotate prompt*), `playing` and `result` (`GestureStageResult`,
 `stage-result/`: the verdict against the pass mark, the missed questions with their explanations, next
 stage / retry / map). `gesture-engine.ts` holds the pure part, with its spec: `prepareQuestion` turns a
 `GestureQuestion` into what is played (stage 1 is always `['Đúng', 'Sai']`, stages 2–5 shuffle the correct
@@ -276,11 +282,15 @@ its tiles stay finger-sized and eight chunks still fit. Keep it so when adding a
 no hover-only hints (`@media (hover: none)`), a hint names the finger rather than the mouse on a touch screen
 (`(pointer: coarse)`, as the fruit game's "Vuốt ngón tay qua quả để chém"), and every game stays playable by touch.
 
-**Rotate prompt.** On a phone held upright (`PORTRAIT_PHONE_QUERY`: portrait, coarse pointer, at most 600px wide,
-watched live in `portraitPhone`) the `intro` shows "Xoay ngang điện thoại" above its buttons, with a phone outline
-that turns on its side. Where the browser can lock the orientation (`canLockLandscape`: Chromium on Android, not
-Safari) it is a button: `rotateToLandscape` full-screens the page and locks it to landscape, which the browser
-releases when full screen ends. Elsewhere it is plain text. Portrait stays playable; the prompt only suggests.
+**Rotate prompt.** `RotatePrompt` (`components/rotate-prompt/`, shared with [Ghép bộ thủ](#ghép-bộ-thủ-exporttyperadicals))
+asks a phone held the wrong way to turn and renders nothing otherwise (its host is then `display: none`, so it adds
+no gap). `to="landscape"` shows on an upright phone (portrait, coarse pointer, at most 600px wide), `to="portrait"`
+on a phone on its side (landscape, coarse pointer, at most 600px tall); the query is watched live. It reads "Xoay
+ngang điện thoại" or "Xoay dọc điện thoại" beside a phone outline that makes the turn. Where the browser can lock
+the orientation (`canLock`: Chromium on Android, not Safari) it is a button that full-screens `fullscreenTarget`
+and locks the orientation, which the browser releases when full screen ends; elsewhere it is plain text. The game
+places it on the `intro` with `to="landscape"` and the page's host as target. Portrait stays playable; the prompt
+only suggests. Its spec is `rotate-prompt.spec.ts`.
 
 **The engine** (`src/game/`, shared by the page and the games):
 - `stage-game.ts` is the contract between the page and a game. `StageGameBase` is an abstract directive:

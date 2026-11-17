@@ -82,10 +82,13 @@
   width: 260px;
 }
 
-/* The exercise lays itself out for phones and desktops, so the frame only has to fill the rest of the page. */
+/* The exercise lays itself out for phones and desktops, so the frame only has to fill the rest of the page. It is
+   never taller than the screen, so that once the page is scrolled to it the whole exercise is in view and only the
+   exercise scrolls. */
 .frame-box {
   flex: 1;
-  min-height: 600px;
+  min-height: min(600px, 100dvh - 24px);
+  max-height: calc(100dvh - 24px);
 }
 
 .frame {

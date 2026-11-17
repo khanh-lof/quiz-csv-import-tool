@@ -1,0 +1,10 @@
+@if (wrongWay()) {
+  <div [attr.data-to]="to()" class="rotate" role="status">
+    <span aria-hidden="true" class="phone"></span>
+    @if (canLock) {
+      <button (click)="rotate()" nz-button type="button">{{ label() | msg }}</button>
+    } @else {
+      <p>{{ label() | msg }}</p>
+    }
+  </div>
+}

@@ -130,7 +130,10 @@ export const play = {
     untimed: '%count% câu, không giới hạn thời gian.',
     start: 'Bắt đầu'
   },
-  rotate: 'Xoay ngang điện thoại',
+  rotate: {
+    landscape: 'Xoay ngang điện thoại',
+    portrait: 'Xoay dọc điện thoại'
+  },
   page: {
     preview: 'Xem thử: không lưu kết quả.',
     guideCreate: 'Tạo Game ở <b>AI › Tạo quiz</b> rồi bấm <b>Chơi ngay</b> ở <b>AI › Lịch sử</b>, hoặc <b>Mở file quiz</b> đã tải.',

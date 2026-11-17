@@ -42,6 +42,7 @@ import {
 import { AiJobService } from '../../services/ai-job.service';
 import { RadicalsPageService } from '../../services/radicals-page.service';
 import { LeaveCheck } from '../../services/unsaved-changes.guard';
+import { RotatePrompt } from '../rotate-prompt/rotate-prompt';
 
 type Screen = 'loading' | 'ready' | 'error';
 
@@ -58,7 +59,7 @@ interface ReviewLine {
 @Component({
   selector: 'kt-quiz-radicals-play',
   imports: [RouterLink, FormsModule, NzButtonComponent, NzIconDirective, NzSpinComponent, NzAlertComponent, NzInputDirective,
-    NzTableModule, NzTagComponent, NzModalModule, MessagePipe],
+    NzTableModule, NzTagComponent, NzModalModule, MessagePipe, RotatePrompt],
   templateUrl: './radicals-play.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './radicals-play.css',

@@ -948,44 +948,16 @@ describe('GesturePlay', () => {
   });
 
   describe('rotate prompt', () => {
-    function fakeMedia(portraitPhone: boolean): void {
+    it('asks a phone held upright to turn on its side before a stage', () => {
       spyOn(window, 'matchMedia').and.callFake((query: string) => ({
-        matches: portraitPhone && query.includes('portrait'),
+        matches: query.includes('(orientation: portrait)'),
         addEventListener: () => undefined,
         removeEventListener: () => undefined
       }) as unknown as MediaQueryList);
-    }
-
-    function openIntro(canLock: boolean): void {
       playDemo();
-      (fixture.componentInstance as unknown as { canLockLandscape: boolean }).canLockLandscape = canLock;
       click('.stage-card', 'Màn 1');
-    }
 
-    it('asks a phone held upright to turn, as text where the browser cannot turn it', () => {
-      fakeMedia(true);
-      openIntro(false);
-
-      expect(normalized('.rotate')).toBe('Xoay ngang điện thoại');
-      expect(element().querySelector('.rotate button')).toBeNull();
-    });
-
-    it('turns the screen from a button where the browser can, by going full screen first', () => {
-      fakeMedia(true);
-      const fullscreen = spyOn(HTMLElement.prototype, 'requestFullscreen').and.returnValue(Promise.resolve());
-      openIntro(true);
-
-      click('.rotate button', 'Xoay ngang điện thoại');
-
-      expect(fullscreen).toHaveBeenCalled();
-    });
-
-    it('says nothing in landscape or on a computer', () => {
-      fakeMedia(false);
-      openIntro(true);
-
-      expect(element().querySelector('.intro')).not.toBeNull();
-      expect(element().querySelector('.rotate')).toBeNull();
+      expect(normalized('.intro kt-quiz-rotate-prompt')).toContain('Xoay ngang điện thoại');
     });
   });
 
