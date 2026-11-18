@@ -3,8 +3,8 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   ElementRef,
-  HostListener,
   inject,
   OnInit,
   signal,
@@ -146,12 +146,16 @@ export class RadicalsPlay implements OnInit, LeaveCheck {
     });
   }
 
-  @HostListener('window:beforeunload', ['$event'])
-  protected warnBeforeUnload(event: BeforeUnloadEvent): void {
-    if (this.dirty()) {
-      event.preventDefault();
+  // Listening only while there are changes: a page with a beforeunload listener is kept out of the browser's
+  // back/forward cache, so coming back to the app with Back would reload it.
+  private readonly warnBeforeUnload = effect(onCleanup => {
+    if (!this.dirty()) {
+      return;
     }
-  }
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    onCleanup(() => window.removeEventListener('beforeunload', warn));
+  });
 
   protected startEdit(): void {
     const job = this.job();

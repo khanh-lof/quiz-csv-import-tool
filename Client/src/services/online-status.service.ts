@@ -30,7 +30,7 @@ export class OnlineStatusService {
       this.previousUrl && this.previousUrl !== '/offline' && this.previousUrl !== '/'
         ? this.previousUrl
         : '/quiz';
-    this.router.navigateByUrl(targetUrl);
+    this.router.navigateByUrl(targetUrl, { replaceUrl: true });
   }
 
   async checkConnection(): Promise<boolean> {
@@ -95,7 +95,8 @@ export class OnlineStatusService {
     if (currentUrl && !currentUrl.includes('/offline')) {
       this.previousUrl = currentUrl;
     }
-    this.router.navigate(['/offline']);
+    // The offline screen stands in for the page without an address of its own, so Back never lands on it.
+    this.router.navigate(['/offline'], { skipLocationChange: true });
   }
 
   private handleOnlineEvent(): void {

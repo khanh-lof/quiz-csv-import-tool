@@ -30,6 +30,28 @@ curl -X POST http://localhost:7071/api/users \
   -d '{"username":"alice","password":"secret","roles":["User"]}'
 ```
 
+## Admin page
+
+A web page to manage QuizTool by hand, for your own machine only: no login, it listens on 127.0.0.1 and is
+never deployed. It uses the database of `.env`; the header says whether that is a local or a remote one.
+
+```bash
+go run ./cmd/admin                       # http://127.0.0.1:7072 (ADMIN_PORT)
+pwsh -File run-server-podman.ps1 admin   # against the local podman MongoDB instead
+```
+
+- **Dashboard**: counts, running jobs, jobs per day, model token usage and the most active users.
+- **Users**: create, change password or roles, sign out of every device, reset the AI rate limit, clear a login
+  lockout, delete (optionally with their jobs and assignments).
+- **Jobs**: filter by user, status, platform or text; see a job's request, error, answer and document; fail a
+  running job or every stale one (no heartbeat for 90 s); delete.
+- **Assignments**: filter, see settings and every student's results per stage, close, reopen, change the
+  deadline, remove a student, delete.
+- **Question bank**: questions per book, browse and retire or reactivate questions.
+
+Tick **Auto-refresh** to reload the lists every 5 seconds. Set `ADMIN_CLIENT_URL` (default
+`http://localhost:4200`) for the students' links shown on an assignment.
+
 ## Endpoints
 
 | Method & path | Auth | Purpose |

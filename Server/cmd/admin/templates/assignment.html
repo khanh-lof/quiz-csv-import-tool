@@ -1,0 +1,98 @@
+{{define "content"}}
+{{with .Data}}
+{{$a := .Assignment}}
+{{$stages := stages $a}}
+<p class="crumbs"><a href="/assignments">Assignments</a> of <a href="/assignments?user={{$a.Username}}">{{$a.Username}}</a></p>
+<div class="page-head">
+  <h1>{{$a.Title}}</h1>
+  <div class="button-row">
+    {{if $a.ClosedAt}}
+    <form method="post" action="/assignments/{{path $a.ID}}/reopen"><button>Reopen</button></form>
+    {{else}}
+    <form method="post" action="/assignments/{{path $a.ID}}/close" data-confirm="Close this assignment now? Students can no longer join or start a run."><button>Close now</button></form>
+    {{end}}
+    <form method="post" action="/assignments/{{path $a.ID}}/delete" data-confirm="Delete this assignment and the results of its {{len .Players}} students? This cannot be undone.">
+      <button class="btn-danger">Delete assignment</button>
+    </form>
+  </div>
+</div>
+
+<div class="columns">
+  <section class="panel">
+    <h2>Settings</h2>
+    <dl class="facts">
+      <dt>State</dt><dd>{{if open $a}}open{{else}}<span class="err-text">closed</span>{{end}}</dd>
+      <dt>Teacher</dt><dd><a href="/users/{{path $a.Username}}">{{$a.Username}}</a></dd>
+      <dt>Class</dt><dd>{{if $a.Label}}{{$a.Label}}{{else}}<span class="sub">none</span>{{end}}</dd>
+      <dt>Code</dt><dd><code>{{$a.Code}}</code> <a href="{{studentURL $a.Code}}" target="_blank" rel="noreferrer">Open the student page</a></dd>
+      <dt>Quiz</dt><dd><a href="/jobs/{{path $a.JobID}}">job {{$a.JobID}}</a>{{if english $a.Language}}, English{{end}}</dd>
+      <dt>Time per question</dt><dd>{{$a.TimeMode}}</dd>
+      <dt>Stage order</dt><dd>{{if $a.StageLock}}{{$a.StageLock}}{{else}}sequential <span class="sub">(not set)</span>{{end}}</dd>
+      <dt>Replays</dt><dd>{{with $a.MaxAttempts}}at most {{.}} runs per stage{{else}}unlimited{{end}}</dd>
+      <dt>Leaderboard</dt><dd>{{if $a.HideBoard}}hidden from students{{else}}shown to students{{end}}</dd>
+      <dt>Pinyin</dt><dd>{{if $a.ShowPinyin}}shown{{else}}hidden{{end}}</dd>
+      <dt>Created</dt><dd>{{dt $a.CreatedAt}}</dd>
+      {{if $a.ClosedAt}}<dt>Closed by hand</dt><dd>{{dt $a.ClosedAt}}</dd>{{end}}
+    </dl>
+  </section>
+  <section class="panel">
+    <h2>Stages</h2>
+    <table class="grid compact">
+      <thead><tr><th>Stage</th><th class="num">Questions</th><th class="num">Pass mark</th></tr></thead>
+      <tbody>
+      {{range $stages}}
+        <tr><td>{{.}}</td><td class="num">{{index $a.StageCounts .}}</td><td class="num">{{with index $a.PassPercents .}}{{.}}%{{else}}<span class="sub">default</span>{{end}}</td></tr>
+      {{end}}
+      </tbody>
+    </table>
+
+    <h2>Deadline</h2>
+    <form method="post" action="/assignments/{{path $a.ID}}/deadline" class="form-row">
+      <input type="datetime-local" name="closesAt" value="{{localInput $a.ClosesAt}}" aria-label="Deadline">
+      <button>Set deadline</button>
+      {{if $a.ClosesAt}}<button class="btn-small" name="clear" value="1">Remove deadline</button>{{end}}
+    </form>
+    <p class="sub">{{if $a.ClosesAt}}Closes {{dt $a.ClosesAt}}, {{ago $a.ClosesAt}}.{{else}}No deadline: it stays open until closed by hand.{{end}}</p>
+  </section>
+</div>
+
+<section class="panel" data-live id="players-live">
+  <h2>Students <span class="count">{{len .Players}}</span></h2>
+  <div class="table-wrap ledger">
+  <table class="grid">
+    <thead>
+      <tr>
+        <th class="mark"><span class="visually-hidden">Mark</span></th>
+        <th>Name</th><th>Joined</th><th>Last played</th><th class="num">Stages passed</th><th class="num">Right answers</th>
+        {{range $stages}}<th class="num" title="Best run: right of asked, then runs started">Stage {{.}}</th>{{end}}
+        <th><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+    {{range $p := .Players}}
+      <tr>
+        <td class="mark">{{if and $stages (eq (passed $p) (len $stages))}}{{template "mark" "passed"}}{{end}}</td>
+        <td><strong>{{$p.Name}}</strong></td>
+        <td class="nowrap" title="{{dt $p.JoinedAt}}">{{ago $p.JoinedAt}}</td>
+        <td class="nowrap" title="{{dt $p.LastPlayedAt}}">{{ago $p.LastPlayedAt}}</td>
+        <td class="num">{{passed $p}} of {{len $stages}}</td>
+        <td class="num">{{score $p}}</td>
+        {{range $stages}}
+          {{$r := index $p.Stages .}}
+          <td class="num nowrap">{{if $r.Total}}<span class="{{if $r.Passed}}pass{{end}}">{{$r.Correct}}/{{$r.Total}}</span> <span class="sub">×{{runs $p .}}</span>{{else if runs $p .}}<span class="sub">×{{runs $p .}}</span>{{end}}</td>
+        {{end}}
+        <td class="actions">
+          <form method="post" action="/assignments/{{path $a.ID}}/players/{{path $p.ID}}/delete" data-confirm="Remove {{$p.Name}} and their results?">
+            <button class="btn-small">Remove</button>
+          </form>
+        </td>
+      </tr>
+    {{else}}
+      <tr><td class="mark"></td><td colspan="20" class="empty">No student has joined yet. Share the link above.</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+</section>
+{{end}}
+{{end}}

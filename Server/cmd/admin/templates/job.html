@@ -1,0 +1,75 @@
+{{define "content"}}
+{{with .Data}}
+{{$job := .Job}}
+<p class="crumbs"><a href="/jobs">Jobs</a> of <a href="/jobs?user={{$job.Username}}">{{$job.Username}}</a></p>
+<div class="page-head">
+  <h1>{{if $job.Title}}{{$job.Title}}{{else}}Untitled job{{end}}</h1>
+  <div class="button-row">
+    {{if eq $job.Status "running"}}
+    <form method="post" action="/jobs/{{path $job.ID}}/fail" data-confirm="Mark this job as failed? The teacher sees it as interrupted.">
+      <button>Mark as failed</button>
+    </form>
+    {{end}}
+    <form method="post" action="/jobs/{{path $job.ID}}/delete" data-confirm="Delete this job? The teacher loses it from their history.">
+      <input type="hidden" name="back" value="/jobs">
+      <button class="btn-danger">Delete job</button>
+    </form>
+  </div>
+</div>
+
+<div data-live id="job-live">
+<div class="columns">
+  <section class="panel">
+    <h2>Request</h2>
+    <dl class="facts">
+      <dt>Status</dt><dd>{{template "status" $job}}</dd>
+      <dt>Teacher</dt><dd><a href="/users/{{path $job.Username}}">{{$job.Username}}</a></dd>
+      <dt>Mode</dt><dd>{{if $job.Creative}}Creative: the AI writes the quiz{{else}}Formatted: the AI reads the images{{end}}</dd>
+      <dt>Platform</dt><dd>{{platform $job}}{{if english $job.Language}}, English{{end}}</dd>
+      {{if $job.CourseType}}<dt>Course</dt><dd>{{course $job}}{{if $job.LessonNumbers}}, lessons {{ints $job.LessonNumbers}}{{end}}</dd>{{end}}
+      {{if $job.GestureStages}}<dt>Games</dt><dd>stages {{ints $job.GestureStages}}{{with $job.QuestionsPerStage}}, {{.}} questions each{{end}}</dd>{{end}}
+      <dt>Images</dt><dd>{{$job.ImageCount}}{{range $i, $img := $job.Images}} <a href="{{$img.URL}}" target="_blank" rel="noreferrer">image {{$i}}</a>{{end}}</dd>
+      {{if $job.BankQuestions}}<dt>Question bank</dt><dd>{{len $job.BankQuestions}} questions, {{$job.FromBank}} of them already in the bank</dd>{{end}}
+      <dt>Id</dt><dd><code>{{$job.ID}}</code></dd>
+    </dl>
+  </section>
+  <section class="panel">
+    <h2>Progress</h2>
+    <dl class="facts">
+      <dt>Created</dt><dd>{{dt $job.CreatedAt}} <span class="sub">({{ago $job.CreatedAt}})</span></dd>
+      {{if $job.HeartbeatAt}}<dt>Last heartbeat</dt><dd>{{dt $job.HeartbeatAt}} <span class="sub">({{ago $job.HeartbeatAt}})</span></dd>{{end}}
+      {{if $job.FinishedAt}}<dt>Finished</dt><dd>{{dt $job.FinishedAt}}</dd>{{end}}
+      <dt>Took</dt><dd>{{dur (duration $job)}}</dd>
+      {{if $job.Resumes}}<dt>Resumed</dt><dd>{{$job.Resumes}} times</dd>{{end}}
+      {{with $job.Usage}}
+      <dt>Model</dt><dd>{{.Model}}</dd>
+      <dt>Calls</dt><dd>{{.Calls}}, {{ms .DurationMs}} waiting for the model</dd>
+      <dt>Tokens</dt><dd>{{num .InputTokens}} in ({{num .CachedTokens}} cached), {{num .OutputTokens}} out</dd>
+      {{end}}
+    </dl>
+  </section>
+</div>
+
+{{if $job.ErrorMessage}}
+<section class="panel">
+  <h2 class="err-text">Why it failed</h2>
+  <p>{{if $job.ErrorCode}}<code>{{$job.ErrorCode}}</code>{{end}}{{if $job.ErrorStatus}} <span class="badge">HTTP {{$job.ErrorStatus}}</span>{{end}}</p>
+  <pre class="code">{{$job.ErrorMessage}}</pre>
+</section>
+{{end}}
+</div>
+
+{{if $job.CSV}}
+<section class="panel">
+  <div class="panel-head"><h2>Answer</h2><a href="/jobs/{{path $job.ID}}/csv" target="_blank">Open as plain text</a></div>
+  <pre class="code scroll">{{prettyJSON $job.CSV}}</pre>
+</section>
+{{end}}
+
+<details class="panel">
+  <summary>Stored document</summary>
+  <p class="sub">Everything but the answer and the source.</p>
+  <pre class="code scroll">{{pretty .Raw}}</pre>
+</details>
+{{end}}
+{{end}}

@@ -245,7 +245,7 @@ func TestRefreshTokensAreStoredHashed(t *testing.T) {
 	s, _ := svc.Login(ctx, "alice", "pw")
 
 	u, _ := users.FindByUsername(ctx, "alice")
-	if len(u.RefreshTokens) != 1 || u.RefreshTokens[0].Hash == s.RefreshToken || u.RefreshTokens[0].Hash != hashRefreshToken(s.RefreshToken) {
+	if len(u.RefreshTokens) != 1 || u.RefreshTokens[0].Hash == s.RefreshToken || u.RefreshTokens[0].Hash != HashKey(s.RefreshToken) {
 		t.Fatalf("stored %+v for token %q", u.RefreshTokens, s.RefreshToken)
 	}
 	// Presenting the stored hash itself is not a valid token.

@@ -14,6 +14,18 @@
       "port": 7071
     },
     {
+      "name": "quiz-tool-admin",
+      "runtimeExecutable": "go",
+      "runtimeArgs": ["-C", "Server", "run", "./cmd/admin"],
+      "port": 7072
+    },
+    {
+      "name": "quiz-tool-admin-podman",
+      "runtimeExecutable": "pwsh",
+      "runtimeArgs": ["-NoProfile", "-File", "Server/run-server-podman.ps1", "admin"],
+      "port": 7072
+    },
+    {
       "name": "quiz-tool-server-podman",
       "runtimeExecutable": "pwsh",
       "runtimeArgs": ["-NoProfile", "-File", "Server/run-server-podman.ps1"],

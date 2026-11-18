@@ -1,0 +1,108 @@
+{{define "content"}}
+{{with .Data}}
+<div data-live id="dashboard-live">
+<div class="page-head"><h1>Dashboard</h1></div>
+
+<p class="summary">
+  <a href="/users">{{plural .Overview.Users "user" "users"}}</a>.
+  {{if .Overview.Running}}<a href="/jobs?status=running">{{plural .Overview.Running "job is" "jobs are"}} running</a>{{else}}No job is running{{end}};
+  in the last 24 hours <a href="/jobs?status=done">{{num .Overview.Done24h}} finished</a>
+  and {{if .Overview.Failed24h}}<a class="alarm" href="/jobs?status=failed">{{num .Overview.Failed24h}} failed</a>{{else}}none failed{{end}}.
+  <a href="/assignments?state=open">{{num .Overview.OpenAssignments}} of {{plural .Overview.Assignments "assignment" "assignments"}}</a> are open,
+  with {{plural .Overview.Players "student" "students"}} in all, and the bank holds
+  <a href="/bank?status=active">{{plural .Overview.BankActive "question" "questions"}}</a>.
+</p>
+
+{{if .Running}}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Running now <span class="count">{{len .Running}}</span></h2>
+    <form method="post" action="/jobs/fail-stale" data-confirm="Mark every running job without a heartbeat for 90 seconds as failed?">
+      <input type="hidden" name="back" value="{{.Back}}">
+      <button class="btn-small">Fail stale jobs</button>
+    </form>
+  </div>
+  {{template "jobRows" dict "Jobs" .Running "Back" .Back}}
+</section>
+{{end}}
+
+<section class="panel">
+  <div class="panel-head"><h2>Recent failures</h2><a href="/jobs?status=failed">All failed jobs</a></div>
+  {{template "jobRows" dict "Jobs" .Failures "Back" .Back}}
+</section>
+
+<div class="columns">
+  <section class="panel">
+    <h2>Jobs per day</h2>
+    <div class="legend" aria-hidden="true">
+      <span><i class="key key-done"></i>Done</span><span><i class="key key-failed"></i>Failed</span><span><i class="key key-running"></i>Running</span>
+    </div>
+    <table class="grid days">
+      <thead><tr><th>Day</th><th class="bar-col"><span class="visually-hidden">Chart</span></th><th class="num">Done</th><th class="num">Failed</th><th class="num">Running</th></tr></thead>
+      <tbody>
+      {{$busiest := .Busiest}}
+      {{range .Days}}
+        <tr>
+          <td class="nowrap">{{.Day.Format "Mon 2 Jan"}}</td>
+          <td class="bar-col">
+            {{if .Total}}
+            <div class="bar" style="width: {{barWidth .Total $busiest}}">
+              {{if .Done}}<span class="seg seg-done" style="flex-grow: {{.Done}}" title="{{.Done}} done"></span>{{end}}
+              {{if .Failed}}<span class="seg seg-failed" style="flex-grow: {{.Failed}}" title="{{.Failed}} failed"></span>{{end}}
+              {{if .Running}}<span class="seg seg-running" style="flex-grow: {{.Running}}" title="{{.Running}} running"></span>{{end}}
+            </div>
+            {{end}}
+          </td>
+          <td class="num">{{if .Done}}{{.Done}}{{end}}</td>
+          <td class="num">{{if .Failed}}<span class="err-text">{{.Failed}}</span>{{end}}</td>
+          <td class="num">{{if .Running}}{{.Running}}{{end}}</td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h2>Most active teachers, last 30 days</h2>
+    <table class="grid">
+      <thead><tr><th>User</th><th class="num">Jobs</th><th class="num">Failed</th><th class="num">Tokens</th></tr></thead>
+      <tbody>
+      {{range .TopUsers}}
+        <tr>
+          <td><a href="/users/{{path .Username}}">{{.Username}}</a></td>
+          <td class="num"><a href="/jobs?user={{.Username}}">{{.Jobs}}</a></td>
+          <td class="num">{{if .Failed}}<a class="err-text" href="/jobs?user={{.Username}}&amp;status=failed">{{.Failed}}</a>{{end}}</td>
+          <td class="num">{{num .Tokens}}</td>
+        </tr>
+      {{else}}
+        <tr><td colspan="4" class="empty">No jobs in the last 30 days</td></tr>
+      {{end}}
+      </tbody>
+    </table>
+
+    <h2>Model usage, last 30 days</h2>
+    <div class="table-wrap">
+    <table class="grid">
+      <thead><tr><th>Model</th><th class="num">Jobs</th><th class="num">Calls</th><th class="num">Tokens in</th><th class="num">Cached</th><th class="num">Tokens out</th><th class="num">Average time</th></tr></thead>
+      <tbody>
+      {{range .Usage}}
+        <tr>
+          <td>{{if .Model}}{{.Model}}{{else}}<em>unknown</em>{{end}}</td>
+          <td class="num">{{num .Jobs}}</td>
+          <td class="num">{{num .Calls}}</td>
+          <td class="num">{{num .InputTokens}}</td>
+          <td class="num">{{num .CachedTokens}}</td>
+          <td class="num">{{num .OutputTokens}}</td>
+          <td class="num">{{ms .AvgDurationMs}}</td>
+        </tr>
+      {{else}}
+        <tr><td colspan="7" class="empty">No model calls in the last 30 days</td></tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+  </section>
+</div>
+</div>
+{{end}}
+{{end}}

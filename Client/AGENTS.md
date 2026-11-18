@@ -63,7 +63,10 @@ fallback live in its `client` service); locally `ng serve` proxies `/api` to
   generation), `/ai-history` (its history), `/ai-history/radicals/:jobId` (a "Ghép bộ thủ" exercise), `/play/:jobId` (a gesture quiz taken from one of the user's AI jobs), `/play/preview/:assignmentId`
   and the `/assignments` pages need a login, enforced by `authGuard` (`services/auth.guard.ts`), which redirects to
   `/login?returnUrl=/ai`. `LoginComponent` navigates to `returnUrl` after login (only in-app paths
-  are accepted, otherwise `/quiz`). A 401 from the AI endpoint sends the user the same way. The
+  are accepted, otherwise `/quiz`). A 401 from the AI endpoint sends the user the same way. The login page never
+  stays in the history: the menu's login item and the AI page's 401 open it with `goToLogin`
+  (`services/login-redirect.ts`), which marks the entry so that logging in goes back to the page's own entry; any
+  other arrival is replaced by `returnUrl`. Logging out replaces the page with `/quiz`. The
   table survives these trips (and reloads) because `VocabularyTable` keeps its rows and template as
   a draft in `localStorage` (`vocabulary-table-draft`).
 
@@ -78,7 +81,7 @@ assignment's leaderboard, which is why that page has no back link) and the title
 [Gesture quiz](#gesture-quiz-play)). The groups are open whenever the menu is; collapsed, the menu shows only
 icons and the groups become fly-outs. The wide layout remembers the collapse in `localStorage`
 (`workspace-nav-collapsed`); under 768px the menu is hidden behind a button beside the title and opens as a
-drawer over the page (with a backdrop that closes it) until a page is picked. The menu navigates between its child routes
+drawer over the page (with a backdrop that closes it) until a page is picked or Back/Forward changes the page. The menu navigates between its child routes
 `/quiz` (`VocabularyTable`), `/ai` (`AiGeneration`, `src/components/ai-generation/`), `/ai-history` (`AiJobs`, below) and the teacher's
 `/assignments` pages (see [Giao bài](#giao-bài-assignments)); `WorkspaceMode` knows all four, and logging out
 on any page but `/quiz`, which all need a login, falls back to `/quiz`. The AI
@@ -227,7 +230,10 @@ The exercise page the AI page can build instead of a quiz; the contract and the 
   three `nz-table`s, Từ (pinyin and meaning inputs, tags AI / AI không chắc / Đã bỏ, and under a pinyin the
   dictionary's readings when the review warns about it), Chữ (meaning) and Bộ (name, pinyin, meaning). Every change
   goes through `withWord` / `withChar` / `withComponent`, which also clear the row's `problem`. While editing, the
-  topbar has "Lưu" and "Hủy"; "Hủy", leaving the page (`unsavedChangesGuard`) or closing the tab after typing asks first. "Lưu" sends the whole table (`revise`, `PUT`), and on 200 puts the returned job in
+  topbar has "Lưu" and "Hủy"; "Hủy", leaving the page (`unsavedChangesGuard`) or closing the tab after typing asks first.
+  The router's `canceledNavigationResolution: 'computed'` (`app.config.ts`) makes a refused Back move the browser
+  forward again rather than overwrite the entry it landed on, and the `beforeunload` listener is only attached while
+  there are changes, so the page stays eligible for the back/forward cache. "Lưu" sends the whole table (`revise`, `PUT`), and on 200 puts the returned job in
   `AiJobService` (`replace`), so the review follows, and loads the page again into the frame. A 422 brings the table
   back with rows flagged (`flaggedEdit`), shown as red inputs with "Pinyin không khớp số chữ" or "Chưa nhập"; other
   refusals are worded by `radicalsEditError`. The inputs' `maxlength` are the server's limits
@@ -249,7 +255,8 @@ The page picks its *mode* from which parameter the route has (see [Giao bài](#g
 These were the app's first lazy routes: the page, the six games and MediaPipe stay out of the initial
 bundle, and a player who never opens `/play` never downloads them. `OnlineStatusService` leaves every
 `/play` URL alone when the connection drops (`GESTURE_PLAY_URL` matches `/play` and anything below it, so
-`/play/:jobId`, `/play/s/:code` and `/play/preview/...` too) instead of sending the player to `/offline`,
+`/play/:jobId`, `/play/s/:code` and `/play/preview/...` too) instead of sending the player to `/offline` (shown with
+`skipLocationChange`, so it is no history entry and the address keeps the page that comes back once online),
 since a loaded game runs entirely in the browser (a student's run, which the server deals question by
 question, shows "Mất kết nối" with a "Thử lại" instead, see below).
 
@@ -271,6 +278,14 @@ answer in with the wrong ones, stage 6 shuffles the chunks to an order that is n
 records it with `GestureProgressService.record` when the run finishes (after the last question's feedback);
 a teacher's preview does not record. A student's run is the exception: the server deals its questions, judges
 the answers and records it, and the page only shows what it is dealt (see [Giao bài](#giao-bài-assignments)).
+
+**History.** The `intro`, `playing` and `result` screens of a stage are one history entry, `?stage=N`, so the
+browser's Back (a phone's back gesture) returns to the map, stopping a run like "Về bản đồ", instead of leaving the
+page, and Forward reopens the stage's intro. An effect pushes the entry when a stage opens from the map (marked
+`gestureStageEntry` in the history state), replaces it for the next stage, and leaves it with `Location.back()`
+when the page goes back to the map itself; an address it did not make (a reload in a new tab) is replaced.
+`loading` keeps the address as it is. Only the router's `popstate` navigations move the screen (`followHistory`).
+The spec's router needs `initialNavigation()` to follow `Location.back()`.
 
 **Mobile fit.** Students play on phones, so every screen of the page (`load`, `join`, `map`, `intro`, `playing`,
 `result`) and every game must fit a phone without horizontal scrolling and, while `playing`, without vertical

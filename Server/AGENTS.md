@@ -72,8 +72,16 @@ go vet ./...
 go test ./...                                    # Mongo integration tests (users, jobs, assignments, bank) are skipped…
 MONGODB_TEST_URI=mongodb://localhost:27017 go test ./internal/store/   # …unless this is set
 go run ./cmd/server                              # http://localhost:7071 (reads .env if present)
+go run ./cmd/admin                               # admin page on http://127.0.0.1:7072, same .env database
+pwsh -File run-server-podman.ps1 admin           # the admin page against the local podman MongoDB
 docker compose up --build                        # MongoDB + API on 7071
 ```
+
+`cmd/admin` is a local-only web page (no login, bound to 127.0.0.1, never deployed) to manage users, watch and
+fail jobs, close or delete assignments and retire bank questions. It works through the stores (`store.Mongo`,
+`MongoJobs`, `MongoAssignments`, `MongoLoginAttempts`) and `auth.HashPassword`/`auth.HashKey`; only what no store
+offers, the reads across every user and a few admin-only writes, is in its own `queries.go`. A change to a stored
+document's shape therefore reaches it through the store types, but a renamed bson field also needs `queries.go`.
 
 ### Configuration
 
@@ -254,8 +262,8 @@ Routes (`internal/api/server.go`), all under `/api` because the client calls rel
   `avatar` (400 `Invalid avatar.` when it is not empty and not in `avatarIDs`, `avatars.go`, so a bad avatar on
   a full assignment is a 400, not a 409), then the 300-player cap
   (409 `Assignment is full`), then `CreatePlayer` (409 `Name taken` on `ErrDuplicate`); it mints a token of 32
-  random bytes (base64url), stores only `hashKey(token)` (`respond.go`: SHA-256, base64url, the same as the refresh
-  tokens; `auth` keeps its helper unexported) and answers 201 `{playerId, token, name, avatar}` (`avatar` is `""`
+  random bytes (base64url), stores only `auth.HashKey(token)` (SHA-256, base64url, the same as the refresh
+  tokens and the login-attempt keys) and answers 201 `{playerId, token, name, avatar}` (`avatar` is `""`
   when none was sent). The avatar set is the 24 animal ids of `avatarIDs`, which the client's `AVATARS`
   (`Client/src/models/avatar.ts`) mirrors in the same order, kept in step by hand; `validAvatar` matches an id
   exactly and `TestAvatarIDsAreThePinnedSet` pins the list. `updateSharedPlayer` (`PATCH share/{code}/player`) is
@@ -323,7 +331,7 @@ so a test can step through a closing time or the grace period without waiting. T
 `time.Now` directly.
 
 Shared handler helpers, to reuse rather than repeat: `respond.go` (`writeText`, `writeJSON`, `readJSON`,
-`noStore`, `internalError`, `hashKey`), `lookups.go` (`callerName`, `ownedJob`, `ownedAssignment`,
+`noStore`, `internalError`; `auth.HashKey` for anything stored hashed), `lookups.go` (`callerName`, `ownedJob`, `ownedAssignment`,
 `isFinishedJobOf`, `jobStoreReady`), and for the student routes `share_handlers.go`'s `sharedAssignmentWhile`
 (the code's 404 then the 410 for a state such as `(*store.Assignment).OpenAt`), `requestPlayer` (403) and
 `optionalPlayer` (a missing or unknown token is nil, never an error). `job_options.go` holds `newJob` and

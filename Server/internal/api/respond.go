@@ -1,8 +1,6 @@
 package api
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -52,12 +50,4 @@ func (s *Server) readJSON(w http.ResponseWriter, r *http.Request, dst any) bool 
 		return false
 	}
 	return true
-}
-
-// hashKey is SHA-256 in base64url: what the stores keep instead of a secret or a typed value, the same
-// scheme as the refresh tokens (auth keeps its own helper unexported). The secrets are random bits, so a
-// plain fast hash suffices.
-func hashKey(value string) string {
-	sum := sha256.Sum256([]byte(value))
-	return base64.RawURLEncoding.EncodeToString(sum[:])
 }

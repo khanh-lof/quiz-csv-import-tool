@@ -308,6 +308,20 @@ func parseGestureStages(raw string) ([]int, error) {
 	return stages, nil
 }
 
+// Name is the member's name, the one parseEnum accepts; "#n" for an ordinal out of range. Not a String
+// method, so formatting a value with %v keeps printing its ordinal.
+func (t ExportType) Name() string { return enumName(exportTypeNames, int(t)) }
+
+// Name is CourseType's ExportType.Name.
+func (c CourseType) Name() string { return enumName(courseTypeNames, int(c)) }
+
+func enumName(names []string, n int) string {
+	if n >= 0 && n < len(names) {
+		return names[n]
+	}
+	return "#" + strconv.Itoa(n)
+}
+
 // parseEnum accepts an ordinal or a member name (case-insensitive).
 func parseEnum(raw string, names []string) (int, bool) {
 	raw = strings.TrimSpace(raw)

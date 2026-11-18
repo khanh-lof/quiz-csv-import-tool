@@ -1,0 +1,87 @@
+{{define "content"}}
+{{with .Data}}
+<div class="page-head">
+  <h1>Users <span class="count">{{len .Users}}{{if ne (len .Users) .Total}} of {{.Total}}{{end}}</span></h1>
+  <form class="filters" method="get">
+    <input type="search" name="q" value="{{.Q}}" placeholder="Search username" aria-label="Search username">
+    <select name="role" aria-label="Role">
+      <option value="">Any role</option>
+      <option value="User" {{if eq .Role "User"}}selected{{end}}>User</option>
+      <option value="Admin" {{if eq .Role "Admin"}}selected{{end}}>Admin</option>
+    </select>
+    <button>Filter</button>
+    {{if or .Q .Role}}<a href="/users">Clear</a>{{end}}
+  </form>
+</div>
+
+<details class="panel" {{if not .Total}}open{{end}}>
+  <summary>New user</summary>
+  <form method="post" action="/users" class="form-row">
+    <input type="text" name="username" placeholder="Username" aria-label="Username" required autocomplete="off">
+    <span class="password-field">
+      <input type="text" name="password" placeholder="Password" aria-label="Password" required autocomplete="new-password">
+      <button type="button" class="btn-small" data-generate-password>Generate</button>
+    </span>
+    {{template "roleInputs" dict "User" true "Admin" false "Other" ""}}
+    <button class="btn-primary">Create user</button>
+  </form>
+</details>
+
+<div class="table-wrap ledger">
+<table class="grid">
+  <thead>
+    <tr>
+      <th class="mark"><span class="visually-hidden">Mark</span></th>
+      <th>Username</th><th>Roles</th><th>Created</th><th class="num">Devices</th>
+      <th class="num">Jobs</th><th class="num">Failed</th><th>Last job</th><th class="num">Tokens</th><th class="num">Assignments</th><th>Login</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .Users}}
+    <tr>
+      <td class="mark">{{if and .Lockout .Lockout.Locked}}{{template "mark" "locked"}}{{else if .Stats.Running}}{{template "mark" "running"}}{{end}}</td>
+      <td><a href="/users/{{path .Username}}"><strong>{{.Username}}</strong></a></td>
+      <td>{{range .Roles}}<span class="badge {{if eq . "Admin"}}badge-accent{{end}}">{{.}}</span> {{end}}</td>
+      <td class="nowrap" title="{{dt .CreatedAt}}">{{ago .CreatedAt}}</td>
+      <td class="num">{{sessions .User}}</td>
+      <td class="num">{{if .Stats.Jobs}}<a href="/jobs?user={{.Username}}">{{.Stats.Jobs}}</a>{{else}}0{{end}}{{if .Stats.Running}} <span class="sub">({{.Stats.Running}} running)</span>{{end}}</td>
+      <td class="num">{{if .Stats.Failed}}<a class="err-text" href="/jobs?user={{.Username}}&amp;status=failed">{{.Stats.Failed}}</a>{{end}}</td>
+      <td class="nowrap" title="{{dt .Stats.LastJobAt}}">{{ago .Stats.LastJobAt}}</td>
+      <td class="num">{{if .Stats.Tokens}}{{num .Stats.Tokens}}{{end}}</td>
+      <td class="num">{{if .Stats.Assignments}}<a href="/assignments?user={{.Username}}">{{.Stats.Assignments}}</a>{{end}}</td>
+      <td>{{with .Lockout}}{{if .Locked}}<span class="err-text">locked until {{.ExpiresAt.Local.Format "15:04"}}</span>{{else}}<span class="sub">{{.Count}} wrong passwords</span>{{end}}{{end}}</td>
+    </tr>
+  {{else}}
+    <tr><td class="mark"></td><td colspan="10" class="empty">No user matches. <a href="/users">Show every user</a></td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+
+{{if .Lockouts}}
+<section class="panel" style="margin-top: 40px">
+  <h2>Login attempts</h2>
+  <p class="sub">Wrong passwords counted in the current window. {{.MaxAttempts}} lock the username until the window ends; a successful login clears them.</p>
+  <table class="grid">
+    <thead><tr><th>Username</th><th class="num">Attempts</th><th>Window started</th><th>Ends</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>
+    {{range .Lockouts}}
+      <tr>
+        <td>{{if .Username}}<a href="/users/{{path .Username}}">{{.Username}}</a>{{else}}<span class="sub" title="Key {{.Key}}">not a user</span>{{end}}</td>
+        <td class="num">{{.Count}}{{if .Locked}} <span class="err-text">locked</span>{{end}}</td>
+        <td title="{{dt .WindowStart}}">{{ago .WindowStart}}</td>
+        <td title="{{dt .ExpiresAt}}">{{ago .ExpiresAt}}</td>
+        <td class="actions">
+          <form method="post" action="/login-attempts/{{.Key}}/delete">
+            <input type="hidden" name="back" value="/users">
+            <button class="btn-small">Clear</button>
+          </form>
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
+{{end}}
+{{end}}

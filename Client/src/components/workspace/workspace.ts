@@ -17,6 +17,7 @@ import { NzMenuDirective, NzMenuItemComponent, NzSubMenuComponent } from 'ng-zor
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { AuthService } from '../../services/auth.service';
 import { MessageKey, MessagePipe } from '../../i18n/messages';
+import { goToLogin } from '../../services/login-redirect';
 
 // The pages of the frame, as the routes that host them: the two ways of building a quiz, the history of the
 // AI ones, and the assignments of the gesture quizzes.
@@ -150,6 +151,18 @@ export class Workspace {
   protected readonly narrow = matchMedia(NARROW_QUERY).matches;
   protected readonly collapsed = signal(this.narrow || this.storedCollapsed());
 
+  constructor() {
+    // The phone's menu drawer covers the page, so it must not stay open over the page that Back or Forward brings.
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd),
+      takeUntilDestroyed()
+    ).subscribe(() => {
+      if (this.narrow && !this.collapsed()) {
+        this.collapsed.set(true);
+      }
+    });
+  }
+
   // The router puts a mode's page on screen before its first change detection, which runs a task later.
   // In between the browser can draw the page without its ng-zorro classes (button types, checked radios,
   // input styles), and their `transition: all` then plays every control into its style slowly. Rendering
@@ -186,7 +199,7 @@ export class Workspace {
   }
 
   protected login(): void {
-    this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
+    goToLogin(this.router);
   }
 
   protected logout(): void {
@@ -196,7 +209,7 @@ export class Workspace {
     ).subscribe(() => {
       // The AI and assignment pages need a login, so fall back to the table that works anonymously.
       if (this.mode() !== '/quiz') {
-        this.router.navigateByUrl('/quiz');
+        this.router.navigateByUrl('/quiz', { replaceUrl: true });
       }
     });
   }

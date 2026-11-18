@@ -95,7 +95,7 @@ func (s *Service) Login(ctx context.Context, username, password string) (Session
 // Presenting a token that was already rotated away (outside reuseGracePeriod) revokes every
 // session of the user and returns ErrRefreshTokenReused.
 func (s *Service) Refresh(ctx context.Context, refreshToken string) (Session, error) {
-	hash := hashRefreshToken(refreshToken)
+	hash := HashKey(refreshToken)
 	user, err := s.users.FindByRefreshTokenHash(ctx, hash)
 	if errors.Is(err, store.ErrNotFound) {
 		return Session{}, ErrInvalidRefreshToken
@@ -165,7 +165,7 @@ func (s *Service) LogoutAll(ctx context.Context, refreshToken string) (bool, err
 
 // revoke applies remove to the sessions of the user holding refreshToken, if it is active.
 func (s *Service) revoke(ctx context.Context, refreshToken string, remove func(ss *store.Sessions, hash string)) (bool, error) {
-	hash := hashRefreshToken(refreshToken)
+	hash := HashKey(refreshToken)
 	user, err := s.users.FindByRefreshTokenHash(ctx, hash)
 	if errors.Is(err, store.ErrNotFound) {
 		return false, nil
@@ -206,15 +206,16 @@ func (s *Service) newRefreshToken() (string, store.RefreshToken, error) {
 	token := base64.RawURLEncoding.EncodeToString(b)
 	now := s.now().UTC()
 	return token, store.RefreshToken{
-		Hash:      hashRefreshToken(token),
+		Hash:      HashKey(token),
 		ExpiresAt: now.Add(s.refreshTTL),
 		CreatedAt: now,
 	}, nil
 }
 
-// hashRefreshToken is what the store keeps instead of the token. The token carries 512 random
-// bits, so a plain fast hash suffices: there is nothing to brute-force and no need for a salt.
-func hashRefreshToken(token string) string {
-	sum := sha256.Sum256([]byte(token))
+// HashKey is SHA-256 in base64url: what the stores keep instead of a secret or a typed value (refresh
+// tokens, player tokens, the usernames the login attempts count). The secrets are random bits, so a plain
+// fast hash suffices: there is nothing to brute-force and no need for a salt.
+func HashKey(value string) string {
+	sum := sha256.Sum256([]byte(value))
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }

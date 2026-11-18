@@ -1,6 +1,8 @@
-# Runs the API against a local MongoDB in a podman container (quiz-mongo) on http://localhost:7071.
-# Usage: pwsh -NoProfile -File Server/run-server-podman.ps1
+# Runs the API against a local MongoDB in a podman container (quiz-mongo) on http://localhost:7071, or another
+# command of cmd/ against it, e.g. the admin page (http://127.0.0.1:7072).
+# Usage: pwsh -NoProfile -File Server/run-server-podman.ps1 [server|admin]
 # Real env vars win over .env, so MONGODB_URI here overrides the Atlas one in .env.
+param([string]$Command = 'server')
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 
@@ -57,5 +59,5 @@ Write-Host "MongoDB at ${mongoHost}:27017"
 
 $env:MONGODB_URI = "mongodb://${mongoHost}:27017"
 $env:PORT = '7071'
-go run ./cmd/server
+go run "./cmd/$Command"
 exit $LASTEXITCODE

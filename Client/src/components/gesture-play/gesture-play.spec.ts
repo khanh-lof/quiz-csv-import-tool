@@ -4,7 +4,9 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal, Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { Location } from '@angular/common';
+import { provideLocationMocks } from '@angular/common/testing';
+import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { NzModalComponent } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
@@ -378,6 +380,7 @@ describe('GesturePlay', () => {
       providers: [
         provideNzI18n(appLocale),
         provideRouter([]),
+        provideLocationMocks(),
         provideHttpClient(),
         provideHttpClientTesting(),
         {
@@ -760,6 +763,91 @@ describe('GesturePlay', () => {
 
   // A quiz holds any 1 to 6 of the six stages; the CSV and the progress keep the stages' own numbers, and the
   // player reads them as "Màn 1", "Màn 2"… in the order they are played.
+  describe("the browser's Back and Forward", () => {
+    const location = (): Location => TestBed.inject(Location);
+    const onMap = (): boolean => cardList().length === 6 && !location().path().includes('stage');
+
+    // Lets the router finish the navigations the page and the test started.
+    async function navigated(): Promise<void> {
+      await settle();
+      await settle();
+    }
+
+    // What an app's bootstrap does: the router starts following the browser's Back and Forward.
+    beforeEach(async () => {
+      TestBed.inject(Router).initialNavigation();
+      await new Promise<void>(resolve => setTimeout(resolve));
+    });
+
+    async function openStageOne(): Promise<void> {
+      playDemo();
+      click('.stage-card', 'Màn 1');
+      await navigated();
+    }
+
+    it('gives an opened stage an address of its own, which Back leaves for the map', async () => {
+      await openStageOne();
+
+      expect(location().path()).toBe('/?stage=1');
+
+      location().back();
+      await navigated();
+
+      expect(onMap()).toBeTrue();
+    });
+
+    it('stops a stage being played and returns to the map on Back', async () => {
+      await openStageOne();
+      click('button', 'Bắt đầu');
+      vision.stopCamera.calls.reset();
+
+      location().back();
+      await navigated();
+
+      expect(element().querySelector('kt-quiz-true-false-game')).toBeNull();
+      expect(cardList().length).toBe(6);
+      expect(vision.stopCamera).toHaveBeenCalled();
+    });
+
+    it('takes the stage out of the history when its own button returns to the map, so Forward reopens it', async () => {
+      await openStageOne();
+
+      click('button', 'Về bản đồ');
+      await navigated();
+
+      expect(onMap()).toBeTrue();
+
+      location().forward();
+      await navigated();
+
+      expect(location().path()).toBe('/?stage=1');
+      expect(text()).toContain('Bắt đầu');
+    });
+
+    it('keeps a single entry for stages opened one after another', async () => {
+      playDemo();
+      playStageOne(rightChoice);
+      await navigated();
+      click('button', 'Màn tiếp theo');
+      await navigated();
+
+      expect(location().path()).toBe('/?stage=2');
+
+      location().back();
+      await navigated();
+
+      expect(onMap()).toBeTrue();
+    });
+
+    it('drops a stage address it did not make', async () => {
+      await TestBed.inject(Router).navigateByUrl('/?stage=3');
+      playDemo();
+      await navigated();
+
+      expect(onMap()).toBeTrue();
+    });
+  });
+
   describe('a quiz with only some of the stages', () => {
     const only46 = parseGestureQuiz(new CsvImportService().parseCsvRows(sampleStages(4, 6)), 'Demo');
 

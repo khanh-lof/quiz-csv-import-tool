@@ -1,0 +1,39 @@
+{{define "content"}}
+{{with .Data}}
+<div class="page-head">
+  <h1>Jobs</h1>
+  <form class="filters" method="get">
+    <input type="search" name="q" value="{{.Filter.Q}}" placeholder="Title, error or id" aria-label="Search">
+    <select name="user" aria-label="User">
+      <option value="">Every user</option>
+      {{range .Users}}<option {{if eq . $.Data.Filter.User}}selected{{end}}>{{.}}</option>{{end}}
+    </select>
+    <select name="status" aria-label="Status">
+      <option value="">Any status</option>
+      <option value="running" {{if eq .Filter.Status "running"}}selected{{end}}>Running</option>
+      <option value="done" {{if eq .Filter.Status "done"}}selected{{end}}>Done</option>
+      <option value="failed" {{if eq .Filter.Status "failed"}}selected{{end}}>Failed</option>
+    </select>
+    <select name="platform" aria-label="Platform">
+      <option value="">Any platform</option>
+      <option value="formatted" {{if eq .Filter.Platform "formatted"}}selected{{end}}>Formatted</option>
+      {{range $i, $name := exportTypes}}<option value="{{$i}}" {{if eq (print $i) $.Data.Filter.Platform}}selected{{end}}>{{$name}}</option>{{end}}
+    </select>
+    <button>Filter</button>
+    {{if or .Filter.Q .Filter.User .Filter.Status .Filter.Platform}}<a href="/jobs">Clear</a>{{end}}
+  </form>
+</div>
+
+<div data-live id="jobs-live">
+  <div class="toolbar">
+    {{template "pager" .Pager}}
+    <form method="post" action="/jobs/fail-stale" data-confirm="Mark every running job without a heartbeat for 90 seconds as failed?">
+      <input type="hidden" name="back" value="{{.Back}}">
+      <button class="btn-small">Fail stale jobs</button>
+    </form>
+  </div>
+  {{template "jobRows" dict "Jobs" .Jobs "Back" .Back}}
+  {{if gt .Pager.Pages 1}}{{template "pager" .Pager}}{{end}}
+</div>
+{{end}}
+{{end}}

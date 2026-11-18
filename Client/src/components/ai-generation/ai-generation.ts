@@ -64,6 +64,7 @@ import { ImageCompressionService, UploadTooLargeError } from '../../services/ima
 import { UsageGuide } from '../usage-guide/usage-guide';
 import { PublishExtensionService } from '../../services/publish-extension.service';
 import { escapeHtml } from '../../services/escape-html';
+import { goToLogin } from '../../services/login-redirect';
 import { NzContentComponent, NzLayoutComponent } from 'ng-zorro-antd/layout';
 import { NzTagComponent } from 'ng-zorro-antd/tag';
 import { GestureStageCard } from '../gesture-play/stage-card/stage-card';
@@ -651,7 +652,7 @@ export class AiGeneration {
     if (status === HttpStatusCode.Unauthorized) {
       this.notificationService.warning(this.messages.get('ai.form.sessionExpired'), '');
       this.setGenerating(false);
-      this.router.navigate(['/login'], { queryParams: { returnUrl: '/ai' } });
+      goToLogin(this.router);
       return;
     }
     if (notifyAiRefusal(this.notificationService, this.messages, failure)) {

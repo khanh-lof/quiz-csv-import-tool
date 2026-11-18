@@ -11,7 +11,7 @@ platform's import format.
 | Directory | What it is |
 |---|---|
 | [`Client/`](Client/) | Angular 22 single-page app (ng-zorro-antd) |
-| [`Server/`](Server/) | Go API: auth, per-user AI rate limit, LLM-backed generation, question bank, assignments, MongoDB persistence ([README](Server/README.md)) |
+| [`Server/`](Server/) | Go API: auth, per-user AI rate limit, LLM-backed generation, question bank, assignments, MongoDB persistence ([README](Server/README.md)); also a local-only [admin page](Server/README.md#admin-page) (`go run ./cmd/admin`) |
 | [`Extension/`](Extension/) | Optional Chrome/Edge extension that imports and publishes the quiz in your logged-in Wayground or Gimkit tab and returns its share link ([install guide, in Vietnamese](Extension/README.md)) |
 | [`Textbooks/`](Textbooks/) | Source material of the textbooks whose lessons the server sends to the model ([README](Textbooks/README.md)) |
 

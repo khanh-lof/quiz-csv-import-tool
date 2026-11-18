@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"quiz-csv-import-tool/server/internal/auth"
 	"quiz-csv-import-tool/server/internal/gesturequiz"
 	"quiz-csv-import-tool/server/internal/store"
 )
@@ -234,7 +235,7 @@ func (c *classroom) finish(t *testing.T, token string, stage, correct int) verdi
 // playerOf is what the store holds of the student with that token, run included.
 func (c *classroom) playerOf(t *testing.T, token string) *store.Player {
 	t.Helper()
-	p, err := c.assignments.PlayerByToken(context.Background(), c.a.ID, hashKey(token))
+	p, err := c.assignments.PlayerByToken(context.Background(), c.a.ID, auth.HashKey(token))
 	if err != nil {
 		t.Fatal(err)
 	}

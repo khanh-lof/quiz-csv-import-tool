@@ -31,7 +31,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Counted before the password is checked, so concurrent attempts cannot slip past the limit together.
-	attemptKey := hashKey(req.Username)
+	attemptKey := auth.HashKey(req.Username)
 	retryAt, ok, err := s.LoginAttempts.TryConsume(r.Context(), attemptKey, s.LoginMaxAttempts, s.LoginWindow)
 	if err != nil {
 		s.internalError(w, r, "counting login attempt failed", err)

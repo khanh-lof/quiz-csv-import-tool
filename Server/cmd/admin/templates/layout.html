@@ -1,0 +1,39 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} – QuizTool admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Dancing+Script:wght@500;700&display=swap">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">QuizTool <span>admin</span></a>
+    <nav>
+      <a href="/" {{if eq .Nav "dashboard"}}aria-current="page"{{end}}>Dashboard</a>
+      <a href="/users" {{if eq .Nav "users"}}aria-current="page"{{end}}>Users</a>
+      <a href="/jobs" {{if eq .Nav "jobs"}}aria-current="page"{{end}}>Jobs</a>
+      <a href="/assignments" {{if eq .Nav "assignments"}}aria-current="page"{{end}}>Assignments</a>
+      <a href="/bank" {{if eq .Nav "bank"}}aria-current="page"{{end}}>Question bank</a>
+    </nav>
+    <div class="top-right">
+      <label class="live-toggle" title="Reload the lists every 5 seconds">
+        <input type="checkbox" id="live-toggle"> Auto-refresh
+      </label>
+      <span class="db {{if .LocalMongo}}db-local{{else}}db-remote{{end}}" title="MongoDB at {{.MongoHost}}">
+        {{if .LocalMongo}}Local database {{.Database}}{{else}}Remote database {{.Database}}{{end}}
+      </span>
+    </div>
+  </header>
+  <main>
+    <p class="dateline">{{today}}</p>
+    {{if .OK}}<p class="flash flash-ok" role="status">{{.OK}}</p>{{end}}
+    {{if .Error}}<p class="flash flash-err" role="alert">{{.Error}}</p>{{end}}
+    {{template "content" .}}
+  </main>
+</body>
+</html>{{end}}

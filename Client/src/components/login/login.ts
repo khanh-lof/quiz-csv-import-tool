@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit } from '@angular/core';
-import { NgOptimizedImage } from '@angular/common';
+import { Location, NgOptimizedImage } from '@angular/common';
 
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -14,6 +14,7 @@ import { AuthService } from '../../services/auth.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { Messages, MessagePipe } from '../../i18n/messages';
+import { opensFromReturnPage } from '../../services/login-redirect';
 
 @Component({
   selector: 'kt-quiz-login',
@@ -42,6 +43,7 @@ export class LoginComponent implements OnInit {
   rememberMe = false;
   private readonly authService = inject(AuthService);
   private router = inject(Router);
+  private readonly location = inject(Location);
   private readonly route = inject(ActivatedRoute);
   private fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
@@ -59,7 +61,7 @@ export class LoginComponent implements OnInit {
     this.initializeForm();
     this.loadRememberedUsername();
     if (this.authService.hasAccessToken()) {
-      this.router.navigateByUrl(this.returnUrl);
+      this.leave();
     }
   }
 
@@ -84,7 +86,7 @@ export class LoginComponent implements OnInit {
           localStorage.removeItem('remembered_username');
         }
         this.isLoading = false;
-        this.router.navigateByUrl(this.returnUrl);
+        this.leave();
       },
       error: (error) => {
         this.isLoading = false;
@@ -100,6 +102,16 @@ export class LoginComponent implements OnInit {
         this.notificationService.error(this.messages.get('app.login.failed'), errorMessage);
       }
     });
+  }
+
+  // The login page never stays in the history behind the page it leads to: Back from there would land on it and
+  // be sent straight forward again.
+  private leave(): void {
+    if (opensFromReturnPage(this.location)) {
+      this.location.back();
+    } else {
+      this.router.navigateByUrl(this.returnUrl, { replaceUrl: true });
+    }
   }
 
   private initializeForm() {

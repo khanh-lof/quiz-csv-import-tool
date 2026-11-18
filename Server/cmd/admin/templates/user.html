@@ -1,0 +1,82 @@
+{{define "content"}}
+{{with .Data}}
+{{$name := .User.Username}}
+<p class="crumbs"><a href="/users">Users</a></p>
+<div class="page-head">
+  <h1>{{$name}}</h1>
+  <div>{{range .User.Roles}}<span class="badge {{if eq . "Admin"}}badge-accent{{end}}">{{.}}</span> {{end}}</div>
+</div>
+
+<div class="columns">
+  <section class="panel">
+    <h2>Account</h2>
+    <dl class="facts">
+      <dt>Created</dt><dd>{{dt .User.CreatedAt}} <span class="sub">({{ago .User.CreatedAt}})</span></dd>
+      <dt>Signed in on</dt><dd>{{len .Sessions}} {{if eq (len .Sessions) 1}}device{{else}}devices{{end}}</dd>
+      <dt>AI calls</dt><dd>{{if .RoundEnds}}{{.User.AICallCountInRound}} in the round that ends {{ago .RoundEnds}}{{else}}no round running{{end}}</dd>
+      <dt>Login</dt><dd>{{with .Lockout}}{{if .Locked}}<span class="err-text">locked until {{dt .ExpiresAt}}</span>{{else}}{{.Count}} wrong passwords in the current window{{end}}{{else}}no wrong passwords{{end}}</dd>
+    </dl>
+    <div class="button-row">
+      {{if .Sessions}}
+      <form method="post" action="/users/{{path $name}}/sessions/revoke" data-confirm="Sign {{$name}} out of every device?">
+        <button>Sign out everywhere</button>
+      </form>
+      {{end}}
+      {{if .RoundEnds}}
+      <form method="post" action="/users/{{path $name}}/rate-limit/reset">
+        <button>Reset AI rate limit</button>
+      </form>
+      {{end}}
+      {{with .Lockout}}
+      <form method="post" action="/login-attempts/{{.Key}}/delete">
+        <input type="hidden" name="back" value="/users/{{path $name}}">
+        <button>Clear login attempts</button>
+      </form>
+      {{end}}
+    </div>
+    {{if .Sessions}}
+    <table class="grid compact">
+      <thead><tr><th>Signed in</th><th>Session expires</th></tr></thead>
+      <tbody>{{range .Sessions}}<tr><td title="{{dt .CreatedAt}}">{{ago .CreatedAt}}</td><td title="{{dt .ExpiresAt}}">{{ago .ExpiresAt}}</td></tr>{{end}}</tbody>
+    </table>
+    {{end}}
+  </section>
+
+  <section class="panel">
+    <h2>Password</h2>
+    <form method="post" action="/users/{{path $name}}/password" class="stack">
+      <span class="password-field">
+        <input type="text" name="password" placeholder="New password" aria-label="New password" required autocomplete="new-password">
+        <button type="button" class="btn-small" data-generate-password>Generate</button>
+      </span>
+      <label class="check"><input type="checkbox" name="signOut" checked> Sign out of every device</label>
+      <button class="btn-primary">Change password</button>
+    </form>
+
+    <h2>Roles</h2>
+    <form method="post" action="/users/{{path $name}}/roles" class="stack">
+      <div class="form-row">{{template "roleInputs" dict "User" (hasRole .User "User") "Admin" (hasRole .User "Admin") "Other" .OtherRoles}}</div>
+      <button>Save roles</button>
+    </form>
+  </section>
+</div>
+
+<section class="panel">
+  <div class="panel-head"><h2>Latest jobs <span class="count">{{.JobTotal}}</span></h2>{{if gt .JobTotal 10}}<a href="/jobs?user={{$name}}">All {{.JobTotal}} jobs</a>{{end}}</div>
+  {{template "jobRows" dict "Jobs" .Jobs "Back" .Back}}
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Latest assignments <span class="count">{{.AssignmentTotal}}</span></h2>{{if gt .AssignmentTotal 10}}<a href="/assignments?user={{$name}}">All {{.AssignmentTotal}} assignments</a>{{end}}</div>
+  {{template "assignmentRows" .Assignments}}
+</section>
+
+<section class="panel danger">
+  <h2>Delete {{$name}}</h2>
+  <form method="post" action="/users/{{path $name}}/delete" class="form-row" data-confirm="Delete {{$name}}? This cannot be undone.">
+    <label class="check"><input type="checkbox" name="withData"> Also delete their {{.JobTotal}} jobs and {{.AssignmentTotal}} assignments, with the students' results</label>
+    <button class="btn-danger">Delete user</button>
+  </form>
+</section>
+{{end}}
+{{end}}

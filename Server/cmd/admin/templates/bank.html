@@ -1,0 +1,100 @@
+{{define "content"}}
+{{with .Data}}
+<div class="page-head"><h1>Question bank</h1></div>
+
+<section class="panel">
+  <h2>Books</h2>
+  <div class="table-wrap">
+  <table class="grid">
+    <thead><tr><th>Book</th><th>Language</th><th class="num">Active</th><th class="num">Retired</th><th class="num">Times used in a quiz</th><th>Written up to lesson</th><th>Newest</th></tr></thead>
+    <tbody>
+    {{range .Summary}}
+      <tr>
+        <td><a href="/bank?book={{.Book}}">{{.Book}}</a></td>
+        <td>{{if english .Language}}English{{else}}Chinese{{end}}</td>
+        <td class="num">{{num .Active}}</td>
+        <td class="num">{{if .Retired}}<a href="/bank?book={{.Book}}&amp;status=retired">{{.Retired}}</a>{{end}}</td>
+        <td class="num">{{num .Served}}</td>
+        <td>{{ints .Lessons}}</td>
+        <td title="{{dt .LastAt}}">{{ago .LastAt}}</td>
+      </tr>
+    {{else}}
+      <tr><td colspan="7" class="empty">The bank is empty. Quizzes fill it when QUESTION_BANK is on.</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<div class="page-head">
+  <h2>Questions</h2>
+  <form class="filters" method="get">
+    <input type="search" name="q" value="{{.Filter.Q}}" placeholder="Question, answer, word or job id" aria-label="Search">
+    <select name="book" aria-label="Book">
+      <option value="">Every book</option>
+      {{range .Summary}}<option {{if eq .Book $.Data.Filter.Book}}selected{{end}}>{{.Book}}</option>{{end}}
+    </select>
+    <input type="number" name="lesson" min="1" value="{{if .Filter.Lesson}}{{.Filter.Lesson}}{{end}}" placeholder="Lesson" aria-label="Lesson" class="narrow">
+    <select name="status" aria-label="Status">
+      <option value="">Any status</option>
+      <option value="active" {{if eq .Filter.Status "active"}}selected{{end}}>Active</option>
+      <option value="retired" {{if eq .Filter.Status "retired"}}selected{{end}}>Retired</option>
+    </select>
+    <button>Filter</button>
+    {{if or .Filter.Q .Filter.Book .Filter.Lesson .Filter.Status}}<a href="/bank">Clear</a>{{end}}
+  </form>
+</div>
+
+{{template "pager" .Pager}}
+<div class="table-wrap ledger">
+<table class="grid">
+  <thead>
+    <tr>
+      <th class="mark"><span class="visually-hidden">Mark</span></th>
+      <th>Book</th><th>Lessons</th><th>Kind</th><th class="num">Difficulty</th><th>Question</th><th>Answer</th><th class="num">Used</th><th><span class="visually-hidden">Actions</span></th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .Questions}}
+    <tr class="{{.Status}}">
+      <td class="mark">{{if ne .Status "active"}}{{template "mark" "retired"}}{{end}}</td>
+      <td>{{.Book}}</td>
+      <td>{{ints .Lessons}}</td>
+      <td class="sub">{{.Format}}<br>{{.Skill}}</td>
+      <td class="num">{{.Difficulty}}</td>
+      <td class="wide">
+        <details>
+          <summary>{{truncate .Stem.Text 80}}{{if .Stem.Pinyin}} <span class="sub">{{truncate .Stem.Pinyin 40}}</span>{{end}}</summary>
+          <dl class="facts small">
+            {{if .Distractors}}<dt>Wrong answers</dt><dd>{{range $i, $d := .Distractors}}{{if $i}}, {{end}}{{$d.Text}}{{end}}</dd>{{end}}
+            {{if .Chunks}}<dt>Pieces</dt><dd>{{range $i, $c := .Chunks}}{{if $i}} / {{end}}{{$c.Text}}{{end}}</dd>{{end}}
+            {{if .Explanation}}<dt>Explanation</dt><dd>{{.Explanation}}</dd>{{end}}
+            <dt>Words</dt><dd>{{join .Targets ", "}}</dd>
+            {{if .ImageURL}}<dt>Image</dt><dd><a href="{{.ImageURL}}" target="_blank" rel="noreferrer">open</a></dd>{{end}}
+            <dt>Written</dt><dd>{{dt .CreatedAt}}{{if .Model}} by {{.Model}}{{end}}{{if .JobID}} for <a href="/jobs/{{path .JobID}}">job {{.JobID}}</a>{{end}}</dd>
+            <dt>Id</dt><dd><code>{{.ID}}</code></dd>
+          </dl>
+        </details>
+      </td>
+      <td>{{.Answer.Text}}{{if .Answer.Pinyin}} <span class="sub">{{.Answer.Pinyin}}</span>{{end}}</td>
+      <td class="num" title="{{if .LastServedAt}}Last used {{dt .LastServedAt}}{{end}}">{{.ServedCount}}</td>
+      <td class="actions">
+        <form method="post" action="/bank/{{path .ID}}/status">
+          <input type="hidden" name="back" value="{{$.Data.Back}}">
+          {{if eq .Status "active"}}
+          <button class="btn-small" name="status" value="retired">Retire</button>
+          {{else}}
+          <button class="btn-small" name="status" value="active">Bring back</button>
+          {{end}}
+        </form>
+      </td>
+    </tr>
+  {{else}}
+    <tr><td class="mark"></td><td colspan="8" class="empty">No question matches. <a href="/bank">Show every question</a></td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{if gt .Pager.Pages 1}}{{template "pager" .Pager}}{{end}}
+{{end}}
+{{end}}

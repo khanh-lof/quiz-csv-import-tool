@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"quiz-csv-import-tool/server/internal/auth"
 	"quiz-csv-import-tool/server/internal/csvgen"
 	"quiz-csv-import-tool/server/internal/store"
 )
@@ -2058,7 +2059,7 @@ func TestSharedLeaderboardIgnoresABadToken(t *testing.T) {
 	for name, opts := range map[string][]reqOpt{
 		"unknown token":          {header("X-Player-Token", "garbage")},
 		"empty token":            {header("X-Player-Token", "")},
-		"the stored hash":        {header("X-Player-Token", hashKey(tokens["S1"]))},
+		"the stored hash":        {header("X-Player-Token", auth.HashKey(tokens["S1"]))},
 		"token and bad auth":     {header("X-Player-Token", "garbage"), header("Authorization", "Bearer garbage")},
 		"a good token, bad auth": {header("X-Player-Token", tokens["S1"]), header("Authorization", "Bearer garbage")},
 	} {

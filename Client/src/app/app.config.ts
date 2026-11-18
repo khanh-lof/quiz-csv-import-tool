@@ -5,7 +5,7 @@ import {
   provideBrowserGlobalErrorListeners,
   provideZoneChangeDetection
 } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withRouterConfig } from '@angular/router';
 
 import { routes } from './app.routes';
 import { provideNzI18n } from 'ng-zorro-antd/i18n';
@@ -29,7 +29,9 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideAnimationsAsync(),
-    provideRouter(routes),
+    // A navigation refused by a guard (the "Ghép bộ thủ" edits) after the browser's Back has already moved the
+    // URL must move the browser back to the entry it left, not overwrite the entry Back landed on.
+    provideRouter(routes, withRouterConfig({ canceledNavigationResolution: 'computed' })),
     provideNzI18n(appLocale),
     provideNzConfig({ notification: { nzPlacement: 'top' } }),
     provideHttpClient(withXhr(), withInterceptorsFromDi()),

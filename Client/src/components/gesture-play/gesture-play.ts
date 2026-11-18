@@ -15,7 +15,18 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { Location } from '@angular/common';
+import {
+  ActivatedRoute,
+  Event as RouterEvent,
+  NavigationCancel,
+  NavigationEnd,
+  NavigationError,
+  NavigationSkipped,
+  NavigationStart,
+  Router,
+  RouterLink,
+} from '@angular/router';
 import { NzButtonComponent } from 'ng-zorro-antd/button';
 import { NzIconDirective } from 'ng-zorro-antd/icon';
 import { NzModalModule } from 'ng-zorro-antd/modal';
@@ -106,6 +117,13 @@ interface SharedInfo {
   label: string;
   closesAt: string | null;
 }
+
+// A stage being opened, played or scored is a history entry of its own (`?stage=N`), so the browser's Back (a
+// phone's back gesture above all) returns to the map instead of leaving the page. The entries the page pushes are
+// marked in their history state: only those can be left with Back, since the map's entry is right before them.
+const STAGE_PARAM = 'stage';
+const STAGE_ENTRY = 'gestureStageEntry';
+const STAGE_SCREENS: ReadonlySet<Screen> = new Set<Screen>(['intro', 'playing', 'result']);
 
 const SHARED_CLOSED = 'play.shared.closed';
 const SHARED_MISSING = 'play.shared.missing';
@@ -474,6 +492,8 @@ export class GesturePlay implements OnInit, OnDestroy {
   });
 
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly location = inject(Location);
   private readonly zone = inject(NgZone);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly hostElement = this.host.nativeElement;
@@ -569,6 +589,11 @@ export class GesturePlay implements OnInit, OnDestroy {
   private deadline: number | null = null;
   private finalResult: SharedStageResult | null = null;
   private retryAction: (() => void) | null = null;
+  // The stage in the address bar, whether the page is changing it itself, and whether the navigation under way is
+  // the browser's Back or Forward.
+  private readonly urlStage = signal<number | null>(null);
+  private readonly movingStageUrl = signal(false);
+  private historyMove = false;
 
   // What the run adds up to, for the result screen.
   private correctCount = 0;
@@ -596,6 +621,18 @@ export class GesturePlay implements OnInit, OnDestroy {
         }
       });
     });
+    this.urlStage.set(this.stageInUrl(this.router.url));
+    effect(() => {
+      const screen = this.screen();
+      const target = STAGE_SCREENS.has(screen) ? this.stage() : null;
+      const inUrl = this.urlStage();
+      // While loading, a stage being checked keeps its address until it opens or is refused.
+      if (screen === 'loading' || this.movingStageUrl() || target === inUrl) {
+        return;
+      }
+      untracked(() => this.moveStageUrl(target, inUrl));
+    });
+    this.router.events.pipe(takeUntilDestroyed()).subscribe(event => this.onRouterEvent(event));
   }
 
   ngOnInit(): void {
@@ -796,6 +833,71 @@ export class GesturePlay implements OnInit, OnDestroy {
       return;
     }
     this.screen.set('map');
+  }
+
+  private onRouterEvent(event: RouterEvent): void {
+    if (event instanceof NavigationStart) {
+      this.historyMove = event.navigationTrigger === 'popstate' && !this.movingStageUrl();
+    } else if (event instanceof NavigationEnd) {
+      this.urlStage.set(this.stageInUrl(event.urlAfterRedirects));
+      this.movingStageUrl.set(false);
+      if (this.historyMove) {
+        this.historyMove = false;
+        this.followHistory();
+      }
+    } else if (event instanceof NavigationCancel || event instanceof NavigationError || event instanceof NavigationSkipped) {
+      this.historyMove = false;
+      this.movingStageUrl.set(false);
+    }
+  }
+
+  // Back or Forward moved between the map and a stage: the screen follows the address.
+  private followHistory(): void {
+    const stage = this.urlStage();
+    const screen = this.screen();
+    if (stage === null) {
+      const checkingStage = screen === 'loading' && this.baseQuiz() !== null;
+      if (STAGE_SCREENS.has(screen) || checkingStage) {
+        this.request?.unsubscribe();
+        this.request = null;
+        this.backToMap();
+      }
+    } else if (screen === 'map') {
+      this.openIntro(stage);
+    }
+  }
+
+  // Puts the stage on screen into the address. Leaving a stage goes back over the entry the page pushed for it,
+  // so it is not left behind for Back to land on; an address the page did not make (a reload in a new tab) is
+  // replaced instead.
+  private moveStageUrl(target: number | null, inUrl: number | null): void {
+    const ownEntry = this.isStageEntry();
+    this.movingStageUrl.set(true);
+    if (target === null && ownEntry) {
+      this.location.back();
+      return;
+    }
+    this.router.navigate([], {
+      queryParams: { [STAGE_PARAM]: target },
+      queryParamsHandling: 'merge',
+      replaceUrl: inUrl !== null,
+      state: target !== null && (inUrl === null || ownEntry) ? { [STAGE_ENTRY]: true } : undefined,
+    });
+  }
+
+  private isStageEntry(): boolean {
+    const state: unknown = this.location.getState();
+    return typeof state === 'object' && state !== null && (state as Record<string, unknown>)[STAGE_ENTRY] === true;
+  }
+
+  // The stage named in `url`, null without one, and 0 for one that names no stage (removed like any other).
+  private stageInUrl(url: string): number | null {
+    const value = this.router.parseUrl(url).queryParamMap.get(STAGE_PARAM);
+    if (value === null) {
+      return null;
+    }
+    const stage = Number(value);
+    return Number.isInteger(stage) && stage > 0 ? stage : 0;
   }
 
   // Another quiz from a file: only for a quiz that was opened on this page, not for a job's.

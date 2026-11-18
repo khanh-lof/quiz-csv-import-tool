@@ -12,6 +12,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"quiz-csv-import-tool/server/internal/auth"
 	"quiz-csv-import-tool/server/internal/store"
 )
 
@@ -138,7 +139,7 @@ func (s *Server) joinShared(w http.ResponseWriter, r *http.Request) {
 		Name:         name,
 		Avatar:       req.Avatar,
 		NameKey:      strings.ToLower(name),
-		TokenHash:    hashKey(token),
+		TokenHash:    auth.HashKey(token),
 		JoinedAt:     now.UTC(),
 	}
 	err = s.Assignments.CreatePlayer(r.Context(), player)
@@ -285,7 +286,7 @@ func (s *Server) optionalPlayer(w http.ResponseWriter, r *http.Request, a *store
 	if token == "" {
 		return nil, true
 	}
-	player, err := s.Assignments.PlayerByToken(r.Context(), a.ID, hashKey(token))
+	player, err := s.Assignments.PlayerByToken(r.Context(), a.ID, auth.HashKey(token))
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, true
 	}
