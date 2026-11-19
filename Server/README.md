@@ -44,7 +44,8 @@ pwsh -File run-server-podman.ps1 admin   # against the local podman MongoDB inst
 - **Users**: create, change password or roles, sign out of every device, reset the AI rate limit, clear a login
   lockout, delete (optionally with their jobs and assignments).
 - **Jobs**: filter by user, status, platform or text; see a job's request, error, answer and document; fail a
-  running job or every stale one (no heartbeat for 90 s); delete.
+  running job, or every stale one by the server's own rule (no heartbeat for 3 minutes; 10 for a quiz the AI server
+  can still resume), giving the teacher the AI call back; delete.
 - **Assignments**: filter, see settings and every student's results per stage, close, reopen, change the
   deadline, remove a student, delete.
 - **Question bank**: questions per book, browse and retire or reactivate questions.

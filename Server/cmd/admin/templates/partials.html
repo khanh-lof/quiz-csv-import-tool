@@ -9,7 +9,7 @@
 
 {{define "jobMark"}}{{if stale .}}{{template "mark" "stale"}}{{else}}{{template "mark" (print .Status)}}{{end}}{{end}}
 
-{{define "status"}}<span class="status status-{{.Status}}">{{.Status}}</span>{{if stale .}} <span class="badge badge-warn" title="No heartbeat for over 90 seconds: the process working on it has probably died">stale</span>{{end}}{{end}}
+{{define "status"}}<span class="status status-{{.Status}}">{{.Status}}</span>{{if stale .}} <span class="badge badge-warn" title="The process working on it has stopped ({{staleRule}}). Fail stale jobs fails it and gives the call back.">stale</span>{{end}}{{end}}
 
 {{/* jobRows takes a dict with Jobs and Back (the page to come back to after an action). */}}
 {{define "jobRows"}}
@@ -34,11 +34,11 @@
       <td class="nowrap">{{platform .}}{{if english .Language}} <span class="badge">EN</span>{{end}}</td>
       <td class="nowrap">{{course .}}{{if .LessonNumbers}}<div class="sub">lessons {{ints .LessonNumbers}}</div>{{end}}</td>
       <td class="num nowrap">{{with .Usage}}{{num .InputTokens}} / {{num .OutputTokens}}{{else}}{{if .FromBank}}<span class="sub">from the bank</span>{{end}}{{end}}</td>
-      <td class="num nowrap" {{if eq .Status "running"}}title="Last sign of life {{ago (lastSign .)}}"{{end}}>{{dur (duration .)}}</td>
+      <td class="num nowrap" {{if eq .Status "running"}}title="Last sign of life {{ago .LastSignOfLife}}"{{end}}>{{dur (duration .)}}</td>
       <td class="sub">{{with .Usage}}{{.Model}}{{end}}</td>
       <td class="actions">
         {{if eq .Status "running"}}
-        <form method="post" action="/jobs/{{path .ID}}/fail" data-confirm="Mark this job as failed? The teacher sees it as interrupted.">
+        <form method="post" action="/jobs/{{path .ID}}/fail" data-confirm="Mark this job as failed? The teacher sees it as interrupted and gets the AI call back. If it is still being worked on, its answer is dropped.">
           <input type="hidden" name="back" value="{{$.Back}}">
           <button class="btn-small">Fail</button>
         </form>

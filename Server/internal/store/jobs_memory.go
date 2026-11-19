@@ -132,11 +132,7 @@ func (m *MemoryJobs) ExpireRunning(_ context.Context, username string, cutoffs E
 	var expired []Job
 	now := m.Now().UTC()
 	for id, j := range m.jobs {
-		before := cutoffs.Before
-		if cutoffs.resumable(j) {
-			before = cutoffs.ResumableBefore
-		}
-		if j.Username == username && j.Status == JobRunning && lastSign(j).Before(before) {
+		if j.Username == username && cutoffs.Expires(j) {
 			j.Status, j.ErrorStatus, j.ErrorCode, j.ErrorMessage, j.FinishedAt = JobFailed, ExpiredJobStatus, ExpiredJobCode, message, &now
 			m.jobs[id] = j
 			expired = append(expired, j)
@@ -149,7 +145,7 @@ func (m *MemoryJobs) ClaimInterrupted(_ context.Context, before time.Time, maxRe
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for id, j := range m.jobs {
-		if j.Status == JobRunning && j.Creative && j.Resumes < maxResumes && lastSign(j).Before(before) {
+		if j.Status == JobRunning && j.Creative && j.Resumes < maxResumes && j.LastSignOfLife().Before(before) {
 			now := m.Now().UTC()
 			j.HeartbeatAt, j.Resumes = &now, j.Resumes+1
 			m.jobs[id] = j
@@ -171,12 +167,4 @@ func (m *MemoryJobs) Prune(_ context.Context, username string, keep int) error {
 		}
 	}
 	return nil
-}
-
-// lastSign is when a running job last showed that its process was alive.
-func lastSign(j Job) time.Time {
-	if j.HeartbeatAt != nil {
-		return *j.HeartbeatAt
-	}
-	return j.CreatedAt
 }

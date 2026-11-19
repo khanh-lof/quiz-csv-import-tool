@@ -27,7 +27,7 @@
 <div data-live id="jobs-live">
   <div class="toolbar">
     {{template "pager" .Pager}}
-    <form method="post" action="/jobs/fail-stale" data-confirm="Mark every running job without a heartbeat for 90 seconds as failed?">
+    <form method="post" action="/jobs/fail-stale" data-confirm="Fail every running job with {{staleRule}}? Their teachers get the AI call back.">
       <input type="hidden" name="back" value="{{.Back}}">
       <button class="btn-small">Fail stale jobs</button>
     </form>

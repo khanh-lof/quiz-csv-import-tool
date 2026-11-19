@@ -102,6 +102,24 @@ func (c ExpiryCutoffs) resumable(job Job) bool {
 	return c.Resumable && job.Creative && job.Resumes < c.MaxResumes
 }
 
+// Expires says whether ExpireRunning fails the job: it is running and its last sign of life is before its cutoff.
+func (c ExpiryCutoffs) Expires(job Job) bool {
+	before := c.Before
+	if c.resumable(job) {
+		before = c.ResumableBefore
+	}
+	return job.Status == JobRunning && job.LastSignOfLife().Before(before)
+}
+
+// LastSignOfLife is when the process working on the job last showed it was alive: its heartbeat, or before the
+// first one its creation.
+func (j Job) LastSignOfLife() time.Time {
+	if j.HeartbeatAt != nil {
+		return *j.HeartbeatAt
+	}
+	return j.CreatedAt
+}
+
 // JobFailure is how a job failed. Code is the stable reason the client words the failure by: one of csvgen's
 // Failure* codes, "nothing_to_play", or ExpiredJobCode ("timeout" on jobs from when a generation had a deadline).
 type JobFailure struct {

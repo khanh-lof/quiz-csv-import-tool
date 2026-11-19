@@ -24,10 +24,6 @@ import (
 //go:embed templates static
 var assets embed.FS
 
-// staleAfter mirrors resumeAfter in internal/api/resume.go: a running job silent for longer than this has
-// lost the process working on it.
-const staleAfter = 90 * time.Second
-
 type pager struct {
 	Page    int
 	Pages   int
@@ -146,19 +142,17 @@ func (a *app) templateFuncs() template.FuncMap {
 			}
 			return names
 		},
-		"course":   course,
-		"lastSign": lastSignOfLife,
-		"duration": jobDuration,
-		"stale": func(j store.Job) bool {
-			return j.Status == store.JobRunning && time.Since(lastSignOfLife(j)) > staleAfter
-		},
-		"sessions": func(u store.User) int { return len(activeSessions(u)) },
-		"hasRole":  hasRole,
-		"open":     func(asg store.Assignment) bool { return asg.OpenAt(time.Now()) },
-		"stages":   stagesOf,
-		"passed":   passedStages,
-		"score":    score,
-		"runs":     func(p store.Player, stage string) int { return p.RunsStarted(stage) },
+		"course":    course,
+		"duration":  jobDuration,
+		"stale":     func(j store.Job) bool { return a.abandonedCutoffs(time.Now()).Expires(j) },
+		"staleRule": a.staleRule,
+		"sessions":  func(u store.User) int { return len(activeSessions(u)) },
+		"hasRole":   hasRole,
+		"open":      func(asg store.Assignment) bool { return asg.OpenAt(time.Now()) },
+		"stages":    stagesOf,
+		"passed":    passedStages,
+		"score":     score,
+		"runs":      func(p store.Player, stage string) int { return p.RunsStarted(stage) },
 		"studentURL": func(code string) string {
 			return a.clientURL + "/play/s/" + url.PathEscape(code)
 		},
@@ -213,13 +207,6 @@ func course(j store.Job) string {
 		name += " L" + strconv.Itoa(*j.Level)
 	}
 	return name
-}
-
-func lastSignOfLife(j store.Job) time.Time {
-	if j.HeartbeatAt != nil {
-		return *j.HeartbeatAt
-	}
-	return j.CreatedAt
 }
 
 func jobDuration(j store.Job) time.Duration {

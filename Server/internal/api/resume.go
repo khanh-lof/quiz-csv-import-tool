@@ -32,12 +32,8 @@ const interruptedMessage = "AI generation was interrupted."
 // awaitingResume matches a running creative job that the AI server has yet to take over.
 func awaitingResume(now time.Time) func(store.Job) bool {
 	return func(job store.Job) bool {
-		lastSign := job.CreatedAt
-		if job.HeartbeatAt != nil {
-			lastSign = *job.HeartbeatAt
-		}
 		return job.Status == store.JobRunning && job.Creative && job.Resumes < maxResumes &&
-			lastSign.Before(now.Add(-resumeAfter))
+			job.LastSignOfLife().Before(now.Add(-resumeAfter))
 	}
 }
 

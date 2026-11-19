@@ -482,6 +482,17 @@ type jobView struct {
 	RetryUntil *time.Time `json:"retryUntil"`
 }
 
+// AbandonedCutoffs are the cutoffs by which a running job counts as abandoned at now: its heartbeat stopped, so the
+// process working on it is gone. With an AI server (withAIServer), the creative jobs it can still take over (ResumeJob)
+// are given longer.
+func AbandonedCutoffs(now time.Time, withAIServer bool) store.ExpiryCutoffs {
+	cutoffs := store.ExpiryCutoffs{Before: now.Add(-abandonedAfter)}
+	if withAIServer {
+		cutoffs.Resumable, cutoffs.MaxResumes, cutoffs.ResumableBefore = true, maxResumes, now.Add(-resumeGiveUp)
+	}
+	return cutoffs
+}
+
 // listJobs handles GET /api/csv/jobs: the caller's newest jobs, which the client polls while any is running.
 func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 	username := callerName(r)
@@ -489,15 +500,10 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A running job whose heartbeat stopped lost the process that was working on it; fail it and give the
-	// call back, or the client would poll it forever. The AI server takes its own, the creative ones, over instead
-	// (ResumeJob), so those are given longer, and that server is woken should it be asleep.
+	// An abandoned job is failed and its call given back, or the client would poll it forever; the AI server is
+	// woken should one of its jobs be waiting for it while it sleeps.
 	now := time.Now()
-	cutoffs := store.ExpiryCutoffs{Before: now.Add(-abandonedAfter)}
-	if s.AIServerProxy != nil {
-		cutoffs.Resumable, cutoffs.MaxResumes, cutoffs.ResumableBefore = true, maxResumes, now.Add(-resumeGiveUp)
-	}
-	expired, err := s.Jobs.ExpireRunning(r.Context(), username, cutoffs, interruptedMessage)
+	expired, err := s.Jobs.ExpireRunning(r.Context(), username, AbandonedCutoffs(now, s.AIServerProxy != nil), interruptedMessage)
 	if err != nil {
 		s.Logger.Warn("expiring abandoned jobs failed", "user", username, "error", err)
 	}

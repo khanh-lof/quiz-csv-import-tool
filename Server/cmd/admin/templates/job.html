@@ -6,7 +6,7 @@
   <h1>{{if $job.Title}}{{$job.Title}}{{else}}Untitled job{{end}}</h1>
   <div class="button-row">
     {{if eq $job.Status "running"}}
-    <form method="post" action="/jobs/{{path $job.ID}}/fail" data-confirm="Mark this job as failed? The teacher sees it as interrupted.">
+    <form method="post" action="/jobs/{{path $job.ID}}/fail" data-confirm="Mark this job as failed? The teacher sees it as interrupted and gets the AI call back. If it is still being worked on, its answer is dropped.">
       <button>Mark as failed</button>
     </form>
     {{end}}
