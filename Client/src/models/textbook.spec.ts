@@ -10,6 +10,10 @@ describe('textbookFor', () => {
       lessons: 18,
       title: '《新HSK教程3》'
     }));
+    expect(textbookFor(CourseType.Hsk, HskStandard.V3, 4)).toEqual(jasmine.objectContaining({
+      lessons: 20,
+      title: '《新HSK教程4》'
+    }));
   });
 
   it('finds the YCT book whatever the HSK standard says', () => {
@@ -39,7 +43,7 @@ describe('textbookFor', () => {
   });
 
   it('has no book for a level without one', () => {
-    expect(textbookFor(CourseType.Hsk, HskStandard.V3, 4)).toBeUndefined();
+    expect(textbookFor(CourseType.Hsk, HskStandard.V3, 5)).toBeUndefined();
     expect(textbookFor(CourseType.Yct, null, 5)).toBeUndefined();
   });
 
@@ -70,7 +74,7 @@ describe('textbookFor', () => {
 
 describe('bookLevels', () => {
   it('lists the levels of the course that have a book, lowest first', () => {
-    expect(bookLevels(CourseType.Hsk, HskStandard.V3)).toEqual([1, 2, 3]);
+    expect(bookLevels(CourseType.Hsk, HskStandard.V3)).toEqual([1, 2, 3, 4]);
     expect(bookLevels(CourseType.Hsk, HskStandard.V2)).toEqual([1, 2, 3]);
     expect(bookLevels(CourseType.Yct, null)).toEqual([1, 6]);
   });

@@ -68,6 +68,13 @@ export const TEXTBOOKS: readonly Textbook[] = [
     title: '《新HSK教程3》'
   },
   {
+    courseType: CourseType.Hsk,
+    hskStandard: HskStandard.V3,
+    level: 4,
+    lessons: 20,
+    title: '《新HSK教程4》'
+  },
+  {
     courseType: CourseType.Yct,
     level: 1,
     lessons: 12,

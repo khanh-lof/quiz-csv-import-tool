@@ -637,7 +637,8 @@ func TestParseCreativeOptionsForTextbooks(t *testing.T) {
 		// A course or level without a textbook is refused: the model would make the lesson up.
 		{query: "exportType=0&courseType=0&level=4&lessonNumbers=16", wantErr: NoTextbookMessage},
 		{query: "exportType=0&courseType=1&level=5&lessonNumbers=1", wantErr: NoTextbookMessage},
-		{query: "exportType=0&courseType=0&hskStandard=3&level=4&lessonNumbers=1", wantErr: NoTextbookMessage},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=5&lessonNumbers=1", wantErr: NoTextbookMessage},
+		{query: "exportType=0&courseType=0&hskStandard=3&level=4&lessonNumbers=20,21", wantErr: "Lesson must be 1 to 20 for 《新HSK教程4》."},
 		{query: "exportType=0&courseType=2&courseName=Boya&level=2&lessonNumbers=1", wantErr: NoTextbookMessage},
 		// The English vocabulary review has no level, and its topics are 1 to 8.
 		{query: "language=1&exportType=0&courseType=3&lessonNumbers=8", course: "Ôn tập từ vựng lớp 10 (Grade 10 Vocabulary Review), the Ôn tập từ vựng lớp 10 textbook"},

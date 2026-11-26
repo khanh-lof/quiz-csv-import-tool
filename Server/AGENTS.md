@@ -386,10 +386,10 @@ There is no CORS handling: the API is only called from the SPA's own origin (see
   a template defines stages or its own ordering format). The client plays those rows, so see the stage table in
   [../AGENTS.md](../AGENTS.md#the-gesture-quiz-game) before changing the template.
 - **Textbook lessons** (`textbooks.go`, `textbooks/<book>/lesson-NN.md`, embedded with `go:embed textbooks`).
-  For eight books the teacher need not send photos, nor leave the model to rebuild the lesson from memory:
+  For nine books the teacher need not send photos, nor leave the model to rebuild the lesson from memory:
   the curated document of the lesson is sent as a **LESSON MATERIAL** message. The books are the hand-kept
   `textbookRegistry` (`dir`, title, `CourseType`, `HskStandard`, level and the pinned **lesson count**):
-  `hsk2-1`, `hsk2-2`, `hsk2-3` (HSK 2.0 levels 1 to 3, 15, 15 and 20 lessons, their own `hsk2` series: a learner of level 2 knows the level 1 book), `hsk3-1`, `hsk3-2`, `hsk3-3` (HSK 3.0 levels 1 to 3, 15, 15 and 18 lessons, one series: a learner of level
+  `hsk2-1`, `hsk2-2`, `hsk2-3` (HSK 2.0 levels 1 to 3, 15, 15 and 20 lessons, their own `hsk2` series: a learner of level 2 knows the level 1 book), `hsk3-1`, `hsk3-2`, `hsk3-3`, `hsk3-4` (HSK 3.0 levels 1 to 4, 15, 15, 18 and 20 lessons; level 4 is one book in two volumes, lessons 11 to 20 being 4下, one series: a learner of level
   N knows the lower books) `yct-1` (YCT level 1, 12 lessons, alone: no `series`) and `yct-6` (YCT level 6, 15 lessons, alone; YCT 2 to 5 have no
   material and the learner is assumed to know them) and `vocab10` (the English vocabulary review "Ôn tập từ vựng lớp 10",
   `CourseType` `VocabReview10`, 8 topics as lessons, no level: its `level` is 0, `textbookFor` ignores the request's

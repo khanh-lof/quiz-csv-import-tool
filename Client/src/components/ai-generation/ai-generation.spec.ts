@@ -119,7 +119,7 @@ describe('AiGeneration', () => {
 
   it('offers only the levels with a book, and clears a level without one', () => {
     fill({ courseType: CourseType.Hsk, hskStandard: HskStandard.V3, level: 2, lessonNumbers: [1] });
-    expect(page.levelOptions).toEqual([1, 2, 3]);
+    expect(page.levelOptions).toEqual([1, 2, 3, 4]);
     expect(page.formGroup.get('level')?.value).toBe(2);
 
     page.formGroup.patchValue({ level: 4 });

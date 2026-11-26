@@ -51,6 +51,7 @@ var textbookRegistry = []bookSpec{
 	{dir: "hsk3-1", title: "《新HSK教程1》", english: "New HSK Course 1", course: "HSK 3.0", courseType: Hsk, standard: Hsk3, level: 1, lessons: 15, series: "hsk3"},
 	{dir: "hsk3-2", title: "《新HSK教程2》", english: "New HSK Course 2", course: "HSK 3.0", courseType: Hsk, standard: Hsk3, level: 2, lessons: 15, series: "hsk3"},
 	{dir: "hsk3-3", title: "《新HSK教程3》", english: "New HSK Course 3", course: "HSK 3.0", courseType: Hsk, standard: Hsk3, level: 3, lessons: 18, series: "hsk3"},
+	{dir: "hsk3-4", title: "《新HSK教程4》", english: "New HSK Course 4", course: "HSK 3.0", courseType: Hsk, standard: Hsk3, level: 4, lessons: 20, series: "hsk3"},
 	{dir: "hsk2-1", title: "《HSK标准教程1》", english: "HSK Standard Course 1", course: "HSK 2.0", courseType: Hsk, standard: Hsk2, level: 1, lessons: 15, series: "hsk2"},
 	{dir: "hsk2-2", title: "《HSK标准教程2》", english: "HSK Standard Course 2", course: "HSK 2.0", courseType: Hsk, standard: Hsk2, level: 2, lessons: 15, series: "hsk2"},
 	{dir: "hsk2-3", title: "《HSK标准教程3》", english: "HSK Standard Course 3", course: "HSK 2.0", courseType: Hsk, standard: Hsk2, level: 3, lessons: 20, series: "hsk2"},

@@ -268,7 +268,7 @@ page. Everything else is shared; only what a language needs differs.
 
 ## Textbook lessons
 
-For seven Chinese books and one English book QuizTool holds the lessons themselves:
+For eight Chinese books and one English book QuizTool holds the lessons themselves:
 
 | Book | Course | Lessons |
 |---|---|---|
@@ -278,6 +278,7 @@ For seven Chinese books and one English book QuizTool holds the lessons themselv
 | 《新HSK教程1》 | HSK 3.0 level 1 | 15 |
 | 《新HSK教程2》 | HSK 3.0 level 2 | 15 |
 | 《新HSK教程3》 | HSK 3.0 level 3 | 18 |
+| 《新HSK教程4》 | HSK 3.0 level 4 | 20 |
 | 《YCT标准教程1》 | YCT level 1 | 12 |
 | 《YCT标准教程6》 | YCT level 6 | 15 |
 | Ôn tập từ vựng lớp 10 | `VocabReview10` (English, no level) | 8 topics |
