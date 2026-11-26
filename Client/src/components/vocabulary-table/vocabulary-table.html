@@ -31,27 +31,22 @@
             <nz-option [nzValue]="ExportType.Blooket" nzLabel="Blooket"></nz-option>
             <nz-option [nzValue]="ExportType.Wayground" nzLabel="Wayground"></nz-option>
           </nz-select>
-          @if (publishPlatform) {
-            <!-- Without the extension only the download is possible; the disabled option says why. -->
-            <nz-radio-group [formControl]="publishDelivery" nzButtonStyle="solid" nzSize="large">
-              <label [nzValue]="PublishDelivery.Download" nz-radio-button>{{ 'ai.action.downloadFile' | msg }}</label>
-              <label [nzDisabled]="!extensionInstalled" [nzValue]="PublishDelivery.Extension"
-                     nz-tooltip
-                     [nzTooltipTitle]="extensionInstalled ? '' : ('common.extensionMissing' | msg)"
-                     nz-radio-button>{{ 'app.publish.extensionDelivery' | msg }}</label>
-            </nz-radio-group>
-          }
           <!-- Always shown: clicking it explains what is still missing (template, rows) instead of the
                button appearing only once everything is filled in. -->
-          <button nz-button nzType="primary" type="submit">
-            @if (publishesWithExtension) {
-              <nz-icon nzType="cloud-upload"/>
-              {{ 'app.table.publishTo' | msg: { platform: publishPlatformName } }}
-            } @else {
-              <nz-icon nzType="download"/>
-              {{ 'ai.action.downloadFile' | msg }}
-            }
+          <button nz-button [nzType]="canPublish ? 'default' : 'primary'" type="submit">
+            <nz-icon nzType="download"/>
+            {{ 'ai.action.downloadFile' | msg }}
           </button>
+          @if (publishPlatform) {
+            <!-- A disabled button gets no mouse events, so the tooltip sits on a wrapper. -->
+            <span nz-tooltip [nzTooltipTitle]="extensionInstalled ? '' : ('common.extensionMissing' | msg)">
+              <button (click)="exportFile(true)" [disabled]="!extensionInstalled" nz-button nzType="primary"
+                      type="button">
+                <nz-icon nzType="cloud-upload"/>
+                {{ 'app.table.publishTo' | msg: { platform: publishPlatformName } }}
+              </button>
+            </span>
+          }
           <!--      <button nz-button nzType="default" type="button" (click)="fileInput.click()">-->
           <!--        <nz-icon nzType="file-text" nzTheme="outline"/>-->
           <!--        Nhập từ file csv-->

@@ -42,8 +42,6 @@ import { PendingImportService } from '../../services/pending-import.service';
 import { PublishExtensionService, PublishPlatform } from '../../services/publish-extension.service';
 import { AuthService } from '../../services/auth.service';
 import { UsageGuide } from '../usage-guide/usage-guide';
-import { PublishDelivery } from '../../models/publish-delivery';
-import { NzRadioComponent, NzRadioGroupComponent } from 'ng-zorro-antd/radio';
 import { NzContentComponent, NzLayoutComponent } from 'ng-zorro-antd/layout';
 import { NzTooltipDirective } from 'ng-zorro-antd/tooltip';
 import { Messages, MessagePipe } from '../../i18n/messages';
@@ -71,8 +69,6 @@ interface TableDraft {
     NzIconDirective,
     NzSelectComponent,
     NzOptionComponent,
-    NzRadioGroupComponent,
-    NzRadioComponent,
     ReactiveFormsModule,
     NgTemplateOutlet,
     NzModalModule,
@@ -89,10 +85,7 @@ export class VocabularyTable implements OnInit {
   @ViewChildren('rowSourceInputs') rowSourceInputs!: QueryList<ElementRef>;
   protected listOfData: FormGroup<QuestionDefinitionForm>[];
   protected readonly ExportType = ExportType;
-  protected readonly PublishDelivery = PublishDelivery;
   protected readonly extensionInstalled: boolean;
-  // Outside the form group: it is a preference shared with the AI page, not part of the table's draft.
-  protected readonly publishDelivery: FormControl<PublishDelivery>;
   protected readonly minRows = 4;
   protected readonly duplicateErrorKey = 'duplicate';
   protected readonly QuestionType = QuestionType;
@@ -116,9 +109,6 @@ export class VocabularyTable implements OnInit {
     this.formGroup.valueChanges.pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.saveDraft());
     this.extensionInstalled = publishExtensionService.isInstalled();
-    this.publishDelivery = new FormControl(publishExtensionService.preferredDelivery(), { nonNullable: true });
-    this.publishDelivery.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(delivery => publishExtensionService.savePreferredDelivery(delivery));
   }
 
   // The server serves the extension to logged-in users only.
@@ -145,10 +135,8 @@ export class VocabularyTable implements OnInit {
     return FileExportService.platformName(this.formGroup.get('exportType')?.value, this.messages);
   }
 
-  // Whether exporting hands the quiz to the extension to publish instead of downloading the file.
-  protected get publishesWithExtension(): boolean {
-    return this.publishPlatform !== null
-      && this.publishExtensionService.shouldPublish(this.publishDelivery.value);
+  protected get canPublish(): boolean {
+    return this.publishPlatform !== null && this.extensionInstalled;
   }
 
   // Rows the AI page generated in its formatted mode arrive here to be reviewed before export.
@@ -200,7 +188,7 @@ export class VocabularyTable implements OnInit {
     this.refreshTable();
   }
 
-  exportFile() {
+  exportFile(publishWithExtension = false) {
     const exportTypeControl = this.formGroup.get('exportType')!;
     if (exportTypeControl.value === null) {
       exportTypeControl.markAsDirty();
@@ -229,7 +217,7 @@ export class VocabularyTable implements OnInit {
     const exportType: ExportType = exportTypeControl.value;
     const today = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD in local time
     const title = `QuizTool-${today}`;
-    const publish = this.publishesWithExtension;
+    const publish = publishWithExtension && this.canPublish;
     const exported = this.fileExportService.exportFile(
       FileExportService.buildFileName(title, exportType, this.messages), this.currentRows(), exportType, !publish);
     if (!exported) return;

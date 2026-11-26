@@ -1,15 +1,11 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { PublishDelivery } from '../models/publish-delivery';
 import { ExportType } from '../models/export-type';
 import { FileExportService } from './file-export.service';
 import { escapeHtml } from './escape-html';
 import { Messages } from '../i18n/messages';
 
-// The user's last choice between downloading the platform's file and letting the extension publish it,
-// shared by the table and the AI page and by every platform the extension can publish to.
-const DELIVERY_STORAGE_KEY = 'wayground-delivery';
 const EXTENSION_ZIP_URL = '/api/extension';
 const EXTENSION_ZIP_NAME = 'quiztool-extension.zip';
 
@@ -88,29 +84,6 @@ export class PublishExtensionService {
   // The bridge script runs at document_start, so this is already true when the first component renders.
   public isInstalled(): boolean {
     return !!document.documentElement.dataset['quiztoolExtension'];
-  }
-
-  // The extension when it is installed, unless the user last chose to download the file.
-  public preferredDelivery(): PublishDelivery {
-    if (!this.isInstalled()) return PublishDelivery.Download;
-    try {
-      return localStorage.getItem(DELIVERY_STORAGE_KEY) === PublishDelivery.Download
-        ? PublishDelivery.Download : PublishDelivery.Extension;
-    } catch {
-      return PublishDelivery.Extension;
-    }
-  }
-
-  public savePreferredDelivery(delivery: PublishDelivery): void {
-    try {
-      localStorage.setItem(DELIVERY_STORAGE_KEY, delivery);
-    } catch {
-      // Remembering the choice is only a convenience.
-    }
-  }
-
-  public shouldPublish(delivery: PublishDelivery): boolean {
-    return delivery === PublishDelivery.Extension && this.isInstalled();
   }
 
   // Hands the file to the extension, which opens a tab on the platform, publishes the quiz there and

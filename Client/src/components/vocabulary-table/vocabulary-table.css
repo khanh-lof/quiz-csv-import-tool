@@ -148,10 +148,6 @@ td nz-select {
   font-size: 15px;
 }
 
-.header-toolbar label[nz-radio-button] {
-  font-size: 15px;
-}
-
 /* A phone: the two utilities share a line, the platform and the download the next one. */
 @media (max-width: 599px) {
   .header-toolbar,

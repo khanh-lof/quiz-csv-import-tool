@@ -6,7 +6,6 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { PublishExtensionService } from './publish-extension.service';
 import { FileExportService } from './file-export.service';
-import { PublishDelivery } from '../models/publish-delivery';
 import { ExportType } from '../models/export-type';
 
 describe('PublishExtensionService', () => {
@@ -176,30 +175,6 @@ describe('PublishExtensionService', () => {
     });
   });
 
-  describe('delivery choice', () => {
-    afterEach(() => {
-      delete document.documentElement.dataset['quiztoolExtension'];
-      localStorage.removeItem('wayground-delivery');
-    });
-
-    it('is always the download without the extension', () => {
-      service.savePreferredDelivery(PublishDelivery.Extension);
-
-      expect(service.preferredDelivery()).toBe(PublishDelivery.Download);
-      expect(service.shouldPublish(PublishDelivery.Extension)).toBeFalse();
-    });
-
-    it('defaults to the extension once installed and remembers a download choice', () => {
-      document.documentElement.dataset['quiztoolExtension'] = '0.1.0';
-      localStorage.removeItem('wayground-delivery');
-      expect(service.preferredDelivery()).toBe(PublishDelivery.Extension);
-
-      service.savePreferredDelivery(PublishDelivery.Download);
-      expect(service.preferredDelivery()).toBe(PublishDelivery.Download);
-      expect(service.shouldPublish(PublishDelivery.Download)).toBeFalse();
-      expect(service.shouldPublish(PublishDelivery.Extension)).toBeTrue();
-    });
-  });
   describe('extension download', () => {
     it('fetches the zip with the API and saves it', () => {
       const downloadBlob = spyOn(TestBed.inject(FileExportService), 'downloadBlob');

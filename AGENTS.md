@@ -331,11 +331,10 @@ import UI in the user's logged-in tab (Wayground: spreadsheet import and Publish
 Spreadsheet and All Done), then hands the quiz's share link back. The SPA side is `PublishExtensionService`
 (`PublishPlatform` is `'wayground' | 'gimkit'`, `platformFor(exportType)` maps an export type to one, `null` for
 Blooket and the games):
-- On the vocabulary table, when Wayground or Gimkit is the chosen platform, the page offers a `PublishDelivery`
-  choice: **Tải file** (download the file for a manual import) or **Tiện ích tự publish** (hand it to
-  the extension), remembered in `localStorage` (`wayground-delivery`, one choice for both platforms) and
-  defaulting to the extension when it is installed. In `Auto` mode there is no such setting: the AI jobs
-  table shows both buttons on a finished Wayground or Gimkit job. The extension is unavailable unless
+- On the vocabulary table, when Wayground or Gimkit is the chosen platform, the page shows two buttons:
+  **Tải file** (download the file for a manual import) and **Publish lên <platform>** (hand it to the
+  extension, disabled with a tooltip when it is not installed). The AI jobs table likewise shows both
+  buttons on a finished Wayground or Gimkit job. The extension is unavailable unless
   `<html data-quiztool-extension>` is present.
 - With the extension chosen, `FileExportService` builds the file without downloading it (`ExportedFile.xlsx`
   for Wayground, `.csv` UTF-8 bytes for Gimkit) and the service `postMessage`s
