@@ -49,7 +49,7 @@ const usage = `usage:
   bank-questions prompt --course C [--level N] --lessons L --count N [--visual N] --out FILE
   bank-questions insert --course C [--level N] --lessons L --file FILE [--dry-run] [--writer NAME]
 
-  --course   hsk3 (HSK 3.0), hsk2 (HSK 2.0), yct or vocab10 (Ôn tập từ vựng lớp 10, no level)
+  --course   hsk3 (HSK 3.0), hsk2 (HSK 2.0), yct, vocab10 (Ôn tập từ vựng lớp 10, no level) or gs (Tiếng Anh Global Success, level = grade)
   --lessons  the lesson numbers, e.g. 3 or 3,4 (comma-separated)
   database   --mongo-uri, --database, --collection; default from .env / MONGODB_*`
 
@@ -169,6 +169,9 @@ func optionsOf(a args) (csvgen.Options, error) {
 		q.Set("courseType", "Yct")
 	case "vocab10":
 		q.Set("courseType", "VocabReview10")
+		q.Set("language", "English")
+	case "gs":
+		q.Set("courseType", "GlobalSuccess")
 		q.Set("language", "English")
 	default:
 		return csvgen.Options{}, fmt.Errorf("unknown --course %q\n%s", a.course, usage)

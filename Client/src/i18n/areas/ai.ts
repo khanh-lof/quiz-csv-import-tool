@@ -26,6 +26,7 @@ export const ai = {
     hsk: 'HSK',
     yct: 'YCT',
     vocabReview10: 'Ôn tập từ vựng lớp 10',
+    globalSuccess: 'Global Success',
     other: 'Khác'
   },
   platform: {
@@ -38,8 +39,10 @@ export const ai = {
   },
   lessonLabel: {
     level: 'cấp %level%',
+    grade: 'lớp %level%',
     lesson: 'bài %numbers%',
-    topic: 'topic %numbers%'
+    topic: 'topic %numbers%',
+    unit: 'unit %numbers%'
   },
   generation: {
     modeAuto: 'AI tự nghĩ câu hỏi',
@@ -88,6 +91,7 @@ export const ai = {
     platform: 'Nền tảng',
     course: 'Giáo trình',
     level: 'Cấp',
+    grade: 'Lớp',
     lesson: 'Bài',
     uncertain: 'AI không chắc',
     dropped: 'Đã bỏ'

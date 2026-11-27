@@ -249,8 +249,9 @@ page. Everything else is shared; only what a language needs differs.
 - **Courses belong to a language.** `courseLanguages` on the server and `LANGUAGES[].courses` on the client, kept in
   step by hand: HSK and YCT are Chinese, `Other` (a course typed in by hand, refused now for want of a textbook, kept for
   the old jobs and the history's filter) belongs to every language. A course of the other language is 400 `Invalid or
-  missing courseType parameter.`. English has one course, `VocabReview10` (ordinal 3, "Ôn tập từ vựng lớp 10", see
-  [Textbook lessons](#textbook-lessons)), which the form picks for the teacher when the language changes; further books
+  missing courseType parameter.`. English has two courses, `VocabReview10` (ordinal 3, "Ôn tập từ vựng lớp 10", see
+  [Textbook lessons](#textbook-lessons)), which the form picks for the teacher when the language changes, and
+  `GlobalSuccess` (ordinal 4, "Tiếng Anh Global Success", levels = grades); further books
   are added like the Chinese ones, with a `CourseType` member each.
 - **Platforms.** Every platform works in both languages except Radicals ("Ghép bộ thủ", built from the components of
   characters): for English it is 400 `Radicals is only for Chinese.` and the form does not offer it.
@@ -282,12 +283,17 @@ For eight Chinese books and one English book QuizTool holds the lessons themselv
 | 《YCT标准教程1》 | YCT level 1 | 12 |
 | 《YCT标准教程6》 | YCT level 6 | 15 |
 | Ôn tập từ vựng lớp 10 | `VocabReview10` (English, no level) | 8 topics |
+| Tiếng Anh 10 Global Success | `GlobalSuccess` level 10 (English, the grade is the level) | 10 units |
 
 The English book is a vocabulary review, not a coursebook: each "lesson" is a topic (The Environment, The Family,
 Culture, Employment, Education, Technology, Social Issues, Entertainment), a passage with bolded words and their
 definitions. The AI form calls its lessons "Topic" and lists them by number and name (`lessonUnit` and `lessonNames`
 of the client's `TEXTBOOKS` entry). A book with no level has `level` 0 on the server and none on the client, and its
 request carries none.
+
+`GlobalSuccess` is the school series "Tiếng Anh Global Success", one book per grade with the grade as its level
+(only grade 10, `gs-10`, so far). Its source is a teacher's compilation of the unit word lists, so its lesson docs hold
+New words only (no passages); the form calls its lessons "Unit".
 
 - **What gets sent.** One curated markdown document per lesson is embedded in the server
   (`Server/internal/csvgen/textbooks/<book>/lesson-NN.md`) and sent with a request for that lesson as its

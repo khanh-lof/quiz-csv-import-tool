@@ -21,12 +21,18 @@ by hand (by an AI curator reading the scan) to the format in [LESSON_DOC_FORMAT.
 | `yct-1` | 《YCT标准教程1》 YCT Standard Course 1 | YCT, level 1 | 12 | 2 |
 | `yct-6` | 《YCT标准教程6》 YCT Standard Course 6 | YCT, level 6 | 15 | 5 |
 | `vocab10` | Ôn tập từ vựng lớp 10 (Grade 10 Vocabulary Review, English) | `VocabReview10`, no level | 8 topics | 0 |
+| `gs-10` | Tiếng Anh 10 Global Success (English) | `GlobalSuccess`, level 10 | 10 units | word-list compilation, see its lesson-index.md |
 
 `vocab10` has no printed title page, so its name is the one the teacher gave it. Each topic is one lesson. Its
 `vocabulary-index.md` is `| Word | Pinyin | Topic |` with no pinyin, and its lesson docs leave the Pinyin column empty
 and put the book's definition in English. The scan's tables stop early for Culture (no table) and Employment (14 of
 19 definitions): those words carry "no definition in the scan" in the Note column, and their English is a curator's
 gloss. The Technology table prints "computer-literate" for the word the passage bolds as "computer-illiterate".
+
+`gs-10`'s source is a teacher's 11-page compilation of the unit word lists (Vietnamese meanings only), not the
+student's book: its lesson docs hold New words only, with curator English glosses, corrected POS (`POS corrected` in
+Note) and repaired typos (printed form in Note). Units 1–5 also carry 10 phrases each from a first-term revision sheet (Note `revision sheet`). It has no `book/`,
+`ocr/` or `pages/` folder: the PDF has a text layer.
 
 ## What each book folder holds
 

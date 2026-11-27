@@ -389,6 +389,7 @@ func TestTextbookFor(t *testing.T) {
 		{"Other", Options{CourseType: Other, CourseName: "Boya"}, ""},
 		{"vocabulary review", Options{Language: English, CourseType: VocabReview10}, "vocab10"},
 		{"vocabulary review ignores a level", Options{Language: English, CourseType: VocabReview10, Level: intPtr(3)}, "vocab10"},
+		{"global success grade 10", Options{Language: English, CourseType: GlobalSuccess, Level: intPtr(10)}, "gs-10"},
 	}
 	for _, tt := range tests {
 		got := textbookFor(tt.opts)
@@ -412,7 +413,7 @@ func TestEmbeddedTextbooks(t *testing.T) {
 	if err := TextbooksError(); err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]int{"hsk3-1": 15, "hsk3-2": 15, "hsk3-3": 18, "hsk3-4": 20, "hsk2-1": 15, "hsk2-2": 15, "hsk2-3": 20, "yct-1": 12, "yct-6": 15, "vocab10": 8}
+	want := map[string]int{"hsk3-1": 15, "hsk3-2": 15, "hsk3-3": 18, "hsk3-4": 20, "hsk2-1": 15, "hsk2-2": 15, "hsk2-3": 20, "yct-1": 12, "yct-6": 15, "vocab10": 8, "gs-10": 10}
 	if len(books) != len(want) {
 		t.Fatalf("want %d books, got %d", len(want), len(books))
 	}

@@ -94,6 +94,16 @@ export const TEXTBOOKS: readonly Textbook[] = [
     lessonNames: ['The Environment', 'The Family', 'Culture', 'Employment', 'Education', 'Technology', 'Social Issues',
       'Entertainment']
   },
+  {
+    courseType: CourseType.GlobalSuccess,
+    level: 10,
+    lessons: 10,
+    title: 'Tiếng Anh 10 Global Success',
+    lessonUnit: 'Unit',
+    lessonNames: ['Family Life', 'Humans and the Environment', 'Music', 'For a Better Community', 'Inventions',
+      'Gender Equality', 'Viet Nam and International Organisations', 'New Ways to Learn', 'Protecting the Environment',
+      'Ecotourism']
+  },
 ];
 
 // The levels of the course that have a book, lowest first: a quiz is only made from a book, so only these are

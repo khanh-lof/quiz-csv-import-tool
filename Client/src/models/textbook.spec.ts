@@ -66,6 +66,14 @@ describe('textbookFor', () => {
     expect(textbookFor(CourseType.VocabReview10, HskStandard.V3, 3)).toBe(book);
   });
 
+  it('finds Global Success by its grade, and names its units', () => {
+    const book = textbookFor(CourseType.GlobalSuccess, null, 10);
+    expect(book?.lessons).toBe(10);
+    expect(book?.lessonUnit).toBe('Unit');
+    expect(book?.lessonNames?.length).toBe(10);
+    expect(textbookFor(CourseType.GlobalSuccess, null, 11)).toBeUndefined();
+  });
+
   it('lists each book once', () => {
     const keys = TEXTBOOKS.map(b => `${b.courseType}/${b.hskStandard ?? ''}/${b.level ?? ''}`);
     expect(new Set(keys).size).toBe(keys.length);
@@ -77,6 +85,7 @@ describe('bookLevels', () => {
     expect(bookLevels(CourseType.Hsk, HskStandard.V3)).toEqual([1, 2, 3, 4]);
     expect(bookLevels(CourseType.Hsk, HskStandard.V2)).toEqual([1, 2, 3]);
     expect(bookLevels(CourseType.Yct, null)).toEqual([1, 6]);
+    expect(bookLevels(CourseType.GlobalSuccess, null)).toEqual([10]);
   });
 
   it('lists none for a course without levels, typed in by hand, or not chosen', () => {

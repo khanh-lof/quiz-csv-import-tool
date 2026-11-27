@@ -109,4 +109,11 @@ Its New words table holds every word of lessons 1–14, with each row copied fro
   saying so under the title;
 - Texts holds the topic's reading passage, with no bolding.
 
+**English word-list book (`gs-10`, Tiếng Anh Global Success).** Its source has only the units' word lists:
+- the title line is `# Tiếng Anh 10 Global Success Unit N — <unit title>`, and Objectives is one line;
+- the Pinyin column is empty; POS is `n.`, `v.`, `adj.`, `adv.`, `n./v.` or `phrase`; English is a curator's gloss;
+  Tiếng Việt is the source's meaning with font defects repaired;
+- Note says `POS corrected` when the source's POS was wrong or missing, and `printed as "…"` for a repaired typo;
+- there are no Texts or Language points.
+
 **Size.** A doc is usually 3–10 KB. Do not pad it.

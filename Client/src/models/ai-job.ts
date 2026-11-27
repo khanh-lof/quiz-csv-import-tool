@@ -1,6 +1,6 @@
 import { Messages, MessageKey } from '../i18n/messages';
 import { ExportType } from './export-type';
-import { CourseType } from './course-type';
+import { CourseType, courseLevelIsGrade } from './course-type';
 import { HskStandard } from './hsk-standard';
 import { formatLessonNumbers } from './lesson-numbers';
 import { QuizLanguage } from './quiz-language';
@@ -111,10 +111,22 @@ export function lessonLabel(job: AiJob, messages: Messages): string {
   const course = job.courseType === CourseType.Hsk ? `HSK ${job.hskStandard === HskStandard.V3 ? '3.0' : '2.0'}`
     : job.courseType === CourseType.Yct ? 'YCT'
       : job.courseType === CourseType.VocabReview10 ? messages.get('ai.course.vocabReview10')
+        : job.courseType === CourseType.GlobalSuccess ? messages.get('ai.course.globalSuccess')
         : (job.courseName || messages.get('ai.course.other'));
   const lessons = job.lessonNumbers ?? [];
   const numbers = formatLessonNumbers(lessons);
-  return [course, job.level === null ? null : messages.get('ai.lessonLabel.level', { level: job.level }), lessons.length === 0 ? null
-    : messages.get(job.courseType === CourseType.VocabReview10 ? 'ai.lessonLabel.topic' : 'ai.lessonLabel.lesson', { numbers })]
+  return [course, job.level === null ? null : messages.get(courseLevelIsGrade(job.courseType) ? 'ai.lessonLabel.grade' : 'ai.lessonLabel.level', { level: job.level }), lessons.length === 0 ? null
+    : messages.get(lessonLabelKey(job.courseType), { numbers })]
     .filter(part => part !== null).join(' · ');
+}
+
+function lessonLabelKey(courseType: CourseType): MessageKey {
+  switch (courseType) {
+    case CourseType.VocabReview10:
+      return 'ai.lessonLabel.topic';
+    case CourseType.GlobalSuccess:
+      return 'ai.lessonLabel.unit';
+    default:
+      return 'ai.lessonLabel.lesson';
+  }
 }

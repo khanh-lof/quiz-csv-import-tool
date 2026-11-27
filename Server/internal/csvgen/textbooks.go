@@ -62,6 +62,8 @@ var textbookRegistry = []bookSpec{
 	// A single English book with no levels: its level is zero and a request for it carries none.
 	{dir: "vocab10", title: "Ôn tập từ vựng lớp 10", english: "Grade 10 Vocabulary Review", course: "Ôn tập từ vựng lớp 10", courseType: VocabReview10, lessons: 8,
 		quizGuidance: "Keep the quiz easy, for a Vietnamese grade 10 learner. Use only simple question types: what an English word or phrase means (and the reverse), filling the blank in a short sentence with the right word, putting the words of a short simple sentence in order, a short question answered with the word, and finding the word that does not belong to a topic's vocabulary group. Keep every question and sentence short and plain, make the wrong answers clearly different from the right one and take them from other words of the material, and ask no trick questions."},
+	{dir: "gs-10", title: "Tiếng Anh 10 Global Success", english: "English 10 Global Success", course: "Tiếng Anh Global Success", courseType: GlobalSuccess, level: 10, lessons: 10,
+		quizGuidance: "The material is the unit's word list only, with no reading passage. Keep the quiz at a Vietnamese grade 10 learner's level: what an English word or phrase means (and the reverse), filling the blank in a short sentence with the right word, choosing the word that fits a short context, and matching a phrase with its meaning. Write the sentences yourself, short and plain, take the wrong answers from other words of the material, and ask no trick questions."},
 }
 
 // textbook is a book of the registry with its loaded lessons.

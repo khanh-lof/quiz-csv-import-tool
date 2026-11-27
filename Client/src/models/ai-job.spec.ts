@@ -239,6 +239,14 @@ describe('lessonLabel', () => {
     }), messages())).toBe('YCT · cấp 2 · bài 7');
   });
 
+  it('calls a Global Success level a grade and its lessons units', () => {
+    expect(lessonLabel(job({
+      courseType: CourseType.GlobalSuccess,
+      level: 10,
+      lessonNumbers: [3]
+    }), messages())).toBe('Global Success · lớp 10 · unit 3');
+  });
+
   it('writes several lessons with a run shortened', () => {
     expect(lessonLabel(job({
       courseType: CourseType.Hsk,

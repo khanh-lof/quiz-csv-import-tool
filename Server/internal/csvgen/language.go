@@ -47,6 +47,7 @@ var courseLanguages = map[CourseType]Language{
 	Hsk:           Chinese,
 	Yct:           Chinese,
 	VocabReview10: English,
+	GlobalSuccess: English,
 }
 
 // Teaches says whether the course is one of the language's.

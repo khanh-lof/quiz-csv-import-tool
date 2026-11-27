@@ -35,7 +35,7 @@ import { AiGenerationRequest } from '../../models/ai-generation-request';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NzOptionComponent, NzSelectComponent } from 'ng-zorro-antd/select';
 import { ExportType } from '../../models/export-type';
-import { CourseType, courseHasLevels } from '../../models/course-type';
+import { CourseType, courseHasLevels, courseLevelIsGrade } from '../../models/course-type';
 import { HskStandard } from '../../models/hsk-standard';
 import { bookLevels, Textbook, textbookFor, textbookTitle } from '../../models/textbook';
 import {
@@ -295,6 +295,10 @@ export class AiGeneration {
   }
 
   // "Bài", or what the book calls its lessons ("Topic").
+  protected get levelLabelKey(): MessageKey {
+    return courseLevelIsGrade(this.formGroup.controls.courseType.value) ? 'ai.label.grade' : 'ai.label.level';
+  }
+
   protected get lessonUnit(): string {
     return this.textbook?.lessonUnit ?? this.messages.get('ai.label.lesson');
   }
@@ -639,9 +643,10 @@ export class AiGeneration {
     const course = courseType === CourseType.Hsk ? (hskStandard === HskStandard.V3 ? 'HSK3.0-' : 'HSK')
       : courseType === CourseType.Yct ? 'YCT'
         : courseType === CourseType.VocabReview10 ? 'Lop10'
-          : '';
+          : courseType === CourseType.GlobalSuccess ? 'GS'
+            : '';
     const shownLevel = courseHasLevels(courseType) ? level : null;
-    return `${course}${shownLevel ?? ''}-${courseType === CourseType.VocabReview10 ? 'Topic' : 'Bai'}${formatLessonNumbers(lessonNumbers ?? [], '-', '+')}`;
+    return `${course}${shownLevel ?? ''}-${this.textbook?.lessonUnit ?? 'Bai'}${formatLessonNumbers(lessonNumbers ?? [], '-', '+')}`;
   }
 
   // Only what can go wrong before the server accepts the job. A job that fails later (AI error, timeout)

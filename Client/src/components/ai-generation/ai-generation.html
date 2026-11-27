@@ -69,7 +69,7 @@
               </div>
               @if (courseHasLevels(formGroup.controls.courseType.value)) {
                 <div class="field">
-                  <label class="field-label" for="level">{{ 'ai.label.level' | msg }}</label>
+                  <label class="field-label" for="level">{{ levelLabelKey | msg }}</label>
                   <!-- Only the levels with a book: a quiz is made from the book's lessons. -->
                   <nz-select [formControl]="formGroup.controls.level" class="level-select" nzId="level">
                     @for (level of levelOptions; track level) {

@@ -386,7 +386,7 @@ There is no CORS handling: the API is only called from the SPA's own origin (see
   a template defines stages or its own ordering format). The client plays those rows, so see the stage table in
   [../AGENTS.md](../AGENTS.md#the-gesture-quiz-game) before changing the template.
 - **Textbook lessons** (`textbooks.go`, `textbooks/<book>/lesson-NN.md`, embedded with `go:embed textbooks`).
-  For nine books the teacher need not send photos, nor leave the model to rebuild the lesson from memory:
+  For ten books the teacher need not send photos, nor leave the model to rebuild the lesson from memory:
   the curated document of the lesson is sent as a **LESSON MATERIAL** message. The books are the hand-kept
   `textbookRegistry` (`dir`, title, `CourseType`, `HskStandard`, level and the pinned **lesson count**):
   `hsk2-1`, `hsk2-2`, `hsk2-3` (HSK 2.0 levels 1 to 3, 15, 15 and 20 lessons, their own `hsk2` series: a learner of level 2 knows the level 1 book), `hsk3-1`, `hsk3-2`, `hsk3-3`, `hsk3-4` (HSK 3.0 levels 1 to 4, 15, 15, 18 and 20 lessons; level 4 is one book in two volumes, lessons 11 to 20 being 4下, one series: a learner of level
@@ -395,7 +395,8 @@ There is no CORS handling: the API is only called from the SPA's own origin (see
   `CourseType` `VocabReview10`, 8 topics as lessons, no level: its `level` is 0, `textbookFor` ignores the request's
   level for it, and the request's `level` is optional for it as for `Other`; its Known vocabulary list is joined with
   ", " instead of "、", and its `quizGuidance` ("Keep the quiz easy: …") is sent with the course and lesson in every
-  request; any book may carry one). The client mirrors the registry in `Client/src/models/textbook.ts`, so
+  request; any book may carry one) and `gs-10` ("Tiếng Anh 10 Global Success", `CourseType` `GlobalSuccess`,
+  level 10 = the grade, 10 units, word lists only, with its own `quizGuidance`). The client mirrors the registry in `Client/src/models/textbook.ts`, so
   adding a book or a lesson means changing the folder, the registry and that file together. `textbookFor`
   matches `CourseType` + (HSK only) `HskStandard` + `*Level`; `Other` and HSK 2.0 above level 3 never match, and neither does
   anything when the library did not load. A match changes `CourseDisplayName()` to the book's full name

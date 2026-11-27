@@ -52,7 +52,8 @@ export const LANGUAGES: readonly LanguageSpec[] = [
     tag: 'EN',
     tagColor: 'blue',
     courses: [
-      { value: CourseType.VocabReview10, labelKey: 'ai.course.vocabReview10' }
+      { value: CourseType.VocabReview10, labelKey: 'ai.course.vocabReview10' },
+      { value: CourseType.GlobalSuccess, labelKey: 'ai.course.globalSuccess' }
     ],
     defaultCourse: CourseType.VocabReview10,
     formattedLabelKey: 'ai.language.englishFormatted',

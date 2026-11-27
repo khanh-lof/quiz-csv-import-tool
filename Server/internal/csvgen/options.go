@@ -41,9 +41,11 @@ const (
 	Other
 	// VocabReview10 is the English "Ôn tập từ vựng lớp 10" vocabulary review, a single book with no levels.
 	VocabReview10
+	// GlobalSuccess is the English "Tiếng Anh Global Success" school series, one book per grade, the grade being the level.
+	GlobalSuccess
 )
 
-var courseTypeNames = []string{"Hsk", "Yct", "Other", "VocabReview10"}
+var courseTypeNames = []string{"Hsk", "Yct", "Other", "VocabReview10", "GlobalSuccess"}
 
 // hasLevels says whether the course is taught in levels. Other may have one or not; a single-book course has none.
 func (c CourseType) hasLevels() bool {
